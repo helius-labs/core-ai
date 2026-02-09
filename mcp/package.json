@@ -30,9 +30,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/helius-labs/helius-mcp-server"
+    "url": "https://github.com/helius-labs/core-ai"
   },
-  "homepage": "https://github.com/helius-labs/helius-mcp-server#readme",
+  "homepage": "https://github.com/helius-labs/core-ai#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "helius-sdk": "^2.0.5",
