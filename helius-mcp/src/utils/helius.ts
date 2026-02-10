@@ -96,9 +96,14 @@ export async function restRequest(endpoint: string, options: RequestInit = {}): 
   const separator = endpoint.includes('?') ? '&' : '?';
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
 
+  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  if (options.body) {
+    headers['Content-Type'] ??= 'application/json';
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
   });
 
   if (!response.ok) {
