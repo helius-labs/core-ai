@@ -91,16 +91,16 @@ export function registerWebhookTools(server: McpServer) {
       webhookURL: z.string().describe('Your webhook URL endpoint'),
       webhookType: z.enum(['enhanced', 'raw', 'discord']).describe('Webhook type - use "enhanced" for parsed transaction data with descriptions'),
       accountAddresses: z.array(z.string()).describe('Array of Solana addresses to monitor (up to 100,000 per webhook)'),
-      transactionTypes: z.array(z.enum(TRANSACTION_TYPES as unknown as [string, ...string[]])).optional().describe('Filter by specific transaction types - e.g. ["SWAP", "NFT_SALE", "STAKE_TOKEN"]. Leave empty to receive all transaction types. See common types: NFT_SALE, NFT_MINT, SWAP, TRANSFER, STAKE_TOKEN, UNSTAKE_TOKEN, BUY, SELL, TOKEN_MINT')
+      transactionTypes: z.array(z.enum(TRANSACTION_TYPES as unknown as [string, ...string[]])).describe('Transaction types to monitor - e.g. ["SWAP", "NFT_SALE"]. Use ["ANY"] to receive all types. Common types: NFT_SALE, NFT_MINT, SWAP, TRANSFER, STAKE_TOKEN, UNSTAKE_TOKEN, BUY, SELL, TOKEN_MINT')
     },
     async ({ webhookURL, webhookType, accountAddresses, transactionTypes }) => {
       try {
         const body: any = {
           webhookURL,
           webhookType,
-          accountAddresses
+          accountAddresses,
+          transactionTypes
         };
-        if (transactionTypes) body.transactionTypes = transactionTypes;
 
         const webhook = await restRequest('/v0/webhooks', {
           method: 'POST',
@@ -180,7 +180,6 @@ export function registerWebhookTools(server: McpServer) {
       try {
         await restRequest(`/v0/webhooks/${webhookID}`, {
           method: 'DELETE',
-          body: JSON.stringify({}),
         });
 
         return {
