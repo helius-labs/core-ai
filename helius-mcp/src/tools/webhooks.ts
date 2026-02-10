@@ -129,15 +129,25 @@ export function registerWebhookTools(server: McpServer) {
     {
       webhookID: z.string().describe('Webhook ID to update'),
       webhookURL: z.string().optional().describe('New webhook URL'),
+      webhookType: z.enum(['enhanced', 'raw', 'discord']).optional().describe('Webhook type (required by the Helius API for updates)'),
       accountAddresses: z.array(z.string()).optional().describe('New list of addresses to monitor (replaces existing list)'),
       transactionTypes: z.array(z.enum(TRANSACTION_TYPES as unknown as [string, ...string[]])).optional().describe('New transaction type filters - e.g. ["SWAP", "NFT_SALE"]. Replaces existing filters.')
     },
-    async ({ webhookID, webhookURL, accountAddresses, transactionTypes }) => {
+    async ({ webhookID, webhookURL, webhookType, accountAddresses, transactionTypes }) => {
       try {
-        const body: any = {};
-        if (webhookURL) body.webhookURL = webhookURL;
-        if (accountAddresses) body.accountAddresses = accountAddresses;
-        if (transactionTypes) body.transactionTypes = transactionTypes;
+        // Helius PUT /v0/webhooks requires the full webhook object.
+        // Fetch the existing webhook first so callers only need to supply changed fields.
+        const existing = await restRequest(`/v0/webhooks/${webhookID}`);
+        const body: any = {
+          webhookURL: webhookURL ?? existing.webhookURL,
+          webhookType: webhookType ?? existing.webhookType,
+          accountAddresses: accountAddresses ?? existing.accountAddresses,
+        };
+        if (transactionTypes) {
+          body.transactionTypes = transactionTypes;
+        } else if (existing.transactionTypes) {
+          body.transactionTypes = existing.transactionTypes;
+        }
 
         const webhook = await restRequest(`/v0/webhooks/${webhookID}`, {
           method: 'PUT',
@@ -169,7 +179,8 @@ export function registerWebhookTools(server: McpServer) {
     async ({ webhookID }) => {
       try {
         await restRequest(`/v0/webhooks/${webhookID}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          body: JSON.stringify({}),
         });
 
         return {
