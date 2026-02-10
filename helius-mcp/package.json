@@ -1,6 +1,6 @@
 {
   "name": "helius-mcp",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "Official Helius MCP Server - Complete Solana blockchain data access for Claude",
   "type": "module",
   "main": "dist/index.js",
@@ -35,6 +35,7 @@
   "homepage": "https://github.com/helius-labs/core-ai#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "bs58": "^6.0.0",
     "helius-sdk": "^2.0.5",
     "zod": "^3.23.0"
   },

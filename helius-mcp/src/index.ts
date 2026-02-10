@@ -7,7 +7,7 @@ import { setApiKey } from './utils/helius.js';
 
 const server = new McpServer({
   name: 'helius-mcp',
-  version: '0.2.4'
+  version: '0.3.0'
 });
 
 registerTools(server);
