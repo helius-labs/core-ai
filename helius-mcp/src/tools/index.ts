@@ -12,6 +12,7 @@ import { registerDasExtraTools } from './das-extras.js';
 import { registerWebhookTools } from './webhooks.js';
 import { registerEnhancedWebSocketTools } from './enhanced-websockets.js';
 import { registerLaserstreamTools } from './laserstream.js';
+import { registerWalletTools } from './wallet.js';
 
 export function registerTools(server: McpServer) {
   registerConfigTools(server);
@@ -27,4 +28,5 @@ export function registerTools(server: McpServer) {
   registerWebhookTools(server);
   registerEnhancedWebSocketTools(server);
   registerLaserstreamTools(server);
+  registerWalletTools(server);
 }

@@ -1,11 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getHeliusClient, hasApiKey, getRpcUrl } from '../utils/helius.js';
-import { formatSol, formatAddress, formatTimestamp } from '../utils/formatters.js';
+import { formatSol, formatAddress, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import bs58 from 'bs58';
-
-const LAMPORTS_PER_SOL = 1_000_000_000;
 
 // ─── Shared Types ───
 

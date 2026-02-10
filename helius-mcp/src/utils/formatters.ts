@@ -1,5 +1,7 @@
+export const LAMPORTS_PER_SOL = 1_000_000_000;
+
 export function formatSol(lamports: number): string {
-  const sol = lamports / 1e9;
+  const sol = lamports / LAMPORTS_PER_SOL;
   if (sol === 0) return '0 SOL';
   return `${sol.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 9 })} SOL`;
 }
@@ -18,5 +20,5 @@ export function formatTokenAmount(amount: number, decimals: number): string {
 }
 
 export function formatSolCompact(lamports: number): string {
-  return `${(lamports / 1e9).toLocaleString(undefined, { maximumFractionDigits: 0 })} SOL`;
+  return `${(lamports / LAMPORTS_PER_SOL).toLocaleString(undefined, { maximumFractionDigits: 0 })} SOL`;
 }
