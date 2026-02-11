@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { dasRequest } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
+import { mcpText, mcpError, handleToolError, addressError, notFoundError, paginationError } from '../utils/errors.js';
 
 export function registerDasExtraTools(server: McpServer) {
   server.tool(
@@ -13,15 +14,13 @@ export function registerDasExtraTools(server: McpServer) {
     async ({ id }) => {
       try {
         const proof = await dasRequest('getAssetProof', { id });
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Merkle Proof for ${formatAddress(id)}**\n\n**Root:** ${formatAddress(proof.root)}\n**Leaf:** ${formatAddress(proof.leaf)}\n**Tree ID:** ${formatAddress(proof.tree_id)}\n**Proof Length:** ${proof.proof.length} nodes`
-          }]
-        };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(`**Merkle Proof for ${formatAddress(id)}**\n\n**Root:** ${formatAddress(proof.root)}\n**Leaf:** ${formatAddress(proof.leaf)}\n**Tree ID:** ${formatAddress(proof.tree_id)}\n**Proof Length:** ${proof.proof.length} nodes`);
+      } catch (err) {
+        const header = `Merkle Proof for ${formatAddress(id)}`;
+        return handleToolError(err, 'Error fetching asset proof', [
+          notFoundError(header, 'Asset proof not found. This asset may not be a compressed NFT (cNFT), or the mint address does not exist.'),
+          addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
+        ]);
       }
     }
   );
@@ -35,19 +34,16 @@ export function registerDasExtraTools(server: McpServer) {
     async ({ ids }) => {
       try {
         if (ids.length > 1000) {
-          return { content: [{ type: 'text' as const, text: 'Max 1000 proofs per batch' }], isError: true };
+          return mcpError('Max 1000 proofs per batch');
         }
         const result = await dasRequest('getAssetProofBatch', { ids });
         const proofsArray = Array.isArray(result) ? result : Object.values(result);
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Batch Merkle Proofs** (${proofsArray.length})\n\n${proofsArray.map((p: any, i: number) => `${i + 1}. ${formatAddress(ids[i])}\n   Root: ${formatAddress(p.root)}`).join('\n\n')}`
-          }]
-        };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(`**Batch Merkle Proofs** (${proofsArray.length})\n\n${proofsArray.map((p: any, i: number) => `${i + 1}. ${formatAddress(ids[i])}\n   Root: ${formatAddress(p.root)}`).join('\n\n')}`);
+      } catch (err) {
+        return handleToolError(err, 'Error fetching asset proofs', [
+          notFoundError('Batch Merkle Proofs', 'One or more asset proofs were not found. Some assets may not be compressed NFTs (cNFTs), or the mint addresses may not exist.'),
+          addressError('Batch Merkle Proofs', 'One or more provided IDs are not valid Solana addresses. Please check the mint addresses and try again.'),
+        ]);
       }
     }
   );
@@ -64,17 +60,21 @@ export function registerDasExtraTools(server: McpServer) {
       try {
         const result = await dasRequest('getSignaturesForAsset', { id, page, limit });
         if (!result.items?.length) {
-          return { content: [{ type: 'text' as const, text: `**Signatures for ${formatAddress(id)}**\n\nNo transactions found.` }] };
+          return mcpText(`**Signatures for ${formatAddress(id)}**\n\nNo transactions found.`);
         }
         const lines = [`**Signatures for ${formatAddress(id)}** (${result.total} total)`, ''];
         result.items.forEach((sig: any, i: number) => {
           lines.push(`${i + 1}. ${sig.signature}`);
           if (sig.blockTime) lines.push(`   Time: ${new Date(sig.blockTime * 1000).toLocaleString()}`);
         });
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        const header = `Signatures for ${formatAddress(id)}`;
+        return handleToolError(err, 'Error fetching signatures', [
+          notFoundError(header, 'Asset not found. This mint address does not exist or has not been indexed.'),
+          addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
+          paginationError(header),
+        ]);
       }
     }
   );
@@ -91,7 +91,7 @@ export function registerDasExtraTools(server: McpServer) {
       try {
         const result = await dasRequest('getNftEditions', { mint, page, limit });
         if (!result.editions?.length) {
-          return { content: [{ type: 'text' as const, text: `**Editions for ${formatAddress(mint)}**\n\nNo editions found.` }] };
+          return mcpText(`**Editions for ${formatAddress(mint)}**\n\nNo editions found.`);
         }
         const lines = [`**Editions for ${formatAddress(mint)}** (${result.total} total)`, ''];
         result.editions.forEach((edition: any, i: number) => {
@@ -99,13 +99,15 @@ export function registerDasExtraTools(server: McpServer) {
           lines.push(`   Mint: ${formatAddress(edition.mint)}`);
           if (edition.owner) lines.push(`   Owner: ${formatAddress(edition.owner)}`);
         });
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        if (errorMsg.includes('null value was encountered while decoding')) {
-          return { content: [{ type: 'text' as const, text: `**Editions for ${formatAddress(mint)}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.` }] };
-        }
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        const header = `Editions for ${formatAddress(mint)}`;
+        return handleToolError(err, 'Error fetching editions', [
+          { match: (m) => m.includes('null value was encountered'), respond: () => mcpText(`**${header}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.`) },
+          notFoundError(header, 'Asset not found. This mint address does not exist or has not been indexed.'),
+          addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
+          paginationError(header),
+        ]);
       }
     }
   );

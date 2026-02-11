@@ -2,6 +2,7 @@
 // https://docs.helius.dev/webhooks/transaction-types
 
 export const TRANSACTION_TYPES = [
+  'ANY',
   'UNKNOWN',
   'NFT_BID',
   'NFT_BID_CANCELLED',
