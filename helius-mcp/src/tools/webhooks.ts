@@ -91,16 +91,16 @@ export function registerWebhookTools(server: McpServer) {
       webhookURL: z.string().describe('Your webhook URL endpoint'),
       webhookType: z.enum(['enhanced', 'raw', 'discord']).describe('Webhook type - use "enhanced" for parsed transaction data with descriptions'),
       accountAddresses: z.array(z.string()).describe('Array of Solana addresses to monitor (up to 100,000 per webhook)'),
-      transactionTypes: z.array(z.enum(TRANSACTION_TYPES as unknown as [string, ...string[]])).optional().describe('Filter by specific transaction types - e.g. ["SWAP", "NFT_SALE", "STAKE_TOKEN"]. Leave empty to receive all transaction types. See common types: NFT_SALE, NFT_MINT, SWAP, TRANSFER, STAKE_TOKEN, UNSTAKE_TOKEN, BUY, SELL, TOKEN_MINT')
+      transactionTypes: z.array(z.enum(TRANSACTION_TYPES as unknown as [string, ...string[]])).describe('Transaction types to monitor - e.g. ["SWAP", "NFT_SALE"]. Use ["ANY"] to receive all types. Common types: NFT_SALE, NFT_MINT, SWAP, TRANSFER, STAKE_TOKEN, UNSTAKE_TOKEN, BUY, SELL, TOKEN_MINT')
     },
     async ({ webhookURL, webhookType, accountAddresses, transactionTypes }) => {
       try {
         const body: any = {
           webhookURL,
           webhookType,
-          accountAddresses
+          accountAddresses,
+          transactionTypes
         };
-        if (transactionTypes) body.transactionTypes = transactionTypes;
 
         const webhook = await restRequest('/v0/webhooks', {
           method: 'POST',
@@ -129,15 +129,25 @@ export function registerWebhookTools(server: McpServer) {
     {
       webhookID: z.string().describe('Webhook ID to update'),
       webhookURL: z.string().optional().describe('New webhook URL'),
+      webhookType: z.enum(['enhanced', 'raw', 'discord']).optional().describe('Webhook type (required by the Helius API for updates)'),
       accountAddresses: z.array(z.string()).optional().describe('New list of addresses to monitor (replaces existing list)'),
       transactionTypes: z.array(z.enum(TRANSACTION_TYPES as unknown as [string, ...string[]])).optional().describe('New transaction type filters - e.g. ["SWAP", "NFT_SALE"]. Replaces existing filters.')
     },
-    async ({ webhookID, webhookURL, accountAddresses, transactionTypes }) => {
+    async ({ webhookID, webhookURL, webhookType, accountAddresses, transactionTypes }) => {
       try {
-        const body: any = {};
-        if (webhookURL) body.webhookURL = webhookURL;
-        if (accountAddresses) body.accountAddresses = accountAddresses;
-        if (transactionTypes) body.transactionTypes = transactionTypes;
+        // Helius PUT /v0/webhooks requires the full webhook object.
+        // Fetch the existing webhook first so callers only need to supply changed fields.
+        const existing = await restRequest(`/v0/webhooks/${webhookID}`);
+        const body: any = {
+          webhookURL: webhookURL ?? existing.webhookURL,
+          webhookType: webhookType ?? existing.webhookType,
+          accountAddresses: accountAddresses ?? existing.accountAddresses,
+        };
+        if (transactionTypes) {
+          body.transactionTypes = transactionTypes;
+        } else if (existing.transactionTypes) {
+          body.transactionTypes = existing.transactionTypes;
+        }
 
         const webhook = await restRequest(`/v0/webhooks/${webhookID}`, {
           method: 'PUT',
@@ -169,7 +179,7 @@ export function registerWebhookTools(server: McpServer) {
     async ({ webhookID }) => {
       try {
         await restRequest(`/v0/webhooks/${webhookID}`, {
-          method: 'DELETE'
+          method: 'DELETE',
         });
 
         return {

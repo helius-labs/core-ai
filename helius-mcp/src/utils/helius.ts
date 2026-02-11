@@ -1,8 +1,12 @@
+import { createHelius, type HeliusClient } from 'helius-sdk';
+
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
+let heliusClient: HeliusClient | null = null;
 
 export function setApiKey(apiKey: string): void {
   sessionApiKey = apiKey;
+  heliusClient = null; // Reset client so it picks up new key
 }
 
 export function getApiKey(): string {
@@ -11,6 +15,18 @@ export function getApiKey(): string {
     throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
   return apiKey;
+}
+
+export function hasApiKey(): boolean {
+  return !!(sessionApiKey || process.env.HELIUS_API_KEY);
+}
+
+export function getHeliusClient(): HeliusClient {
+  if (!heliusClient) {
+    const apiKey = getApiKey();
+    heliusClient = createHelius({ apiKey });
+  }
+  return heliusClient;
 }
 
 export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
@@ -96,9 +112,14 @@ export async function restRequest(endpoint: string, options: RequestInit = {}): 
   const separator = endpoint.includes('?') ? '&' : '?';
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
 
+  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  if (options.body) {
+    headers['Content-Type'] ??= 'application/json';
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
   });
 
   if (!response.ok) {
