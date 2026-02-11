@@ -1,4 +1,5 @@
 import { createHelius, type HeliusClient } from 'helius-sdk';
+import { MCP_USER_AGENT } from '../http.js';
 
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
@@ -73,7 +74,7 @@ export async function rpcRequest(method: string, params: any[] = []): Promise<an
   const url = getRpcUrl();
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'User-Agent': MCP_USER_AGENT },
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
   });
 
@@ -92,7 +93,7 @@ export async function dasRequest(method: string, params: any = {}): Promise<any>
   const url = getRpcUrl();
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'User-Agent': MCP_USER_AGENT },
     body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
   });
 
@@ -113,6 +114,7 @@ export async function restRequest(endpoint: string, options: RequestInit = {}): 
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
 
   const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  headers['User-Agent'] = MCP_USER_AGENT;
   if (options.body) {
     headers['Content-Type'] ??= 'application/json';
   }
