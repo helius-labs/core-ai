@@ -102,6 +102,9 @@ export function registerDasExtraTools(server: McpServer) {
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
+        if (errorMsg.includes('null value was encountered while decoding')) {
+          return { content: [{ type: 'text' as const, text: `**Editions for ${formatAddress(mint)}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.` }] };
+        }
         return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
       }
     }
