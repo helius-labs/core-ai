@@ -13,7 +13,6 @@ import { registerWebhookTools } from './webhooks.js';
 import { registerEnhancedWebSocketTools } from './enhanced-websockets.js';
 import { registerLaserstreamTools } from './laserstream.js';
 import { registerWalletTools } from './wallet.js';
-import { registerPlanTools } from './plans.js';
 import { registerGuideTools } from './guides.js';
 import { registerDocsTools } from './docs.js';
 
@@ -32,7 +31,6 @@ export function registerTools(server: McpServer) {
   registerEnhancedWebSocketTools(server);
   registerLaserstreamTools(server);
   registerWalletTools(server);
-  registerPlanTools(server);
   registerGuideTools(server);
   registerDocsTools(server);
 }

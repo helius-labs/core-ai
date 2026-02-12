@@ -14,6 +14,10 @@ export const DOCS_INDEX: Record<string, { path: string; description: string }> =
     path: '/llms.txt',
     description: 'Main Helius overview: plans, credits, rate limits, use cases, API index',
   },
+  billing: {
+    path: '/billing/llms.txt',
+    description: 'Billing & Plans: pricing tiers, credits, rate limits, autoscaling, payment methods',
+  },
   das: {
     path: '/api-reference/das/llms.txt',
     description: 'DAS API: getAsset, getAssetsByOwner, searchAssets, compressed NFTs',

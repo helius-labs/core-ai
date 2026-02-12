@@ -13,7 +13,7 @@ Set your API key:
 export HELIUS_API_KEY=your-api-key
 ```
 
-## Tools (48)
+## Tools (46)
 
 **Config (2):** setHeliusApiKey, getHeliusApiKeyStatus
 
@@ -33,7 +33,7 @@ export HELIUS_API_KEY=your-api-key
 
 **Wallet API (6):** getWalletIdentity, batchWalletIdentity, getWalletBalances, getWalletHistory, getWalletTransfers, getWalletFundedBy
 
-**Plans & Guides (8):** getHeliusPlanInfo, compareHeliusPlans, getRateLimitInfo, getSenderInfo, getWebhookGuide, troubleshootError, getLatencyComparison, getPumpFunGuide
+**Guides (6):** getRateLimitInfo, getSenderInfo, getWebhookGuide, troubleshootError, getLatencyComparison, getPumpFunGuide
 
 **Documentation (3):** lookupHeliusDocs, listHeliusDocTopics, getHeliusCreditsInfo
 

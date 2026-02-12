@@ -13,6 +13,7 @@ export function registerDocsTools(server: McpServer) {
       topic: z
         .enum([
           'overview',
+          'billing',
           'das',
           'rpc',
           'websocket',
