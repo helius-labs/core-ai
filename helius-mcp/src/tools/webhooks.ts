@@ -36,7 +36,7 @@ export function registerWebhookTools(server: McpServer) {
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }],
+          content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }],
           isError: true
         };
       }
@@ -77,7 +77,7 @@ export function registerWebhookTools(server: McpServer) {
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }],
+          content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }],
           isError: true
         };
       }
@@ -110,13 +110,13 @@ export function registerWebhookTools(server: McpServer) {
         return {
           content: [{
             type: 'text' as const,
-            text: `✅ **Webhook Created**\n\n**ID:** ${webhook.webhookID}\n**URL:** ${webhook.webhookURL}\n**Monitoring:** ${accountAddresses.length} address(es)`
+            text: `**Webhook Created**\n\n**ID:** ${webhook.webhookID}\n**URL:** ${webhook.webhookURL}\n**Monitoring:** ${accountAddresses.length} address(es)`
           }]
         };
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }],
+          content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }],
           isError: true
         };
       }
@@ -157,13 +157,13 @@ export function registerWebhookTools(server: McpServer) {
         return {
           content: [{
             type: 'text' as const,
-            text: `✅ **Webhook Updated**\n\n**ID:** ${webhook.webhookID}\n**URL:** ${webhook.webhookURL}`
+            text: `**Webhook Updated**\n\n**ID:** ${webhook.webhookID}\n**URL:** ${webhook.webhookURL}`
           }]
         };
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }],
+          content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }],
           isError: true
         };
       }
@@ -185,13 +185,13 @@ export function registerWebhookTools(server: McpServer) {
         return {
           content: [{
             type: 'text' as const,
-            text: `✅ Webhook ${webhookID} deleted successfully.`
+            text: `Webhook ${webhookID} deleted successfully.`
           }]
         };
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         return {
-          content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }],
+          content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }],
           isError: true
         };
       }

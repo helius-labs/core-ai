@@ -30,6 +30,9 @@ pnpm-debug.log*
 # Package tarballs
 *.tgz
 
-# Project docs (not for npm)
+# Lockfiles (not needed for published packages)
+pnpm-lock.yaml
+
+# Project docs (not for git)
 CLAUDE.md
 TG.md

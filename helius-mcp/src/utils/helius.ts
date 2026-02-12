@@ -1,7 +1,7 @@
 import { createHelius, type HeliusClient } from 'helius-sdk';
 
 let sessionApiKey: string | null = null;
-let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
+let sessionNetwork: 'mainnet' | 'devnet' = 'mainnet';
 let heliusClient: HeliusClient | null = null;
 
 export function setApiKey(apiKey: string): void {
@@ -12,7 +12,12 @@ export function setApiKey(apiKey: string): void {
 export function getApiKey(): string {
   const apiKey = sessionApiKey || process.env.HELIUS_API_KEY;
   if (!apiKey) {
-    throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
+    throw new Error(
+      'API key not set. Please use the setHeliusApiKey tool first:\n\n' +
+      '  Tool: setHeliusApiKey\n' +
+      '  Arguments: { "apiKey": "your-helius-api-key" }\n\n' +
+      'Get your free API key at: https://dashboard.helius.dev/api-keys'
+    );
   }
   return apiKey;
 }
@@ -29,13 +34,13 @@ export function getHeliusClient(): HeliusClient {
   return heliusClient;
 }
 
-export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
+export function setNetwork(network: 'mainnet' | 'devnet'): void {
   sessionNetwork = network;
 }
 
-export function getNetwork(): 'mainnet-beta' | 'devnet' {
+export function getNetwork(): 'mainnet' | 'devnet' {
   const envNetwork = process.env.HELIUS_NETWORK;
-  if (envNetwork === 'devnet' || envNetwork === 'mainnet-beta') {
+  if (envNetwork === 'devnet' || envNetwork === 'mainnet') {
     return envNetwork;
   }
   return sessionNetwork;

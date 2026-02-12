@@ -1,0 +1,99 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-helius-mcp:
+    name: Test helius-mcp
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./helius-mcp
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: helius-mcp/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Type check
+        run: pnpm tsc --noEmit
+
+      - name: Run unit tests
+        run: pnpm test:unit
+        env:
+          HELIUS_API_KEY: test-api-key-for-ci
+
+      - name: Run integration tests
+        run: pnpm test:integration
+        env:
+          HELIUS_API_KEY: test-api-key-for-ci
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          HELIUS_API_KEY: test-api-key-for-ci
+
+      - name: Run all tests with coverage
+        run: pnpm test:coverage
+        env:
+          HELIUS_API_KEY: test-api-key-for-ci
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: helius-mcp/coverage
+          retention-days: 7
+
+  # Optional: Run live tests (requires HELIUS_LIVE_API_KEY secret)
+  test-live:
+    name: Live API Tests
+    runs-on: ubuntu-latest
+    needs: test-helius-mcp
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: ./helius-mcp
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: helius-mcp/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run live API tests
+        if: env.HELIUS_LIVE_API_KEY != ''
+        run: pnpm test:live
+        env:
+          HELIUS_LIVE_API_KEY: ${{ secrets.HELIUS_LIVE_API_KEY }}

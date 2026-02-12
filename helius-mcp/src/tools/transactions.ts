@@ -358,7 +358,7 @@ export function registerTransactionTools(server: McpServer) {
           `**Fee:** ${feeDisplay}`,
           `**Fee Payer:** ${tx.feePayer || 'N/A'}`,
           `**Timestamp:** ${tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A'}`,
-          `**Status:** ${tx.transactionError ? '❌ Failed' : '✅ Success'}`,
+          `**Status:** ${tx.transactionError ? 'Failed' : 'Success'}`,
         );
 
         // Show error details for failed transactions
@@ -631,7 +631,7 @@ export function registerTransactionTools(server: McpServer) {
             const lines = [`**Signatures for ${formatAddress(address)}** (${sigs.length} results, newest first${statusNote})`, ''];
 
             sigs.forEach((sig) => {
-              const sigStatus = sig.err ? '❌' : '✅';
+              const sigStatus = sig.err ? '[FAILED]' : '[OK]';
               const time = sig.blockTime ? new Date(sig.blockTime * 1000).toISOString() : 'N/A';
               lines.push(`${sigStatus} ${sig.signature}`);
               lines.push(`   Slot: ${sig.slot.toLocaleString()} | Time: ${time}`);
@@ -689,7 +689,7 @@ export function registerTransactionTools(server: McpServer) {
         const lines = [`**Signatures for ${formatAddress(address)}** (${items.length} results, ${orderLabel}${statusNote})`, ''];
 
         items.forEach((item) => {
-          const txStatus = item.err ? '❌' : '✅';
+          const txStatus = item.err ? '[FAILED]' : '[OK]';
           const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
           lines.push(`${txStatus} ${item.signature}`);
           lines.push(`   Slot: ${item.slot.toLocaleString()} | Time: ${time}`);
@@ -745,7 +745,7 @@ export function registerTransactionTools(server: McpServer) {
         if (transactionDetails === 'signatures') {
           const items = result.data as SignatureResult[];
           items.forEach((item) => {
-            const txStatus = item.err ? '❌' : '✅';
+            const txStatus = item.err ? '[FAILED]' : '[OK]';
             const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
             lines.push(`${txStatus} ${item.signature}`);
             lines.push(`   Slot: ${item.slot.toLocaleString()} | Index: ${item.transactionIndex} | Time: ${time}`);
@@ -757,7 +757,7 @@ export function registerTransactionTools(server: McpServer) {
           const items = result.data as FullResult[];
           items.forEach((item) => {
             const sig = item.transaction.signatures[0];
-            const txStatus = item.meta.err ? '❌' : '✅';
+            const txStatus = item.meta.err ? '[FAILED]' : '[OK]';
             const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
             const fee = formatSol(item.meta.fee);
 
@@ -858,7 +858,7 @@ export function registerTransactionTools(server: McpServer) {
 
       allTransactions.forEach((tx) => {
         const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
-        const txStatus = tx.transactionError ? '❌' : '✅';
+        const txStatus = tx.transactionError ? '[FAILED]' : '[OK]';
         const type = tx.type || 'UNKNOWN';
         const source = tx.source || '';
 
