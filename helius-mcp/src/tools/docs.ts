@@ -215,19 +215,6 @@ export function registerDocsTools(server: McpServer) {
           'Source: https://www.helius.dev/docs (fetched live)',
           '',
           ...tableLines,
-          '',
-          '## Key Points',
-          '- Credits are consumed per API call',
-          '- Monthly allocation resets each billing cycle',
-          '- Additional credits: $5 per million (paid plans)',
-          '',
-          '## Credit Tiers',
-          '| Plan | Monthly Credits |',
-          '|------|-----------------|',
-          '| Free | 1M |',
-          '| Developer ($49/mo) | 10M |',
-          '| Business ($499/mo) | 100M |',
-          '| Professional ($999/mo) | 200M |',
         ].join('\n');
 
         return { content: [{ type: 'text' as const, text: result }] };
