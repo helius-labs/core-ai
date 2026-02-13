@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { hasApiKey, getRpcUrl } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
@@ -19,78 +19,38 @@ export function registerBlockTools(server: McpServer) {
       const err = validateEnum(transactionDetails, ['none', 'signatures', 'full'], 'Block Error', 'transactionDetails');
       if (err) return err;
 
-      const url = getRpcUrl();
-
       try {
-        const requestBody = {
-          jsonrpc: '2.0',
-          id: 'get-block',
-          method: 'getBlock',
-          params: [
-            slot,
-            {
-              encoding: 'jsonParsed',
-              transactionDetails,
-              maxSupportedTransactionVersion: 0,
-              rewards: true
-            }
-          ]
-        };
+        const helius = getHeliusClient();
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
+        // Kit requires BigInt for slot parameter
+        const block = await (helius as any).getBlock(BigInt(slot), {
+          encoding: 'jsonParsed',
+          transactionDetails,
+          maxSupportedTransactionVersion: 0,
+          rewards: true
+        }).send();
 
-        type Reward = {
-          pubkey: string;
-          lamports: number;
-          postBalance: number;
-          rewardType: string;
-          commission?: number;
-        };
-
-        type BlockResult = {
-          blockhash: string;
-          previousBlockhash: string;
-          parentSlot: number;
-          blockTime: number | null;
-          blockHeight: number | null;
-          transactions?: unknown[];
-          signatures?: string[];
-          rewards?: Reward[];
-        };
-
-        type ApiResponse = {
-          result?: BlockResult;
-          error?: { message: string };
-        };
-
-        const data = await response.json() as ApiResponse;
-
-        if (data.error) {
-          return mcpText(`**Error**\n\n${data.error.message}`);
-        }
-
-        const block = data.result;
         if (!block) {
           return mcpText(`**Block at Slot ${slot.toLocaleString()}**\n\nBlock not found. It may have been skipped or not yet confirmed.`);
         }
+
+        const parentSlot = Number(block.parentSlot);
+        const blockHeight = block.blockHeight != null ? Number(block.blockHeight) : null;
+        const blockTime = block.blockTime != null ? Number(block.blockTime) : null;
 
         const lines = [
           `**Block at Slot ${slot.toLocaleString()}**`,
           '',
           `**Blockhash:** ${block.blockhash}`,
-          `**Parent Slot:** ${block.parentSlot.toLocaleString()}`,
+          `**Parent Slot:** ${parentSlot.toLocaleString()}`,
           `**Previous Blockhash:** ${block.previousBlockhash}`,
         ];
 
-        if (block.blockHeight !== null) {
-          lines.push(`**Block Height:** ${block.blockHeight.toLocaleString()}`);
+        if (blockHeight !== null) {
+          lines.push(`**Block Height:** ${blockHeight.toLocaleString()}`);
         }
-        if (block.blockTime) {
-          lines.push(`**Block Time:** ${formatTimestamp(block.blockTime)}`);
+        if (blockTime) {
+          lines.push(`**Block Time:** ${formatTimestamp(blockTime)}`);
         }
 
         // Transaction count
@@ -102,10 +62,11 @@ export function registerBlockTools(server: McpServer) {
 
         // Rewards summary
         if (block.rewards && block.rewards.length > 0) {
-          const totalRewards = block.rewards.reduce((sum, r) => sum + r.lamports, 0);
+          const totalRewards = block.rewards.reduce((sum: number, r: any) => sum + Number(r.lamports), 0);
           const rewardTypes = new Map<string, number>();
-          block.rewards.forEach((r) => {
-            rewardTypes.set(r.rewardType, (rewardTypes.get(r.rewardType) || 0) + r.lamports);
+          block.rewards.forEach((r: any) => {
+            const lamports = Number(r.lamports);
+            rewardTypes.set(r.rewardType, (rewardTypes.get(r.rewardType) || 0) + lamports);
           });
 
           lines.push('', `**Rewards:** ${formatSol(totalRewards)} total (${block.rewards.length} recipients)`);
@@ -118,7 +79,7 @@ export function registerBlockTools(server: McpServer) {
         if (transactionDetails === 'signatures' && block.signatures && block.signatures.length > 0) {
           const maxShow = 20;
           lines.push('', `**Transaction Signatures** (${block.signatures.length} total):`);
-          block.signatures.slice(0, maxShow).forEach((sig) => {
+          block.signatures.slice(0, maxShow).forEach((sig: string) => {
             lines.push(`- ${sig}`);
           });
           if (block.signatures.length > maxShow) {

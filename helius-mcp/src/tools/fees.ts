@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { hasApiKey, getRpcUrl } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
 
@@ -22,63 +22,16 @@ export function registerFeeTools(server: McpServer) {
         if (err) return err;
       }
 
-      const url = getRpcUrl();
-
-      type PriorityFeeRequest = {
-        jsonrpc: '2.0';
-        id: string;
-        method: 'getPriorityFeeEstimate';
-        params: [{
-          accountKeys?: string[];
-          options?: {
-            priorityLevel?: string;
-            includeAllPriorityFeeLevels?: boolean;
-          };
-        }];
-      };
-
-      type PriorityFeeResponse = {
-        result?: {
-          priorityFeeEstimate?: number;
-          priorityFeeLevels?: {
-            min: number;
-            low: number;
-            medium: number;
-            high: number;
-            veryHigh: number;
-            unsafeMax: number;
-          };
-        };
-        error?: { message: string };
-      };
-
-      const requestBody: PriorityFeeRequest = {
-        jsonrpc: '2.0',
-        id: 'priority-fee-estimate',
-        method: 'getPriorityFeeEstimate',
-        params: [{
+      try {
+        const helius = getHeliusClient();
+        const result = await helius.getPriorityFeeEstimate({
           ...(accountKeys && { accountKeys }),
           options: {
-            ...(priorityLevel && { priorityLevel }),
+            ...(priorityLevel && { priorityLevel: priorityLevel as any }),
             includeAllPriorityFeeLevels: includeAllLevels
           }
-        }]
-      };
-
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
         });
 
-        const data = await response.json() as PriorityFeeResponse;
-
-        if (data.error) {
-          return mcpText(`**Priority Fee Estimate Error**\n\n${data.error.message}`);
-        }
-
-        const result = data.result;
         if (!result) {
           return mcpText(`**Priority Fee Estimate**\n\nNo fee data available.`);
         }
