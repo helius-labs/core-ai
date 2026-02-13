@@ -1,6 +1,6 @@
 {
   "name": "helius-mcp",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Official Helius MCP Server - Complete Solana blockchain data access for Claude",
   "type": "module",
   "main": "dist/index.js",
