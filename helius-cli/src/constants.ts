@@ -1,6 +1,6 @@
 import type { Address } from "@solana/kit";
 
-export const VERSION = "1.0.0";
+export const VERSION = "1.0.1";
 
 export const API_URL = "https://dev-api.helius.xyz/v0";
 

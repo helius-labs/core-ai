@@ -1,0 +1,151 @@
+import chalk from "chalk";
+import ora from "ora";
+import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
+import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+
+interface WebhookOptions extends OutputOptions, ResolveOptions {}
+
+export async function webhookListCommand(options: WebhookOptions = {}): Promise<void> {
+  const spinner = options.json ? null : ora();
+  try {
+    spinner?.start("Resolving API key...");
+    const apiKey = await resolveApiKey(options);
+    const helius = getClient(apiKey, resolveNetwork(options));
+
+    spinner?.start("Fetching webhooks...");
+    const result = await helius.webhooks.getAll();
+    spinner?.stop();
+
+    if (options.json) { outputJson(result); return; }
+
+    const webhooks = Array.isArray(result) ? result : [];
+    if (webhooks.length === 0) {
+      console.log(chalk.yellow("\nNo webhooks found."));
+      return;
+    }
+
+    console.log(chalk.bold(`\nWebhooks (${webhooks.length}):\n`));
+    for (const wh of webhooks) {
+      console.log(`  ${chalk.cyan(wh.webhookID)}`);
+      console.log(`    ${chalk.gray("URL:")}   ${wh.webhookURL || "N/A"}`);
+      console.log(`    ${chalk.gray("Type:")}  ${wh.webhookType || "N/A"}`);
+      console.log(`    ${chalk.gray("Addrs:")} ${(wh.accountAddresses || []).length} address(es)`);
+      console.log(`    ${chalk.gray("Types:")} ${(wh.transactionTypes || []).join(", ") || "ANY"}`);
+      console.log();
+    }
+  } catch (error) {
+    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(ExitCode.SDK_ERROR);
+  }
+}
+
+export async function webhookGetCommand(webhookId: string, options: WebhookOptions = {}): Promise<void> {
+  const spinner = options.json ? null : ora();
+  try {
+    spinner?.start("Resolving API key...");
+    const apiKey = await resolveApiKey(options);
+    const helius = getClient(apiKey, resolveNetwork(options));
+
+    spinner?.start("Fetching webhook...");
+    const result = await helius.webhooks.get(webhookId);
+    spinner?.stop();
+
+    if (options.json) { outputJson(result); return; }
+
+    console.log(chalk.bold(`\nWebhook ${chalk.cyan(webhookId)}:\n`));
+    console.log(`  ${chalk.gray("URL:")}      ${result.webhookURL || "N/A"}`);
+    console.log(`  ${chalk.gray("Type:")}     ${result.webhookType || "N/A"}`);
+    console.log(`  ${chalk.gray("Addresses:")}`);
+    for (const addr of (result.accountAddresses || []).slice(0, 10)) {
+      console.log(`    ${addr}`);
+    }
+    if ((result.accountAddresses || []).length > 10) {
+      console.log(chalk.gray(`    ... and ${result.accountAddresses!.length - 10} more`));
+    }
+    console.log(`  ${chalk.gray("Tx Types:")} ${(result.transactionTypes || []).join(", ") || "ANY"}`);
+  } catch (error) {
+    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(ExitCode.SDK_ERROR);
+  }
+}
+
+export async function webhookCreateCommand(options: WebhookOptions & {
+  url: string; accounts: string; types: string; webhookType?: string;
+}): Promise<void> {
+  const spinner = options.json ? null : ora();
+  try {
+    spinner?.start("Resolving API key...");
+    const apiKey = await resolveApiKey(options);
+    const helius = getClient(apiKey, resolveNetwork(options));
+
+    const accountAddresses = options.accounts.split(",").map((s: string) => s.trim());
+    const transactionTypes = options.types.split(",").map((s: string) => s.trim());
+    const webhookType = (options.webhookType || "enhanced") as any;
+
+    spinner?.start("Creating webhook...");
+    const result = await helius.webhooks.create({
+      webhookURL: options.url,
+      accountAddresses,
+      transactionTypes: transactionTypes as any,
+      webhookType,
+    });
+    spinner?.stop();
+
+    if (options.json) { outputJson(result); return; }
+
+    console.log(chalk.green("\nWebhook created successfully!\n"));
+    console.log(`  ${chalk.gray("ID:")}   ${chalk.cyan(result.webhookID)}`);
+    console.log(`  ${chalk.gray("URL:")}  ${result.webhookURL}`);
+    console.log(`  ${chalk.gray("Type:")} ${result.webhookType}`);
+  } catch (error) {
+    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(ExitCode.SDK_ERROR);
+  }
+}
+
+export async function webhookUpdateCommand(webhookId: string, options: WebhookOptions & {
+  url?: string; accounts?: string; types?: string;
+}): Promise<void> {
+  const spinner = options.json ? null : ora();
+  try {
+    spinner?.start("Resolving API key...");
+    const apiKey = await resolveApiKey(options);
+    const helius = getClient(apiKey, resolveNetwork(options));
+
+    const params: any = {};
+    if (options.url) params.webhookURL = options.url;
+    if (options.accounts) params.accountAddresses = options.accounts.split(",").map((s: string) => s.trim());
+    if (options.types) params.transactionTypes = options.types.split(",").map((s: string) => s.trim());
+
+    spinner?.start("Updating webhook...");
+    const result = await helius.webhooks.update(webhookId, params);
+    spinner?.stop();
+
+    if (options.json) { outputJson(result); return; }
+
+    console.log(chalk.green(`\nWebhook ${webhookId} updated successfully!`));
+  } catch (error) {
+    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(ExitCode.SDK_ERROR);
+  }
+}
+
+export async function webhookDeleteCommand(webhookId: string, options: WebhookOptions = {}): Promise<void> {
+  const spinner = options.json ? null : ora();
+  try {
+    spinner?.start("Resolving API key...");
+    const apiKey = await resolveApiKey(options);
+    const helius = getClient(apiKey, resolveNetwork(options));
+
+    spinner?.start("Deleting webhook...");
+    await helius.webhooks.delete(webhookId);
+    spinner?.stop();
+
+    if (options.json) { outputJson({ success: true, webhookID: webhookId }); return; }
+
+    console.log(chalk.green(`\nWebhook ${webhookId} deleted successfully.`));
+  } catch (error) {
+    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(ExitCode.SDK_ERROR);
+  }
+}

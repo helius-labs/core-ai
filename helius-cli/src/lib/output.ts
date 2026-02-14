@@ -34,6 +34,9 @@ export const ExitCode = {
   // API errors (40-49)
   API_ERROR: 40,
   NO_API_KEYS: 41,
+
+  // SDK/data errors (50-59)
+  SDK_ERROR: 51,
 } as const;
 
 export type ExitCodeType = (typeof ExitCode)[keyof typeof ExitCode];
@@ -52,14 +55,19 @@ const errorToExitCode: Record<string, ExitCodeType> = {
   PROJECT_EXISTS: ExitCode.PROJECT_EXISTS,
   API_ERROR: ExitCode.API_ERROR,
   NO_API_KEYS: ExitCode.NO_API_KEYS,
+  SDK_ERROR: ExitCode.SDK_ERROR,
 };
 
 export function getExitCode(errorCode: string): ExitCodeType {
   return errorToExitCode[errorCode] || ExitCode.GENERAL_ERROR;
 }
 
+export function jsonReplacer(_key: string, value: unknown): unknown {
+  return typeof value === "bigint" ? Number(value) : value;
+}
+
 export function outputJson(data: unknown): void {
-  console.log(JSON.stringify(data, null, 2));
+  console.log(JSON.stringify(data, jsonReplacer, 2));
 }
 
 export function exitWithError(
