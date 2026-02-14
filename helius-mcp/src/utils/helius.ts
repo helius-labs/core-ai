@@ -1,4 +1,5 @@
 import { createHelius, type HeliusClient } from 'helius-sdk';
+import { MCP_USER_AGENT } from '../http.js';
 
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
@@ -24,7 +25,7 @@ export function hasApiKey(): boolean {
 export function getHeliusClient(): HeliusClient {
   if (!heliusClient) {
     const apiKey = getApiKey();
-    heliusClient = createHelius({ apiKey });
+    heliusClient = createHelius({ apiKey, userAgent: MCP_USER_AGENT });
   }
   return heliusClient;
 }
@@ -66,6 +67,7 @@ export async function restRequest(endpoint: string, options: RequestInit = {}): 
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
 
   const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  headers['User-Agent'] = MCP_USER_AGENT;
   if (options.body) {
     headers['Content-Type'] ??= 'application/json';
   }
