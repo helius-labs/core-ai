@@ -15,8 +15,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       helius-sdk:
-        specifier: ^2.0.5
-        version: 2.0.5(typescript@5.9.3)
+        specifier: file:../../helius-sdk
+        version: file:../../helius-sdk(typescript@5.9.3)
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -590,8 +590,8 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  helius-sdk@2.0.5:
-    resolution: {integrity: sha512-c7DnmUAxvT5fjfa8zgD4n3PdoHml54Lxvoorb1QJXYo+xzbHnpksfetjzbGoF7fVOGhQdATcGzmSB4SaVYJoNw==}
+  helius-sdk@file:../../helius-sdk:
+    resolution: {directory: ../../helius-sdk, type: directory}
 
   hono@4.11.4:
     resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
@@ -1465,7 +1465,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  helius-sdk@2.0.5(typescript@5.9.3):
+  helius-sdk@file:../../helius-sdk(typescript@5.9.3):
     dependencies:
       '@solana-program/compute-budget': 0.11.0(@solana/kit@5.4.0(typescript@5.9.3))
       '@solana-program/stake': 0.5.0(@solana/kit@5.4.0(typescript@5.9.3))

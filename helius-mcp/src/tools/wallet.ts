@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { hasApiKey, restRequest } from '../utils/helius.js';
-import { formatAddress, formatSol, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
+import type { HistoryTransaction, Transfer } from 'helius-sdk/wallet/types';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
+import { formatAddress, formatSol, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
 
@@ -17,7 +18,8 @@ export function registerWalletTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        const data = await restRequest(`/v1/wallet/${address}/identity`);
+        const client = getHeliusClient();
+        const data = await client.wallet.getIdentity({ wallet: address });
 
         const lines = ['**Wallet Identity**', ''];
         lines.push(`**Address:** ${formatAddress(address)}`);
@@ -50,12 +52,9 @@ export function registerWalletTools(server: McpServer) {
       }
 
       try {
-        const data = await restRequest('/v1/wallet/batch-identity', {
-          method: 'POST',
-          body: JSON.stringify({ addresses })
-        });
+        const client = getHeliusClient();
+        const results = await client.wallet.getBatchIdentity({ addresses });
 
-        const results = Array.isArray(data) ? data : [];
         if (results.length === 0) {
           return mcpText(`**Batch Identity Lookup** (${addresses.length} addresses)\n\nNo identities found.`);
         }
@@ -99,15 +98,16 @@ export function registerWalletTools(server: McpServer) {
     async ({ address, page, limit, showNfts, showZeroBalance, showNative }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
-      const params = new URLSearchParams();
-      params.set('page', String(page));
-      params.set('limit', String(Math.min(limit, 100)));
-      if (showNfts) params.set('showNfts', 'true');
-      if (showZeroBalance) params.set('showZeroBalance', 'true');
-      if (!showNative) params.set('showNative', 'false');
-
       try {
-        const data = await restRequest(`/v1/wallet/${address}/balances?${params.toString()}`);
+        const client = getHeliusClient();
+        const data = await client.wallet.getBalances({
+          wallet: address,
+          page,
+          limit: Math.min(limit, 100),
+          showNfts,
+          showZeroBalance,
+          showNative,
+        });
 
         const lines = [`**Wallet Balances** (page ${page})`, ''];
 
@@ -115,23 +115,11 @@ export function registerWalletTools(server: McpServer) {
           lines.push(`**Total Value:** $${Number(data.totalUsdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '');
         }
 
-        // Native SOL balance
-        if (data.nativeBalance !== undefined) {
-          const solAmount = typeof data.nativeBalance === 'object'
-            ? data.nativeBalance.lamports / LAMPORTS_PER_SOL
-            : data.nativeBalance / LAMPORTS_PER_SOL;
-          const usd = typeof data.nativeBalance === 'object' && data.nativeBalance.totalUsdValue
-            ? ` ($${Number(data.nativeBalance.totalUsdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-            : '';
-          lines.push(`- **SOL**: ${solAmount.toLocaleString(undefined, { maximumFractionDigits: 9 })}${usd}`);
-        }
-
-        // Token balances
-        const tokens = data.tokens || [];
-        for (const token of tokens) {
+        // Token balances (includes native SOL when showNative=true)
+        for (const token of data.balances) {
           const symbol = token.symbol || token.name || formatAddress(token.mint || '');
-          const amount = token.amount !== undefined
-            ? Number(token.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })
+          const amount = token.balance !== undefined
+            ? Number(token.balance).toLocaleString(undefined, { maximumFractionDigits: 9 })
             : '0';
           const usd = token.usdValue
             ? ` ($${Number(token.usdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
@@ -185,17 +173,18 @@ export function registerWalletTools(server: McpServer) {
       const err = validateEnum(tokenAccounts, ['none', 'balanceChanged', 'all'], 'Wallet History Error', 'tokenAccounts');
       if (err) return err;
 
-      const params = new URLSearchParams();
-      params.set('limit', String(Math.min(limit, 100)));
-      if (before) params.set('before', before);
-      if (after) params.set('after', after);
-      if (type) params.set('type', type);
-      if (tokenAccounts) params.set('tokenAccounts', tokenAccounts);
-
       try {
-        const data = await restRequest(`/v1/wallet/${address}/history?${params.toString()}`);
+        const client = getHeliusClient();
+        const data = await client.wallet.getHistory({
+          wallet: address,
+          limit: Math.min(limit, 100),
+          before,
+          after,
+          type,
+          tokenAccounts,
+        });
 
-        const transactions = data.transactions || data.history || (Array.isArray(data) ? data : []);
+        const transactions = data.data;
 
         if (transactions.length === 0) {
           return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.`);
@@ -203,39 +192,21 @@ export function registerWalletTools(server: McpServer) {
 
         const lines = [`**Transaction History** (${transactions.length} transactions)`, ''];
 
-        transactions.forEach((tx: any, i: number) => {
+        transactions.forEach((tx: HistoryTransaction, i: number) => {
           const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
-          const status = tx.transactionError ? 'Failed' : 'Success';
+          const status = tx.error ? 'Failed' : 'Success';
           const fee = tx.fee ? formatSol(tx.fee) : 'N/A';
-          const txType = tx.type || 'UNKNOWN';
 
-          lines.push(`${i + 1}. ${time} — ${status} — **${txType}** — Fee: ${fee}`);
+          lines.push(`${i + 1}. ${time} — ${status} — Fee: ${fee}`);
           lines.push(`   Signature: \`${tx.signature}\``);
 
-          if (tx.description) {
-            lines.push(`   ${tx.description}`);
-          }
-
           // Balance changes
-          const changes: string[] = [];
-          if (tx.nativeTransfers) {
-            for (const nt of tx.nativeTransfers) {
-              if (nt.amount && nt.amount !== 0) {
-                const dir = nt.toUserAccount === address ? '+' : '-';
-                changes.push(`${dir}${formatSol(Math.abs(nt.amount))}`);
-              }
-            }
-          }
-          if (tx.tokenTransfers) {
-            for (const tt of tx.tokenTransfers) {
-              const symbol = tt.symbol || tt.mint ? formatAddress(tt.mint) : 'unknown';
-              const amount = tt.tokenAmount !== undefined ? tt.tokenAmount : 0;
-              const dir = tt.toUserAccount === address ? '+' : '-';
-              changes.push(`${dir}${Math.abs(amount).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`);
-            }
-          }
-
-          if (changes.length > 0) {
+          if (tx.balanceChanges && tx.balanceChanges.length > 0) {
+            const changes = tx.balanceChanges.map((bc: { mint: string; amount: number; decimals: number }) => {
+              const sign = bc.amount >= 0 ? '+' : '';
+              const symbol = bc.mint === 'SOL' ? 'SOL' : formatAddress(bc.mint);
+              return `${sign}${Number(bc.amount).toLocaleString(undefined, { maximumFractionDigits: 9 })} ${symbol}`;
+            });
             lines.push(`   Balance Changes: ${changes.join(', ')}`);
           }
 
@@ -243,7 +214,7 @@ export function registerWalletTools(server: McpServer) {
         });
 
         // Pagination
-        const cursor = data.pagination?.nextCursor || data.nextCursor;
+        const cursor = data.pagination?.nextCursor;
         if (cursor) {
           lines.push(`**Next Cursor:** \`${cursor}\``);
         }
@@ -269,14 +240,15 @@ export function registerWalletTools(server: McpServer) {
     async ({ address, limit, cursor }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
-      const params = new URLSearchParams();
-      params.set('limit', String(Math.min(limit, 100)));
-      if (cursor) params.set('cursor', cursor);
-
       try {
-        const data = await restRequest(`/v1/wallet/${address}/transfers?${params.toString()}`);
+        const client = getHeliusClient();
+        const data = await client.wallet.getTransfers({
+          wallet: address,
+          limit: Math.min(limit, 100),
+          cursor,
+        });
 
-        const transfers = data.transfers || (Array.isArray(data) ? data : []);
+        const transfers = data.data;
 
         if (transfers.length === 0) {
           return mcpText(`**Wallet Transfers for ${formatAddress(address)}**\n\nNo transfers found.`);
@@ -284,7 +256,7 @@ export function registerWalletTools(server: McpServer) {
 
         const lines = [`**Wallet Transfers** (${transfers.length} transfers)`, ''];
 
-        transfers.forEach((t: any, i: number) => {
+        transfers.forEach((t: Transfer, i: number) => {
           const direction = t.direction === 'in' ? 'Received' : 'Sent';
           const time = t.timestamp ? formatTimestamp(t.timestamp) : 'N/A';
           const symbol = t.symbol || (t.mint ? formatAddress(t.mint) : 'SOL');
@@ -298,7 +270,7 @@ export function registerWalletTools(server: McpServer) {
         });
 
         // Pagination
-        const nextCursor = data.pagination?.cursor || data.cursor || data.nextCursor;
+        const nextCursor = data.pagination?.nextCursor;
         if (nextCursor) {
           lines.push(`**Next Cursor:** \`${nextCursor}\``);
         }
@@ -323,7 +295,8 @@ export function registerWalletTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        const data = await restRequest(`/v1/wallet/${address}/funded-by`);
+        const client = getHeliusClient();
+        const data = await client.wallet.getFundedBy({ wallet: address });
 
         const lines = ['**Wallet Funding Source**', ''];
 
@@ -335,7 +308,7 @@ export function registerWalletTools(server: McpServer) {
         if (data.amount !== undefined) {
           lines.push(`**Amount:** ${formatSol(data.amount)}`);
         }
-        if (data.timestamp) lines.push(`**Date:** ${data.timestamp}`);
+        if (data.date) lines.push(`**Date:** ${data.date}`);
         if (data.explorerUrl) lines.push(`**Explorer:** ${data.explorerUrl}`);
 
         return mcpText(lines.join('\n'));
