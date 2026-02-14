@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getEnhancedWebSocketUrl } from '../utils/helius.js';
+import { mcpText, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
 
 export function registerEnhancedWebSocketTools(server: McpServer) {
 
@@ -14,13 +15,46 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       accountInclude: z.array(z.string()).optional().describe('Accounts to include (OR logic)'),
       accountExclude: z.array(z.string()).optional().describe('Accounts to exclude'),
       accountRequired: z.array(z.string()).optional().describe('Accounts required (AND logic)'),
-      commitment: z.enum(['processed', 'confirmed', 'finalized']).optional().default('confirmed'),
-      encoding: z.enum(['base58', 'base64', 'jsonParsed']).optional().default('jsonParsed'),
-      transactionDetails: z.enum(['full', 'signatures', 'accounts', 'none']).optional().default('full'),
+      commitment: z.string().optional().default('confirmed'),
+      encoding: z.string().optional().default('jsonParsed'),
+      transactionDetails: z.string().optional().default('full'),
       showRewards: z.boolean().optional().default(false),
       maxSupportedTransactionVersion: z.number().optional().default(0)
     },
     async (params) => {
+      let err;
+      err = validateEnum(params.commitment, ['processed', 'confirmed', 'finalized'], 'Transaction Subscribe Error', 'commitment');
+      if (err) return err;
+      err = validateEnum(params.encoding, ['base58', 'base64', 'jsonParsed'], 'Transaction Subscribe Error', 'encoding');
+      if (err) return err;
+      err = validateEnum(params.transactionDetails, ['full', 'signatures', 'accounts', 'none'], 'Transaction Subscribe Error', 'transactionDetails');
+      if (err) return err;
+
+      // Collect warnings for config issues that would fail at runtime
+      const warnings: string[] = [];
+
+      const addressArrays: [string, string[] | undefined][] = [
+        ['accountInclude', params.accountInclude],
+        ['accountExclude', params.accountExclude],
+        ['accountRequired', params.accountRequired],
+      ];
+      for (const [name, arr] of addressArrays) {
+        if (arr) {
+          if (arr.length === 0) {
+            warnings.push(`${name} is an empty array. This filter will have no effect.`);
+          } else {
+            warnings.push(...warnInvalidAddresses(name, arr));
+          }
+        }
+      }
+
+      const conflict = warnAddressConflicts('accountInclude', params.accountInclude, 'accountExclude', params.accountExclude);
+      if (conflict) warnings.push(conflict);
+
+      if (!params.accountInclude && !params.accountExclude && !params.accountRequired && !params.signature) {
+        warnings.push('No account filters or signature specified. This will stream ALL transactions on the network, which produces very high volume. Consider adding filters to reduce traffic.');
+      }
+
       try {
         const wsUrl = getEnhancedWebSocketUrl();
 
@@ -51,6 +85,15 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
           '',
           `**URL:** \`${wsUrl}\``,
           '',
+        ];
+
+        if (warnings.length > 0) {
+          lines.push('**Warnings:**');
+          warnings.forEach(w => lines.push(`- ${w}`));
+          lines.push('');
+        }
+
+        lines.push(
           '**Subscription Request:**',
           '```json',
           JSON.stringify(subscriptionRequest, null, 2),
@@ -70,12 +113,11 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
           '  }',
           '});',
           '```',
-        ];
+        );
 
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error');
       }
     }
   );
@@ -85,10 +127,22 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     'Get Enhanced WebSocket config for real-time Solana account monitoring. Track balance changes and data updates. Business+ plans only. Returns connection config and code example.',
     {
       account: z.string().describe('Account public key (base58)'),
-      encoding: z.enum(['base58', 'base64', 'base64+zstd', 'jsonParsed']).optional().default('base58'),
-      commitment: z.enum(['finalized', 'confirmed', 'processed']).optional().default('finalized')
+      encoding: z.string().optional().default('base58'),
+      commitment: z.string().optional().default('finalized')
     },
     async ({ account, encoding, commitment }) => {
+      let err;
+      err = validateEnum(encoding, ['base58', 'base64', 'base64+zstd', 'jsonParsed'], 'Account Subscribe Error', 'encoding');
+      if (err) return err;
+      err = validateEnum(commitment, ['finalized', 'confirmed', 'processed'], 'Account Subscribe Error', 'commitment');
+      if (err) return err;
+
+      // Collect warnings for config issues that would fail at runtime
+      const warnings: string[] = [];
+
+      const addrWarning = warnInvalidAddress('account', account);
+      if (addrWarning) warnings.push(addrWarning);
+
       try {
         const wsUrl = getEnhancedWebSocketUrl();
 
@@ -104,6 +158,15 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
           `**Account:** \`${account}\``,
           `**URL:** \`${wsUrl}\``,
           '',
+        ];
+
+        if (warnings.length > 0) {
+          lines.push('**Warnings:**');
+          warnings.forEach(w => lines.push(`- ${w}`));
+          lines.push('');
+        }
+
+        lines.push(
           '**Subscription Request:**',
           '```json',
           JSON.stringify(subscriptionRequest, null, 2),
@@ -123,12 +186,11 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
           '  }',
           '});',
           '```',
-        ];
+        );
 
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error');
       }
     }
   );
@@ -153,10 +215,9 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
           '',
           '**Docs:** https://www.helius.dev/docs/enhanced-websockets',
         ];
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error');
       }
     }
   );

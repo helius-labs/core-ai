@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey, getRpcUrl } from '../utils/helius.js';
 import { formatSol, formatAddress, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, getErrorMessage, validateEnum, handleToolError, http400Error } from '../utils/errors.js';
 import bs58 from 'bs58';
 
 // ─── Shared Types ───
@@ -195,9 +196,19 @@ async function fetchTokenMetadata(
   const metadata = new Map<string, AssetInfo>();
   if (mints.size === 0) return metadata;
 
-  const assets = await helius.getAssetBatch({ ids: [...mints] });
-  for (const asset of assets as AssetInfo[]) {
-    if (asset?.id) metadata.set(asset.id, asset);
+  // Filter out empty/invalid mint strings before calling the API
+  const validMints = [...mints].filter(m => m && m.trim().length > 0);
+  if (validMints.length === 0) return metadata;
+
+  try {
+    const assets = await helius.getAssetBatch({ ids: validMints });
+    for (const asset of assets as AssetInfo[]) {
+      if (asset?.id) metadata.set(asset.id, asset);
+    }
+  } catch {
+    // If batch fails (e.g. invalid pubkeys in mint list), return empty metadata
+    // rather than crashing the entire tool call
+    return metadata;
   }
 
   // Enrich tokens missing symbol/name (batch response can have incomplete metadata)
@@ -293,12 +304,7 @@ export function registerTransactionTools(server: McpServer) {
       if (validSigs.length === 0) {
         const lines = ['**Invalid Signature Format**', '', 'None of the provided signatures are valid base58-encoded transaction signatures (expected 86-88 characters).', ''];
         invalidSigs.forEach(sig => lines.push(`- \`${sig}\``));
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
+        return mcpText(lines.join('\n'));
       }
 
       let transactions: EnrichedTransaction[];
@@ -307,12 +313,9 @@ export function registerTransactionTools(server: McpServer) {
           transactions: validSigs
         }) as EnrichedTransaction[];
       } catch (err) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error fetching transactions:** ${err instanceof Error ? err.message : String(err)}`
-          }]
-        };
+        return handleToolError(err, 'Error fetching transactions', [
+          http400Error('Parse Transactions Error'),
+        ]);
       }
 
       // Identify valid signatures that weren't returned (not found on-chain)
@@ -330,12 +333,7 @@ export function registerTransactionTools(server: McpServer) {
           lines.push('**Not found on Solana mainnet** (may be pending, very old, or nonexistent):');
           notFoundSigs.forEach(sig => lines.push(`- \`${sig}\``));
         }
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
+        return mcpText(lines.join('\n'));
       }
 
       const tokenMetadata = await fetchTokenMetadata(helius, collectMints(transactions));
@@ -517,12 +515,7 @@ export function registerTransactionTools(server: McpServer) {
       }
 
       const fullText = outputLines.join('\n');
-      return {
-        content: [{
-          type: 'text' as const,
-          text: truncateResponse(fullText)
-        }]
-      };
+      return mcpText(truncateResponse(fullText));
     }
   );
 
@@ -532,15 +525,15 @@ export function registerTransactionTools(server: McpServer) {
     'Get transaction history for a Solana wallet. Supports three modes: "parsed" (default) returns human-readable decoded data with types, descriptions, actions, and fees. "signatures" returns a lightweight list of transaction signatures with slot/time/status. "raw" returns full raw data with advanced Helius filters (time/slot ranges, status, token accounts). All modes support sortOrder="asc" for finding wallet funding sources — no pagination needed. By default only successful transactions are shown; set status="any" or status="failed" to include failed ones.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
-      mode: z.enum(['parsed', 'signatures', 'raw']).optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
+      mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
       limit: z.number().optional().default(10).describe('Number of results (1-1000 for signatures, 1-100 for full/parsed)'),
-      sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first (great for finding funding sources)'),
+      sortOrder: z.string().optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first (great for finding funding sources)'),
       before: z.string().optional().describe('[signatures mode, desc only] Cursor: start searching backwards from this signature'),
       until: z.string().optional().describe('[signatures mode, desc only] Cursor: search until this signature'),
       paginationToken: z.string().optional().describe('Pagination token from previous response for fetching next page'),
-      transactionDetails: z.enum(['signatures', 'full']).optional().default('signatures').describe('[raw mode] "signatures" for basic info (up to 1000), "full" for complete transaction data (up to 100)'),
-      status: z.enum(['succeeded', 'failed', 'any']).optional().default('succeeded').describe('Filter by transaction status. Defaults to "succeeded" — set to "failed" or "any" to include failed transactions.'),
-      tokenAccounts: z.enum(['none', 'balanceChanged', 'all']).optional().describe('"none" = only direct transactions, "balanceChanged" = include token transfers, "all" = all token account activity'),
+      transactionDetails: z.string().optional().default('signatures').describe('[raw mode] "signatures" for basic info (up to 1000), "full" for complete transaction data (up to 100)'),
+      status: z.string().optional().default('succeeded').describe('Filter by transaction status. Defaults to "succeeded" — set to "failed" or "any" to include failed transactions.'),
+      tokenAccounts: z.string().optional().describe('"none" = only direct transactions, "balanceChanged" = include token transfers, "all" = all token account activity'),
       blockTimeGte: z.number().optional().describe('Filter: block time >= this Unix timestamp'),
       blockTimeLte: z.number().optional().describe('Filter: block time <= this Unix timestamp'),
       slotGte: z.number().optional().describe('Filter: slot >= this value'),
@@ -548,6 +541,20 @@ export function registerTransactionTools(server: McpServer) {
     },
     async ({ address, mode, limit, sortOrder, before, until, paginationToken, transactionDetails, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte }) => {
       if (!hasApiKey()) return noApiKeyResponse();
+
+      let err;
+      err = validateEnum(mode, ['parsed', 'signatures', 'raw'], 'Transaction History Error', 'mode');
+      if (err) return err;
+      err = validateEnum(sortOrder, ['asc', 'desc'], 'Transaction History Error', 'sortOrder');
+      if (err) return err;
+      err = validateEnum(transactionDetails, ['signatures', 'full'], 'Transaction History Error', 'transactionDetails');
+      if (err) return err;
+      err = validateEnum(status, ['succeeded', 'failed', 'any'], 'Transaction History Error', 'status');
+      if (err) return err;
+      if (tokenAccounts) {
+        err = validateEnum(tokenAccounts, ['none', 'balanceChanged', 'all'], 'Transaction History Error', 'tokenAccounts');
+        if (err) return err;
+      }
 
       // Build filters object (shared across modes that use getTransactionsForAddress)
       type Filters = {
@@ -609,23 +616,13 @@ export function registerTransactionTools(server: McpServer) {
 
             const json = await response.json() as { result?: SignatureInfo[]; error?: { message: string } };
             if (json.error) {
-              return {
-                content: [{
-                  type: 'text' as const,
-                  text: `Error fetching signatures: ${json.error.message}`
-                }]
-              };
+              return mcpText(`Error fetching signatures: ${json.error.message}`);
             }
 
             const sigs = json.result || [];
 
             if (sigs.length === 0) {
-              return {
-                content: [{
-                  type: 'text' as const,
-                  text: `**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`
-                }]
-              };
+              return mcpText(`**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`);
             }
 
             const lines = [`**Signatures for ${formatAddress(address)}** (${sigs.length} results, newest first${statusNote})`, ''];
@@ -640,160 +637,129 @@ export function registerTransactionTools(server: McpServer) {
               }
             });
 
-            return {
-              content: [{
-                type: 'text' as const,
-                text: lines.join('\n')
-              }]
-            };
+            return mcpText(lines.join('\n'));
           } catch (err) {
-            return {
-              content: [{
-                type: 'text' as const,
-                text: `Error fetching signatures: ${err instanceof Error ? err.message : String(err)}`
-              }]
-            };
+            return handleToolError(err, 'Error fetching signatures');
           }
         }
 
         // Full path: getTransactionsForAddress — needed for asc sort, filters, or paginationToken
-        const data = await fetchTransactionsForAddress(address, {
-          transactionDetails: 'signatures',
-          sortOrder,
-          limit,
-          ...(paginationToken && { paginationToken }),
-          ...(Object.keys(filters).length > 0 && { filters })
-        });
+        try {
+          const data = await fetchTransactionsForAddress(address, {
+            transactionDetails: 'signatures',
+            sortOrder,
+            limit,
+            ...(paginationToken && { paginationToken }),
+            ...(Object.keys(filters).length > 0 && { filters })
+          });
 
-        if (data.error) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error**\n\n${data.error.message}`
-            }]
-          };
-        }
-
-        const result = data.result;
-        if (!result || !result.data || result.data.length === 0) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`
-            }]
-          };
-        }
-
-        const items = result.data as SignatureResult[];
-        const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
-        const lines = [`**Signatures for ${formatAddress(address)}** (${items.length} results, ${orderLabel}${statusNote})`, ''];
-
-        items.forEach((item) => {
-          const txStatus = item.err ? '❌' : '✅';
-          const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
-          lines.push(`${txStatus} ${item.signature}`);
-          lines.push(`   Slot: ${item.slot.toLocaleString()} | Time: ${time}`);
-          if (item.memo) {
-            lines.push(`   Memo: ${item.memo}`);
+          if (data.error) {
+            return mcpText(`**Error**\n\n${data.error.message}`);
           }
-        });
 
-        if (result.paginationToken) {
-          lines.push('', `**Next Page Token:** \`${result.paginationToken}\``);
-        }
+          const result = data.result;
+          if (!result || !result.data || result.data.length === 0) {
+            return mcpText(`**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`);
+          }
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
-      }
-
-      // ─── RAW MODE ───
-      if (mode === 'raw') {
-        const data = await fetchTransactionsForAddress(address, {
-          transactionDetails: transactionDetails! as 'signatures' | 'full',
-          sortOrder,
-          limit,
-          ...(paginationToken && { paginationToken }),
-          ...(Object.keys(filters).length > 0 && { filters })
-        });
-
-        if (data.error) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error**\n\n${data.error.message}`
-            }]
-          };
-        }
-
-        const result = data.result;
-        if (!result || !result.data || result.data.length === 0) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Transactions for ${formatAddress(address)}**\n\nNo transactions found.`
-            }]
-          };
-        }
-
-        const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
-        const lines = [`**Transactions for ${formatAddress(address)}** (${result.data.length} results, ${orderLabel}${statusNote})`, ''];
-
-        if (transactionDetails === 'signatures') {
           const items = result.data as SignatureResult[];
+          const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
+          const lines = [`**Signatures for ${formatAddress(address)}** (${items.length} results, ${orderLabel}${statusNote})`, ''];
+
           items.forEach((item) => {
             const txStatus = item.err ? '❌' : '✅';
             const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
             lines.push(`${txStatus} ${item.signature}`);
-            lines.push(`   Slot: ${item.slot.toLocaleString()} | Index: ${item.transactionIndex} | Time: ${time}`);
+            lines.push(`   Slot: ${item.slot.toLocaleString()} | Time: ${time}`);
             if (item.memo) {
               lines.push(`   Memo: ${item.memo}`);
             }
           });
-        } else {
-          const items = result.data as FullResult[];
-          items.forEach((item) => {
-            const sig = item.transaction.signatures[0];
-            const txStatus = item.meta.err ? '❌' : '✅';
-            const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
-            const fee = formatSol(item.meta.fee);
 
-            lines.push(`${txStatus} ${sig}`);
-            lines.push(`   Slot: ${item.slot.toLocaleString()} | Index: ${item.transactionIndex} | Time: ${time}`);
-            lines.push(`   Fee: ${fee}`);
+          if (result.paginationToken) {
+            lines.push('', `**Next Page Token:** \`${result.paginationToken}\``);
+          }
 
-            // Show balance changes
-            const balanceChanges: string[] = [];
-            item.meta.preBalances.forEach((pre, idx) => {
-              const post = item.meta.postBalances[idx];
-              const change = post - pre;
-              if (change !== 0) {
-                const changeStr = change > 0 ? `+${formatSol(change)}` : formatSol(change);
-                balanceChanges.push(changeStr);
+          return mcpText(lines.join('\n'));
+        } catch (err) {
+          return handleToolError(err, 'Error fetching signatures');
+        }
+      }
+
+      // ─── RAW MODE ───
+      if (mode === 'raw') {
+        try {
+          const data = await fetchTransactionsForAddress(address, {
+            transactionDetails: transactionDetails! as 'signatures' | 'full',
+            sortOrder,
+            limit,
+            ...(paginationToken && { paginationToken }),
+            ...(Object.keys(filters).length > 0 && { filters })
+          });
+
+          if (data.error) {
+            return mcpText(`**Error**\n\n${data.error.message}`);
+          }
+
+          const result = data.result;
+          if (!result || !result.data || result.data.length === 0) {
+            return mcpText(`**Transactions for ${formatAddress(address)}**\n\nNo transactions found.`);
+          }
+
+          const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
+          const lines = [`**Transactions for ${formatAddress(address)}** (${result.data.length} results, ${orderLabel}${statusNote})`, ''];
+
+          if (transactionDetails === 'signatures') {
+            const items = result.data as SignatureResult[];
+            items.forEach((item) => {
+              const txStatus = item.err ? '❌' : '✅';
+              const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
+              lines.push(`${txStatus} ${item.signature}`);
+              lines.push(`   Slot: ${item.slot.toLocaleString()} | Index: ${item.transactionIndex} | Time: ${time}`);
+              if (item.memo) {
+                lines.push(`   Memo: ${item.memo}`);
               }
             });
-            if (balanceChanges.length > 0) {
-              lines.push(`   Balance changes: ${balanceChanges.slice(0, 3).join(', ')}${balanceChanges.length > 3 ? '...' : ''}`);
-            }
-          });
-        }
+          } else {
+            const items = result.data as FullResult[];
+            items.forEach((item) => {
+              const sig = item.transaction.signatures[0];
+              const txStatus = item.meta.err ? '❌' : '✅';
+              const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
+              const fee = formatSol(item.meta.fee);
 
-        if (result.paginationToken) {
-          lines.push('', `**Next Page Token:** \`${result.paginationToken}\``);
-        }
+              lines.push(`${txStatus} ${sig}`);
+              lines.push(`   Slot: ${item.slot.toLocaleString()} | Index: ${item.transactionIndex} | Time: ${time}`);
+              lines.push(`   Fee: ${fee}`);
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
+              // Show balance changes
+              const balanceChanges: string[] = [];
+              item.meta.preBalances.forEach((pre, idx) => {
+                const post = item.meta.postBalances[idx];
+                const change = post - pre;
+                if (change !== 0) {
+                  const changeStr = change > 0 ? `+${formatSol(change)}` : formatSol(change);
+                  balanceChanges.push(changeStr);
+                }
+              });
+              if (balanceChanges.length > 0) {
+                lines.push(`   Balance changes: ${balanceChanges.slice(0, 3).join(', ')}${balanceChanges.length > 3 ? '...' : ''}`);
+              }
+            });
+          }
+
+          if (result.paginationToken) {
+            lines.push('', `**Next Page Token:** \`${result.paginationToken}\``);
+          }
+
+          return mcpText(lines.join('\n'));
+        } catch (err) {
+          return handleToolError(err, 'Error fetching transactions');
+        }
       }
 
       // ─── PARSED MODE (default) ───
+      try {
       // Step 1: Use getTransactionsForAddress to get sorted signatures in one call
       const sigData = await fetchTransactionsForAddress(address, {
         transactionDetails: 'signatures',
@@ -804,23 +770,13 @@ export function registerTransactionTools(server: McpServer) {
       });
 
       if (sigData.error) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error**\n\n${sigData.error.message}`
-          }]
-        };
+        return mcpText(`**Error**\n\n${sigData.error.message}`);
       }
 
       type SigItem = { signature: string };
       const sigResult = sigData.result;
       if (!sigResult || !sigResult.data || sigResult.data.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.`
-          }]
-        };
+        return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.`);
       }
 
       const sortedSigs = (sigResult.data as SigItem[]).map(item => item.signature);
@@ -839,12 +795,7 @@ export function registerTransactionTools(server: McpServer) {
       }
 
       if (allTransactions.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Transaction History for ${formatAddress(address)}**\n\nNo transactions could be enriched.`
-          }]
-        };
+        return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions could be enriched.`);
       }
 
       // Re-sort to match original order (Enhanced API may return in different order)
@@ -902,12 +853,10 @@ export function registerTransactionTools(server: McpServer) {
       }
 
       const fullText = lines.join('\n');
-      return {
-        content: [{
-          type: 'text' as const,
-          text: truncateResponse(fullText)
-        }]
-      };
+      return mcpText(truncateResponse(fullText));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching transaction history');
+      }
     }
   );
 }

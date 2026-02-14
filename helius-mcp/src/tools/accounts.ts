@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey, getRpcUrl } from '../utils/helius.js';
 import { formatAddress, formatSol } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, validateEnum, handleToolError, addressError, paginationError } from '../utils/errors.js';
 
 function formatParsedAccountData(account: {
   data: unknown;
@@ -42,30 +43,23 @@ export function registerAccountTools(server: McpServer) {
     {
       address: z.string().optional().describe('Single account address (base58 encoded). Use this OR addresses, not both.'),
       addresses: z.array(z.string()).optional().describe('Array of account addresses for batch lookup (up to 100). Use this OR address, not both.'),
-      encoding: z.enum(['base58', 'base64', 'jsonParsed']).optional().default('jsonParsed').describe('Data encoding format')
+      encoding: z.string().optional().default('jsonParsed').describe('Data encoding format')
     },
     async ({ address, addresses, encoding }) => {
       if (!hasApiKey()) return noApiKeyResponse();
+
+      const err = validateEnum(encoding, ['base58', 'base64', 'jsonParsed'], 'Account Info Error', 'encoding');
+      if (err) return err;
 
       const url = getRpcUrl();
 
       // Validate: must provide exactly one of address or addresses
       if (!address && (!addresses || addresses.length === 0)) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** Provide either \`address\` (single account) or \`addresses\` (batch of up to 100).`
-          }]
-        };
+        return mcpText(`**Error:** Provide either \`address\` (single account) or \`addresses\` (batch of up to 100).`);
       }
 
       if (address && addresses && addresses.length > 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** Provide either \`address\` or \`addresses\`, not both.`
-          }]
-        };
+        return mcpText(`**Error:** Provide either \`address\` or \`addresses\`, not both.`);
       }
 
       type AccountInfo = {
@@ -77,138 +71,114 @@ export function registerAccountTools(server: McpServer) {
         space?: number;
       };
 
-      // --- Batch mode ---
-      if (addresses && addresses.length > 0) {
-        if (addresses.length > 100) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error:** Maximum 100 accounts per request. You provided ${addresses.length}.`
-            }]
+      try {
+        // --- Batch mode ---
+        if (addresses && addresses.length > 0) {
+          if (addresses.length > 100) {
+            return mcpText(`**Error:** Maximum 100 accounts per request. You provided ${addresses.length}.`);
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 'get-multiple-accounts',
+              method: 'getMultipleAccounts',
+              params: [addresses, { encoding }]
+            })
+          });
+
+          type ApiResponse = {
+            result?: { value: (AccountInfo | null)[] };
+            error?: { message: string };
           };
+
+          const data = await response.json() as ApiResponse;
+
+          if (data.error) {
+            return mcpText(`**Error**\n\n${data.error.message}`);
+          }
+
+          const accounts = data.result?.value || [];
+          const lines = [`**Multiple Accounts** (${addresses.length} requested)`, ''];
+
+          addresses.forEach((addr, i) => {
+            const account = accounts[i];
+            if (!account) {
+              lines.push(`**${formatAddress(addr)}:** Not found`);
+            } else {
+              lines.push(`**${formatAddress(addr)}**`);
+              lines.push(`  Balance: ${formatSol(account.lamports)}`);
+              lines.push(`  Owner: ${account.owner}`);
+              lines.push(`  Executable: ${account.executable ? 'Yes' : 'No'}`);
+              if (account.space !== undefined) {
+                lines.push(`  Data Size: ${account.space} bytes`);
+              }
+              // Show parsed data (Token-2022 extensions, mint info, etc.)
+              const parsedLines = formatParsedAccountData(account);
+              lines.push(...parsedLines);
+            }
+            lines.push('');
+          });
+
+          return mcpText(lines.join('\n'));
         }
 
+        // --- Single account mode ---
         const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             jsonrpc: '2.0',
-            id: 'get-multiple-accounts',
-            method: 'getMultipleAccounts',
-            params: [addresses, { encoding }]
+            id: 'get-account-info',
+            method: 'getAccountInfo',
+            params: [address, { encoding }]
           })
         });
 
         type ApiResponse = {
-          result?: { value: (AccountInfo | null)[] };
+          result?: { value: AccountInfo | null };
           error?: { message: string };
         };
 
         const data = await response.json() as ApiResponse;
 
         if (data.error) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error**\n\n${data.error.message}`
-            }]
-          };
+          return mcpText(`**Error**\n\n${data.error.message}`);
         }
 
-        const accounts = data.result?.value || [];
-        const lines = [`**Multiple Accounts** (${addresses.length} requested)`, ''];
+        const account = data.result?.value;
 
-        addresses.forEach((addr, i) => {
-          const account = accounts[i];
-          if (!account) {
-            lines.push(`**${formatAddress(addr)}:** Not found`);
-          } else {
-            lines.push(`**${formatAddress(addr)}**`);
-            lines.push(`  Balance: ${formatSol(account.lamports)}`);
-            lines.push(`  Owner: ${account.owner}`);
-            lines.push(`  Executable: ${account.executable ? 'Yes' : 'No'}`);
-            if (account.space !== undefined) {
-              lines.push(`  Data Size: ${account.space} bytes`);
-            }
-            // Show parsed data (Token-2022 extensions, mint info, etc.)
-            const parsedLines = formatParsedAccountData(account);
-            lines.push(...parsedLines);
-          }
-          lines.push('');
-        });
+        if (!account) {
+          return mcpText(`**Account ${formatAddress(address!)}**\n\nAccount not found or has no data.`);
+        }
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
+        const lines = [
+          `**Account ${formatAddress(address!)}**`,
+          '',
+          `**Balance:** ${formatSol(account.lamports)} (${account.lamports.toLocaleString()} lamports)`,
+          `**Owner:** ${account.owner}`,
+          `**Executable:** ${account.executable ? 'Yes' : 'No'}`,
+        ];
+
+        if (account.space !== undefined) {
+          lines.push(`**Data Size:** ${account.space} bytes`);
+        }
+
+        // Show parsed data details when using jsonParsed
+        const parsedLines = formatParsedAccountData(account);
+        if (parsedLines.length > 0) {
+          lines.push('', '**Parsed Data:**');
+          lines.push(...parsedLines);
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching account info', [
+          addressError('Account Info'),
+        ]);
       }
-
-      // --- Single account mode ---
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'get-account-info',
-          method: 'getAccountInfo',
-          params: [address, { encoding }]
-        })
-      });
-
-      type ApiResponse = {
-        result?: { value: AccountInfo | null };
-        error?: { message: string };
-      };
-
-      const data = await response.json() as ApiResponse;
-
-      if (data.error) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error**\n\n${data.error.message}`
-          }]
-        };
-      }
-
-      const account = data.result?.value;
-
-      if (!account) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Account ${formatAddress(address!)}**\n\nAccount not found or has no data.`
-          }]
-        };
-      }
-
-      const lines = [
-        `**Account ${formatAddress(address!)}**`,
-        '',
-        `**Balance:** ${formatSol(account.lamports)} (${account.lamports.toLocaleString()} lamports)`,
-        `**Owner:** ${account.owner}`,
-        `**Executable:** ${account.executable ? 'Yes' : 'No'}`,
-      ];
-
-      if (account.space !== undefined) {
-        lines.push(`**Data Size:** ${account.space} bytes`);
-      }
-
-      // Show parsed data details when using jsonParsed
-      const parsedLines = formatParsedAccountData(account);
-      if (parsedLines.length > 0) {
-        lines.push('', '**Parsed Data:**');
-        lines.push(...parsedLines);
-      }
-
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
     }
   );
 
@@ -227,12 +197,7 @@ export function registerAccountTools(server: McpServer) {
       const helius = getHeliusClient();
 
       if (!owner && !mint) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** You must provide at least one of: owner or mint address.`
-          }]
-        };
+        return mcpText(`**Error:** You must provide at least one of: owner or mint address.`);
       }
 
       type TokenAccountParams = {
@@ -246,7 +211,15 @@ export function registerAccountTools(server: McpServer) {
       if (owner) params.owner = owner;
       if (mint) params.mint = mint;
 
-      const response = await helius.getTokenAccounts(params);
+      let response;
+      try {
+        response = await helius.getTokenAccounts(params);
+      } catch (err) {
+        return handleToolError(err, 'Error fetching token accounts', [
+          addressError('Token Accounts', 'Invalid Solana address. Please provide valid base58-encoded addresses for owner and/or mint.'),
+          paginationError('Token Accounts'),
+        ]);
+      }
 
       type TokenAccount = {
         address: string;
@@ -265,12 +238,7 @@ export function registerAccountTools(server: McpServer) {
           : owner
             ? `owner=${formatAddress(owner)}`
             : `mint=${formatAddress(mint!)}`;
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Token Accounts** (${filterDesc})\n\nNo token accounts found.`
-          }]
-        };
+        return mcpText(`**Token Accounts** (${filterDesc})\n\nNo token accounts found.`);
       }
 
       const lines = [`**Token Accounts** (${response.total || items.length} total, page ${page})`, ''];
@@ -291,12 +259,7 @@ export function registerAccountTools(server: McpServer) {
         lines.push('');
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 
@@ -307,12 +270,15 @@ export function registerAccountTools(server: McpServer) {
     {
       programId: z.string().describe('Program ID (base58 encoded) — the owner program of the accounts to find'),
       limit: z.number().optional().default(20).describe('Maximum accounts to return (default 20, max 100)'),
-      encoding: z.enum(['base58', 'base64', 'jsonParsed']).optional().default('base64').describe('Data encoding format'),
+      encoding: z.string().optional().default('base64').describe('Data encoding format'),
       dataSize: z.number().optional().describe('Filter by exact account data size in bytes (e.g. 165 for SPL token accounts)'),
       paginationKey: z.string().optional().describe('Pagination cursor from a previous response to fetch the next page')
     },
     async ({ programId, limit, encoding, dataSize, paginationKey }) => {
       if (!hasApiKey()) return noApiKeyResponse();
+
+      const encErr = validateEnum(encoding, ['base58', 'base64', 'jsonParsed'], 'Program Accounts Error', 'encoding');
+      if (encErr) return encErr;
 
       const url = getRpcUrl();
 
@@ -377,32 +343,19 @@ export function registerAccountTools(server: McpServer) {
         });
         data = await response.json() as ApiResponse;
       } catch (err) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error fetching program accounts:** ${err instanceof Error ? err.message : String(err)}`
-          }]
-        };
+        return handleToolError(err, 'Error fetching program accounts', [
+          addressError('Program Accounts'),
+        ]);
       }
 
       if (data.error) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error**\n\n${data.error.message}`
-          }]
-        };
+        return mcpText(`**Error**\n\n${data.error.message}`);
       }
 
       const accounts = data.result?.accounts || [];
 
       if (accounts.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Program Accounts for ${formatAddress(programId)}**\n\nNo accounts found.`
-          }]
-        };
+        return mcpText(`**Program Accounts for ${formatAddress(programId)}**\n\nNo accounts found.`);
       }
 
       const totalLabel = data.result?.totalResults
@@ -423,12 +376,7 @@ export function registerAccountTools(server: McpServer) {
         lines.push('', `**Next Page:** Pass \`paginationKey: "${data.result.paginationKey}"\` to fetch the next page.`);
       }
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 }

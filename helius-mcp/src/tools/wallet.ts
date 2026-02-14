@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { hasApiKey, restRequest } from '../utils/helius.js';
 import { formatAddress, formatSol, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
 
 export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Identity ───
@@ -25,13 +26,11 @@ export function registerWalletTools(server: McpServer) {
         if (data.category) lines.push(`**Category:** ${data.category}`);
         if (data.tags && data.tags.length > 0) lines.push(`**Tags:** ${data.tags.join(', ')}`);
 
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        if (errorMsg.includes('404')) {
-          return { content: [{ type: 'text' as const, text: `No identity found for ${formatAddress(address)}` }] };
-        }
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error', [
+          http404Error('', `No identity found for ${formatAddress(address)}`),
+        ]);
       }
     }
   );
@@ -47,35 +46,41 @@ export function registerWalletTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
 
       if (addresses.length > 100) {
-        return { content: [{ type: 'text' as const, text: 'Error: Maximum 100 addresses per batch request.' }], isError: true };
+        return mcpError('Error: Maximum 100 addresses per batch request.');
       }
 
-      const data = await restRequest('/v1/wallet/batch-identity', {
-        method: 'POST',
-        body: JSON.stringify({ addresses })
-      });
+      try {
+        const data = await restRequest('/v1/wallet/batch-identity', {
+          method: 'POST',
+          body: JSON.stringify({ addresses })
+        });
 
-      const results = Array.isArray(data) ? data : [];
-      if (results.length === 0) {
-        return { content: [{ type: 'text' as const, text: `**Batch Identity Lookup** (${addresses.length} addresses)\n\nNo identities found.` }] };
-      }
-
-      const lines = [`**Batch Identity Lookup** (${results.length} results)`, ''];
-
-      for (const entry of results) {
-        const addr = formatAddress(entry.address || '');
-        if (entry.name) {
-          lines.push(`- **${entry.name}** — ${addr}`);
-          const details: string[] = [];
-          if (entry.type) details.push(entry.type);
-          if (entry.category) details.push(entry.category);
-          if (details.length > 0) lines.push(`  ${details.join(' | ')}`);
-        } else {
-          lines.push(`- ${addr} — Unknown`);
+        const results = Array.isArray(data) ? data : [];
+        if (results.length === 0) {
+          return mcpText(`**Batch Identity Lookup** (${addresses.length} addresses)\n\nNo identities found.`);
         }
-      }
 
-      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+        const lines = [`**Batch Identity Lookup** (${results.length} results)`, ''];
+
+        for (const entry of results) {
+          const addr = formatAddress(entry.address || '');
+          if (entry.name) {
+            lines.push(`- **${entry.name}** — ${addr}`);
+            const details: string[] = [];
+            if (entry.type) details.push(entry.type);
+            if (entry.category) details.push(entry.category);
+            if (details.length > 0) lines.push(`  ${details.join(' | ')}`);
+          } else {
+            lines.push(`- ${addr} — Unknown`);
+          }
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching batch identities', [
+          addressError('Batch Identity'),
+        ]);
+      }
     }
   );
 
@@ -101,58 +106,64 @@ export function registerWalletTools(server: McpServer) {
       if (showZeroBalance) params.set('showZeroBalance', 'true');
       if (!showNative) params.set('showNative', 'false');
 
-      const data = await restRequest(`/v1/wallet/${address}/balances?${params.toString()}`);
+      try {
+        const data = await restRequest(`/v1/wallet/${address}/balances?${params.toString()}`);
 
-      const lines = [`**Wallet Balances** (page ${page})`, ''];
+        const lines = [`**Wallet Balances** (page ${page})`, ''];
 
-      if (data.totalUsdValue !== undefined) {
-        lines.push(`**Total Value:** $${Number(data.totalUsdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '');
-      }
+        if (data.totalUsdValue !== undefined) {
+          lines.push(`**Total Value:** $${Number(data.totalUsdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '');
+        }
 
-      // Native SOL balance
-      if (data.nativeBalance !== undefined) {
-        const solAmount = typeof data.nativeBalance === 'object'
-          ? data.nativeBalance.lamports / LAMPORTS_PER_SOL
-          : data.nativeBalance / LAMPORTS_PER_SOL;
-        const usd = typeof data.nativeBalance === 'object' && data.nativeBalance.totalUsdValue
-          ? ` ($${Number(data.nativeBalance.totalUsdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-          : '';
-        lines.push(`- **SOL**: ${solAmount.toLocaleString(undefined, { maximumFractionDigits: 9 })}${usd}`);
-      }
+        // Native SOL balance
+        if (data.nativeBalance !== undefined) {
+          const solAmount = typeof data.nativeBalance === 'object'
+            ? data.nativeBalance.lamports / LAMPORTS_PER_SOL
+            : data.nativeBalance / LAMPORTS_PER_SOL;
+          const usd = typeof data.nativeBalance === 'object' && data.nativeBalance.totalUsdValue
+            ? ` ($${Number(data.nativeBalance.totalUsdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+            : '';
+          lines.push(`- **SOL**: ${solAmount.toLocaleString(undefined, { maximumFractionDigits: 9 })}${usd}`);
+        }
 
-      // Token balances
-      const tokens = data.tokens || [];
-      for (const token of tokens) {
-        const symbol = token.symbol || token.name || formatAddress(token.mint || '');
-        const amount = token.amount !== undefined
-          ? Number(token.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })
-          : '0';
-        const usd = token.usdValue
-          ? ` ($${Number(token.usdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
-          : '';
-        lines.push(`- **${symbol}**: ${amount}${usd}`);
-      }
+        // Token balances
+        const tokens = data.tokens || [];
+        for (const token of tokens) {
+          const symbol = token.symbol || token.name || formatAddress(token.mint || '');
+          const amount = token.amount !== undefined
+            ? Number(token.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })
+            : '0';
+          const usd = token.usdValue
+            ? ` ($${Number(token.usdValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+            : '';
+          lines.push(`- **${symbol}**: ${amount}${usd}`);
+        }
 
-      // NFTs summary
-      if (data.nfts && data.nfts.length > 0) {
-        lines.push('', `**NFTs:** ${data.nfts.length} found`);
-        if (showNfts) {
-          for (const nft of data.nfts.slice(0, 20)) {
-            const name = nft.name || formatAddress(nft.mint || '');
-            lines.push(`- ${name}`);
-          }
-          if (data.nfts.length > 20) {
-            lines.push(`  ... +${data.nfts.length - 20} more`);
+        // NFTs summary
+        if (data.nfts && data.nfts.length > 0) {
+          lines.push('', `**NFTs:** ${data.nfts.length} found`);
+          if (showNfts) {
+            for (const nft of data.nfts.slice(0, 20)) {
+              const name = nft.name || formatAddress(nft.mint || '');
+              lines.push(`- ${name}`);
+            }
+            if (data.nfts.length > 20) {
+              lines.push(`  ... +${data.nfts.length - 20} more`);
+            }
           }
         }
-      }
 
-      // Pagination
-      if (data.pagination?.hasMore) {
-        lines.push('', `*More results available — use page=${page + 1}*`);
-      }
+        // Pagination
+        if (data.pagination?.hasMore) {
+          lines.push('', `*More results available — use page=${page + 1}*`);
+        }
 
-      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching wallet balances', [
+          addressError('Wallet Balances'),
+        ]);
+      }
     }
   );
 
@@ -166,10 +177,13 @@ export function registerWalletTools(server: McpServer) {
       before: z.string().optional().describe('Pagination cursor — pass nextCursor from previous response'),
       after: z.string().optional().describe('Pagination cursor for forward pagination'),
       type: z.string().optional().describe('Filter by transaction type (e.g. SWAP, TRANSFER, NFT_SALE)'),
-      tokenAccounts: z.enum(['none', 'balanceChanged', 'all']).optional().default('balanceChanged').describe('"none" = only direct transactions, "balanceChanged" = include token transfers (default), "all" = all token account activity')
+      tokenAccounts: z.string().optional().default('balanceChanged').describe('"none" = only direct transactions, "balanceChanged" = include token transfers (default), "all" = all token account activity')
     },
     async ({ address, limit, before, after, type, tokenAccounts }) => {
       if (!hasApiKey()) return noApiKeyResponse();
+
+      const err = validateEnum(tokenAccounts, ['none', 'balanceChanged', 'all'], 'Wallet History Error', 'tokenAccounts');
+      if (err) return err;
 
       const params = new URLSearchParams();
       params.set('limit', String(Math.min(limit, 100)));
@@ -178,62 +192,68 @@ export function registerWalletTools(server: McpServer) {
       if (type) params.set('type', type);
       if (tokenAccounts) params.set('tokenAccounts', tokenAccounts);
 
-      const data = await restRequest(`/v1/wallet/${address}/history?${params.toString()}`);
+      try {
+        const data = await restRequest(`/v1/wallet/${address}/history?${params.toString()}`);
 
-      const transactions = data.transactions || data.history || (Array.isArray(data) ? data : []);
+        const transactions = data.transactions || data.history || (Array.isArray(data) ? data : []);
 
-      if (transactions.length === 0) {
-        return { content: [{ type: 'text' as const, text: `**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.` }] };
-      }
-
-      const lines = [`**Transaction History** (${transactions.length} transactions)`, ''];
-
-      transactions.forEach((tx: any, i: number) => {
-        const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
-        const status = tx.transactionError ? 'Failed' : 'Success';
-        const fee = tx.fee ? formatSol(tx.fee) : 'N/A';
-        const txType = tx.type || 'UNKNOWN';
-
-        lines.push(`${i + 1}. ${time} — ${status} — **${txType}** — Fee: ${fee}`);
-        lines.push(`   Signature: \`${tx.signature}\``);
-
-        if (tx.description) {
-          lines.push(`   ${tx.description}`);
+        if (transactions.length === 0) {
+          return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.`);
         }
 
-        // Balance changes
-        const changes: string[] = [];
-        if (tx.nativeTransfers) {
-          for (const nt of tx.nativeTransfers) {
-            if (nt.amount && nt.amount !== 0) {
-              const dir = nt.toUserAccount === address ? '+' : '-';
-              changes.push(`${dir}${formatSol(Math.abs(nt.amount))}`);
+        const lines = [`**Transaction History** (${transactions.length} transactions)`, ''];
+
+        transactions.forEach((tx: any, i: number) => {
+          const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
+          const status = tx.transactionError ? 'Failed' : 'Success';
+          const fee = tx.fee ? formatSol(tx.fee) : 'N/A';
+          const txType = tx.type || 'UNKNOWN';
+
+          lines.push(`${i + 1}. ${time} — ${status} — **${txType}** — Fee: ${fee}`);
+          lines.push(`   Signature: \`${tx.signature}\``);
+
+          if (tx.description) {
+            lines.push(`   ${tx.description}`);
+          }
+
+          // Balance changes
+          const changes: string[] = [];
+          if (tx.nativeTransfers) {
+            for (const nt of tx.nativeTransfers) {
+              if (nt.amount && nt.amount !== 0) {
+                const dir = nt.toUserAccount === address ? '+' : '-';
+                changes.push(`${dir}${formatSol(Math.abs(nt.amount))}`);
+              }
             }
           }
-        }
-        if (tx.tokenTransfers) {
-          for (const tt of tx.tokenTransfers) {
-            const symbol = tt.symbol || tt.mint ? formatAddress(tt.mint) : 'unknown';
-            const amount = tt.tokenAmount !== undefined ? tt.tokenAmount : 0;
-            const dir = tt.toUserAccount === address ? '+' : '-';
-            changes.push(`${dir}${Math.abs(amount).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`);
+          if (tx.tokenTransfers) {
+            for (const tt of tx.tokenTransfers) {
+              const symbol = tt.symbol || tt.mint ? formatAddress(tt.mint) : 'unknown';
+              const amount = tt.tokenAmount !== undefined ? tt.tokenAmount : 0;
+              const dir = tt.toUserAccount === address ? '+' : '-';
+              changes.push(`${dir}${Math.abs(amount).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`);
+            }
           }
+
+          if (changes.length > 0) {
+            lines.push(`   Balance Changes: ${changes.join(', ')}`);
+          }
+
+          lines.push('');
+        });
+
+        // Pagination
+        const cursor = data.pagination?.nextCursor || data.nextCursor;
+        if (cursor) {
+          lines.push(`**Next Cursor:** \`${cursor}\``);
         }
 
-        if (changes.length > 0) {
-          lines.push(`   Balance Changes: ${changes.join(', ')}`);
-        }
-
-        lines.push('');
-      });
-
-      // Pagination
-      const cursor = data.pagination?.nextCursor || data.nextCursor;
-      if (cursor) {
-        lines.push(`**Next Cursor:** \`${cursor}\``);
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching wallet history', [
+          addressError('Wallet History'),
+        ]);
       }
-
-      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
     }
   );
 
@@ -253,36 +273,42 @@ export function registerWalletTools(server: McpServer) {
       params.set('limit', String(Math.min(limit, 100)));
       if (cursor) params.set('cursor', cursor);
 
-      const data = await restRequest(`/v1/wallet/${address}/transfers?${params.toString()}`);
+      try {
+        const data = await restRequest(`/v1/wallet/${address}/transfers?${params.toString()}`);
 
-      const transfers = data.transfers || (Array.isArray(data) ? data : []);
+        const transfers = data.transfers || (Array.isArray(data) ? data : []);
 
-      if (transfers.length === 0) {
-        return { content: [{ type: 'text' as const, text: `**Wallet Transfers for ${formatAddress(address)}**\n\nNo transfers found.` }] };
+        if (transfers.length === 0) {
+          return mcpText(`**Wallet Transfers for ${formatAddress(address)}**\n\nNo transfers found.`);
+        }
+
+        const lines = [`**Wallet Transfers** (${transfers.length} transfers)`, ''];
+
+        transfers.forEach((t: any, i: number) => {
+          const direction = t.direction === 'in' ? 'Received' : 'Sent';
+          const time = t.timestamp ? formatTimestamp(t.timestamp) : 'N/A';
+          const symbol = t.symbol || (t.mint ? formatAddress(t.mint) : 'SOL');
+          const amount = t.amount !== undefined ? Number(t.amount).toLocaleString(undefined, { maximumFractionDigits: 6 }) : '?';
+          const counterparty = t.counterparty ? formatAddress(t.counterparty) : 'unknown';
+
+          lines.push(`${i + 1}. **${direction}** — ${time}`);
+          lines.push(`   ${amount} ${symbol} ${t.direction === 'in' ? 'from' : 'to'} ${counterparty}`);
+          if (t.signature) lines.push(`   Signature: \`${t.signature}\``);
+          lines.push('');
+        });
+
+        // Pagination
+        const nextCursor = data.pagination?.cursor || data.cursor || data.nextCursor;
+        if (nextCursor) {
+          lines.push(`**Next Cursor:** \`${nextCursor}\``);
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching wallet transfers', [
+          addressError('Wallet Transfers'),
+        ]);
       }
-
-      const lines = [`**Wallet Transfers** (${transfers.length} transfers)`, ''];
-
-      transfers.forEach((t: any, i: number) => {
-        const direction = t.direction === 'in' ? 'Received' : 'Sent';
-        const time = t.timestamp ? formatTimestamp(t.timestamp) : 'N/A';
-        const symbol = t.symbol || (t.mint ? formatAddress(t.mint) : 'SOL');
-        const amount = t.amount !== undefined ? Number(t.amount).toLocaleString(undefined, { maximumFractionDigits: 6 }) : '?';
-        const counterparty = t.counterparty ? formatAddress(t.counterparty) : 'unknown';
-
-        lines.push(`${i + 1}. **${direction}** — ${time}`);
-        lines.push(`   ${amount} ${symbol} ${t.direction === 'in' ? 'from' : 'to'} ${counterparty}`);
-        if (t.signature) lines.push(`   Signature: \`${t.signature}\``);
-        lines.push('');
-      });
-
-      // Pagination
-      const nextCursor = data.pagination?.cursor || data.cursor || data.nextCursor;
-      if (nextCursor) {
-        lines.push(`**Next Cursor:** \`${nextCursor}\``);
-      }
-
-      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
     }
   );
 
@@ -312,13 +338,11 @@ export function registerWalletTools(server: McpServer) {
         if (data.timestamp) lines.push(`**Date:** ${data.timestamp}`);
         if (data.explorerUrl) lines.push(`**Explorer:** ${data.explorerUrl}`);
 
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-      } catch (err: unknown) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        if (errorMsg.includes('404')) {
-          return { content: [{ type: 'text' as const, text: `No funding source found for ${formatAddress(address)}` }] };
-        }
-        return { content: [{ type: 'text' as const, text: `Error: ${errorMsg}` }], isError: true };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error', [
+          http404Error('', `No funding source found for ${formatAddress(address)}`),
+        ]);
       }
     }
   );
