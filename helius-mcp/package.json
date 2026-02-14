@@ -8,6 +8,7 @@
     "helius-mcp": "dist/index.js"
   },
   "scripts": {
+    "prebuild": "node -p \"'export const version = \\'' + require('./package.json').version + '\\';'\" > src/version.ts",
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",

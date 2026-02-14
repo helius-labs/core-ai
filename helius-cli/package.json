@@ -10,6 +10,7 @@
     "dist"
   ],
   "scripts": {
+    "prebuild": "node -p \"'export const version = \\'' + require('./package.json').version + '\\';'\" > src/version.ts",
     "build": "tsc",
     "dev": "tsx bin/helius.ts",
     "prepublishOnly": "npm run build"

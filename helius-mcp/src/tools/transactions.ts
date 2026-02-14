@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getHeliusClient, hasApiKey, getRpcUrl } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatAddress, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, getErrorMessage, validateEnum, handleToolError, http400Error } from '../utils/errors.js';
@@ -112,8 +112,9 @@ function decodeComputeBudget(dataBase58: string): string | null {
   }
 }
 
-// Shared helper: call getTransactionsForAddress (Helius JSON-RPC) — supports native sortOrder asc/desc
+// Shared helper: call getTransactionsForAddress via SDK (Helius custom RPC method)
 async function fetchTransactionsForAddress(
+  helius: ReturnType<typeof getHeliusClient>,
   address: string,
   params: {
     transactionDetails: 'signatures' | 'full';
@@ -123,18 +124,7 @@ async function fetchTransactionsForAddress(
     filters?: Record<string, unknown>;
   }
 ) {
-  const url = getRpcUrl();
-
-  type RequestParams = {
-    transactionDetails: string;
-    sortOrder: string;
-    limit: number;
-    maxSupportedTransactionVersion: number;
-    paginationToken?: string;
-    filters?: Record<string, unknown>;
-  };
-
-  const reqParams: RequestParams = {
+  const reqParams: any = {
     transactionDetails: params.transactionDetails,
     sortOrder: params.sortOrder,
     limit: params.limit,
@@ -144,26 +134,8 @@ async function fetchTransactionsForAddress(
   if (params.paginationToken) reqParams.paginationToken = params.paginationToken;
   if (params.filters && Object.keys(params.filters).length > 0) reqParams.filters = params.filters;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 'get-transactions-for-address',
-      method: 'getTransactionsForAddress',
-      params: [address, reqParams]
-    })
-  });
-
-  type ApiResponse = {
-    result?: {
-      data: SignatureResult[] | FullResult[];
-      paginationToken?: string;
-    };
-    error?: { message: string };
-  };
-
-  return await response.json() as ApiResponse;
+  // SDK returns { data, paginationToken } directly
+  return await helius.getTransactionsForAddress([address, reqParams]);
 }
 
 const BASE58_REGEX = /^[1-9A-HJ-NP-Za-km-z]{86,88}$/;
@@ -541,6 +513,7 @@ export function registerTransactionTools(server: McpServer) {
     },
     async ({ address, mode, limit, sortOrder, before, until, paginationToken, transactionDetails, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte }) => {
       if (!hasApiKey()) return noApiKeyResponse();
+      const helius = getHeliusClient();
 
       let err;
       err = validateEnum(mode, ['parsed', 'signatures', 'raw'], 'Transaction History Error', 'mode');
@@ -588,50 +561,26 @@ export function registerTransactionTools(server: McpServer) {
         // Fast path: getSignaturesForAddress — cheap RPC call for latest sigs (desc only, no filters)
         if (useQuickPath) {
           try {
-            const url = getRpcUrl();
-
             type QuickSigParams = { limit: number; before?: string; until?: string };
             const rpcParams: QuickSigParams = { limit };
             if (before) rpcParams.before = before;
             if (until) rpcParams.until = until;
 
-            type SignatureInfo = {
-              signature: string;
-              slot: number;
-              err: unknown;
-              memo: string | null;
-              blockTime: number | null;
-            };
+            // Kit returns bigint for slot/blockTime fields
+            const sigs = await (helius as any).getSignaturesForAddress(address, rpcParams).send();
 
-            const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 'get-signatures-for-address',
-                method: 'getSignaturesForAddress',
-                params: [address, rpcParams]
-              })
-            });
-
-            const json = await response.json() as { result?: SignatureInfo[]; error?: { message: string } };
-            if (json.error) {
-              return mcpText(`Error fetching signatures: ${json.error.message}`);
-            }
-
-            const sigs = json.result || [];
-
-            if (sigs.length === 0) {
+            if (!sigs || sigs.length === 0) {
               return mcpText(`**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`);
             }
 
             const lines = [`**Signatures for ${formatAddress(address)}** (${sigs.length} results, newest first${statusNote})`, ''];
 
-            sigs.forEach((sig) => {
+            sigs.forEach((sig: any) => {
               const sigStatus = sig.err ? '❌' : '✅';
-              const time = sig.blockTime ? new Date(sig.blockTime * 1000).toISOString() : 'N/A';
+              const blockTime = sig.blockTime != null ? Number(sig.blockTime) : null;
+              const time = blockTime ? new Date(blockTime * 1000).toISOString() : 'N/A';
               lines.push(`${sigStatus} ${sig.signature}`);
-              lines.push(`   Slot: ${sig.slot.toLocaleString()} | Time: ${time}`);
+              lines.push(`   Slot: ${Number(sig.slot).toLocaleString()} | Time: ${time}`);
               if (sig.memo) {
                 lines.push(`   Memo: ${sig.memo}`);
               }
@@ -645,7 +594,7 @@ export function registerTransactionTools(server: McpServer) {
 
         // Full path: getTransactionsForAddress — needed for asc sort, filters, or paginationToken
         try {
-          const data = await fetchTransactionsForAddress(address, {
+          const result = await fetchTransactionsForAddress(helius, address, {
             transactionDetails: 'signatures',
             sortOrder,
             limit,
@@ -653,16 +602,11 @@ export function registerTransactionTools(server: McpServer) {
             ...(Object.keys(filters).length > 0 && { filters })
           });
 
-          if (data.error) {
-            return mcpText(`**Error**\n\n${data.error.message}`);
-          }
-
-          const result = data.result;
           if (!result || !result.data || result.data.length === 0) {
             return mcpText(`**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`);
           }
 
-          const items = result.data as SignatureResult[];
+          const items = result.data as unknown as SignatureResult[];
           const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
           const lines = [`**Signatures for ${formatAddress(address)}** (${items.length} results, ${orderLabel}${statusNote})`, ''];
 
@@ -689,7 +633,7 @@ export function registerTransactionTools(server: McpServer) {
       // ─── RAW MODE ───
       if (mode === 'raw') {
         try {
-          const data = await fetchTransactionsForAddress(address, {
+          const result = await fetchTransactionsForAddress(helius, address, {
             transactionDetails: transactionDetails! as 'signatures' | 'full',
             sortOrder,
             limit,
@@ -697,11 +641,6 @@ export function registerTransactionTools(server: McpServer) {
             ...(Object.keys(filters).length > 0 && { filters })
           });
 
-          if (data.error) {
-            return mcpText(`**Error**\n\n${data.error.message}`);
-          }
-
-          const result = data.result;
           if (!result || !result.data || result.data.length === 0) {
             return mcpText(`**Transactions for ${formatAddress(address)}**\n\nNo transactions found.`);
           }
@@ -710,7 +649,7 @@ export function registerTransactionTools(server: McpServer) {
           const lines = [`**Transactions for ${formatAddress(address)}** (${result.data.length} results, ${orderLabel}${statusNote})`, ''];
 
           if (transactionDetails === 'signatures') {
-            const items = result.data as SignatureResult[];
+            const items = result.data as unknown as SignatureResult[];
             items.forEach((item) => {
               const txStatus = item.err ? '❌' : '✅';
               const time = item.blockTime ? new Date(item.blockTime * 1000).toISOString() : 'N/A';
@@ -721,7 +660,7 @@ export function registerTransactionTools(server: McpServer) {
               }
             });
           } else {
-            const items = result.data as FullResult[];
+            const items = result.data as unknown as FullResult[];
             items.forEach((item) => {
               const sig = item.transaction.signatures[0];
               const txStatus = item.meta.err ? '❌' : '✅';
@@ -760,100 +699,93 @@ export function registerTransactionTools(server: McpServer) {
 
       // ─── PARSED MODE (default) ───
       try {
-      // Step 1: Use getTransactionsForAddress to get sorted signatures in one call
-      const sigData = await fetchTransactionsForAddress(address, {
-        transactionDetails: 'signatures',
-        sortOrder,
-        limit: Math.min(limit, 100),
-        ...(paginationToken && { paginationToken }),
-        ...(Object.keys(filters).length > 0 && { filters })
-      });
+        // Step 1: Use getTransactionsForAddress to get sorted signatures in one call
+        const sigResult = await fetchTransactionsForAddress(helius, address, {
+          transactionDetails: 'signatures',
+          sortOrder,
+          limit: Math.min(limit, 100),
+          ...(paginationToken && { paginationToken }),
+          ...(Object.keys(filters).length > 0 && { filters })
+        });
 
-      if (sigData.error) {
-        return mcpText(`**Error**\n\n${sigData.error.message}`);
-      }
-
-      type SigItem = { signature: string };
-      const sigResult = sigData.result;
-      if (!sigResult || !sigResult.data || sigResult.data.length === 0) {
-        return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.`);
-      }
-
-      const sortedSigs = (sigResult.data as SigItem[]).map(item => item.signature);
-
-      // Step 2: Send sorted signatures to Enhanced API for rich data
-      const helius = getHeliusClient();
-
-      // Batch in chunks of 100 (Enhanced API limit)
-      const allTransactions: EnrichedTransaction[] = [];
-      for (let i = 0; i < sortedSigs.length; i += 100) {
-        const batch = sortedSigs.slice(i, i + 100);
-        const enriched = await helius.enhanced.getTransactions({
-          transactions: batch
-        }) as EnrichedTransaction[];
-        if (enriched) allTransactions.push(...enriched);
-      }
-
-      if (allTransactions.length === 0) {
-        return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions could be enriched.`);
-      }
-
-      // Re-sort to match original order (Enhanced API may return in different order)
-      const sigOrder = new Map(sortedSigs.map((sig, idx) => [sig, idx]));
-      allTransactions.sort((a, b) => (sigOrder.get(a.signature) ?? 999) - (sigOrder.get(b.signature) ?? 999));
-
-      const tokenMetadata = await fetchTokenMetadata(helius, collectMints(allTransactions));
-
-      const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
-      const lines = [`**Transaction History for ${formatAddress(address)}** (${allTransactions.length} transactions, ${orderLabel}${statusNote})`, ''];
-
-      allTransactions.forEach((tx) => {
-        const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
-        const txStatus = tx.transactionError ? '❌' : '✅';
-        const type = tx.type || 'UNKNOWN';
-        const source = tx.source || '';
-
-        lines.push(`${txStatus} **${type}**${source ? ` (${source})` : ''} - ${time}`);
-        lines.push(`   Sig: \`${tx.signature}\``);
-
-        if (tx.description) {
-          lines.push(`   ${tx.description}`);
+        if (!sigResult || !sigResult.data || sigResult.data.length === 0) {
+          return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions found.`);
         }
 
-        // Swap summary
-        if (tx.events?.swap) {
-          const swapSummary = formatSwapSummary(tx.events.swap, tokenMetadata);
-          if (swapSummary) {
-            lines.push(`   Swap: ${swapSummary}`);
+        type SigItem = { signature: string };
+        const sortedSigs = (sigResult.data as unknown as SigItem[]).map(item => item.signature);
+
+        // Step 2: Send sorted signatures to Enhanced API for rich data
+        // Batch in chunks of 100 (Enhanced API limit)
+        const allTransactions: EnrichedTransaction[] = [];
+        for (let i = 0; i < sortedSigs.length; i += 100) {
+          const batch = sortedSigs.slice(i, i + 100);
+          const enriched = await helius.enhanced.getTransactions({
+            transactions: batch
+          }) as EnrichedTransaction[];
+          if (enriched) allTransactions.push(...enriched);
+        }
+
+        if (allTransactions.length === 0) {
+          return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions could be enriched.`);
+        }
+
+        // Re-sort to match original order (Enhanced API may return in different order)
+        const sigOrder = new Map(sortedSigs.map((sig, idx) => [sig, idx]));
+        allTransactions.sort((a, b) => (sigOrder.get(a.signature) ?? 999) - (sigOrder.get(b.signature) ?? 999));
+
+        const tokenMetadata = await fetchTokenMetadata(helius, collectMints(allTransactions));
+
+        const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
+        const lines = [`**Transaction History for ${formatAddress(address)}** (${allTransactions.length} transactions, ${orderLabel}${statusNote})`, ''];
+
+        allTransactions.forEach((tx) => {
+          const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
+          const txStatus = tx.transactionError ? '❌' : '✅';
+          const type = tx.type || 'UNKNOWN';
+          const source = tx.source || '';
+
+          lines.push(`${txStatus} **${type}**${source ? ` (${source})` : ''} - ${time}`);
+          lines.push(`   Sig: \`${tx.signature}\``);
+
+          if (tx.description) {
+            lines.push(`   ${tx.description}`);
           }
+
+          // Swap summary
+          if (tx.events?.swap) {
+            const swapSummary = formatSwapSummary(tx.events.swap, tokenMetadata);
+            if (swapSummary) {
+              lines.push(`   Swap: ${swapSummary}`);
+            }
+          }
+
+          // Compact token transfer summary (for non-swap transactions)
+          if (!tx.events?.swap && tx.tokenTransfers && tx.tokenTransfers.length > 0) {
+            const transferParts = tx.tokenTransfers.slice(0, 3).map((t) => {
+              const asset = tokenMetadata.get(t.mint);
+              const symbol = asset?.token_info?.symbol || asset?.content?.metadata?.symbol || asset?.content?.metadata?.name || formatAddress(t.mint);
+              const decimals = asset?.token_info?.decimals ?? t.decimals ?? 0;
+              const amount = t.tokenAmount.toLocaleString(undefined, { maximumFractionDigits: Math.min(decimals || 4, 4) });
+              return `${amount} ${symbol}`;
+            });
+            const moreCount = tx.tokenTransfers.length > 3 ? ` +${tx.tokenTransfers.length - 3} more` : '';
+            lines.push(`   Transfers: ${transferParts.join(', ')}${moreCount}`);
+          }
+
+          if (tx.fee) {
+            lines.push(`   Fee: ${formatSol(tx.fee)}`);
+          }
+
+          lines.push('');
+        });
+
+        if (sigResult.paginationToken) {
+          lines.push(`**Next Page Token:** \`${sigResult.paginationToken}\``);
         }
 
-        // Compact token transfer summary (for non-swap transactions)
-        if (!tx.events?.swap && tx.tokenTransfers && tx.tokenTransfers.length > 0) {
-          const transferParts = tx.tokenTransfers.slice(0, 3).map((t) => {
-            const asset = tokenMetadata.get(t.mint);
-            const symbol = asset?.token_info?.symbol || asset?.content?.metadata?.symbol || asset?.content?.metadata?.name || formatAddress(t.mint);
-            const decimals = asset?.token_info?.decimals ?? t.decimals ?? 0;
-            const amount = t.tokenAmount.toLocaleString(undefined, { maximumFractionDigits: Math.min(decimals || 4, 4) });
-            return `${amount} ${symbol}`;
-          });
-          const moreCount = tx.tokenTransfers.length > 3 ? ` +${tx.tokenTransfers.length - 3} more` : '';
-          lines.push(`   Transfers: ${transferParts.join(', ')}${moreCount}`);
-        }
-
-        if (tx.fee) {
-          lines.push(`   Fee: ${formatSol(tx.fee)}`);
-        }
-
-        lines.push('');
-      });
-
-      if (sigResult.paginationToken) {
-        lines.push(`**Next Page Token:** \`${sigResult.paginationToken}\``);
-      }
-
-      const fullText = lines.join('\n');
-      return mcpText(truncateResponse(fullText));
+        const fullText = lines.join('\n');
+        return mcpText(truncateResponse(fullText));
       } catch (err) {
         return handleToolError(err, 'Error fetching transaction history');
       }
