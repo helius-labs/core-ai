@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypair, signAuthMessage, getAddress } from "../lib/wallet.js";
+import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
@@ -26,7 +26,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
 
     // Load keypair
     spinner?.start("Loading keypair...");
-    const keypair = await loadKeypair(options.keypair);
+    const keypair = await loadKeypairFromFile(options.keypair);
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet: ${chalk.cyan(walletAddress)}`);
 

@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypair, signAuthMessage, getAddress } from "../lib/wallet.js";
+import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, createProject, listProjects, getProject, type Project } from "../lib/api.js";
 import { payUSDC, checkUsdcBalance, checkSolBalance, MIN_SOL_FOR_TX } from "../lib/payment.js";
 import { setJwt } from "../lib/config.js";
@@ -51,7 +51,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 1. Load keypair
     spinner?.start("Loading keypair...");
-    const keypair = await loadKeypair(options.keypair);
+    const keypair = await loadKeypairFromFile(options.keypair);
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet: ${chalk.cyan(walletAddress)}`);
 
@@ -109,7 +109,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 4. Check SOL balance for transaction fees
     spinner?.start("Checking SOL balance...");
-    const solBalance = await checkSolBalance(keypair);
+    const solBalance = await checkSolBalance(walletAddress);
     if (solBalance < MIN_SOL_FOR_TX) {
       if (options.json) {
         exitWithError("INSUFFICIENT_SOL", "Insufficient SOL for transaction fees", {
@@ -128,7 +128,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 5. Check USDC balance
     spinner?.start("Checking USDC balance...");
-    const usdcBalance = await checkUsdcBalance(keypair);
+    const usdcBalance = await checkUsdcBalance(walletAddress);
     if (usdcBalance < PAYMENT_AMOUNT) {
       if (options.json) {
         exitWithError("INSUFFICIENT_USDC", "Insufficient USDC", {
@@ -146,7 +146,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     spinner?.succeed(`USDC balance: ${chalk.green((Number(usdcBalance) / 1_000_000).toFixed(2))} USDC`);
 
     spinner?.start("Sending 1 USDC payment...");
-    const txSignature = await payUSDC(keypair);
+    const txSignature = await payUSDC(keypair.secretKey);
     spinner?.succeed(`Payment sent: ${chalk.cyan(txSignature)}`);
 
     // 6. Create project (with retry - backend needs time to verify payment)

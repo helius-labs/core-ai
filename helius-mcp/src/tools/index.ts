@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { registerAuthTools } from './auth.js';
 import { registerConfigTools } from './config.js';
 import { registerBalanceTools } from './balance.js';
 import { registerTransactionTools } from './transactions.js';
@@ -15,6 +16,7 @@ import { registerLaserstreamTools } from './laserstream.js';
 import { registerWalletTools } from './wallet.js';
 
 export function registerTools(server: McpServer) {
+  registerAuthTools(server);
   registerConfigTools(server);
   registerBalanceTools(server);
   registerTransactionTools(server);

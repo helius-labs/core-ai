@@ -5,6 +5,26 @@ let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
 let heliusClient: HeliusClient | null = null;
 
+// Session keypair storage for auth flow
+let sessionSecretKey: Uint8Array | null = null;
+let sessionWalletAddress: string | null = null;
+
+export function setSessionSecretKey(key: Uint8Array): void {
+  sessionSecretKey = key;
+}
+
+export function getSessionSecretKey(): Uint8Array | null {
+  return sessionSecretKey;
+}
+
+export function setSessionWalletAddress(address: string): void {
+  sessionWalletAddress = address;
+}
+
+export function getSessionWalletAddress(): string | null {
+  return sessionWalletAddress;
+}
+
 export function setApiKey(apiKey: string): void {
   sessionApiKey = apiKey;
   heliusClient = null; // Reset client so it picks up new key

@@ -2,8 +2,9 @@ import chalk from "chalk";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import nacl from "tweetnacl";
-import { createKeyPairSignerFromBytes } from "@solana/kit";
+import { generateKeypair } from "helius-sdk/auth/generateKeypair";
+import { getAddress } from "helius-sdk/auth/getAddress";
+import { loadKeypair } from "helius-sdk/auth/loadKeypair";
 
 const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius-cli", "keypair.json");
 
@@ -30,18 +31,19 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   }
 
   // Generate keypair
-  const keypair = nacl.sign.keyPair();
-  
+  const keypair = generateKeypair();
+
   // Save in Solana CLI format (64-byte array)
   const secretKeyArray = Array.from(keypair.secretKey);
   fs.writeFileSync(resolvedPath, JSON.stringify(secretKeyArray));
 
   // Get address for display
-  const signer = await createKeyPairSignerFromBytes(keypair.secretKey);
+  const walletKeypair = loadKeypair(keypair.secretKey);
+  const address = await getAddress(walletKeypair);
 
   console.log(chalk.green("✓ Keypair generated"));
   console.log(`Path: ${chalk.cyan(resolvedPath)}`);
-  console.log(`Address: ${chalk.cyan(signer.address)}`);
+  console.log(`Address: ${chalk.cyan(address)}`);
   console.log("");
   console.log(chalk.yellow("To use this wallet, fund it with:"));
   console.log(`  • ${chalk.cyan("~0.001 SOL")} for transaction fees`);
