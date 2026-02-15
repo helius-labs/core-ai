@@ -14,6 +14,7 @@ import {
   getSessionWalletAddress,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
+import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
 
 export function registerAuthTools(server: McpServer) {
   server.tool(
@@ -102,16 +103,14 @@ export function registerAuthTools(server: McpServer) {
           userAgent: MCP_USER_AGENT,
         });
 
-        // Configure API key for this session so all other tools work
+        // Configure API key for this session and persist to shared config
         if (result.apiKey) {
           setApiKey(result.apiKey);
+          setSharedApiKey(result.apiKey);
         }
 
         const saveNote = result.apiKey
-          ? `\nAPI key configured for this session. All Helius tools are now ready to use.\n\n` +
-            `**To keep this key for future sessions**, save your API key \`${result.apiKey}\` by either:\n` +
-            `1. Setting \`HELIUS_API_KEY\` in your MCP server config environment variables\n` +
-            `2. Calling the \`setHeliusApiKey\` tool at the start of each new session`
+          ? `\nAPI key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`. All Helius tools are now ready to use.`
           : '';
 
         if (result.status === 'existing_project') {

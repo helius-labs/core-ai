@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { setApiKey, setNetwork, hasApiKey, getHeliusClient } from '../utils/helius.js';
 import { mcpText, validateEnum, getErrorMessage } from '../utils/errors.js';
+import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
 
 export function registerConfigTools(server: McpServer) {
   const keyFromEnv = hasApiKey();
@@ -39,7 +40,8 @@ export function registerConfigTools(server: McpServer) {
         }
       }
 
-      return mcpText(`✅ Helius API key configured for ${network}! You can now query the Solana blockchain.`);
+      setSharedApiKey(apiKey);
+      return mcpText(`✅ Helius API key configured for ${network} and saved to \`${SHARED_CONFIG_PATH}\`. You can now query the Solana blockchain.`);
     }
   );
 }

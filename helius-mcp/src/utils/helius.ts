@@ -1,5 +1,6 @@
 import { createHelius, type HeliusClient } from 'helius-sdk';
 import { MCP_USER_AGENT } from '../http.js';
+import { getSharedApiKey } from './config.js';
 
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
@@ -31,7 +32,7 @@ export function setApiKey(apiKey: string): void {
 }
 
 export function getApiKey(): string {
-  const apiKey = sessionApiKey || process.env.HELIUS_API_KEY;
+  const apiKey = sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
   if (!apiKey) {
     throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
@@ -39,7 +40,7 @@ export function getApiKey(): string {
 }
 
 export function hasApiKey(): boolean {
-  return !!(sessionApiKey || process.env.HELIUS_API_KEY);
+  return !!(sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey());
 }
 
 export function getHeliusClient(): HeliusClient {
