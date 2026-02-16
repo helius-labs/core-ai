@@ -22,7 +22,3 @@ export function formatTokenAmount(amount: number, decimals: number): string {
 export function formatSolCompact(lamports: number): string {
   return `${(lamports / LAMPORTS_PER_SOL).toLocaleString(undefined, { maximumFractionDigits: 0 })} SOL`;
 }
-
-export function getOrbExplorerUrl(addressOrSignature: string, type: 'address' | 'tx' = 'address'): string {
-  return `https://orbmarkets.io/${type}/${addressOrSignature}`;
-}

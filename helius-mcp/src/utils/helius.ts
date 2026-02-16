@@ -1,7 +1,8 @@
 import { createHelius, type HeliusClient } from 'helius-sdk';
+import { MCP_USER_AGENT } from '../http.js';
 
 let sessionApiKey: string | null = null;
-let sessionNetwork: 'mainnet' | 'devnet' = 'mainnet';
+let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
 let heliusClient: HeliusClient | null = null;
 
 export function setApiKey(apiKey: string): void {
@@ -12,12 +13,7 @@ export function setApiKey(apiKey: string): void {
 export function getApiKey(): string {
   const apiKey = sessionApiKey || process.env.HELIUS_API_KEY;
   if (!apiKey) {
-    throw new Error(
-      'API key not set. Please use the setHeliusApiKey tool first:\n\n' +
-      '  Tool: setHeliusApiKey\n' +
-      '  Arguments: { "apiKey": "your-helius-api-key" }\n\n' +
-      'Get your free API key at: https://dashboard.helius.dev/api-keys'
-    );
+    throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
   return apiKey;
 }
@@ -29,30 +25,21 @@ export function hasApiKey(): boolean {
 export function getHeliusClient(): HeliusClient {
   if (!heliusClient) {
     const apiKey = getApiKey();
-    heliusClient = createHelius({ apiKey });
+    heliusClient = createHelius({ apiKey, userAgent: MCP_USER_AGENT });
   }
   return heliusClient;
 }
 
-export function setNetwork(network: 'mainnet' | 'devnet'): void {
+export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
   sessionNetwork = network;
 }
 
-export function getNetwork(): 'mainnet' | 'devnet' {
+export function getNetwork(): 'mainnet-beta' | 'devnet' {
   const envNetwork = process.env.HELIUS_NETWORK;
-  if (envNetwork === 'devnet' || envNetwork === 'mainnet') {
+  if (envNetwork === 'devnet' || envNetwork === 'mainnet-beta') {
     return envNetwork;
   }
   return sessionNetwork;
-}
-
-export function getRpcUrl(): string {
-  const apiKey = getApiKey();
-  const network = getNetwork();
-  if (network === 'devnet') {
-    return `https://devnet.helius-rpc.com/?api-key=${apiKey}`;
-  }
-  return `https://mainnet.helius-rpc.com/?api-key=${apiKey}`;
 }
 
 export function getEnhancedWebSocketUrl(): string {
@@ -74,50 +61,13 @@ export function getLaserstreamUrl(region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon
   return `https://laserstream-mainnet-${selectedRegion}.helius-rpc.com`;
 }
 
-export async function rpcRequest(method: string, params: any[] = []): Promise<any> {
-  const url = getRpcUrl();
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  if (data.error) {
-    throw new Error(`RPC Error: ${data.error.message || JSON.stringify(data.error)}`);
-  }
-  return data.result;
-}
-
-export async function dasRequest(method: string, params: any = {}): Promise<any> {
-  const url = getRpcUrl();
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  if (data.error) {
-    throw new Error(`DAS Error: ${data.error.message || JSON.stringify(data.error)}`);
-  }
-  return data.result;
-}
-
 export async function restRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
   const apiKey = getApiKey();
   const separator = endpoint.includes('?') ? '&' : '?';
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
 
   const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  headers['User-Agent'] = MCP_USER_AGENT;
   if (options.body) {
     headers['Content-Type'] ??= 'application/json';
   }

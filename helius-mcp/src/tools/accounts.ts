@@ -1,12 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getHeliusClient, hasApiKey, getRpcUrl } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatSol } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, validateEnum, handleToolError, addressError, paginationError } from '../utils/errors.js';
 
 function formatParsedAccountData(account: {
   data: unknown;
-  lamports: number;
+  lamports: number | bigint;
   owner: string;
   executable: boolean;
   space?: number;
@@ -35,180 +36,97 @@ function formatParsedAccountData(account: {
 }
 
 export function registerAccountTools(server: McpServer) {
-  // Get Account Info (single or batch) — uses direct JSON-RPC
+  // Get Account Info (single or batch) — uses SDK standard Solana RPC (Kit, bigint)
   server.tool(
     'getAccountInfo',
     'Get detailed Solana account information for one or more accounts. For a single account: returns owner program, lamport balance, data size, executable status, and rent epoch. For batch: pass up to 100 addresses in "addresses" for fast bulk lookups. Use jsonParsed encoding (default) on token mint addresses to see Token-2022 extensions, authorities, and supply data. Use this to inspect any on-chain account.',
     {
       address: z.string().optional().describe('Single account address (base58 encoded). Use this OR addresses, not both.'),
       addresses: z.array(z.string()).optional().describe('Array of account addresses for batch lookup (up to 100). Use this OR address, not both.'),
-      encoding: z.enum(['base58', 'base64', 'jsonParsed']).optional().default('jsonParsed').describe('Data encoding format')
+      encoding: z.string().optional().default('jsonParsed').describe('Data encoding format')
     },
     async ({ address, addresses, encoding }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
-      const url = getRpcUrl();
+      const err = validateEnum(encoding, ['base58', 'base64', 'jsonParsed'], 'Account Info Error', 'encoding');
+      if (err) return err;
 
       // Validate: must provide exactly one of address or addresses
       if (!address && (!addresses || addresses.length === 0)) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** Provide either \`address\` (single account) or \`addresses\` (batch of up to 100).`
-          }]
-        };
+        return mcpText(`**Error:** Provide either \`address\` (single account) or \`addresses\` (batch of up to 100).`);
       }
 
       if (address && addresses && addresses.length > 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** Provide either \`address\` or \`addresses\`, not both.`
-          }]
-        };
+        return mcpText(`**Error:** Provide either \`address\` or \`addresses\`, not both.`);
       }
 
-      type AccountInfo = {
-        lamports: number;
-        owner: string;
-        data: unknown;
-        executable: boolean;
-        rentEpoch: number;
-        space?: number;
-      };
+      try {
+        const helius = getHeliusClient();
 
-      // --- Batch mode ---
-      if (addresses && addresses.length > 0) {
-        if (addresses.length > 100) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error:** Maximum 100 accounts per request. You provided ${addresses.length}.`
-            }]
-          };
-        }
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 'get-multiple-accounts',
-            method: 'getMultipleAccounts',
-            params: [addresses, { encoding }]
-          })
-        });
-
-        type ApiResponse = {
-          result?: { value: (AccountInfo | null)[] };
-          error?: { message: string };
-        };
-
-        const data = await response.json() as ApiResponse;
-
-        if (data.error) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error**\n\n${data.error.message}`
-            }]
-          };
-        }
-
-        const accounts = data.result?.value || [];
-        const lines = [`**Multiple Accounts** (${addresses.length} requested)`, ''];
-
-        addresses.forEach((addr, i) => {
-          const account = accounts[i];
-          if (!account) {
-            lines.push(`**${formatAddress(addr)}:** Not found`);
-          } else {
-            lines.push(`**${formatAddress(addr)}**`);
-            lines.push(`  Balance: ${formatSol(account.lamports)}`);
-            lines.push(`  Owner: ${account.owner}`);
-            lines.push(`  Executable: ${account.executable ? 'Yes' : 'No'}`);
-            if (account.space !== undefined) {
-              lines.push(`  Data Size: ${account.space} bytes`);
-            }
-            // Show parsed data (Token-2022 extensions, mint info, etc.)
-            const parsedLines = formatParsedAccountData(account);
-            lines.push(...parsedLines);
+        // --- Batch mode ---
+        if (addresses && addresses.length > 0) {
+          if (addresses.length > 100) {
+            return mcpText(`**Error:** Maximum 100 accounts per request. You provided ${addresses.length}.`);
           }
-          lines.push('');
-        });
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
+          const result = await (helius as any).getMultipleAccounts(addresses, { encoding }).send();
+          const accounts = result?.value || [];
+          const lines = [`**Multiple Accounts** (${addresses.length} requested)`, ''];
+
+          addresses.forEach((addr: string, i: number) => {
+            const account = accounts[i];
+            if (!account) {
+              lines.push(`**${formatAddress(addr)}:** Not found`);
+            } else {
+              lines.push(`**${formatAddress(addr)}**`);
+              lines.push(`  Balance: ${formatSol(Number(account.lamports))}`);
+              lines.push(`  Owner: ${account.owner}`);
+              lines.push(`  Executable: ${account.executable ? 'Yes' : 'No'}`);
+              if (account.space !== undefined) {
+                lines.push(`  Data Size: ${Number(account.space)} bytes`);
+              }
+              const parsedLines = formatParsedAccountData({ ...account, lamports: Number(account.lamports) });
+              lines.push(...parsedLines);
+            }
+            lines.push('');
+          });
+
+          return mcpText(lines.join('\n'));
+        }
+
+        // --- Single account mode ---
+        const result = await (helius as any).getAccountInfo(address, { encoding }).send();
+        const account = result?.value;
+
+        if (!account) {
+          return mcpText(`**Account ${formatAddress(address!)}**\n\nAccount not found or has no data.`);
+        }
+
+        const lamports = Number(account.lamports);
+        const lines = [
+          `**Account ${formatAddress(address!)}**`,
+          '',
+          `**Balance:** ${formatSol(lamports)} (${lamports.toLocaleString()} lamports)`,
+          `**Owner:** ${account.owner}`,
+          `**Executable:** ${account.executable ? 'Yes' : 'No'}`,
+        ];
+
+        if (account.space !== undefined) {
+          lines.push(`**Data Size:** ${Number(account.space)} bytes`);
+        }
+
+        const parsedLines = formatParsedAccountData({ ...account, lamports });
+        if (parsedLines.length > 0) {
+          lines.push('', '**Parsed Data:**');
+          lines.push(...parsedLines);
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching account info', [
+          addressError('Account Info'),
+        ]);
       }
-
-      // --- Single account mode ---
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'get-account-info',
-          method: 'getAccountInfo',
-          params: [address, { encoding }]
-        })
-      });
-
-      type ApiResponse = {
-        result?: { value: AccountInfo | null };
-        error?: { message: string };
-      };
-
-      const data = await response.json() as ApiResponse;
-
-      if (data.error) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error**\n\n${data.error.message}`
-          }]
-        };
-      }
-
-      const account = data.result?.value;
-
-      if (!account) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Account ${formatAddress(address!)}**\n\nAccount not found or has no data.`
-          }]
-        };
-      }
-
-      const lines = [
-        `**Account ${formatAddress(address!)}**`,
-        '',
-        `**Balance:** ${formatSol(account.lamports)} (${account.lamports.toLocaleString()} lamports)`,
-        `**Owner:** ${account.owner}`,
-        `**Executable:** ${account.executable ? 'Yes' : 'No'}`,
-      ];
-
-      if (account.space !== undefined) {
-        lines.push(`**Data Size:** ${account.space} bytes`);
-      }
-
-      // Show parsed data details when using jsonParsed
-      const parsedLines = formatParsedAccountData(account);
-      if (parsedLines.length > 0) {
-        lines.push('', '**Parsed Data:**');
-        lines.push(...parsedLines);
-      }
-
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
     }
   );
 
@@ -227,12 +145,7 @@ export function registerAccountTools(server: McpServer) {
       const helius = getHeliusClient();
 
       if (!owner && !mint) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** You must provide at least one of: owner or mint address.`
-          }]
-        };
+        return mcpText(`**Error:** You must provide at least one of: owner or mint address.`);
       }
 
       type TokenAccountParams = {
@@ -246,7 +159,15 @@ export function registerAccountTools(server: McpServer) {
       if (owner) params.owner = owner;
       if (mint) params.mint = mint;
 
-      const response = await helius.getTokenAccounts(params);
+      let response;
+      try {
+        response = await helius.getTokenAccounts(params);
+      } catch (err) {
+        return handleToolError(err, 'Error fetching token accounts', [
+          addressError('Token Accounts', 'Invalid Solana address. Please provide valid base58-encoded addresses for owner and/or mint.'),
+          paginationError('Token Accounts'),
+        ]);
+      }
 
       type TokenAccount = {
         address: string;
@@ -265,12 +186,7 @@ export function registerAccountTools(server: McpServer) {
           : owner
             ? `owner=${formatAddress(owner)}`
             : `mint=${formatAddress(mint!)}`;
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Token Accounts** (${filterDesc})\n\nNo token accounts found.`
-          }]
-        };
+        return mcpText(`**Token Accounts** (${filterDesc})\n\nNo token accounts found.`);
       }
 
       const lines = [`**Token Accounts** (${response.total || items.length} total, page ${page})`, ''];
@@ -291,31 +207,28 @@ export function registerAccountTools(server: McpServer) {
         lines.push('');
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 
-  // Get Program Accounts (V2 with pagination)
+  // Get Program Accounts (V2 with pagination) — uses SDK RpcCaller (no bigint)
   server.tool(
     'getProgramAccounts',
     'Get all accounts owned by a specific program. Returns account addresses, balances, and data sizes. Use dataSize to filter by account data length (e.g. 165 for token accounts). Useful for finding all accounts created by a program like a DEX, lending protocol, or custom program.',
     {
       programId: z.string().describe('Program ID (base58 encoded) — the owner program of the accounts to find'),
       limit: z.number().optional().default(20).describe('Maximum accounts to return (default 20, max 100)'),
-      encoding: z.enum(['base58', 'base64', 'jsonParsed']).optional().default('base64').describe('Data encoding format'),
+      encoding: z.string().optional().default('base64').describe('Data encoding format'),
       dataSize: z.number().optional().describe('Filter by exact account data size in bytes (e.g. 165 for SPL token accounts)'),
       paginationKey: z.string().optional().describe('Pagination cursor from a previous response to fetch the next page')
     },
     async ({ programId, limit, encoding, dataSize, paginationKey }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
-      const url = getRpcUrl();
+      const encErr = validateEnum(encoding, ['base58', 'base64', 'jsonParsed'], 'Program Accounts Error', 'encoding');
+      if (encErr) return encErr;
 
+      const helius = getHeliusClient();
       const cappedLimit = Math.min(limit, 10_000);
 
       type Filter = { dataSize: number };
@@ -324,15 +237,7 @@ export function registerAccountTools(server: McpServer) {
         filters.push({ dataSize });
       }
 
-      type RpcParams = {
-        encoding: string;
-        dataSlice: { offset: number; length: number };
-        limit: number;
-        filters?: Filter[];
-        paginationKey?: string;
-      };
-
-      const rpcParams: RpcParams = {
+      const rpcParams: any = {
         encoding,
         dataSlice: { offset: 0, length: 0 },
         limit: cappedLimit
@@ -340,95 +245,41 @@ export function registerAccountTools(server: McpServer) {
       if (filters.length > 0) rpcParams.filters = filters;
       if (paginationKey) rpcParams.paginationKey = paginationKey;
 
-      const requestBody = {
-        jsonrpc: '2.0',
-        id: 'get-program-accounts-v2',
-        method: 'getProgramAccountsV2',
-        params: [programId, rpcParams]
-      };
-
-      type AccountResult = {
-        pubkey: string;
-        account: {
-          lamports: number;
-          owner: string;
-          data: unknown;
-          executable: boolean;
-          rentEpoch: number;
-          space: number;
-        };
-      };
-
-      type ApiResponse = {
-        result?: {
-          accounts: AccountResult[];
-          paginationKey?: string | null;
-          totalResults?: number;
-        };
-        error?: { message: string };
-      };
-
-      let data: ApiResponse;
       try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        });
-        data = await response.json() as ApiResponse;
-      } catch (err) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error fetching program accounts:** ${err instanceof Error ? err.message : String(err)}`
-          }]
-        };
-      }
+        const data = await helius.getProgramAccountsV2([programId, rpcParams]);
 
-      if (data.error) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error**\n\n${data.error.message}`
-          }]
-        };
-      }
+        // SDK returns result directly (or may wrap in RpcResponse with context/value)
+        const result = (data as any).value ?? data;
+        const accounts = result?.accounts || [];
 
-      const accounts = data.result?.accounts || [];
-
-      if (accounts.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Program Accounts for ${formatAddress(programId)}**\n\nNo accounts found.`
-          }]
-        };
-      }
-
-      const totalLabel = data.result?.totalResults
-        ? `${data.result.totalResults.toLocaleString()} total`
-        : `${accounts.length} returned`;
-      const lines = [`**Program Accounts for ${formatAddress(programId)}** (${totalLabel})`, ''];
-
-      accounts.forEach((item) => {
-        lines.push(`- **${formatAddress(item.pubkey)}**`);
-        lines.push(`  Balance: ${formatSol(item.account.lamports)}`);
-        if (item.account.space !== undefined) {
-          lines.push(`  Data Size: ${item.account.space} bytes`);
+        if (accounts.length === 0) {
+          return mcpText(`**Program Accounts for ${formatAddress(programId)}**\n\nNo accounts found.`);
         }
-        lines.push(`  Executable: ${item.account.executable ? 'Yes' : 'No'}`);
-      });
 
-      if (data.result?.paginationKey) {
-        lines.push('', `**Next Page:** Pass \`paginationKey: "${data.result.paginationKey}"\` to fetch the next page.`);
+        const totalLabel = result?.totalResults
+          ? `${result.totalResults.toLocaleString()} total`
+          : `${accounts.length} returned`;
+        const lines = [`**Program Accounts for ${formatAddress(programId)}** (${totalLabel})`, ''];
+
+        accounts.forEach((item: any) => {
+          lines.push(`- **${formatAddress(item.pubkey)}**`);
+          lines.push(`  Balance: ${formatSol(item.account.lamports)}`);
+          if (item.account.space !== undefined) {
+            lines.push(`  Data Size: ${item.account.space} bytes`);
+          }
+          lines.push(`  Executable: ${item.account.executable ? 'Yes' : 'No'}`);
+        });
+
+        if (result?.paginationKey) {
+          lines.push('', `**Next Page:** Pass \`paginationKey: "${result.paginationKey}"\` to fetch the next page.`);
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching program accounts', [
+          addressError('Program Accounts'),
+        ]);
       }
-
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
     }
   );
 }

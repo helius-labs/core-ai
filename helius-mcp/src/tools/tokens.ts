@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatTokenAmount } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, handleToolError, addressError } from '../utils/errors.js';
 
 export function registerTokenTools(server: McpServer) {
   server.tool(
@@ -16,11 +17,18 @@ export function registerTokenTools(server: McpServer) {
       const helius = getHeliusClient();
 
       // Use getTokenAccounts to find top holders
-      const response = await helius.getTokenAccounts({
-        mint,
-        page: 1,
-        limit: 20
-      });
+      let response;
+      try {
+        response = await helius.getTokenAccounts({
+          mint,
+          page: 1,
+          limit: 20
+        });
+      } catch (err) {
+        return handleToolError(err, 'Error fetching token holders', [
+          addressError(`Token Holders for ${formatAddress(mint || '(empty)')}`, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
+        ]);
+      }
 
       type TokenAccount = {
         address: string;
@@ -33,12 +41,7 @@ export function registerTokenTools(server: McpServer) {
       const items = (response.token_accounts || []) as TokenAccount[];
 
       if (items.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Token Holders for ${formatAddress(mint)}**\n\nNo holders found.`
-          }]
-        };
+        return mcpText(`**Token Holders for ${formatAddress(mint)}**\n\nNo holders found.`);
       }
 
       // Sort by amount descending (largest holders first)
@@ -77,12 +80,7 @@ export function registerTokenTools(server: McpServer) {
         lines.push(`${idx + 1}. **${formatAddress(account.owner)}** — ${formattedAmount} ${symbol || ''}${flagStr}`);
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 }

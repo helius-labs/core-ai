@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, getErrorMessage, handleToolError, addressError } from '../utils/errors.js';
 
 export function registerBalanceTools(server: McpServer) {
   // Get SOL Balance
@@ -14,16 +15,17 @@ export function registerBalanceTools(server: McpServer) {
     },
     async ({ address }) => {
       if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
-      const balance = await helius.getBalance(address);
-      const lamports = Number(balance.value);
+      try {
+        const helius = getHeliusClient();
+        const balance = await helius.getBalance(address);
+        const lamports = Number(balance.value);
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: `**SOL Balance for ${formatAddress(address)}**\n\n${formatSol(lamports)} (${lamports.toLocaleString()} lamports)`
-        }]
-      };
+        return mcpText(`**SOL Balance for ${formatAddress(address)}**\n\n${formatSol(lamports)} (${lamports.toLocaleString()} lamports)`);
+      } catch (err) {
+        return handleToolError(err, 'Error fetching balance', [
+          addressError(`SOL Balance for ${formatAddress(address)}`, 'Invalid Solana address. Please provide a valid base58-encoded wallet address.'),
+        ]);
+      }
     }
   );
 
@@ -76,8 +78,8 @@ export function registerBalanceTools(server: McpServer) {
             });
             const items = response.items || [];
             return { items, hasMore: items.length === currentLimit };
-          } catch (err: unknown) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+          } catch (err) {
+            const errorMsg = getErrorMessage(err);
             if (errorMsg.includes('too big') || errorMsg.includes('Response is too big')) {
               if (currentLimit > 5) currentLimit = 5;
               else if (currentLimit > 2) currentLimit = 2;
@@ -92,16 +94,18 @@ export function registerBalanceTools(server: McpServer) {
       }
 
       // Step 1: Fetch first page to probe
-      const firstResult = await fetchPage(1);
+      let firstResult;
+      try {
+        firstResult = await fetchPage(1);
+      } catch (err) {
+        return handleToolError(err, 'Error fetching token balances', [
+          addressError(`Token Balances for ${formatAddress(address)}`, 'Invalid Solana address. Please provide a valid base58-encoded wallet address.'),
+        ]);
+      }
       const allAssets: Asset[] = [...firstResult.items];
 
       if (allAssets.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Token Balances for ${formatAddress(address)}**\n\nNo tokens found.`
-          }]
-        };
+        return mcpText(`**Token Balances for ${formatAddress(address)}**\n\nNo tokens found.`);
       }
 
       // Step 2: If first page is full, fetch remaining pages in parallel
@@ -140,12 +144,7 @@ export function registerBalanceTools(server: McpServer) {
       );
 
       if (fungibleTokens.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Token Balances for ${formatAddress(address)}**\n\nNo fungible tokens found.`
-          }]
-        };
+        return mcpText(`**Token Balances for ${formatAddress(address)}**\n\nNo fungible tokens found.`);
       }
 
       // Enrich tokens missing name/symbol by fetching full asset data
@@ -216,12 +215,7 @@ export function registerBalanceTools(server: McpServer) {
         }
       }
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: `${header}\n\n${lines.join('\n')}`
-        }]
-      };
+      return mcpText(`${header}\n\n${lines.join('\n')}`);
     }
   );
 }

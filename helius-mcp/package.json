@@ -1,6 +1,6 @@
 {
   "name": "helius-mcp",
-  "version": "0.5.3",
+  "version": "0.3.0",
   "description": "Official Helius MCP Server - Complete Solana blockchain data access for Claude",
   "type": "module",
   "main": "dist/index.js",
@@ -8,11 +8,11 @@
     "helius-mcp": "dist/index.js"
   },
   "scripts": {
+    "prebuild": "node -p \"'export const version = \\'' + require('./package.json').version + '\\';'\" > src/version.ts",
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "prepublishOnly": "pnpm build",
-    "test": "vitest run"
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
     "helius",
@@ -42,9 +42,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@vitest/coverage-v8": "^2.0.0",
-    "typescript": "^5.4.0",
-    "vitest": "^2.0.0"
+    "typescript": "^5.4.0"
   },
   "files": [
     "dist",

@@ -13,15 +13,13 @@ Set your API key:
 export HELIUS_API_KEY=your-api-key
 ```
 
-## Tools (46)
-
-**Config (2):** setHeliusApiKey, getHeliusApiKeyStatus
+## Tools (29)
 
 **DAS API (12):** getAsset, getAssetBatch, getAssetsByOwner, getAssetsByGroup, getAssetsByCreator, getAssetsByAuthority, searchAssets, getAssetProof, getAssetProofBatch, getSignaturesForAsset, getNftEditions, getTokenAccounts
 
-**RPC (7):** getBalance, getTokenBalances, getAccountInfo, getProgramAccounts, getNetworkStatus, getBlock, getTokenHolders
+**RPC (4):** getBalance, getAccountInfo, getMultipleAccounts, getSignaturesForAddress
 
-**Transactions (2):** parseTransactions, getTransactionHistory
+**Transactions (1):** parseTransactions
 
 **Priority Fees (1):** getPriorityFeeEstimate
 
@@ -31,23 +29,11 @@ export HELIUS_API_KEY=your-api-key
 
 **Laserstream gRPC (2):** laserstreamSubscribe, getLaserstreamInfo
 
-**Wallet API (6):** getWalletIdentity, batchWalletIdentity, getWalletBalances, getWalletHistory, getWalletTransfers, getWalletFundedBy
-
-**Guides (6):** getRateLimitInfo, getSenderInfo, getWebhookGuide, troubleshootError, getLatencyComparison, getPumpFunGuide
-
-**Documentation (3):** lookupHeliusDocs, listHeliusDocTopics, getHeliusCreditsInfo
+**Config (1):** setHeliusApiKey
 
 ## Networks
 
-Mainnet and Devnet. Set via `HELIUS_NETWORK` env var or use the `network` parameter in `setHeliusApiKey`.
-
-## Development
-
-```bash
-pnpm install
-pnpm build
-pnpm test
-```
+Mainnet Beta and Devnet. Set via `HELIUS_NETWORK` env var.
 
 ## Docs
 

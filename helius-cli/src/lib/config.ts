@@ -7,6 +7,9 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 
 interface Config {
   jwt?: string;
+  apiKey?: string;
+  network?: "mainnet" | "devnet";
+  projectId?: string;
 }
 
 function ensureDir(): void {
@@ -40,4 +43,38 @@ export function setJwt(jwt: string): void {
   const config = load();
   config.jwt = jwt;
   save(config);
+}
+
+export function getApiKey(): string | undefined {
+  return load().apiKey;
+}
+
+export function setApiKey(apiKey: string): void {
+  const config = load();
+  config.apiKey = apiKey;
+  save(config);
+}
+
+export function getNetwork(): "mainnet" | "devnet" {
+  return load().network || "mainnet";
+}
+
+export function setNetwork(network: "mainnet" | "devnet"): void {
+  const config = load();
+  config.network = network;
+  save(config);
+}
+
+export function getProjectId(): string | undefined {
+  return load().projectId;
+}
+
+export function setProjectId(projectId: string): void {
+  const config = load();
+  config.projectId = projectId;
+  save(config);
+}
+
+export function clearConfig(): void {
+  save({});
 }

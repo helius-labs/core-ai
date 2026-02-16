@@ -11,7 +11,6 @@ import {
   appendTransactionMessageInstructions,
   signTransactionMessageWithSigners,
   getSignatureFromTransaction,
-  type Blockhash,
 } from "@solana/kit";
 import {
   getTransferInstruction,

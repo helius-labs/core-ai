@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, handleToolError, addressError, paginationError, notFoundError } from '../utils/errors.js';
 
 export function registerAssetTools(server: McpServer) {
   // Get Assets by Owner (NFTs and tokens via DAS)
@@ -17,19 +18,23 @@ export function registerAssetTools(server: McpServer) {
     async ({ address, limit, page }) => {
       if (!hasApiKey()) return noApiKeyResponse();
       const helius = getHeliusClient();
-      const response = await helius.getAssetsByOwner({
-        ownerAddress: address,
-        page,
-        limit
-      });
+      let response;
+      try {
+        response = await helius.getAssetsByOwner({
+          ownerAddress: address,
+          page,
+          limit
+        });
+      } catch (err) {
+        const header = `Assets for ${formatAddress(address)}`;
+        return handleToolError(err, 'Error fetching assets', [
+          addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded wallet address.'),
+          paginationError(header),
+        ]);
+      }
 
       if (!response.items || response.items.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Assets for ${formatAddress(address)}**\n\nNo assets found.`
-          }]
-        };
+        return mcpText(`**Assets for ${formatAddress(address)}**\n\nNo assets found.`);
       }
 
       type AssetItem = {
@@ -75,12 +80,7 @@ export function registerAssetTools(server: McpServer) {
         lines.push(`  ID: ${formatAddress(asset.id)}`);
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 
@@ -98,21 +98,11 @@ export function registerAssetTools(server: McpServer) {
 
       // Validate: must provide exactly one of id or ids
       if (!id && (!ids || ids.length === 0)) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** Provide either "id" (single asset) or "ids" (batch of up to 1000).`
-          }]
-        };
+        return mcpText(`**Error:** Provide either "id" (single asset) or "ids" (batch of up to 1000).`);
       }
 
       if (id && ids && ids.length > 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Error:** Provide either "id" or "ids", not both.`
-          }]
-        };
+        return mcpText(`**Error:** Provide either "id" or "ids", not both.`);
       }
 
       type Creator = { address: string; share: number; verified: boolean };
@@ -142,24 +132,22 @@ export function registerAssetTools(server: McpServer) {
       // --- Batch mode ---
       if (ids && ids.length > 0) {
         if (ids.length > 1000) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Error:** Maximum 1000 assets per batch. You provided ${ids.length}.`
-            }]
-          };
+          return mcpText(`**Error:** Maximum 1000 assets per batch. You provided ${ids.length}.`);
         }
 
-        const assets = await helius.getAssetBatch({ ids });
+        let assets;
+        try {
+          assets = await helius.getAssetBatch({ ids });
+        } catch (err) {
+          return handleToolError(err, 'Error fetching assets', [
+            addressError('Asset Batch Error', 'One or more provided IDs are not valid Solana addresses. Please check the mint addresses and try again.'),
+            notFoundError('Asset Batch Results', 'One or more assets were not found. Please check the mint addresses and try again.'),
+          ]);
+        }
         const items = (assets || []) as AssetResponse[];
 
         if (items.length === 0) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Asset Batch Results**\n\nNo assets found.`
-            }]
-          };
+          return mcpText(`**Asset Batch Results**\n\nNo assets found.`);
         }
 
         const lines = [`**Asset Batch Results** (${items.length} assets)`, ''];
@@ -174,24 +162,23 @@ export function registerAssetTools(server: McpServer) {
           }
         });
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: lines.join('\n')
-          }]
-        };
+        return mcpText(lines.join('\n'));
       }
 
       // --- Single asset mode ---
-      const asset = await helius.getAsset({ id: id! }) as AssetResponse | null;
+      let asset: AssetResponse | null;
+      try {
+        asset = await helius.getAsset({ id: id! }) as AssetResponse | null;
+      } catch (err) {
+        const header = `Asset ${formatAddress(id!)}`;
+        return handleToolError(err, 'Error fetching asset', [
+          addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
+          notFoundError(header, 'Asset not found. This mint address does not exist or has not been indexed.'),
+        ]);
+      }
 
       if (!asset) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `Asset ${formatAddress(id!)} not found.`
-          }]
-        };
+        return mcpText(`Asset ${formatAddress(id!)} not found.`);
       }
 
       const metadata = asset.content?.metadata;
@@ -275,12 +262,7 @@ export function registerAssetTools(server: McpServer) {
         lines.push(`**Status:** ${flags.join(', ')}`);
       }
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 
@@ -325,32 +307,43 @@ export function registerAssetTools(server: McpServer) {
 
       // Smart routing: authority-only → getAssetsByAuthority
       if (authorityAddress && !creatorAddress && !ownerAddress && !name && compressed === undefined && burnt === undefined && frozen === undefined) {
-        response = await helius.getAssetsByAuthority({
-          authorityAddress,
-          page,
-          limit
-        }) as ListResponse;
+        try {
+          response = await helius.getAssetsByAuthority({
+            authorityAddress,
+            page,
+            limit
+          }) as ListResponse;
+        } catch (err) {
+          const header = `Assets by Authority ${formatAddress(authorityAddress)}`;
+          return handleToolError(err, 'Error searching assets', [
+            addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded address.'),
+            paginationError(header),
+          ]);
+        }
         headerLabel = `Assets by Authority ${formatAddress(authorityAddress)}`;
       }
       // Smart routing: creator (with optional onlyVerified) → getAssetsByCreator
       else if (creatorAddress && !authorityAddress && !ownerAddress && !name && compressed === undefined && burnt === undefined && frozen === undefined) {
-        response = await helius.getAssetsByCreator({
-          creatorAddress,
-          onlyVerified,
-          page,
-          limit
-        }) as ListResponse;
+        try {
+          response = await helius.getAssetsByCreator({
+            creatorAddress,
+            onlyVerified,
+            page,
+            limit
+          }) as ListResponse;
+        } catch (err) {
+          const header = `Assets by Creator ${formatAddress(creatorAddress)}`;
+          return handleToolError(err, 'Error searching assets', [
+            addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded address.'),
+            paginationError(header),
+          ]);
+        }
         headerLabel = `Assets by Creator ${formatAddress(creatorAddress)}`;
       }
       // General search → searchAssets
       else {
         if (name && !ownerAddress) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `**Search Error:** Searching by name requires an owner address. Please also provide \`ownerAddress\` to search for assets named "${name}".`
-            }]
-          };
+          return mcpText(`**Search Error:** Searching by name requires an owner address. Please also provide \`ownerAddress\` to search for assets named "${name}".`);
         }
 
         type SearchParams = {
@@ -375,12 +368,10 @@ export function registerAssetTools(server: McpServer) {
         try {
           response = await helius.searchAssets(params) as ListResponse;
         } catch (err) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: `Error searching assets: ${err instanceof Error ? err.message : String(err)}`
-            }]
-          };
+          return handleToolError(err, 'Error searching assets', [
+            addressError('Asset Search'),
+            paginationError('Asset Search'),
+          ]);
         }
         headerLabel = 'Asset Search Results';
       }
@@ -388,12 +379,7 @@ export function registerAssetTools(server: McpServer) {
       const items = (response.items || []) as AssetItem[];
 
       if (items.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**${headerLabel}**\n\nNo assets found matching the criteria.`
-          }]
-        };
+        return mcpText(`**${headerLabel}**\n\nNo assets found matching the criteria.`);
       }
 
       const lines = [`**${headerLabel}** (${response.total || items.length} total, page ${page})`, ''];
@@ -413,12 +399,7 @@ export function registerAssetTools(server: McpServer) {
         }
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 
@@ -436,12 +417,21 @@ export function registerAssetTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
       const helius = getHeliusClient();
 
-      const response = await helius.getAssetsByGroup({
-        groupKey,
-        groupValue,
-        page,
-        limit
-      });
+      let response;
+      try {
+        response = await helius.getAssetsByGroup({
+          groupKey,
+          groupValue,
+          page,
+          limit
+        });
+      } catch (err) {
+        const header = `Assets in Group ${groupKey}=${formatAddress(groupValue)}`;
+        return handleToolError(err, 'Error fetching group assets', [
+          addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded address.'),
+          paginationError(header),
+        ]);
+      }
 
       type AssetItem = {
         id: string;
@@ -453,12 +443,7 @@ export function registerAssetTools(server: McpServer) {
       const items = (response.items || []) as AssetItem[];
 
       if (items.length === 0) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Assets in Group ${groupKey}=${formatAddress(groupValue)}**\n\nNo assets found.`
-          }]
-        };
+        return mcpText(`**Assets in Group ${groupKey}=${formatAddress(groupValue)}**\n\nNo assets found.`);
       }
 
       const lines = [`**Assets in Group ${groupKey}=${formatAddress(groupValue)}** (${response.total || items.length} total, page ${page})`, ''];
@@ -472,12 +457,7 @@ export function registerAssetTools(server: McpServer) {
         }
       });
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+      return mcpText(lines.join('\n'));
     }
   );
 }

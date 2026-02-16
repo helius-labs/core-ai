@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { hasApiKey, getRpcUrl } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSolCompact } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
+import { mcpText, handleToolError } from '../utils/errors.js';
 
 export function registerNetworkTools(server: McpServer) {
   server.tool(
@@ -11,108 +12,58 @@ export function registerNetworkTools(server: McpServer) {
     async () => {
       if (!hasApiKey()) return noApiKeyResponse();
 
-      const url = getRpcUrl();
+      try {
+        const helius = getHeliusClient();
 
-      const makeRequest = async (method: string, params: unknown[] = []) => {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: method,
-            method,
-            params
-          })
-        });
-        return response.json();
-      };
+        // Fire all requests in parallel — Kit returns bigint for numeric fields
+        const [epochInfo, supplyResult, version] = await Promise.all([
+          (helius as any).getEpochInfo().send(),
+          (helius as any).getSupply().send(),
+          (helius as any).getVersion().send(),
+        ]);
 
-      type EpochInfo = {
-        epoch: number;
-        slotIndex: number;
-        slotsInEpoch: number;
-        absoluteSlot: number;
-        blockHeight: number;
-        transactionCount: number | null;
-      };
+        const lines = ['**Solana Network Status**', ''];
 
-      type SupplyResult = {
-        value: {
-          total: number;
-          circulating: number;
-          nonCirculating: number;
-        };
-      };
+        // Epoch info — all fields are bigint from Kit
+        if (epochInfo) {
+          const epoch = Number(epochInfo.epoch);
+          const slotIndex = Number(epochInfo.slotIndex);
+          const slotsInEpoch = Number(epochInfo.slotsInEpoch);
+          const absoluteSlot = Number(epochInfo.absoluteSlot);
+          const blockHeight = Number(epochInfo.blockHeight);
+          const transactionCount = epochInfo.transactionCount != null ? Number(epochInfo.transactionCount) : null;
 
-      type VersionResult = {
-        'solana-core': string;
-        'feature-set': number;
-      };
-
-      // Fire all requests in parallel
-      const [epochRes, supplyRes, versionRes] = await Promise.all([
-        makeRequest('getEpochInfo'),
-        makeRequest('getSupply'),
-        makeRequest('getVersion')
-      ]) as [
-        { result: EpochInfo; error?: { message: string } },
-        { result: SupplyResult; error?: { message: string } },
-        { result: VersionResult; error?: { message: string } }
-      ];
-
-      // Check for errors
-      const errors: string[] = [];
-      if (epochRes.error) errors.push(`Epoch info: ${epochRes.error.message}`);
-      if (supplyRes.error) errors.push(`Supply: ${supplyRes.error.message}`);
-      if (versionRes.error) errors.push(`Version: ${versionRes.error.message}`);
-
-      if (errors.length === 3) {
-        return {
-          content: [{
-            type: 'text' as const,
-            text: `**Network Status Error**\n\n${errors.join('\n')}`
-          }]
-        };
-      }
-
-      const lines = ['**Solana Network Status**', ''];
-
-      // Epoch info
-      if (epochRes.result) {
-        const epoch = epochRes.result;
-        const epochProgress = ((epoch.slotIndex / epoch.slotsInEpoch) * 100).toFixed(1);
-        lines.push('**Epoch:**');
-        lines.push(`- Current Epoch: ${epoch.epoch}`);
-        lines.push(`- Progress: ${epochProgress}% (slot ${epoch.slotIndex.toLocaleString()} / ${epoch.slotsInEpoch.toLocaleString()})`);
-        lines.push(`- Absolute Slot: ${epoch.absoluteSlot.toLocaleString()}`);
-        lines.push(`- Block Height: ${epoch.blockHeight.toLocaleString()}`);
-        if (epoch.transactionCount !== null) {
-          lines.push(`- Transaction Count: ${epoch.transactionCount.toLocaleString()}`);
+          const epochProgress = ((slotIndex / slotsInEpoch) * 100).toFixed(1);
+          lines.push('**Epoch:**');
+          lines.push(`- Current Epoch: ${epoch}`);
+          lines.push(`- Progress: ${epochProgress}% (slot ${slotIndex.toLocaleString()} / ${slotsInEpoch.toLocaleString()})`);
+          lines.push(`- Absolute Slot: ${absoluteSlot.toLocaleString()}`);
+          lines.push(`- Block Height: ${blockHeight.toLocaleString()}`);
+          if (transactionCount !== null) {
+            lines.push(`- Transaction Count: ${transactionCount.toLocaleString()}`);
+          }
+          lines.push('');
         }
-        lines.push('');
-      }
 
-      // Supply
-      if (supplyRes.result) {
-        const supply = supplyRes.result.value;
-        lines.push('**SOL Supply:**');
-        lines.push(`- Total: ${formatSolCompact(supply.total)}`);
-        lines.push(`- Circulating: ${formatSolCompact(supply.circulating)}`);
-        lines.push(`- Non-Circulating: ${formatSolCompact(supply.nonCirculating)}`);
-        lines.push('');
-      }
+        // Supply — value fields are bigint from Kit
+        if (supplyResult?.value) {
+          const supply = supplyResult.value;
+          lines.push('**SOL Supply:**');
+          lines.push(`- Total: ${formatSolCompact(Number(supply.total))}`);
+          lines.push(`- Circulating: ${formatSolCompact(Number(supply.circulating))}`);
+          lines.push(`- Non-Circulating: ${formatSolCompact(Number(supply.nonCirculating))}`);
+          lines.push('');
+        }
 
-      // Version
-      if (versionRes.result) {
-        lines.push(`**Cluster Version:** ${versionRes.result['solana-core']}`);
-      }
+        // Version — no bigint issues
+        if (version) {
+          lines.push(`**Cluster Version:** ${version['solana-core']}`);
+        }
 
-      return {
-        content: [{
-          type: 'text' as const,
-          text: lines.join('\n')
-        }]
-      };
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching network status');
+      }
     }
   );
 }
