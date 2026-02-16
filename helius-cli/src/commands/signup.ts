@@ -1,10 +1,12 @@
 import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
-import { signup, createProject, listProjects, getProject, type Project } from "../lib/api.js";
-import { payUSDC, checkUsdcBalance, checkSolBalance, MIN_SOL_FOR_TX } from "../lib/payment.js";
+import { signup, listProjects, getProject } from "../lib/api.js";
+import { checkSolBalance, MIN_SOL_FOR_TX } from "../lib/payment.js";
+import { checkUsdcBalance } from "../lib/payment.js";
+import { initializeCheckout, pollCheckoutCompletion } from "../lib/checkout.js";
+import { payWithMemo } from "../lib/checkout.js";
 import { setJwt, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
-import { PAYMENT_AMOUNT } from "../constants.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
@@ -13,27 +15,6 @@ interface SignupOptions extends OutputOptions {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function createProjectWithRetry(
-  jwt: string,
-  maxRetries = 3,
-  delayMs = 2000
-): Promise<Project> {
-  let lastError: Error | null = null;
-
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await createProject(jwt);
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (i < maxRetries - 1) {
-        await sleep(delayMs);
-      }
-    }
-  }
-
-  throw lastError;
-}
 
 export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = options.json ? null : ora();
@@ -116,7 +97,14 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     spinner?.succeed("No existing projects");
 
-    // 4. Check SOL balance for transaction fees
+    // 4. Initialize checkout
+    spinner?.start("Initializing checkout...");
+    const intent = await initializeCheckout(authResult.token, { paymentType: "subscription" });
+    spinner?.succeed("Checkout initialized");
+
+    // 5. Check balances against intent amount
+    const amountRaw = BigInt(Math.round(intent.amount * 1_000_000));
+
     spinner?.start("Checking SOL balance...");
     const solBalance = await checkSolBalance(walletAddress);
     if (solBalance < MIN_SOL_FOR_TX) {
@@ -135,37 +123,55 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     }
     spinner?.succeed(`SOL balance: ${chalk.green((Number(solBalance) / 1_000_000_000).toFixed(4))} SOL`);
 
-    // 5. Check USDC balance
     spinner?.start("Checking USDC balance...");
     const usdcBalance = await checkUsdcBalance(walletAddress);
-    if (usdcBalance < PAYMENT_AMOUNT) {
+    if (usdcBalance < amountRaw) {
       if (options.json) {
         exitWithError("INSUFFICIENT_USDC", "Insufficient USDC", {
           have: Number(usdcBalance) / 1_000_000,
-          need: 1,
+          need: intent.amount,
           fundAddress: walletAddress,
         }, true);
       }
       spinner?.fail(`Insufficient USDC`);
       console.error(chalk.red(`Have: ${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC`));
-      console.error(chalk.red(`Need: 1 USDC`));
+      console.error(chalk.red(`Need: ${intent.amount} USDC`));
       console.error(chalk.gray(`\nSend USDC to: ${walletAddress}`));
       process.exit(ExitCode.INSUFFICIENT_USDC);
     }
     spinner?.succeed(`USDC balance: ${chalk.green((Number(usdcBalance) / 1_000_000).toFixed(2))} USDC`);
 
-    spinner?.start("Sending 1 USDC payment...");
-    const txSignature = await payUSDC(keypair.secretKey);
+    // 6. Send payment with memo
+    spinner?.start(`Sending ${intent.amount} USDC payment...`);
+    const txSignature = await payWithMemo(keypair.secretKey, intent.treasuryWallet, amountRaw, intent.memo);
     spinner?.succeed(`Payment sent: ${chalk.cyan(txSignature)}`);
 
-    // 6. Create project (with retry - backend needs time to verify payment)
-    spinner?.start("Creating project...");
-    const project = await createProjectWithRetry(authResult.token, 3, 2000);
-    spinner?.succeed("Project created");
+    // 7. Wait for payment confirmation
+    spinner?.start("Waiting for payment confirmation...");
+    const status = await pollCheckoutCompletion(authResult.token, intent.paymentIntentId);
+    if (status.status !== "completed") {
+      throw new Error(`Payment ${status.status}. TX: ${txSignature}`);
+    }
+    spinner?.succeed("Payment confirmed");
 
-    // Get full project details for comprehensive output
-    const projectDetails = await getProject(authResult.token, project.id);
-    const apiKey = projectDetails.apiKeys?.[0]?.keyId || project.apiKeys?.[0]?.keyId || null;
+    // 8. Wait for project creation
+    spinner?.start("Setting up project...");
+    let project = null;
+    let apiKey: string | null = null;
+    for (let i = 0; i < 15; i++) {
+      const projects = await listProjects(authResult.token);
+      if (projects.length > 0) {
+        project = projects[0];
+        const details = await getProject(authResult.token, project.id);
+        apiKey = details.apiKeys?.[0]?.keyId || null;
+        break;
+      }
+      await sleep(2000);
+    }
+    if (!project) {
+      throw new Error("Project creation timed out. Payment successful — contact support.");
+    }
+    spinner?.succeed("Project created");
 
     if (apiKey) {
       setApiKey(apiKey);
@@ -184,7 +190,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
           mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
           devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
         } : null,
-        credits: projectDetails.creditsUsage?.remainingCredits || 1000000,
+        credits: null,
         transaction: txSignature,
       });
       return;
