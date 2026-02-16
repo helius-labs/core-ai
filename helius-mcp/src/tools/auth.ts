@@ -14,7 +14,7 @@ import {
   getSessionWalletAddress,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
-import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
+import { setSharedApiKey, setJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk } from '../utils/config.js';
 
 export function registerAuthTools(server: McpServer) {
   server.tool(
@@ -23,17 +23,38 @@ export function registerAuthTools(server: McpServer) {
     {},
     async () => {
       try {
+        // Check disk first — reuse existing keypair if available
+        const existingKey = loadKeypairFromDisk();
+        if (existingKey) {
+          const walletKeypair = loadKeypair(existingKey);
+          const address = await getAddress(walletKeypair);
+
+          setSessionSecretKey(existingKey);
+          setSessionWalletAddress(address);
+
+          return mcpText(
+            `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
+            `**Wallet Address:** \`${address}\`\n\n` +
+            `To create a Helius account, fund this wallet with:\n` +
+            `- **~0.001 SOL** for transaction fees\n` +
+            `- **1 USDC** for Helius signup\n\n` +
+            `Then call \`agenticSignup\` to complete account creation.`
+          );
+        }
+
+        // Generate new keypair and persist to disk
         const keypair = generateKeypair();
         const walletKeypair = loadKeypair(keypair.secretKey);
         const address = await getAddress(walletKeypair);
 
-        // Store in session
+        saveKeypairToDisk(keypair.secretKey);
         setSessionSecretKey(keypair.secretKey);
         setSessionWalletAddress(address);
 
         return mcpText(
           `**Keypair Generated**\n\n` +
-          `**Wallet Address:** \`${address}\`\n\n` +
+          `**Wallet Address:** \`${address}\`\n` +
+          `**Saved to:** \`${KEYPAIR_PATH}\`\n\n` +
           `To create a Helius account, fund this wallet with:\n` +
           `- **~0.001 SOL** for transaction fees\n` +
           `- **1 USDC** for Helius signup\n\n` +
@@ -51,7 +72,19 @@ export function registerAuthTools(server: McpServer) {
     {},
     async () => {
       try {
-        const address = getSessionWalletAddress();
+        let address = getSessionWalletAddress();
+
+        // Fall back to disk keypair if no session wallet
+        if (!address) {
+          const diskKey = loadKeypairFromDisk();
+          if (diskKey) {
+            const walletKeypair = loadKeypair(diskKey);
+            address = await getAddress(walletKeypair);
+            setSessionSecretKey(diskKey);
+            setSessionWalletAddress(address);
+          }
+        }
+
         if (!address) {
           return mcpError('No signup wallet found. Call `generateKeypair` first to create a wallet.');
         }
@@ -93,7 +126,19 @@ export function registerAuthTools(server: McpServer) {
     {},
     async () => {
       try {
-        const secretKey = getSessionSecretKey();
+        let secretKey = getSessionSecretKey();
+
+        // Fall back to disk keypair if no session key
+        if (!secretKey) {
+          secretKey = loadKeypairFromDisk();
+          if (secretKey) {
+            const walletKeypair = loadKeypair(secretKey);
+            const address = await getAddress(walletKeypair);
+            setSessionSecretKey(secretKey);
+            setSessionWalletAddress(address);
+          }
+        }
+
         if (!secretKey) {
           return mcpError('No signup keypair found. Call `generateKeypair` first to create a wallet, fund it, then call this tool.');
         }
@@ -107,6 +152,11 @@ export function registerAuthTools(server: McpServer) {
         if (result.apiKey) {
           setApiKey(result.apiKey);
           setSharedApiKey(result.apiKey);
+        }
+
+        // Persist JWT to disk
+        if (result.jwt) {
+          setJwt(result.jwt);
         }
 
         const saveNote = result.apiKey

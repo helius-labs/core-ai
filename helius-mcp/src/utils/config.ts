@@ -2,33 +2,83 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const SHARED_CONFIG_DIR = path.join(os.homedir(), ".helius");
-export const SHARED_CONFIG_PATH = path.join(SHARED_CONFIG_DIR, "config.json");
+const CONFIG_DIR = path.join(os.homedir(), ".helius");
+export const SHARED_CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
+export const KEYPAIR_PATH = path.join(CONFIG_DIR, "keypair.json");
 
-export function getSharedApiKey(): string | undefined {
+interface HeliusConfig {
+  apiKey?: string;
+  jwt?: string;
+  network?: string;
+  projectId?: string;
+}
+
+function ensureDir(): void {
+  if (!fs.existsSync(CONFIG_DIR)) {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  }
+}
+
+export function loadConfig(): HeliusConfig {
   try {
     if (fs.existsSync(SHARED_CONFIG_PATH)) {
       const data = fs.readFileSync(SHARED_CONFIG_PATH, "utf-8");
-      return JSON.parse(data).apiKey;
+      return JSON.parse(data);
     }
   } catch {
-    // Return undefined on error
+    // Return empty config on error
   }
-  return undefined;
+  return {};
+}
+
+export function saveConfig(config: HeliusConfig): void {
+  ensureDir();
+  fs.writeFileSync(SHARED_CONFIG_PATH, JSON.stringify(config, null, 2));
+}
+
+export function getSharedApiKey(): string | undefined {
+  return loadConfig().apiKey;
 }
 
 export function setSharedApiKey(apiKey: string): void {
-  if (!fs.existsSync(SHARED_CONFIG_DIR)) {
-    fs.mkdirSync(SHARED_CONFIG_DIR, { recursive: true });
-  }
-  let config: Record<string, unknown> = {};
+  const config = loadConfig();
+  config.apiKey = apiKey;
+  saveConfig(config);
+}
+
+export function getJwt(): string | undefined {
+  return loadConfig().jwt;
+}
+
+export function setJwt(jwt: string): void {
+  const config = loadConfig();
+  config.jwt = jwt;
+  saveConfig(config);
+}
+
+// Keypair disk I/O
+
+export function keypairExistsOnDisk(): boolean {
+  return fs.existsSync(KEYPAIR_PATH);
+}
+
+export function loadKeypairFromDisk(): Uint8Array | null {
   try {
-    if (fs.existsSync(SHARED_CONFIG_PATH)) {
-      config = JSON.parse(fs.readFileSync(SHARED_CONFIG_PATH, "utf-8"));
+    if (fs.existsSync(KEYPAIR_PATH)) {
+      const data = fs.readFileSync(KEYPAIR_PATH, "utf-8");
+      const arr = JSON.parse(data);
+      if (Array.isArray(arr) && arr.length === 64) {
+        return new Uint8Array(arr);
+      }
     }
   } catch {
-    // Start fresh on error
+    // Return null on error
   }
-  config.apiKey = apiKey;
-  fs.writeFileSync(SHARED_CONFIG_PATH, JSON.stringify(config, null, 2));
+  return null;
+}
+
+export function saveKeypairToDisk(secretKey: Uint8Array): void {
+  ensureDir();
+  fs.writeFileSync(KEYPAIR_PATH, JSON.stringify(Array.from(secretKey)));
+  fs.chmodSync(KEYPAIR_PATH, 0o600);
 }

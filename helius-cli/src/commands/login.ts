@@ -50,7 +50,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
     }
 
     console.log("\n" + chalk.green("✓ Login successful!"));
-    console.log(`\nJWT saved to ~/.helius-cli/config.json`);
+    console.log(`\nJWT saved to ~/.helius/config.json`);
   } catch (error) {
     if (options.json) {
       exitWithError("AUTH_FAILED", error instanceof Error ? error.message : String(error), undefined, true);

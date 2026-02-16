@@ -1,5 +1,5 @@
 import { createHelius, type HeliusClient } from "helius-sdk";
-import { getApiKey as getConfigApiKey, getNetwork as getConfigNetwork, getJwt, getProjectId, getSharedApiKey } from "./config.js";
+import { getApiKey as getConfigApiKey, getNetwork as getConfigNetwork, getJwt, getProjectId } from "./config.js";
 import { listProjects, getProject } from "./api.js";
 
 let cachedClient: HeliusClient | null = null;
@@ -21,15 +21,11 @@ export async function resolveApiKey(opts: ResolveOptions = {}): Promise<string> 
   // 2. Environment variable
   if (process.env.HELIUS_API_KEY) return process.env.HELIUS_API_KEY;
 
-  // 3. CLI config file (~/.helius-cli/config.json)
+  // 3. Config file (~/.helius/config.json)
   const configKey = getConfigApiKey();
   if (configKey) return configKey;
 
-  // 4. Shared config file (~/.helius/config.json)
-  const sharedKey = getSharedApiKey();
-  if (sharedKey) return sharedKey;
-
-  // 5. Auto-resolve from JWT (fetch first project's first API key)
+  // 4. Auto-resolve from JWT (fetch first project's first API key)
   const jwt = getJwt();
   if (jwt) {
     try {

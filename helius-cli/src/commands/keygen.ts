@@ -6,7 +6,7 @@ import { generateKeypair } from "helius-sdk/auth/generateKeypair";
 import { getAddress } from "helius-sdk/auth/getAddress";
 import { loadKeypair } from "helius-sdk/auth/loadKeypair";
 
-const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius-cli", "keypair.json");
+const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius", "keypair.json");
 
 interface KeygenOptions {
   output?: string;
@@ -36,6 +36,7 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   // Save in Solana CLI format (64-byte array)
   const secretKeyArray = Array.from(keypair.secretKey);
   fs.writeFileSync(resolvedPath, JSON.stringify(secretKeyArray));
+  fs.chmodSync(resolvedPath, 0o600);
 
   // Get address for display
   const walletKeypair = loadKeypair(keypair.secretKey);

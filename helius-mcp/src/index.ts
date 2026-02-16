@@ -3,8 +3,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerTools } from './tools/index.js';
-import { setApiKey } from './utils/helius.js';
-import { getSharedApiKey } from './utils/config.js';
+import { setApiKey, setSessionSecretKey, setSessionWalletAddress } from './utils/helius.js';
+import { getSharedApiKey, loadKeypairFromDisk } from './utils/config.js';
+import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
+import { getAddress } from 'helius-sdk/auth/getAddress';
 
 const server = new McpServer({
   name: 'helius-mcp',
@@ -20,6 +22,19 @@ async function main() {
     const sharedKey = getSharedApiKey();
     if (sharedKey) {
       setApiKey(sharedKey);
+    }
+  }
+
+  // Load persisted keypair from disk so MCP survives restarts
+  const diskKey = loadKeypairFromDisk();
+  if (diskKey) {
+    try {
+      const walletKeypair = loadKeypair(diskKey);
+      const address = await getAddress(walletKeypair);
+      setSessionSecretKey(diskKey);
+      setSessionWalletAddress(address);
+    } catch {
+      // Ignore invalid keypair on disk
     }
   }
 
