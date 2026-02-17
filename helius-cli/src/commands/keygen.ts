@@ -31,7 +31,7 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   }
 
   // Generate keypair
-  const keypair = generateKeypair();
+  const keypair = await generateKeypair();
 
   // Save in Solana CLI format (64-byte array)
   const secretKeyArray = Array.from(keypair.secretKey);
@@ -47,8 +47,8 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   console.log(`Address: ${chalk.cyan(address)}`);
   console.log("");
   console.log(chalk.yellow("To use this wallet, fund it with:"));
-  console.log(`  • ${chalk.cyan("~0.001 SOL")} for transaction fees`);
-  console.log(`  • ${chalk.cyan("1 USDC")} for Helius signup`);
+  console.log(`  • ${chalk.cyan("~0.01 SOL")} for transaction fees`);
+  console.log(`  • ${chalk.cyan("49 USDC")} for Helius Developer plan`);
 }
 
 export function getDefaultKeypairPath(): string {

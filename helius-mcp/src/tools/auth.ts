@@ -5,6 +5,10 @@ import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
 import { checkSolBalance, checkUsdcBalance } from 'helius-sdk/auth/checkBalances';
 import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
+import { getCheckoutPreview, executeUpgrade, executeRenewal } from 'helius-sdk/auth/checkout';
+import { listProjects } from 'helius-sdk/auth/listProjects';
+import { getProject } from 'helius-sdk/auth/getProject';
+import { PLAN_CATALOG, resolvePriceId } from 'helius-sdk/auth/constants';
 import { MCP_USER_AGENT } from '../http.js';
 import {
   setApiKey,
@@ -14,12 +18,14 @@ import {
   getSessionWalletAddress,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
-import { setSharedApiKey, setJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk } from '../utils/config.js';
+import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk } from '../utils/config.js';
+
+const DEVELOPER_PRICE_USDC = PLAN_CATALOG.developer.monthlyPrice / 100;
 
 export function registerAuthTools(server: McpServer) {
   server.tool(
     'generateKeypair',
-    'Generate a new Solana keypair for Helius account signup. Returns the wallet address. The user must fund this wallet with ~0.001 SOL + 1 USDC before calling agenticSignup.',
+    `Generate a new Solana keypair for Helius account signup. Returns the wallet address. The user must fund this wallet with ~0.01 SOL + ${DEVELOPER_PRICE_USDC} USDC (Developer plan) before calling agenticSignup.`,
     {},
     async () => {
       try {
@@ -36,14 +42,14 @@ export function registerAuthTools(server: McpServer) {
             `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
             `**Wallet Address:** \`${address}\`\n\n` +
             `To create a Helius account, fund this wallet with:\n` +
-            `- **~0.001 SOL** for transaction fees\n` +
-            `- **1 USDC** for Helius signup\n\n` +
+            `- **~0.01 SOL** for transaction fees\n` +
+            `- **${DEVELOPER_PRICE_USDC} USDC** for Helius Developer plan\n\n` +
             `Then call \`agenticSignup\` to complete account creation.`
           );
         }
 
         // Generate new keypair and persist to disk
-        const keypair = generateKeypair();
+        const keypair = await generateKeypair();
         const walletKeypair = loadKeypair(keypair.secretKey);
         const address = await getAddress(walletKeypair);
 
@@ -56,8 +62,8 @@ export function registerAuthTools(server: McpServer) {
           `**Wallet Address:** \`${address}\`\n` +
           `**Saved to:** \`${KEYPAIR_PATH}\`\n\n` +
           `To create a Helius account, fund this wallet with:\n` +
-          `- **~0.001 SOL** for transaction fees\n` +
-          `- **1 USDC** for Helius signup\n\n` +
+          `- **~0.01 SOL** for transaction fees\n` +
+          `- **${DEVELOPER_PRICE_USDC} USDC** for Helius Developer plan\n\n` +
           `Then call \`agenticSignup\` to complete account creation.`
         );
       } catch (err) {
@@ -96,22 +102,24 @@ export function registerAuthTools(server: McpServer) {
         const usdcAmount = Number(usdcBalance) / 1_000_000;
 
         const solOk = solBalance >= 1_000_000n;
-        const usdcOk = usdcBalance >= 1_000_000n;
+        // Check against actual Developer plan price
+        const requiredUsdc = BigInt(PLAN_CATALOG.developer.monthlyPrice) * 10_000n;
+        const usdcOk = usdcBalance >= requiredUsdc;
 
         let status: string;
         if (solOk && usdcOk) {
           status = 'Ready for signup';
         } else {
           const missing: string[] = [];
-          if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
-          if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
+          if (!solOk) missing.push(`~0.01 SOL (have ${solAmount.toFixed(6)})`);
+          if (!usdcOk) missing.push(`${DEVELOPER_PRICE_USDC} USDC (have ${usdcAmount.toFixed(2)})`);
           status = `Need more funds: ${missing.join(', ')}`;
         }
 
         return mcpText(
           `**Signup Wallet Balance** (\`${address}\`)\n\n` +
-          `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient)'}\n` +
-          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient)' : '(insufficient)'}\n\n` +
+          `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient — need ~0.01)'}\n` +
+          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient)' : `(insufficient — need ${DEVELOPER_PRICE_USDC})`}\n\n` +
           `**Status:** ${status}`
         );
       } catch (err) {
@@ -122,9 +130,11 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'agenticSignup',
-    'Create a Helius account using the generated keypair. Requires the wallet to be funded with ~0.001 SOL + 1 USDC. On success, automatically configures the API key for this session so all other Helius tools work immediately.',
-    {},
-    async () => {
+    `Create a Helius account using the generated keypair. Requires the wallet to be funded with ~0.01 SOL + ${DEVELOPER_PRICE_USDC} USDC. On success, automatically configures the API key for this session so all other Helius tools work immediately.`,
+    {
+      email: z.string().email().optional().describe('Contact email for the account (may be required for new signups)'),
+    },
+    async ({ email }) => {
       try {
         let secretKey = getSessionSecretKey();
 
@@ -146,6 +156,7 @@ export function registerAuthTools(server: McpServer) {
         const result = await agenticSignup({
           secretKey,
           userAgent: MCP_USER_AGENT,
+          email,
         });
 
         // Configure API key for this session and persist to shared config
@@ -190,6 +201,184 @@ export function registerAuthTools(server: McpServer) {
         );
       } catch (err) {
         return handleToolError(err, 'Error during signup');
+      }
+    }
+  );
+
+  // ── Upgrade, Preview, Renewal Tools ──
+
+  server.tool(
+    'previewUpgrade',
+    'Preview pricing for a plan upgrade with proration details. Shows current plan, new plan cost, prorated credits, and amount due today.',
+    {
+      plan: z.enum(['developer', 'business', 'professional']).describe('Target plan name'),
+      period: z.enum(['monthly', 'yearly']).default('monthly').describe('Billing period'),
+      couponCode: z.string().optional().describe('Optional coupon code'),
+    },
+    async ({ plan, period, couponCode }) => {
+      try {
+        const jwt = getJwt();
+        if (!jwt) {
+          return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
+        }
+
+        const projects = await listProjects(jwt, MCP_USER_AGENT);
+        if (projects.length === 0) {
+          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+        }
+
+        const projectId = projects[0].id;
+        const projectDetails = await getProject(jwt, projectId, MCP_USER_AGENT);
+        const currentPlan = projectDetails.subscriptionPlanDetails?.currentPlan || 'unknown';
+
+        const priceId = resolvePriceId(plan, period);
+        const preview = await getCheckoutPreview(jwt, priceId, projectId, couponCode, MCP_USER_AGENT);
+
+        let text =
+          `**Upgrade Preview**\n\n` +
+          `- **Current Plan:** ${currentPlan}\n` +
+          `- **Target Plan:** ${preview.planName} (${preview.period})\n\n` +
+          `**Pricing Breakdown:**\n` +
+          `- Subtotal: $${(preview.subtotal / 100).toFixed(2)}\n`;
+
+        if (preview.proratedCredits > 0) {
+          text += `- Prorated credit: -$${(preview.proratedCredits / 100).toFixed(2)}\n`;
+        }
+        if (preview.appliedCredits > 0) {
+          text += `- Applied credits: -$${(preview.appliedCredits / 100).toFixed(2)}\n`;
+        }
+        if (preview.discounts > 0) {
+          text += `- Discounts: -$${(preview.discounts / 100).toFixed(2)}\n`;
+        }
+        if (preview.coupon?.valid) {
+          text += `- Coupon (${preview.coupon.code}): ${preview.coupon.description || 'Applied'}\n`;
+        } else if (preview.coupon && !preview.coupon.valid) {
+          text += `- Coupon (${preview.coupon.code}): **Invalid** — ${preview.coupon.invalidReason || 'not applicable'}\n`;
+        }
+
+        text += `\n**Due Today: $${(preview.dueToday / 100).toFixed(2)}**\n`;
+
+        if (preview.note) {
+          text += `\n_${preview.note}_\n`;
+        }
+
+        text += `\nTo proceed, use the \`upgradePlan\` tool with plan: '${plan}'.`;
+
+        return mcpText(text);
+      } catch (err) {
+        return handleToolError(err, 'Error previewing upgrade');
+      }
+    }
+  );
+
+  server.tool(
+    'upgradePlan',
+    'Upgrade your Helius plan. Processes USDC payment with proration. Call previewUpgrade first to see pricing.',
+    {
+      plan: z.enum(['developer', 'business', 'professional']).describe('Target plan name'),
+      period: z.enum(['monthly', 'yearly']).default('monthly').describe('Billing period'),
+      couponCode: z.string().optional().describe('Optional coupon code'),
+    },
+    async ({ plan, period, couponCode }) => {
+      try {
+        let secretKey = getSessionSecretKey();
+        if (!secretKey) {
+          secretKey = loadKeypairFromDisk();
+          if (secretKey) {
+            const walletKeypair = loadKeypair(secretKey);
+            const address = await getAddress(walletKeypair);
+            setSessionSecretKey(secretKey);
+            setSessionWalletAddress(address);
+          }
+        }
+        if (!secretKey) {
+          return mcpError('No keypair found. Call `generateKeypair` first.');
+        }
+
+        const jwt = getJwt();
+        if (!jwt) {
+          return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
+        }
+
+        const projects = await listProjects(jwt, MCP_USER_AGENT);
+        if (projects.length === 0) {
+          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+        }
+
+        const projectId = projects[0].id;
+        const priceId = resolvePriceId(plan, period);
+
+        const result = await executeUpgrade(secretKey, jwt, priceId, projectId, couponCode, MCP_USER_AGENT);
+
+        if (result.status !== 'completed') {
+          return mcpError(
+            `**Upgrade ${result.status}**\n\n` +
+            (result.error ? `Error: ${result.error}\n` : '') +
+            (result.txSignature ? `TX: \`${result.txSignature}\`\n` : '') +
+            `\nIf you need help, contact support with the payment intent ID: \`${result.paymentIntentId}\``
+          );
+        }
+
+        const planInfo = PLAN_CATALOG[plan];
+        return mcpText(
+          `**Plan Upgraded Successfully**\n\n` +
+          `- **New Plan:** ${planInfo.name} (${period})\n` +
+          `- **Project ID:** \`${projectId}\`\n` +
+          (result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '') +
+          `\nYour new plan is now active with ${(planInfo.credits / 1_000_000).toFixed(0)}M credits and ${planInfo.requestsPerSecond} RPS.`
+        );
+      } catch (err) {
+        return handleToolError(err, 'Error upgrading plan');
+      }
+    }
+  );
+
+  server.tool(
+    'payRenewal',
+    'Pay an existing payment intent (e.g., from a renewal notification). Fetches intent details, validates, and processes USDC payment.',
+    {
+      paymentIntentId: z.string().describe('Payment intent ID from renewal notification'),
+    },
+    async ({ paymentIntentId }) => {
+      try {
+        let secretKey = getSessionSecretKey();
+        if (!secretKey) {
+          secretKey = loadKeypairFromDisk();
+          if (secretKey) {
+            const walletKeypair = loadKeypair(secretKey);
+            const address = await getAddress(walletKeypair);
+            setSessionSecretKey(secretKey);
+            setSessionWalletAddress(address);
+          }
+        }
+        if (!secretKey) {
+          return mcpError('No keypair found. Call `generateKeypair` first.');
+        }
+
+        const jwt = getJwt();
+        if (!jwt) {
+          return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
+        }
+
+        const result = await executeRenewal(secretKey, jwt, paymentIntentId, MCP_USER_AGENT);
+
+        if (result.status !== 'completed') {
+          return mcpError(
+            `**Payment ${result.status}**\n\n` +
+            (result.error ? `Error: ${result.error}\n` : '') +
+            (result.txSignature ? `TX: \`${result.txSignature}\`\n` : '') +
+            `\nIf you need help, contact support with the payment intent ID: \`${result.paymentIntentId}\``
+          );
+        }
+
+        return mcpText(
+          `**Payment Complete**\n\n` +
+          `- **Payment Intent:** \`${result.paymentIntentId}\`\n` +
+          (result.txSignature ? `- **TX:** \`${result.txSignature}\`\n` : '') +
+          `\nYour subscription has been renewed successfully.`
+        );
+      } catch (err) {
+        return handleToolError(err, 'Error processing renewal payment');
       }
     }
   );

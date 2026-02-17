@@ -32,7 +32,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
 
     // Sign auth message
     spinner?.start("Signing authentication message...");
-    const { message, signature } = signAuthMessage(keypair.secretKey);
+    const { message, signature } = await signAuthMessage(keypair.secretKey);
     spinner?.succeed("Message signed");
 
     // Call login API

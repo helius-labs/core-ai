@@ -2,10 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
-import { checkSolBalance, MIN_SOL_FOR_TX } from "../lib/payment.js";
-import { checkUsdcBalance } from "../lib/payment.js";
-import { initializeCheckout, pollCheckoutCompletion } from "../lib/checkout.js";
-import { payWithMemo } from "../lib/checkout.js";
+import { executeCheckout, DEFAULT_DEVELOPER_MONTHLY_PRICE_ID } from "../lib/checkout.js";
 import { setJwt, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -13,8 +10,6 @@ import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/
 interface SignupOptions extends OutputOptions {
   keypair: string;
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = options.json ? null : ora();
@@ -38,7 +33,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 2. Authenticate first (no payment yet)
     spinner?.start("Signing authentication message...");
-    const { message, signature } = signAuthMessage(keypair.secretKey);
+    const { message, signature } = await signAuthMessage(keypair.secretKey);
     spinner?.succeed("Message signed");
 
     spinner?.start("Authenticating...");
@@ -97,93 +92,52 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     spinner?.succeed("No existing projects");
 
-    // 4. Initialize checkout
-    spinner?.start("Initializing checkout...");
-    const intent = await initializeCheckout(authResult.token, { paymentType: "subscription" });
-    spinner?.succeed("Checkout initialized");
+    // 4. Execute checkout (SDK handles init → balance check → pay → poll → project)
+    spinner?.start("Processing signup payment...");
+    const checkoutResult = await executeCheckout(
+      keypair.secretKey,
+      authResult.token,
+      { priceId: DEFAULT_DEVELOPER_MONTHLY_PRICE_ID, refId: authResult.refId },
+    );
 
-    // 5. Check balances against intent amount
-    const amountRaw = BigInt(Math.round(intent.amount * 1_000_000));
-
-    spinner?.start("Checking SOL balance...");
-    const solBalance = await checkSolBalance(walletAddress);
-    if (solBalance < MIN_SOL_FOR_TX) {
-      if (options.json) {
-        exitWithError("INSUFFICIENT_SOL", "Insufficient SOL for transaction fees", {
-          have: Number(solBalance) / 1_000_000_000,
-          need: 0.001,
-          fundAddress: walletAddress,
-        }, true);
-      }
-      spinner?.fail(`Insufficient SOL for transaction fees`);
-      console.error(chalk.red(`Have: ${(Number(solBalance) / 1_000_000_000).toFixed(6)} SOL`));
-      console.error(chalk.red(`Need: ~0.001 SOL`));
-      console.error(chalk.gray(`\nSend SOL to: ${walletAddress}`));
-      process.exit(ExitCode.INSUFFICIENT_SOL);
-    }
-    spinner?.succeed(`SOL balance: ${chalk.green((Number(solBalance) / 1_000_000_000).toFixed(4))} SOL`);
-
-    spinner?.start("Checking USDC balance...");
-    const usdcBalance = await checkUsdcBalance(walletAddress);
-    if (usdcBalance < amountRaw) {
-      if (options.json) {
-        exitWithError("INSUFFICIENT_USDC", "Insufficient USDC", {
-          have: Number(usdcBalance) / 1_000_000,
-          need: intent.amount,
-          fundAddress: walletAddress,
-        }, true);
-      }
-      spinner?.fail(`Insufficient USDC`);
-      console.error(chalk.red(`Have: ${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC`));
-      console.error(chalk.red(`Need: ${intent.amount} USDC`));
-      console.error(chalk.gray(`\nSend USDC to: ${walletAddress}`));
-      process.exit(ExitCode.INSUFFICIENT_USDC);
-    }
-    spinner?.succeed(`USDC balance: ${chalk.green((Number(usdcBalance) / 1_000_000).toFixed(2))} USDC`);
-
-    // 6. Send payment with memo
-    spinner?.start(`Sending ${intent.amount} USDC payment...`);
-    const txSignature = await payWithMemo(keypair.secretKey, intent.treasuryWallet, amountRaw, intent.memo);
-    spinner?.succeed(`Payment sent: ${chalk.cyan(txSignature)}`);
-
-    // 7. Wait for payment confirmation
-    spinner?.start("Waiting for payment confirmation...");
-    const status = await pollCheckoutCompletion(authResult.token, intent.paymentIntentId);
-    if (status.status !== "completed") {
-      throw new Error(`Payment ${status.status}. TX: ${txSignature}`);
+    if (checkoutResult.status !== "completed") {
+      throw new Error(
+        `Checkout ${checkoutResult.status}${checkoutResult.txSignature ? `. TX: ${checkoutResult.txSignature}` : ""}`
+      );
     }
     spinner?.succeed("Payment confirmed");
 
-    // 8. Wait for project creation
-    spinner?.start("Setting up project...");
-    let project = null;
-    let apiKey: string | null = null;
-    for (let i = 0; i < 15; i++) {
-      const projects = await listProjects(authResult.token);
-      if (projects.length > 0) {
-        project = projects[0];
-        const details = await getProject(authResult.token, project.id);
-        apiKey = details.apiKeys?.[0]?.keyId || null;
-        break;
-      }
-      await sleep(2000);
-    }
-    if (!project) {
-      throw new Error("Project creation timed out. Payment successful — contact support.");
-    }
-    spinner?.succeed("Project created");
+    const projectId = checkoutResult.projectId;
+    const apiKey = checkoutResult.apiKey || null;
+    const txSignature = checkoutResult.txSignature;
 
     if (apiKey) {
       setApiKey(apiKey);
       setSharedApiKey(apiKey);
     }
 
+    // Fetch project for display details
+    let projectName: string | undefined;
+    let dnsRecords: Array<{ dns: string; network: string; usageType: string }> = [];
+    if (projectId) {
+      try {
+        const projects = await listProjects(authResult.token);
+        const proj = projects.find(p => p.id === projectId);
+        if (proj) {
+          projectName = proj.name;
+          dnsRecords = proj.dnsRecords || [];
+        }
+      } catch {
+        // Non-critical — display proceeds without project name
+      }
+    }
+
     if (options.json) {
       outputJson({
         status: "SUCCESS",
         wallet: walletAddress,
-        projectId: project.id,
-        projectName: project.name,
+        projectId,
+        projectName: projectName || null,
         apiKey,
         configPath: apiKey ? SHARED_CONFIG_PATH : null,
         endpoints: apiKey ? {
@@ -197,25 +151,29 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     }
 
     console.log("\n" + chalk.green("✓ Signup complete!"));
-    console.log(`\nProject ID: ${chalk.cyan(project.id)}`);
+    if (projectId) {
+      console.log(`\nProject ID: ${chalk.cyan(projectId)}`);
+    }
     if (apiKey) {
       console.log(`API Key: ${chalk.cyan(apiKey)}`);
       console.log(chalk.green(`API key saved to ${SHARED_CONFIG_PATH}`));
     }
 
     // Show RPC endpoints if available
-    if (project.dnsRecords && project.dnsRecords.length > 0) {
+    if (dnsRecords.length > 0) {
       console.log(chalk.bold("\nRPC Endpoints:"));
-      for (const record of project.dnsRecords) {
+      for (const record of dnsRecords) {
         if (record.usageType === "rpc") {
           console.log(`  ${record.network}: ${chalk.blue("https://" + record.dns)}`);
         }
       }
     }
 
-    console.log(
-      `\nView transaction: ${chalk.blue(`https://solscan.io/tx/${txSignature}`)}`
-    );
+    if (txSignature) {
+      console.log(
+        `\nView transaction: ${chalk.blue(`https://solscan.io/tx/${txSignature}`)}`
+      );
+    }
   } catch (error) {
     if (options.json) {
       exitWithError("SIGNUP_FAILED", error instanceof Error ? error.message : String(error), undefined, true);

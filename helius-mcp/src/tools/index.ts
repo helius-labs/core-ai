@@ -14,10 +14,12 @@ import { registerWebhookTools } from './webhooks.js';
 import { registerEnhancedWebSocketTools } from './enhanced-websockets.js';
 import { registerLaserstreamTools } from './laserstream.js';
 import { registerWalletTools } from './wallet.js';
+import { registerPlanTools } from './plans.js';
 
 export function registerTools(server: McpServer) {
   registerAuthTools(server);
   registerConfigTools(server);
+  registerPlanTools(server);
   registerBalanceTools(server);
   registerTransactionTools(server);
   registerAssetTools(server);
