@@ -43,7 +43,7 @@ export function registerAuthTools(server: McpServer) {
         }
 
         // Generate new keypair and persist to disk
-        const keypair = generateKeypair();
+        const keypair = await generateKeypair();
         const walletKeypair = loadKeypair(keypair.secretKey);
         const address = await getAddress(walletKeypair);
 

@@ -31,7 +31,7 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   }
 
   // Generate keypair
-  const keypair = generateKeypair();
+  const keypair = await generateKeypair();
 
   // Save in Solana CLI format (64-byte array)
   const secretKeyArray = Array.from(keypair.secretKey);

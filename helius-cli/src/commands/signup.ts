@@ -57,7 +57,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 2. Authenticate first (no payment yet)
     spinner?.start("Signing authentication message...");
-    const { message, signature } = signAuthMessage(keypair.secretKey);
+    const { message, signature } = await signAuthMessage(keypair.secretKey);
     spinner?.succeed("Message signed");
 
     spinner?.start("Authenticating...");
