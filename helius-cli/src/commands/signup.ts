@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
-import { executeCheckout, DEFAULT_DEVELOPER_MONTHLY_PRICE_ID } from "../lib/checkout.js";
+import { executeCheckout } from "../lib/checkout.js";
 import { setJwt, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -97,7 +97,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const checkoutResult = await executeCheckout(
       keypair.secretKey,
       authResult.token,
-      { priceId: DEFAULT_DEVELOPER_MONTHLY_PRICE_ID, refId: authResult.refId },
+      { plan: "developer", period: "monthly", refId: authResult.refId },
     );
 
     if (checkoutResult.status !== "completed") {

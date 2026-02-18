@@ -8,7 +8,7 @@ import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
 import { getCheckoutPreview, executeUpgrade, executeRenewal } from 'helius-sdk/auth/checkout';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
-import { PLAN_CATALOG, resolvePriceId } from 'helius-sdk/auth/constants';
+import { PLAN_CATALOG } from 'helius-sdk/auth/constants';
 import { MCP_USER_AGENT } from '../http.js';
 import {
   setApiKey,
@@ -231,8 +231,7 @@ export function registerAuthTools(server: McpServer) {
         const projectDetails = await getProject(jwt, projectId, MCP_USER_AGENT);
         const currentPlan = projectDetails.subscriptionPlanDetails?.currentPlan || 'unknown';
 
-        const priceId = resolvePriceId(plan, period);
-        const preview = await getCheckoutPreview(jwt, priceId, projectId, couponCode, MCP_USER_AGENT);
+        const preview = await getCheckoutPreview(jwt, plan, period, projectId, couponCode, MCP_USER_AGENT);
 
         let text =
           `**Upgrade Preview**\n\n` +
@@ -306,9 +305,7 @@ export function registerAuthTools(server: McpServer) {
         }
 
         const projectId = projects[0].id;
-        const priceId = resolvePriceId(plan, period);
-
-        const result = await executeUpgrade(secretKey, jwt, priceId, projectId, couponCode, MCP_USER_AGENT);
+        const result = await executeUpgrade(secretKey, jwt, plan, period, projectId, couponCode, MCP_USER_AGENT);
 
         if (result.status !== 'completed') {
           return mcpError(

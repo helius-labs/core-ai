@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
-import { getCheckoutPreview, executeUpgrade, resolvePriceId, PLAN_CATALOG } from "../lib/checkout.js";
+import { getCheckoutPreview, executeUpgrade, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -41,8 +41,6 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       console.error(chalk.gray(`Available plans: ${available}`));
       process.exit(ExitCode.GENERAL_ERROR);
     }
-
-    const priceId = resolvePriceId(planKey, options.period);
 
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
@@ -84,7 +82,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     // 3. Preview pricing
     spinner?.start("Fetching upgrade pricing...");
-    const preview = await getCheckoutPreview(authResult.token, priceId, project.id, options.coupon);
+    const preview = await getCheckoutPreview(authResult.token, planKey, options.period, project.id, options.coupon);
     spinner?.succeed("Pricing loaded");
 
     if (options.json && !options.yes) {
@@ -140,7 +138,8 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     const result = await executeUpgrade(
       keypair.secretKey,
       authResult.token,
-      priceId,
+      planKey,
+      options.period,
       project.id,
       options.coupon,
     );

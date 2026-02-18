@@ -1,14 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { PLAN_CATALOG } from 'helius-sdk/auth/constants';
 
-// Full plan details including display-only info not in PLAN_CATALOG
+// Full plan details for display
 const HELIUS_PLANS: Record<string, {
   name: string;
   price: string;
   credits: string;
   additionalCredits: string;
-  priceIds?: { monthly: string; yearly: string };
   rateLimit: { rpc: string; sendTransaction: string; getProgramAccounts: string; das: string };
   connections: { websocket: number; enhancedWebsocket: number };
   features: Record<string, boolean | string>;
@@ -31,7 +29,6 @@ const HELIUS_PLANS: Record<string, {
     price: '$49/month',
     credits: '10M/month',
     additionalCredits: '$5 per million',
-    priceIds: PLAN_CATALOG.developer.priceIds,
     rateLimit: { rpc: '50 RPS', sendTransaction: '5/sec', getProgramAccounts: '25/sec', das: '10/sec' },
     connections: { websocket: 150, enhancedWebsocket: 0 },
     features: { webhooks: true, standardWebSockets: true, enhancedWebSockets: false, laserstream: 'Devnet only', stakedConnections: true, archivalData: true },
@@ -43,7 +40,6 @@ const HELIUS_PLANS: Record<string, {
     price: '$499/month',
     credits: '100M/month',
     additionalCredits: '$5 per million',
-    priceIds: PLAN_CATALOG.business.priceIds,
     rateLimit: { rpc: '200 RPS', sendTransaction: '50/sec', getProgramAccounts: '50/sec', das: '50/sec' },
     connections: { websocket: 250, enhancedWebsocket: 100 },
     features: { webhooks: true, standardWebSockets: true, enhancedWebSockets: true, laserstream: 'Devnet only', stakedConnections: true, archivalData: true },
@@ -55,7 +51,6 @@ const HELIUS_PLANS: Record<string, {
     price: '$999/month',
     credits: '200M/month',
     additionalCredits: '$5 per million',
-    priceIds: PLAN_CATALOG.professional.priceIds,
     rateLimit: { rpc: '500 RPS (+100 RPS for $100/mo)', sendTransaction: '100/sec', getProgramAccounts: '75/sec', das: '100/sec' },
     connections: { websocket: 250, enhancedWebsocket: 100 },
     features: { webhooks: true, standardWebSockets: true, enhancedWebSockets: true, laserstream: 'Full access (mainnet + devnet, data add-ons $500+/mo)', stakedConnections: true, archivalData: true },
@@ -73,10 +68,6 @@ function formatPlanDetails(planKey: string): string {
     `**Credits:** ${plan.credits}`,
     `**Additional Credits:** ${plan.additionalCredits}`,
   ];
-
-  if (plan.priceIds) {
-    lines.push(`**Price IDs:** monthly: \`${plan.priceIds.monthly}\`, yearly: \`${plan.priceIds.yearly}\``);
-  }
 
   lines.push(
     '',

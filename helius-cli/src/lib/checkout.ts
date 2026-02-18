@@ -13,6 +13,7 @@ import type {
   CheckoutStatusResponse,
   CheckoutPreviewResponse,
   CheckoutResult,
+  CheckoutRequest,
 } from "helius-sdk/auth/types";
 
 export async function initializeCheckout(
@@ -33,18 +34,19 @@ export async function pollCheckoutCompletion(
 export async function executeCheckout(
   secretKey: Uint8Array,
   jwt: string,
-  request: CheckoutInitializeRequest,
+  request: CheckoutRequest,
 ): Promise<CheckoutResult> {
   return sdkExecuteCheckout(secretKey, jwt, request, CLI_USER_AGENT);
 }
 
 export async function getCheckoutPreview(
   jwt: string,
-  priceId: string,
+  plan: string,
+  period: "monthly" | "yearly",
   refId: string,
   couponCode?: string,
 ): Promise<CheckoutPreviewResponse> {
-  return sdkGetCheckoutPreview(jwt, priceId, refId, couponCode, CLI_USER_AGENT);
+  return sdkGetCheckoutPreview(jwt, plan, period, refId, couponCode, CLI_USER_AGENT);
 }
 
 export async function getPaymentIntent(
@@ -57,11 +59,12 @@ export async function getPaymentIntent(
 export async function executeUpgrade(
   secretKey: Uint8Array,
   jwt: string,
-  priceId: string,
+  plan: string,
+  period: "monthly" | "yearly",
   projectId: string,
   couponCode?: string,
 ): Promise<CheckoutResult> {
-  return sdkExecuteUpgrade(secretKey, jwt, priceId, projectId, couponCode, CLI_USER_AGENT);
+  return sdkExecuteUpgrade(secretKey, jwt, plan, period, projectId, couponCode, CLI_USER_AGENT);
 }
 
 export async function executeRenewal(
@@ -74,7 +77,7 @@ export async function executeRenewal(
 
 export { payWithMemo } from "helius-sdk/auth/payWithMemo";
 export { payPaymentIntent } from "helius-sdk/auth/checkout";
-export { PLAN_CATALOG, resolvePriceId, DEFAULT_DEVELOPER_MONTHLY_PRICE_ID } from "helius-sdk/auth/constants";
+export { PLAN_CATALOG } from "helius-sdk/auth/constants";
 
 export type {
   CheckoutInitializeRequest,
@@ -82,4 +85,5 @@ export type {
   CheckoutStatusResponse,
   CheckoutPreviewResponse,
   CheckoutResult,
+  CheckoutRequest,
 } from "helius-sdk/auth/types";
