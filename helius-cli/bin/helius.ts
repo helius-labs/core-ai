@@ -80,6 +80,9 @@ program
   .option("--plan <plan>", "Plan: basic ($1), developer ($49/mo), business ($499/mo), professional ($999/mo)")
   .option("--period <period>", "Billing period: monthly or yearly (paid plans only)", "monthly")
   .option("--coupon <code>", "Coupon code (paid plans only)")
+  .option("--email <email>", "Email address (required for paid plans)")
+  .option("--first-name <name>", "First name (required for paid plans)")
+  .option("--last-name <name>", "Last name (required for paid plans)")
   .option("--json", "Output in JSON format")
   .action(signupCommand);
 

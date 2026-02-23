@@ -11,6 +11,9 @@ interface SignupOptions extends OutputOptions {
   plan?: string;
   period?: string;
   coupon?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 function mapErrorToExitCode(message: string): number {
@@ -52,6 +55,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       plan: options.plan,
       period: (options.period as "monthly" | "yearly") || undefined,
       couponCode: options.coupon,
+      email: options.email,
+      firstName: options.firstName,
+      lastName: options.lastName,
     });
 
     spinner?.succeed("Signup complete");

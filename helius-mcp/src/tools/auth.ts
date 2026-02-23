@@ -130,10 +130,12 @@ export function registerAuthTools(server: McpServer) {
     {
       plan: z.string().optional().describe('Plan to sign up for: "basic" ($1, default), "developer", "business", or "professional"'),
       period: z.enum(["monthly", "yearly"]).optional().describe('Billing period for paid plans (default: monthly)'),
-      email: z.string().email().optional().describe('Contact email for the account (may be required for new signups)'),
+      email: z.string().email().optional().describe('Email address (required for paid plans)'),
+      firstName: z.string().optional().describe('First name (required for paid plans)'),
+      lastName: z.string().optional().describe('Last name (required for paid plans)'),
       couponCode: z.string().optional().describe('Coupon code for paid plans'),
     },
-    async ({ plan, period, email, couponCode }) => {
+    async ({ plan, period, email, firstName, lastName, couponCode }) => {
       try {
         let secretKey = getSessionSecretKey();
 
@@ -158,6 +160,8 @@ export function registerAuthTools(server: McpServer) {
           plan,
           period,
           email,
+          firstName,
+          lastName,
           couponCode,
         });
 
