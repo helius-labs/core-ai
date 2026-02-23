@@ -166,7 +166,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     console.log("\n" + chalk.green(`✓ Upgraded to ${preview.planName}!`));
     if (result.txSignature) {
-      console.log(`\nView transaction: ${chalk.blue(`https://solscan.io/tx/${result.txSignature}`)}`);
+      console.log(`\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`);
     }
   } catch (error) {
     if (options.json) {

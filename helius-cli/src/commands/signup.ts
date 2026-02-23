@@ -121,7 +121,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
       if (result.txSignature) {
         console.log(
-          `Transaction: ${chalk.blue(`https://solscan.io/tx/${result.txSignature}`)}`
+          `Transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`
         );
       }
       return;
@@ -155,7 +155,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     }
     if (result.txSignature) {
       console.log(
-        `\nView transaction: ${chalk.blue(`https://solscan.io/tx/${result.txSignature}`)}`
+        `\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`
       );
     }
   } catch (error) {

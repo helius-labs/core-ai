@@ -109,7 +109,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
 
     console.log("\n" + chalk.green("✓ Payment complete!"));
     if (result.txSignature) {
-      console.log(`\nView transaction: ${chalk.blue(`https://solscan.io/tx/${result.txSignature}`)}`);
+      console.log(`\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`);
     }
   } catch (error) {
     if (options.json) {
