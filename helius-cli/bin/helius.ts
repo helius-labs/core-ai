@@ -75,8 +75,11 @@ program
 
 program
   .command("signup")
-  .description("Create account + project (Developer plan, $49/mo)")
+  .description("Create a Helius account (default: $1 basic plan, or specify a paid plan)")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
+  .option("--plan <plan>", "Plan: basic ($1), developer ($49/mo), business ($499/mo), professional ($999/mo)")
+  .option("--period <period>", "Billing period: monthly or yearly (paid plans only)", "monthly")
+  .option("--coupon <code>", "Coupon code (paid plans only)")
   .option("--json", "Output in JSON format")
   .action(signupCommand);
 

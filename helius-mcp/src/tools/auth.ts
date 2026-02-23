@@ -20,12 +20,10 @@ import {
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
 import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk } from '../utils/config.js';
 
-const DEVELOPER_PRICE_USDC = PLAN_CATALOG.developer.monthlyPrice / 100;
-
 export function registerAuthTools(server: McpServer) {
   server.tool(
     'generateKeypair',
-    `Generate a new Solana keypair for Helius account signup. Returns the wallet address. The user must fund this wallet with ~0.01 SOL + ${DEVELOPER_PRICE_USDC} USDC (Developer plan) before calling agenticSignup.`,
+    'Generate a new Solana keypair for Helius account signup. Returns the wallet address. The user must fund this wallet with ~0.001 SOL + 1 USDC (basic plan) or more USDC (for paid plans) before calling agenticSignup.',
     {},
     async () => {
       try {
@@ -42,8 +40,8 @@ export function registerAuthTools(server: McpServer) {
             `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
             `**Wallet Address:** \`${address}\`\n\n` +
             `To create a Helius account, fund this wallet with:\n` +
-            `- **~0.01 SOL** for transaction fees\n` +
-            `- **${DEVELOPER_PRICE_USDC} USDC** for Helius Developer plan\n\n` +
+            `- **~0.001 SOL** for transaction fees\n` +
+            `- **1 USDC** for basic plan (or more for paid plans)\n\n` +
             `Then call \`agenticSignup\` to complete account creation.`
           );
         }
@@ -62,8 +60,8 @@ export function registerAuthTools(server: McpServer) {
           `**Wallet Address:** \`${address}\`\n` +
           `**Saved to:** \`${KEYPAIR_PATH}\`\n\n` +
           `To create a Helius account, fund this wallet with:\n` +
-          `- **~0.01 SOL** for transaction fees\n` +
-          `- **${DEVELOPER_PRICE_USDC} USDC** for Helius Developer plan\n\n` +
+          `- **~0.001 SOL** for transaction fees\n` +
+          `- **1 USDC** for basic plan (or more for paid plans)\n\n` +
           `Then call \`agenticSignup\` to complete account creation.`
         );
       } catch (err) {
@@ -74,7 +72,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'checkSignupBalance',
-    'Check if the signup wallet has sufficient SOL and USDC balance for Helius account creation.',
+    'Check if the signup wallet has sufficient SOL and USDC balance for Helius basic plan ($1 USDC). Paid plans (developer/business/professional) require more USDC — the exact amount depends on the plan and is checked during checkout.',
     {},
     async () => {
       try {
@@ -102,24 +100,22 @@ export function registerAuthTools(server: McpServer) {
         const usdcAmount = Number(usdcBalance) / 1_000_000;
 
         const solOk = solBalance >= 1_000_000n;
-        // Check against actual Developer plan price
-        const requiredUsdc = BigInt(PLAN_CATALOG.developer.monthlyPrice) * 10_000n;
-        const usdcOk = usdcBalance >= requiredUsdc;
+        const usdcOk = usdcBalance >= 1_000_000n; // 1 USDC for basic plan
 
         let status: string;
         if (solOk && usdcOk) {
-          status = 'Ready for signup';
+          status = 'Ready for signup (basic plan). For paid plans, ensure sufficient USDC for the plan price.';
         } else {
           const missing: string[] = [];
-          if (!solOk) missing.push(`~0.01 SOL (have ${solAmount.toFixed(6)})`);
-          if (!usdcOk) missing.push(`${DEVELOPER_PRICE_USDC} USDC (have ${usdcAmount.toFixed(2)})`);
+          if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
+          if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
           status = `Need more funds: ${missing.join(', ')}`;
         }
 
         return mcpText(
           `**Signup Wallet Balance** (\`${address}\`)\n\n` +
-          `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient — need ~0.01)'}\n` +
-          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient)' : `(insufficient — need ${DEVELOPER_PRICE_USDC})`}\n\n` +
+          `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient)'}\n` +
+          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient for basic)' : '(insufficient)'}\n\n` +
           `**Status:** ${status}`
         );
       } catch (err) {
@@ -130,11 +126,14 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'agenticSignup',
-    `Create a Helius account using the generated keypair. Requires the wallet to be funded with ~0.01 SOL + ${DEVELOPER_PRICE_USDC} USDC. On success, automatically configures the API key for this session so all other Helius tools work immediately.`,
+    'Create a Helius account using the generated keypair. Default: basic plan ($1 USDC). For paid plans, specify plan: developer ($49/mo), business ($499/mo), or professional ($999/mo). On success, automatically configures the API key for this session.',
     {
+      plan: z.string().optional().describe('Plan to sign up for: "basic" ($1, default), "developer", "business", or "professional"'),
+      period: z.enum(["monthly", "yearly"]).optional().describe('Billing period for paid plans (default: monthly)'),
       email: z.string().email().optional().describe('Contact email for the account (may be required for new signups)'),
+      couponCode: z.string().optional().describe('Coupon code for paid plans'),
     },
-    async ({ email }) => {
+    async ({ plan, period, email, couponCode }) => {
       try {
         let secretKey = getSessionSecretKey();
 
@@ -156,7 +155,10 @@ export function registerAuthTools(server: McpServer) {
         const result = await agenticSignup({
           secretKey,
           userAgent: MCP_USER_AGENT,
+          plan,
+          period,
           email,
+          couponCode,
         });
 
         // Configure API key for this session and persist to shared config
@@ -184,6 +186,17 @@ export function registerAuthTools(server: McpServer) {
             (result.endpoints ? `- **Mainnet RPC:** \`${result.endpoints.mainnet}\`\n` : '') +
             (result.endpoints ? `- **Devnet RPC:** \`${result.endpoints.devnet}\`\n` : '') +
             (result.credits !== null ? `- **Credits:** ${result.credits.toLocaleString()}\n` : '') +
+            saveNote
+          );
+        }
+
+        if (result.status === 'upgraded') {
+          return mcpText(
+            `**Plan Upgraded to ${plan || 'paid plan'}**\n\n` +
+            `- **Wallet:** \`${result.walletAddress}\`\n` +
+            `- **Project ID:** \`${result.projectId}\`\n` +
+            (result.apiKey ? `- **API Key:** \`${result.apiKey}\`\n` : '') +
+            (result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '') +
             saveNote
           );
         }
