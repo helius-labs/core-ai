@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 // Full plan details for display
-const HELIUS_PLANS: Record<string, {
+export const HELIUS_PLANS: Record<string, {
   name: string;
   price: string;
   credits: string;
