@@ -429,7 +429,7 @@ export function registerAuthTools(server: McpServer) {
             const end = new Date(cycle.end);
             const now = new Date();
             const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-            cycleStr = ` (${cycle.start} – ${cycle.end}, ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining)`;
+            cycleStr = ` (${cycle.start} - ${cycle.end}, ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining)`;
 
             // Burn-rate warning: project usage over elapsed days to end of cycle
             const start = new Date(cycle.start);
@@ -439,7 +439,7 @@ export function registerAuthTools(server: McpServer) {
               const projectedTotal = Math.round((usage.totalCreditsUsed / elapsedDays) * totalDays);
               if (projectedTotal > total) {
                 const overageM = ((projectedTotal - total) / 1_000_000).toFixed(1);
-                daysNote = `\n> ⚠️ At current burn rate you're projected to use ~${(projectedTotal / 1_000_000).toFixed(1)}M credits this cycle — ${overageM}M over your ${(total / 1_000_000).toFixed(0)}M limit. Consider upgrading or reducing usage.`;
+                daysNote = `\n> At current burn rate you're projected to use ~${(projectedTotal / 1_000_000).toFixed(1)}M credits this cycle — ${overageM}M over your ${(total / 1_000_000).toFixed(0)}M limit. Consider upgrading or reducing usage.`;
               }
             }
           }
@@ -464,7 +464,7 @@ export function registerAuthTools(server: McpServer) {
 
           // Low-credit warning
           if (parseFloat(pctRemaining) < 20) {
-            lines.push(`\n> ⚠️ Less than 20% of credits remaining. Use \`previewUpgrade\` to see upgrade pricing, or \`getHeliusPlanInfo\` to compare plans.`);
+            lines.push(`\n> Less than 20% of credits remaining. Use \`previewUpgrade\` to see upgrade pricing, or \`getHeliusPlanInfo\` to compare plans.`);
           }
         }
 
