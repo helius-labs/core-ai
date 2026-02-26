@@ -27,10 +27,10 @@ src/
     projects.ts        # list projects (existing)
     ...
   lib/
-    helius.ts          # SDK client wrapper — resolveApiKey(), getClient(), restRequest()
+    helius.ts          # SDK client wrapper — resolveApiKey(), getClient(), restRequest(), HeliusHttpError
     formatters.ts      # formatSol(), formatAddress(), formatTimestamp(), formatTable()
     config.ts          # ~/.helius-cli/config.json — jwt, apiKey, network, projectId
-    output.ts          # ExitCode enum, outputJson(), exitWithError()
+    output.ts          # ExitCode enum, classifyError(), outputJson(), exitWithError()
     api.ts             # Helius management API (signup, projects, API keys)
     payment.ts         # USDC payment for signup
     wallet.ts          # Keypair loading
@@ -45,7 +45,24 @@ All data commands follow this pattern:
 3. Get SDK client via `getClient(apiKey, network)`
 4. Call SDK method
 5. Output: formatted terminal (chalk) or `outputJson()` for `--json`
-6. Error: `process.exit(ExitCode.SDK_ERROR)`
+6. Error: call `classifyError(error)`, emit `outputJson({ error, message, retryable })` in JSON mode, show spinner hint in terminal mode, exit with the classified exit code
+
+Standard catch block template (all commands except `ws.ts`):
+```ts
+} catch (error) {
+  const { exitCode, errorCode, retryable } = classifyError(error);
+  const message = error instanceof Error ? error.message : String(error);
+  if (options.json) {
+    outputJson({ error: errorCode, message, retryable });
+  } else {
+    const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+    spinner?.fail(`${message}${hint}`);
+  }
+  process.exit(exitCode);
+}
+```
+
+WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-return and uses `console.error` instead of spinner.
 
 ## API Key Resolution Chain
 
@@ -58,11 +75,34 @@ All data commands follow this pattern:
 
 - 0: success
 - 1: general error
-- 10-19: auth errors
-- 20-29: balance/payment errors
-- 30-39: project errors
-- 40-49: API errors
-- 50-59: SDK/data errors (NO_API_KEY=50, SDK_ERROR=51, INVALID_ADDRESS=52, NETWORK_ERROR=53)
+- 10-19: auth errors (NOT_LOGGED_IN=10, KEYPAIR_NOT_FOUND=11, AUTH_FAILED=12)
+- 20-29: balance/payment errors (INSUFFICIENT_SOL=20, INSUFFICIENT_USDC=21, PAYMENT_FAILED=22)
+- 30-39: project errors (NO_PROJECTS=30, PROJECT_NOT_FOUND=31, MULTIPLE_PROJECTS=32, PROJECT_EXISTS=33)
+- 40-49: API errors (API_ERROR=40, NO_API_KEYS=41)
+- 50-59: SDK/data errors:
+  - 50 `NO_API_KEY` — resolveApiKey() found nothing; permanent, fix config
+  - 51 `SDK_ERROR` — unclassified SDK error
+  - 52 `INVALID_ADDRESS` — bad base58/pubkey format; permanent
+  - 53 `INVALID_INPUT` — bad parameters or HTTP 400; permanent
+  - 54 `INVALID_API_KEY` — HTTP 401/403 or "invalid api key"; permanent, fix the key
+  - 55 `NOT_FOUND` — HTTP 404 or resource not found; permanent
+  - 56 `RATE_LIMITED` — HTTP 429 or rate limit message; **transient, safe to retry**
+  - 57 `SERVER_ERROR` — HTTP 5xx or server error message; **transient, safe to retry**
+  - 58 `NETWORK_ERROR` — ECONNREFUSED/ETIMEDOUT/fetch failed; **transient, safe to retry**
+
+The `retryable` field in `--json` error output reflects this directly.
+
+## Error Classification
+
+`classifyError(error)` in `src/lib/output.ts` returns `{ exitCode, errorCode, retryable }` using three tiers:
+
+1. **`HeliusHttpError`** (from `restRequest()` — wallet.ts REST path): exact `status` property → precise code
+2. **Status in message** (enhanced TX: `"Helius HTTP 429: ..."`, webhooks: `"HTTP error! status: 429 - ..."`): regex extracts status → same mapping
+3. **Keyword matching** (RPC caller path — DAS, ZK, staking, raw): matches phrases like `"invalid api key"`, `"rate limit"`, `"not found"`, `"ECONNREFUSED"`, `SyntaxError`, etc.
+
+`restRequest()` throws `HeliusHttpError` (defined in `src/lib/helius.ts`) so the REST path always hits Tier 1. The SDK paths hit Tier 2 or 3 depending on the client.
+
+`exitWithError()` (used by auth/project commands) also includes `retryable` in JSON output automatically.
 
 ## SDK vs REST
 
@@ -83,5 +123,6 @@ node dist/bin/helius.js --help
 1. Create `src/commands/mycommand.ts` exporting async handler(s)
 2. Use `resolveApiKey(options)` + `getClient(apiKey, network)` from `src/lib/helius.ts`
 3. Support `--json` via `outputJson()` / formatted chalk output
-4. Register in `bin/helius.ts` with Commander.js
-5. Run `pnpm build` and verify
+4. Use the standard catch block template (see Command Pattern above) — import `classifyError` from `../lib/output.js`
+5. Register in `bin/helius.ts` with Commander.js
+6. Run `pnpm build` and verify
