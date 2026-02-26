@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { setApiKey, setNetwork, hasApiKey, getHeliusClient } from '../utils/helius.js';
 import { mcpText, validateEnum, getErrorMessage } from '../utils/errors.js';
+import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
 
 export function registerConfigTools(server: McpServer) {
   const keyFromEnv = hasApiKey();
@@ -10,7 +11,7 @@ export function registerConfigTools(server: McpServer) {
     'setHeliusApiKey',
     keyFromEnv
       ? 'API key is already configured via environment. You do NOT need to call this tool - just use the other Helius tools directly.'
-      : 'Set the Helius API key for the current session. Required before using any other Helius tools. The key is stored in memory only and not persisted to disk. Get your key at https://dashboard.helius.dev/api-keys',
+      : 'Set an existing Helius API key for the current session. If the user does not have a key, use the agentic signup flow instead: generateKeypair → fund wallet → agenticSignup. Get a key at https://dashboard.helius.dev/api-keys',
     {
       apiKey: z.string().describe('Your Helius API key from https://dashboard.helius.dev/api-keys'),
       network: z.string().optional().default('mainnet-beta').describe('Network to use (default: mainnet-beta)')
@@ -39,7 +40,8 @@ export function registerConfigTools(server: McpServer) {
         }
       }
 
-      return mcpText(`✅ Helius API key configured for ${network}! You can now query the Solana blockchain.`);
+      setSharedApiKey(apiKey);
+      return mcpText(`✅ Helius API key configured for ${network} and saved to \`${SHARED_CONFIG_PATH}\`. You can now query the Solana blockchain.`);
     }
   );
 }

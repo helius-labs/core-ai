@@ -2,8 +2,11 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const CONFIG_DIR = path.join(os.homedir(), ".helius-cli");
+const CONFIG_DIR = path.join(os.homedir(), ".helius");
 const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+
+// Alias for backwards compatibility (used by signup.ts)
+export const SHARED_CONFIG_PATH = CONFIG_FILE;
 
 interface Config {
   jwt?: string;
@@ -77,4 +80,13 @@ export function setProjectId(projectId: string): void {
 
 export function clearConfig(): void {
   save({});
+}
+
+// Delegates to main config (shared and main are now the same)
+export function getSharedApiKey(): string | undefined {
+  return getApiKey();
+}
+
+export function setSharedApiKey(apiKey: string): void {
+  setApiKey(apiKey);
 }

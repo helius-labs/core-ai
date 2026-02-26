@@ -1,14 +1,11 @@
 import fs from "fs";
-import nacl from "tweetnacl";
-import bs58 from "bs58";
-import { createKeyPairSignerFromBytes } from "@solana/kit";
+import { loadKeypair } from "helius-sdk/auth/loadKeypair";
 
-export interface WalletKeypair {
-  publicKey: Uint8Array;
-  secretKey: Uint8Array;
-}
+export type { WalletKeypair } from "helius-sdk/auth/types";
+export { getAddress } from "helius-sdk/auth/getAddress";
+export { signAuthMessage } from "helius-sdk/auth/signAuthMessage";
 
-export async function loadKeypair(keypairPath: string): Promise<WalletKeypair> {
+export async function loadKeypairFromFile(keypairPath: string) {
   const resolvedPath = keypairPath.replace(/^~/, process.env.HOME || "");
 
   if (!fs.existsSync(resolvedPath)) {
@@ -24,30 +21,6 @@ export async function loadKeypair(keypairPath: string): Promise<WalletKeypair> {
     );
   }
 
-  const secretKey = Uint8Array.from(secretKeyArray);
-  const publicKey = secretKey.slice(32);
-
-  return { publicKey, secretKey };
-}
-
-export async function getAddress(keypair: WalletKeypair): Promise<string> {
-  const signer = await createKeyPairSignerFromBytes(keypair.secretKey);
-  return signer.address;
-}
-
-export function signAuthMessage(secretKey: Uint8Array): {
-  message: string;
-  signature: string;
-} {
-  // Create JSON message with current timestamp (Unix time in milliseconds)
-  const message = JSON.stringify({
-    message: "Please sign this message to verify ownership of your wallet and connect to Helius.",
-    timestamp: Date.now()
-  });
-
-  const messageBytes = new TextEncoder().encode(message);
-  const signatureBytes = nacl.sign.detached(messageBytes, secretKey);
-  const signature = bs58.encode(signatureBytes);
-
-  return { message, signature };
+  const bytes = Uint8Array.from(secretKeyArray);
+  return loadKeypair(bytes);
 }

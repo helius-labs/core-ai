@@ -1,9 +1,9 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypair, signAuthMessage, getAddress } from "../lib/wallet.js";
+import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, createProject, listProjects, getProject, type Project } from "../lib/api.js";
 import { payUSDC, checkUsdcBalance, checkSolBalance, MIN_SOL_FOR_TX } from "../lib/payment.js";
-import { setJwt } from "../lib/config.js";
+import { setJwt, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { PAYMENT_AMOUNT } from "../constants.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -51,13 +51,13 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 1. Load keypair
     spinner?.start("Loading keypair...");
-    const keypair = await loadKeypair(options.keypair);
+    const keypair = await loadKeypairFromFile(options.keypair);
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet: ${chalk.cyan(walletAddress)}`);
 
     // 2. Authenticate first (no payment yet)
     spinner?.start("Signing authentication message...");
-    const { message, signature } = signAuthMessage(keypair.secretKey);
+    const { message, signature } = await signAuthMessage(keypair.secretKey);
     spinner?.succeed("Message signed");
 
     spinner?.start("Authenticating...");
@@ -73,18 +73,24 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       // User already has projects - no payment needed
       spinner?.succeed("Found existing project(s)");
 
-      if (options.json) {
-        // Fetch full details for comprehensive output
-        const project = existingProjects[0];
-        const projectDetails = await getProject(authResult.token, project.id);
-        const apiKey = projectDetails.apiKeys?.[0]?.keyId || null;
+      // Fetch full details to get API key
+      const project = existingProjects[0];
+      const projectDetails = await getProject(authResult.token, project.id);
+      const apiKey = projectDetails.apiKeys?.[0]?.keyId || null;
 
+      if (apiKey) {
+        setApiKey(apiKey);
+        setSharedApiKey(apiKey);
+      }
+
+      if (options.json) {
         outputJson({
           status: "EXISTING_PROJECT",
           wallet: walletAddress,
           projectId: project.id,
           projectName: project.name,
           apiKey,
+          configPath: apiKey ? SHARED_CONFIG_PATH : null,
           endpoints: apiKey ? {
             mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
             devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
@@ -101,6 +107,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
           console.log(`    Plan: ${p.subscription.plan}`);
         }
       }
+      if (apiKey) {
+        console.log(chalk.green(`\nAPI key saved to ${SHARED_CONFIG_PATH}`));
+      }
       console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
       return;
     }
@@ -109,7 +118,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 4. Check SOL balance for transaction fees
     spinner?.start("Checking SOL balance...");
-    const solBalance = await checkSolBalance(keypair);
+    const solBalance = await checkSolBalance(walletAddress);
     if (solBalance < MIN_SOL_FOR_TX) {
       if (options.json) {
         exitWithError("INSUFFICIENT_SOL", "Insufficient SOL for transaction fees", {
@@ -128,7 +137,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // 5. Check USDC balance
     spinner?.start("Checking USDC balance...");
-    const usdcBalance = await checkUsdcBalance(keypair);
+    const usdcBalance = await checkUsdcBalance(walletAddress);
     if (usdcBalance < PAYMENT_AMOUNT) {
       if (options.json) {
         exitWithError("INSUFFICIENT_USDC", "Insufficient USDC", {
@@ -146,7 +155,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     spinner?.succeed(`USDC balance: ${chalk.green((Number(usdcBalance) / 1_000_000).toFixed(2))} USDC`);
 
     spinner?.start("Sending 1 USDC payment...");
-    const txSignature = await payUSDC(keypair);
+    const txSignature = await payUSDC(keypair.secretKey);
     spinner?.succeed(`Payment sent: ${chalk.cyan(txSignature)}`);
 
     // 6. Create project (with retry - backend needs time to verify payment)
@@ -158,6 +167,11 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const projectDetails = await getProject(authResult.token, project.id);
     const apiKey = projectDetails.apiKeys?.[0]?.keyId || project.apiKeys?.[0]?.keyId || null;
 
+    if (apiKey) {
+      setApiKey(apiKey);
+      setSharedApiKey(apiKey);
+    }
+
     if (options.json) {
       outputJson({
         status: "SUCCESS",
@@ -165,6 +179,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         projectId: project.id,
         projectName: project.name,
         apiKey,
+        configPath: apiKey ? SHARED_CONFIG_PATH : null,
         endpoints: apiKey ? {
           mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
           devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
@@ -179,6 +194,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     console.log(`\nProject ID: ${chalk.cyan(project.id)}`);
     if (apiKey) {
       console.log(`API Key: ${chalk.cyan(apiKey)}`);
+      console.log(chalk.green(`API key saved to ${SHARED_CONFIG_PATH}`));
     }
 
     // Show RPC endpoints if available

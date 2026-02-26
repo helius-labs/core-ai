@@ -16,14 +16,11 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@solana-program/token": "^0.9.0",
     "@solana/kit": "^5.5.1",
-    "bs58": "^6.0.0",
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
-    "helius-sdk": "^2.0.5",
-    "ora": "^8.0.0",
-    "tweetnacl": "^1.0.3"
+    "helius-sdk": "^2.2.1",
+    "ora": "^8.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

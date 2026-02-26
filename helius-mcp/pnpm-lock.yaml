@@ -15,7 +15,7 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       helius-sdk:
-        specifier: ^2.0.5
+        specifier: ^2.2.1
         version: 2.2.1(typescript@5.9.3)
       zod:
         specifier: ^3.23.0

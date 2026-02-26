@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypair, signAuthMessage, getAddress } from "../lib/wallet.js";
+import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
@@ -26,13 +26,13 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
 
     // Load keypair
     spinner?.start("Loading keypair...");
-    const keypair = await loadKeypair(options.keypair);
+    const keypair = await loadKeypairFromFile(options.keypair);
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet: ${chalk.cyan(walletAddress)}`);
 
     // Sign auth message
     spinner?.start("Signing authentication message...");
-    const { message, signature } = signAuthMessage(keypair.secretKey);
+    const { message, signature } = await signAuthMessage(keypair.secretKey);
     spinner?.succeed("Message signed");
 
     // Call login API
@@ -50,7 +50,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
     }
 
     console.log("\n" + chalk.green("✓ Login successful!"));
-    console.log(`\nJWT saved to ~/.helius-cli/config.json`);
+    console.log(`\nJWT saved to ~/.helius/config.json`);
   } catch (error) {
     if (options.json) {
       exitWithError("AUTH_FAILED", error instanceof Error ? error.message : String(error), undefined, true);

@@ -21,7 +21,7 @@ export async function resolveApiKey(opts: ResolveOptions = {}): Promise<string> 
   // 2. Environment variable
   if (process.env.HELIUS_API_KEY) return process.env.HELIUS_API_KEY;
 
-  // 3. Config file
+  // 3. Config file (~/.helius/config.json)
   const configKey = getConfigApiKey();
   if (configKey) return configKey;
 
