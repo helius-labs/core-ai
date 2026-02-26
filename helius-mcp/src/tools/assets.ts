@@ -9,7 +9,7 @@ export function registerAssetTools(server: McpServer) {
   // Get Assets by Owner (NFTs and tokens via DAS)
   server.tool(
     'getAssetsByOwner',
-    'Get all NFTs and digital assets owned by a Solana wallet using the DAS (Digital Asset Standard) API. Returns asset names, types (NFT, cNFT, Fungible, etc.), and mint addresses. Supports both regular NFTs and compressed NFTs (cNFTs). Use this to see what NFTs/collectibles a wallet owns. For fungible token balances, use getTokenBalances instead.',
+    'Get all NFTs and digital assets owned by a Solana wallet using the DAS (Digital Asset Standard) API. Returns asset names, types (NFT, cNFT, Fungible, etc.), and mint addresses. Supports both regular NFTs and compressed NFTs (cNFTs). Use this to see what NFTs/collectibles a wallet owns. For fungible token balances, use getTokenBalances instead. DAS API (10 credits/call).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       limit: z.number().optional().default(20).describe('Number of assets to return (default 20). Increase for wallets with many NFTs.'),
@@ -87,7 +87,7 @@ export function registerAssetTools(server: McpServer) {
   // Get Asset (single or batch)
   server.tool(
     'getAsset',
-    'Get detailed information about one or more NFTs/tokens by mint address. For a single asset: returns name, symbol, description, image, owner, creators, authorities, supply, decimals, royalties, mutability. For batch: pass an array of up to 1000 mint addresses in "ids" for fast bulk lookups. Use this to find who created/deployed a token, verify token details, or get full NFT metadata.',
+    'Get detailed information about one or more NFTs/tokens by mint address. For a single asset: returns name, symbol, description, image, owner, creators, authorities, supply, decimals, royalties, mutability. For batch: pass an array of up to 1000 mint addresses in "ids" for fast bulk lookups. Use this to find who created/deployed a token, verify token details, or get full NFT metadata. DAS API (10 credits/call).',
     {
       id: z.string().optional().describe('Single asset mint address (base58 encoded). Use this OR ids, not both.'),
       ids: z.array(z.string()).optional().describe('Array of asset mint addresses for batch lookup (up to 1000). Use this OR id, not both.')
@@ -269,7 +269,7 @@ export function registerAssetTools(server: McpServer) {
   // Search Assets — unified search with smart routing for creator/authority/general queries
   server.tool(
     'searchAssets',
-    'Advanced search for digital assets (NFTs, tokens) with multiple filters. Search by owner, creator, authority, name, compression status, burnt status, or frozen status. Also replaces getAssetsByCreator and getAssetsByAuthority — pass creatorAddress (with optional onlyVerified) to find assets by creator, or authorityAddress to find assets controlled by an authority.',
+    'Advanced search for digital assets (NFTs, tokens) with multiple filters. Search by owner, creator, authority, name, compression status, burnt status, or frozen status. Also replaces getAssetsByCreator and getAssetsByAuthority — pass creatorAddress (with optional onlyVerified) to find assets by creator, or authorityAddress to find assets controlled by an authority. DAS API (10 credits/call).',
     {
       ownerAddress: z.string().optional().describe('Filter by owner wallet address'),
       creatorAddress: z.string().optional().describe('Filter by creator address'),
@@ -406,7 +406,7 @@ export function registerAssetTools(server: McpServer) {
   // Get Assets by Group (Collection)
   server.tool(
     'getAssetsByGroup',
-    'Get all NFTs in a collection by group key/value. The groupKey is usually "collection" and groupValue is the collection mint address. Use this to browse all NFTs in a specific collection.',
+    'Get all NFTs in a collection by group key/value. The groupKey is usually "collection" and groupValue is the collection mint address. Use this to browse all NFTs in a specific collection. DAS API (10 credits/call).',
     {
       groupKey: z.string().describe('Group key - usually "collection"'),
       groupValue: z.string().describe('Group value - usually the collection mint address'),

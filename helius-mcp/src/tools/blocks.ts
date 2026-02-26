@@ -8,7 +8,7 @@ import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
 export function registerBlockTools(server: McpServer) {
   server.tool(
     'getBlock',
-    'Get detailed information about a specific Solana block by slot number. Returns block time, blockhash, parent slot, transaction count, and reward summary. Use transactionDetails to control how much transaction data is included: "none" for just block metadata, "signatures" for a list of transaction signatures, or "full" for complete transaction data.',
+    'Get detailed information about a specific Solana block by slot number. Returns block time, blockhash, parent slot, transaction count, and reward summary. Use transactionDetails to control how much transaction data is included: "none" for just block metadata, "signatures" for a list of transaction signatures, or "full" for complete transaction data. Credit cost: 10 credits/call (historical data).',
     {
       slot: z.number().describe('Slot number of the block to fetch'),
       transactionDetails: z.string().optional().default('signatures').describe('"none" = block metadata only, "signatures" = list of tx signatures (default), "full" = complete transaction data')

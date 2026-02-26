@@ -32,7 +32,7 @@ export function registerBalanceTools(server: McpServer) {
   // Get Token Balances
   server.tool(
     'getTokenBalances',
-    'Get all SPL token balances for a Solana wallet with full token info: names, symbols, properly formatted amounts with decimals, and USD prices (when available). Includes fungible tokens like USDC, BONK, JUP, etc. Does NOT include NFTs — use getAssetsByOwner for NFTs. For native SOL balance, use getBalance instead. Automatically paginates to fetch all tokens using parallel requests for speed.',
+    'Get all SPL token balances for a Solana wallet with full token info: names, symbols, properly formatted amounts with decimals, and USD prices (when available). Includes fungible tokens like USDC, BONK, JUP, etc. Does NOT include NFTs — use getAssetsByOwner for NFTs. For native SOL balance, use getBalance instead. Automatically paginates to fetch all tokens using parallel requests for speed. Uses DAS API (10 credits per page, ~10 items/page). A wallet with 50 tokens costs ~50 credits; 100+ tokens may cost 100+ credits. For a flat-rate portfolio view with USD values sorted by total value and optional NFTs, use getWalletBalances instead (100 credits flat, includes SOL).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)')
     },

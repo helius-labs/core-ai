@@ -214,7 +214,7 @@ export function registerAccountTools(server: McpServer) {
   // Get Program Accounts (V2 with pagination) — uses SDK RpcCaller (no bigint)
   server.tool(
     'getProgramAccounts',
-    'Get all accounts owned by a specific program. Returns account addresses, balances, and data sizes. Use dataSize to filter by account data length (e.g. 165 for token accounts). Useful for finding all accounts created by a program like a DEX, lending protocol, or custom program.',
+    'Get all accounts owned by a specific program. Returns account addresses, balances, and data sizes. Use dataSize to filter by account data length (e.g. 165 for token accounts). Useful for finding all accounts created by a program like a DEX, lending protocol, or custom program. Credit cost: 10 credits/call.',
     {
       programId: z.string().describe('Program ID (base58 encoded) — the owner program of the accounts to find'),
       limit: z.number().optional().default(20).describe('Maximum accounts to return (default 20, max 100)'),
