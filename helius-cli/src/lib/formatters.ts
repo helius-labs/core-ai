@@ -20,6 +20,13 @@ export function formatTimestamp(unix: number): string {
   return new Date(unix * 1000).toISOString().replace("T", " ").replace(/\.\d+Z$/, " UTC");
 }
 
+export function formatEnumLabel(value: string): string {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function formatTokenAmount(amount: number | string, decimals: number): string {
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
   const value = num / Math.pow(10, decimals);

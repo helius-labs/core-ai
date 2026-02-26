@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { formatSol, formatTimestamp, formatAddress } from "../lib/formatters.js";
+import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
 
 interface TxOptions extends OutputOptions, ResolveOptions {}
@@ -32,8 +32,8 @@ export async function txParseCommand(signatures: string[], options: TxOptions = 
     for (const tx of txs) {
       console.log(chalk.bold(`\n${"─".repeat(60)}`));
       console.log(`${chalk.gray("Signature:")}    ${chalk.cyan(tx.signature || "N/A")}`);
-      console.log(`${chalk.gray("Type:")}         ${chalk.yellow(tx.type || "UNKNOWN")}`);
-      console.log(`${chalk.gray("Source:")}       ${tx.source || "N/A"}`);
+      console.log(`${chalk.gray("Type:")}         ${chalk.yellow(tx.type ? formatEnumLabel(tx.type) : "Unknown")}`);
+      console.log(`${chalk.gray("Source:")}       ${tx.source ? formatEnumLabel(tx.source) : "N/A"}`);
       console.log(`${chalk.gray("Timestamp:")}    ${tx.timestamp ? formatTimestamp(tx.timestamp) : "N/A"}`);
       console.log(`${chalk.gray("Fee:")}          ${tx.fee != null ? formatSol(tx.fee) : "N/A"}`);
       if (tx.description) {
@@ -91,7 +91,7 @@ export async function txHistoryCommand(address: string, options: TxOptions & { l
       const sig = tx.signature || "N/A";
       const shortSig = formatAddress(sig);
       const time = tx.timestamp ? formatTimestamp(tx.timestamp) : "N/A";
-      const type = tx.type || "UNKNOWN";
+      const type = tx.type ? formatEnumLabel(tx.type) : "Unknown";
       console.log(`  ${chalk.cyan(shortSig)}  ${chalk.yellow(type.padEnd(16))}  ${chalk.gray(time)}`);
       if (tx.description) {
         console.log(`    ${chalk.gray(tx.description)}`);

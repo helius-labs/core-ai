@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, restRequest, type ResolveOptions } from "../lib/helius.js";
-import { formatAddress, formatTable, type TableColumn } from "../lib/formatters.js";
+import { formatAddress, formatTable, formatEnumLabel, type TableColumn } from "../lib/formatters.js";
 import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
 
 interface WalletOptions extends OutputOptions, ResolveOptions {}
@@ -21,7 +21,7 @@ export async function walletIdentityCommand(address: string, options: WalletOpti
     }
     console.log(chalk.bold(`\nWallet Identity for ${chalk.cyan(address)}:\n`));
     if (result.name) console.log(`  ${chalk.gray("Name:")}     ${chalk.green(result.name)}`);
-    if (result.type) console.log(`  ${chalk.gray("Type:")}     ${result.type}`);
+    if (result.type) console.log(`  ${chalk.gray("Type:")}     ${formatEnumLabel(result.type)}`);
     if (result.category) console.log(`  ${chalk.gray("Category:")} ${result.category}`);
     if (result.tags?.length) console.log(`  ${chalk.gray("Tags:")}     ${result.tags.join(", ")}`);
   } catch (error) {
@@ -46,7 +46,7 @@ export async function walletIdentityBatchCommand(addresses: string[], options: W
     console.log(chalk.bold(`\nWallet Identities (${identities.length}):\n`));
     for (const id of identities) {
       if (id.name || id.type) {
-        console.log(`  ${chalk.cyan(id.address || "?")} - ${chalk.green(id.name || "Unknown")} (${id.type || "N/A"})`);
+        console.log(`  ${chalk.cyan(id.address || "?")} - ${chalk.green(id.name || "Unknown")} (${id.type ? formatEnumLabel(id.type) : "N/A"})`);
       }
     }
     const unknown = identities.filter((i: any) => !i.name && !i.type);
@@ -127,7 +127,7 @@ export async function walletHistoryCommand(address: string, options: WalletOptio
     for (const tx of items) {
       const sig = tx.signature || "N/A";
       const shortSig = formatAddress(sig);
-      console.log(`  ${chalk.cyan(shortSig)}  ${chalk.yellow((tx.type || "UNKNOWN").padEnd(16))}  ${tx.description || ""}`);
+      console.log(`  ${chalk.cyan(shortSig)}  ${chalk.yellow((tx.type ? formatEnumLabel(tx.type) : "Unknown").padEnd(16))}  ${tx.description || ""}`);
     }
     console.log(chalk.gray(`\n  ${items.length} transaction(s) shown`));
     if (result?.pagination?.nextCursor) {
@@ -190,7 +190,7 @@ export async function walletFundedByCommand(address: string, options: WalletOpti
     const funder = result.funderAddress || result.funder || "Unknown";
     console.log(`  ${chalk.gray("Funder:")}      ${chalk.cyan(funder)}`);
     if (result.funderName) console.log(`  ${chalk.gray("Name:")}        ${chalk.green(result.funderName)}`);
-    if (result.funderType) console.log(`  ${chalk.gray("Type:")}        ${result.funderType}`);
+    if (result.funderType) console.log(`  ${chalk.gray("Type:")}        ${formatEnumLabel(result.funderType)}`);
     if (result.signature) console.log(`  ${chalk.gray("Signature:")}   ${result.signature}`);
     if (result.amount != null) console.log(`  ${chalk.gray("Amount:")}      ${result.amount} SOL`);
   } catch (error) {
