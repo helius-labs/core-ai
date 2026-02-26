@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatTimestamp } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, classifyError, type OutputOptions } from "../lib/output.js";
 
 interface BlockOptions extends OutputOptions, ResolveOptions {}
 
@@ -47,7 +47,14 @@ export async function blockCommand(slot: string, options: BlockOptions = {}): Pr
       console.log(`  ${chalk.gray("Total rewards:")}   ${(totalRewards / 1e9).toFixed(4)} SOL`);
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }

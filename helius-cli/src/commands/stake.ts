@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, classifyError, ExitCode, type OutputOptions } from "../lib/output.js";
 
 interface StakeOptions extends OutputOptions, ResolveOptions {}
 
@@ -30,8 +30,15 @@ export async function stakeAccountsCommand(wallet: string, options: StakeOptions
       console.log(`  ${chalk.cyan(typeof a === "string" ? a : JSON.stringify(a))}`);
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -52,8 +59,15 @@ export async function stakeWithdrawableCommand(stakeAccount: string, options: St
     console.log(chalk.bold(`\nWithdrawable Amount for ${chalk.cyan(stakeAccount)}:\n`));
     console.log(`  ${chalk.green(typeof result === "number" || typeof result === "bigint" ? formatSol(result) : JSON.stringify(result))}`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -75,8 +89,15 @@ export async function stakeInstructionsCommand(amount: string, options: StakeOpt
     console.log(chalk.bold(`\nStake Instructions for ${amount} SOL:\n`));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -97,8 +118,15 @@ export async function stakeUnstakeInstructionCommand(stakeAccount: string, optio
     console.log(chalk.bold(`\nUnstake Instruction for ${chalk.cyan(stakeAccount)}:\n`));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -119,8 +147,15 @@ export async function stakeWithdrawInstructionCommand(stakeAccount: string, opti
     console.log(chalk.bold(`\nWithdraw Instruction for ${chalk.cyan(stakeAccount)}:\n`));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -147,8 +182,15 @@ export async function stakeCreateCommand(amount: string, options: StakeOptions &
     console.log(chalk.gray("Transaction needs to be signed and sent with your keypair."));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -173,8 +215,15 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
     console.log(chalk.bold("\nUnstake Transaction Created:\n"));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -199,7 +248,14 @@ export async function stakeWithdrawCommand(stakeAccount: string, options: StakeO
     console.log(chalk.bold("\nWithdraw Transaction Created:\n"));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }

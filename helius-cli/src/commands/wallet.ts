@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, restRequest, type ResolveOptions } from "../lib/helius.js";
 import { formatAddress, formatTable, formatEnumLabel, type TableColumn } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, classifyError, type OutputOptions } from "../lib/output.js";
 
 interface WalletOptions extends OutputOptions, ResolveOptions {}
 
@@ -25,8 +25,15 @@ export async function walletIdentityCommand(address: string, options: WalletOpti
     if (result.category) console.log(`  ${chalk.gray("Category:")} ${result.category}`);
     if (result.tags?.length) console.log(`  ${chalk.gray("Tags:")}     ${result.tags.join(", ")}`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -54,8 +61,15 @@ export async function walletIdentityBatchCommand(addresses: string[], options: W
       console.log(chalk.gray(`\n  ${unknown.length} wallet(s) have no known identity`));
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -98,8 +112,15 @@ export async function walletBalancesCommand(address: string, options: WalletOpti
       console.log(formatTable(rows, columns));
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -134,8 +155,15 @@ export async function walletHistoryCommand(address: string, options: WalletOptio
       console.log(chalk.gray(`  Next cursor: ${result.pagination.nextCursor}`));
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -168,8 +196,15 @@ export async function walletTransfersCommand(address: string, options: WalletOpt
       console.log(chalk.gray(`  Next cursor: ${result.pagination.nextCursor}`));
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -194,7 +229,14 @@ export async function walletFundedByCommand(address: string, options: WalletOpti
     if (result.signature) console.log(`  ${chalk.gray("Signature:")}   ${result.signature}`);
     if (result.amount != null) console.log(`  ${chalk.gray("Amount:")}      ${result.amount} SOL`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }

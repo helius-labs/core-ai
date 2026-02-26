@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, classifyError, type OutputOptions } from "../lib/output.js";
 
 interface TxOptions extends OutputOptions, ResolveOptions {}
 
@@ -54,8 +54,15 @@ export async function txParseCommand(signatures: string[], options: TxOptions = 
     }
     console.log();
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -99,8 +106,15 @@ export async function txHistoryCommand(address: string, options: TxOptions & { l
     }
     console.log(chalk.gray(`\n  ${txs.length} transaction(s) shown`));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -135,7 +149,14 @@ export async function txFeesCommand(options: TxOptions & { accounts?: string } =
       console.log(chalk.gray("  No fee data available."));
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }

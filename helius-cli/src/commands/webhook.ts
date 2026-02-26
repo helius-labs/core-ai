@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, classifyError, type OutputOptions } from "../lib/output.js";
 
 interface WebhookOptions extends OutputOptions, ResolveOptions {}
 
@@ -35,8 +35,15 @@ export async function webhookListCommand(options: WebhookOptions = {}): Promise<
       console.log();
     }
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -65,8 +72,15 @@ export async function webhookGetCommand(webhookId: string, options: WebhookOptio
     }
     console.log(`  ${chalk.gray("Tx Types:")} ${(result.transactionTypes || []).map(formatEnumLabel).join(", ") || "ANY"}`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -99,8 +113,15 @@ export async function webhookCreateCommand(options: WebhookOptions & {
     console.log(`  ${chalk.gray("URL:")}  ${result.webhookURL}`);
     console.log(`  ${chalk.gray("Type:")} ${result.webhookType ? formatEnumLabel(result.webhookType) : "N/A"}`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -126,8 +147,15 @@ export async function webhookUpdateCommand(webhookId: string, options: WebhookOp
 
     console.log(chalk.green(`\nWebhook ${webhookId} updated successfully!`));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
 
@@ -146,7 +174,14 @@ export async function webhookDeleteCommand(webhookId: string, options: WebhookOp
 
     console.log(chalk.green(`\nWebhook ${webhookId} deleted successfully.`));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    const { exitCode, errorCode, retryable } = classifyError(error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.json) {
+      outputJson({ error: errorCode, message, retryable });
+    } else {
+      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+      spinner?.fail(`${message}${hint}`);
+    }
+    process.exit(exitCode);
   }
 }
