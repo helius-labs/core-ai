@@ -5,7 +5,7 @@ import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
 import { checkSolBalance, checkUsdcBalance } from 'helius-sdk/auth/checkBalances';
 import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
-import { getCheckoutPreview, executeUpgrade, executeCheckout, executeRenewal } from 'helius-sdk/auth/checkout';
+import { getCheckoutPreview, executeCheckout, executeRenewal } from 'helius-sdk/auth/checkout';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
@@ -300,6 +300,19 @@ export function registerAuthTools(server: McpServer) {
     },
     async ({ plan, period, couponCode, email, firstName, lastName }) => {
       try {
+        // All-or-none customer info validation
+        const hasAny = email || firstName || lastName;
+        if (hasAny && (!email || !firstName || !lastName)) {
+          const missing = [
+            !email && 'email',
+            !firstName && 'firstName',
+            !lastName && 'lastName',
+          ].filter(Boolean);
+          return mcpError(
+            `Partial customer info provided. If any of email/firstName/lastName is given, all three are required. Missing: ${missing.join(', ')}`
+          );
+        }
+
         let secretKey = getSessionSecretKey();
         if (!secretKey) {
           secretKey = loadKeypairFromDisk();

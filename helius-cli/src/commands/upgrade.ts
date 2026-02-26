@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
-import { getCheckoutPreview, executeUpgrade, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
+import { getCheckoutPreview, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -42,6 +42,32 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       }
       console.error(chalk.red(`Unknown plan: ${options.plan}`));
       console.error(chalk.gray(`Available plans: ${available}`));
+      process.exit(ExitCode.GENERAL_ERROR);
+    }
+
+    // All-or-none customer info validation
+    const hasAnyCustomerInfo = options.email || options.firstName || options.lastName;
+    if (hasAnyCustomerInfo && (!options.email || !options.firstName || !options.lastName)) {
+      const missing = [
+        !options.email && "email",
+        !options.firstName && "firstName",
+        !options.lastName && "lastName",
+      ].filter(Boolean);
+      const msg = `Partial customer info provided. If any of --email/--first-name/--last-name is given, all three are required. Missing: ${missing.join(", ")}`;
+      if (options.json) {
+        exitWithError("VALIDATION_ERROR", msg, undefined, true);
+      }
+      console.error(chalk.red(msg));
+      process.exit(ExitCode.GENERAL_ERROR);
+    }
+
+    // Basic email format validation
+    if (options.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(options.email)) {
+      const msg = `Invalid email format: ${options.email}`;
+      if (options.json) {
+        exitWithError("VALIDATION_ERROR", msg, undefined, true);
+      }
+      console.error(chalk.red(msg));
       process.exit(ExitCode.GENERAL_ERROR);
     }
 
@@ -138,31 +164,20 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     // 5. Execute upgrade
     spinner?.start("Processing upgrade payment...");
-    const hasCustomerInfo = options.email || options.firstName || options.lastName;
-    const result = hasCustomerInfo
-      ? await executeCheckout(
-          keypair.secretKey,
-          authResult.token,
-          {
-            plan: planKey,
-            period: options.period,
-            refId: project.id,
-            couponCode: options.coupon,
-            email: options.email,
-            firstName: options.firstName,
-            lastName: options.lastName,
-          },
-          undefined,
-          { skipProjectPolling: true },
-        )
-      : await executeUpgrade(
-          keypair.secretKey,
-          authResult.token,
-          planKey,
-          options.period,
-          project.id,
-          options.coupon,
-        );
+    const result = await executeCheckout(
+      keypair.secretKey,
+      authResult.token,
+      {
+        plan: planKey,
+        period: options.period,
+        refId: project.id,
+        couponCode: options.coupon,
+        email: options.email,
+        firstName: options.firstName,
+        lastName: options.lastName,
+      },
+      { skipProjectPolling: true },
+    );
 
     if (result.status !== "completed") {
       throw new Error(
