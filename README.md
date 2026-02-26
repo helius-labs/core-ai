@@ -129,6 +129,12 @@ API keys are resolved in this order:
 
 Set the network via `HELIUS_NETWORK` (defaults to `mainnet-beta`, supports `devnet`).
 
+### Add to Claude
+
+```bash
+claude mcp add helius npx @helius-labs/helius-mcp@latest
+```
+
 ### Local Development
 
 ```bash
@@ -137,7 +143,7 @@ pnpm install
 pnpm build
 
 # Add the local build to Claude
-claude mcp add helius node /path/to/helius-mcp/dist/index.js
+claude mcp add helius node $(pwd)/dist/index.js
 ```
 
 ---
