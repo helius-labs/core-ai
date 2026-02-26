@@ -2,6 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { listProjects, getProject } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
+import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
 export async function rpcCommand(projectId?: string, options: OutputOptions = {}): Promise<void> {
@@ -149,7 +150,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
     // Show any other networks
     const otherRecords = rpcRecords.filter(r => r.network !== "mainnet" && r.network !== "devnet");
     for (const record of otherRecords) {
-      console.log(chalk.bold(`\n${record.network}:`));
+      console.log(chalk.bold(`\n${formatEnumLabel(record.network)}:`));
       console.log(`  ${chalk.blue("https://" + record.dns)}`);
     }
   } catch (error) {

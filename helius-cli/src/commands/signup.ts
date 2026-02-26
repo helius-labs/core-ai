@@ -4,6 +4,7 @@ import { loadKeypairFromFile } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
+import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
 interface SignupOptions extends OutputOptions {
@@ -97,7 +98,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       for (const p of allProjects) {
         console.log(`  ${chalk.cyan(p.id)} - ${p.name}`);
         if (p.subscription) {
-          console.log(`    Plan: ${p.subscription.plan}`);
+          console.log(`    Plan: ${formatEnumLabel(p.subscription.plan)}`);
         }
       }
       if (result.apiKey) {

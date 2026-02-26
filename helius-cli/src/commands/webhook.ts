@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
+import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
 
 interface WebhookOptions extends OutputOptions, ResolveOptions {}
@@ -28,9 +29,9 @@ export async function webhookListCommand(options: WebhookOptions = {}): Promise<
     for (const wh of webhooks) {
       console.log(`  ${chalk.cyan(wh.webhookID)}`);
       console.log(`    ${chalk.gray("URL:")}   ${wh.webhookURL || "N/A"}`);
-      console.log(`    ${chalk.gray("Type:")}  ${wh.webhookType || "N/A"}`);
+      console.log(`    ${chalk.gray("Type:")}  ${wh.webhookType ? formatEnumLabel(wh.webhookType) : "N/A"}`);
       console.log(`    ${chalk.gray("Addrs:")} ${(wh.accountAddresses || []).length} address(es)`);
-      console.log(`    ${chalk.gray("Types:")} ${(wh.transactionTypes || []).join(", ") || "ANY"}`);
+      console.log(`    ${chalk.gray("Types:")} ${(wh.transactionTypes || []).map(formatEnumLabel).join(", ") || "ANY"}`);
       console.log();
     }
   } catch (error) {
@@ -54,7 +55,7 @@ export async function webhookGetCommand(webhookId: string, options: WebhookOptio
 
     console.log(chalk.bold(`\nWebhook ${chalk.cyan(webhookId)}:\n`));
     console.log(`  ${chalk.gray("URL:")}      ${result.webhookURL || "N/A"}`);
-    console.log(`  ${chalk.gray("Type:")}     ${result.webhookType || "N/A"}`);
+    console.log(`  ${chalk.gray("Type:")}     ${result.webhookType ? formatEnumLabel(result.webhookType) : "N/A"}`);
     console.log(`  ${chalk.gray("Addresses:")}`);
     for (const addr of (result.accountAddresses || []).slice(0, 10)) {
       console.log(`    ${addr}`);
@@ -62,7 +63,7 @@ export async function webhookGetCommand(webhookId: string, options: WebhookOptio
     if ((result.accountAddresses || []).length > 10) {
       console.log(chalk.gray(`    ... and ${result.accountAddresses!.length - 10} more`));
     }
-    console.log(`  ${chalk.gray("Tx Types:")} ${(result.transactionTypes || []).join(", ") || "ANY"}`);
+    console.log(`  ${chalk.gray("Tx Types:")} ${(result.transactionTypes || []).map(formatEnumLabel).join(", ") || "ANY"}`);
   } catch (error) {
     spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(ExitCode.SDK_ERROR);
@@ -96,7 +97,7 @@ export async function webhookCreateCommand(options: WebhookOptions & {
     console.log(chalk.green("\nWebhook created successfully!\n"));
     console.log(`  ${chalk.gray("ID:")}   ${chalk.cyan(result.webhookID)}`);
     console.log(`  ${chalk.gray("URL:")}  ${result.webhookURL}`);
-    console.log(`  ${chalk.gray("Type:")} ${result.webhookType}`);
+    console.log(`  ${chalk.gray("Type:")} ${result.webhookType ? formatEnumLabel(result.webhookType) : "N/A"}`);
   } catch (error) {
     spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(ExitCode.SDK_ERROR);

@@ -2,6 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { getProject, listProjects } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
+import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
 export async function projectCommand(projectId?: string, options: OutputOptions = {}): Promise<void> {
@@ -112,7 +113,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
     // Subscription info
     if (projectListItem?.subscription) {
       console.log(chalk.bold("\nSubscription:"));
-      console.log(`  ${chalk.gray("Plan:")}        ${projectListItem.subscription.plan}`);
+      console.log(`  ${chalk.gray("Plan:")}        ${formatEnumLabel(projectListItem.subscription.plan)}`);
       console.log(`  ${chalk.gray("Period:")}      ${projectListItem.subscription.billingPeriodStart?.split('T')[0] || 'N/A'} - ${projectListItem.subscription.billingPeriodEnd?.split('T')[0] || 'N/A'}`);
     }
 
@@ -120,7 +121,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
     if (projectDetails.apiKeys && projectDetails.apiKeys.length > 0) {
       console.log(chalk.bold("\nAPI Keys:"));
       for (const key of projectDetails.apiKeys) {
-        console.log(`  ${chalk.cyan(key.keyId)} - ${key.keyName || "Unnamed"} (${key.usagePlan})`);
+        console.log(`  ${chalk.cyan(key.keyId)} - ${key.keyName || "Unnamed"} (${formatEnumLabel(key.usagePlan)})`);
       }
     }
 
@@ -146,7 +147,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
       console.log(chalk.bold("\nRPC Endpoints:"));
       for (const record of projectListItem.dnsRecords) {
         if (record.usageType === "rpc") {
-          console.log(`  ${chalk.gray(record.network + ":")}  ${chalk.blue("https://" + record.dns)}`);
+          console.log(`  ${chalk.gray(formatEnumLabel(record.network) + ":")}  ${chalk.blue("https://" + record.dns)}`);
         }
       }
     }

@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { formatEnumLabel } from "../lib/formatters.js";
 import { load, setApiKey, setNetwork, setProjectId, clearConfig } from "../lib/config.js";
 import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
 
@@ -16,7 +17,7 @@ export function configShowCommand(options: OutputOptions = {}): void {
 
   console.log(chalk.bold("\nHelius CLI Configuration:\n"));
   console.log(`  ${chalk.gray("API Key:")}     ${config.apiKey ? chalk.cyan(config.apiKey.slice(0, 8) + "...") : chalk.yellow("not set")}`);
-  console.log(`  ${chalk.gray("Network:")}     ${chalk.cyan(config.network || "mainnet")}`);
+  console.log(`  ${chalk.gray("Network:")}     ${chalk.cyan(formatEnumLabel(config.network || "mainnet"))}`);
   console.log(`  ${chalk.gray("Project ID:")}  ${config.projectId ? chalk.cyan(config.projectId) : chalk.yellow("not set")}`);
   console.log(`  ${chalk.gray("Logged in:")}   ${config.jwt ? chalk.green("yes") : chalk.yellow("no")}`);
   console.log();

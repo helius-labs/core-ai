@@ -5,6 +5,7 @@ import { signup } from "../lib/api.js";
 import { getPaymentIntent, executeRenewal } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
+import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 
@@ -61,7 +62,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
       console.log("");
       console.log(`  Payment ID:  ${chalk.cyan(intent.id)}`);
       console.log(`  Amount:      ${chalk.bold(`$${amountUsdc.toFixed(2)} USDC`)}`);
-      console.log(`  Status:      ${intent.status}`);
+      console.log(`  Status:      ${formatEnumLabel(intent.status)}`);
       console.log(`  Expires:     ${expiresAt}`);
       console.log("");
     }
