@@ -5,7 +5,7 @@ import os from "os";
 import { generateKeypair } from "helius-sdk/auth/generateKeypair";
 import { getAddress } from "helius-sdk/auth/getAddress";
 import { loadKeypair } from "helius-sdk/auth/loadKeypair";
-import { PLAN_CATALOG } from "helius-sdk/auth/constants";
+import { PLAN_CATALOG } from "helius-sdk/auth/planCatalog";
 
 const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius", "keypair.json");
 

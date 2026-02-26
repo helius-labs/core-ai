@@ -77,7 +77,7 @@ export async function executeRenewal(
 
 export { payWithMemo } from "helius-sdk/auth/payWithMemo";
 export { payPaymentIntent } from "helius-sdk/auth/checkout";
-export { PLAN_CATALOG } from "helius-sdk/auth/constants";
+export { PLAN_CATALOG } from "helius-sdk/auth/planCatalog";
 
 export type {
   CheckoutInitializeRequest,

@@ -18,8 +18,8 @@ importers:
         specifier: ^12.0.0
         version: 12.1.0
       helius-sdk:
-        specifier: ^2.2.1
-        version: 2.2.1(typescript@5.9.3)
+        specifier: ^2.2.2
+        version: 2.2.2(typescript@5.9.3)
       ora:
         specifier: ^8.0.0
         version: 8.2.0
@@ -620,8 +620,8 @@ packages:
   get-tsconfig@4.13.6:
     resolution: {integrity: sha512-shZT/QMiSHc/YBLxxOkMtgSid5HFoauqCE3/exfsEcwg1WkeqjG+V40yBbBrsD+jW2HDXcs28xOfcbm2jI8Ddw==}
 
-  helius-sdk@2.2.1:
-    resolution: {integrity: sha512-DwWttX+Fno/UaUTVPlF9UF0nhEmqQ6dHDr25bPXDQfG4KmM6UPlFtJ2cgzDuCikvTuCQt03lXsv61tE8t1NnTQ==}
+  helius-sdk@2.2.2:
+    resolution: {integrity: sha512-T7H9fJOYAB9HUZomDQ47EnKYPE//SgweZz4PbWF6q0Y1/jA0J+7xY15kFpZLJHyAGd4AXXxDCSISRdABmpCjfQ==}
 
   is-interactive@2.0.0:
     resolution: {integrity: sha512-qP1vozQRI+BMOPcjFzrjXuQvdak2pHNUMZoeG2eRbiSqyvbEf/wQtEOTOX1guk6E3t36RkaqiSt8A/6YElNxLQ==}
@@ -1289,7 +1289,7 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
-  helius-sdk@2.2.1(typescript@5.9.3):
+  helius-sdk@2.2.2(typescript@5.9.3):
     dependencies:
       '@solana-program/compute-budget': 0.11.0(@solana/kit@5.5.1(typescript@5.9.3))
       '@solana-program/stake': 0.5.0(@solana/kit@5.5.1(typescript@5.9.3))

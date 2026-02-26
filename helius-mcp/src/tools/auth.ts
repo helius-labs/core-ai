@@ -8,7 +8,7 @@ import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
 import { getCheckoutPreview, executeUpgrade, executeRenewal } from 'helius-sdk/auth/checkout';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
-import { PLAN_CATALOG } from 'helius-sdk/auth/constants';
+import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
 import { MCP_USER_AGENT } from '../http.js';
 import {
   setApiKey,
