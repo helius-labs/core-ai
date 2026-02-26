@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
-import { setJwt, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
+import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
@@ -69,6 +69,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     if (result.apiKey) {
       setApiKey(result.apiKey);
       setSharedApiKey(result.apiKey);
+    }
+    if (result.projectId) {
+      setProjectId(result.projectId);
     }
 
     // Handle result statuses
