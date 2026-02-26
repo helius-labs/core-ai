@@ -63,8 +63,10 @@ export async function executeUpgrade(
   period: "monthly" | "yearly",
   projectId: string,
   couponCode?: string,
+  userAgent?: string,
+  customerInfo?: { email?: string; firstName?: string; lastName?: string },
 ): Promise<CheckoutResult> {
-  return sdkExecuteUpgrade(secretKey, jwt, plan, period, projectId, couponCode, CLI_USER_AGENT);
+  return sdkExecuteUpgrade(secretKey, jwt, plan, period, projectId, couponCode, userAgent ?? CLI_USER_AGENT, customerInfo);
 }
 
 export async function executeRenewal(

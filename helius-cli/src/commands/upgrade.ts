@@ -13,6 +13,9 @@ interface UpgradeOptions extends OutputOptions {
   plan: string;
   period: "monthly" | "yearly";
   coupon?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
   yes?: boolean;
 }
 
@@ -142,6 +145,8 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       options.period,
       project.id,
       options.coupon,
+      undefined,
+      { email: options.email, firstName: options.firstName, lastName: options.lastName },
     );
 
     if (result.status !== "completed") {

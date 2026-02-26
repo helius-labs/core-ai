@@ -294,8 +294,11 @@ export function registerAuthTools(server: McpServer) {
       plan: z.enum(['developer', 'business', 'professional']).describe('Target plan name'),
       period: z.enum(['monthly', 'yearly']).default('monthly').describe('Billing period'),
       couponCode: z.string().optional().describe('Optional coupon code'),
+      email: z.string().email().optional().describe('Email address (required for first-time upgrades)'),
+      firstName: z.string().optional().describe('First name (required for first-time upgrades)'),
+      lastName: z.string().optional().describe('Last name (required for first-time upgrades)'),
     },
-    async ({ plan, period, couponCode }) => {
+    async ({ plan, period, couponCode, email, firstName, lastName }) => {
       try {
         let secretKey = getSessionSecretKey();
         if (!secretKey) {
@@ -322,7 +325,7 @@ export function registerAuthTools(server: McpServer) {
         }
 
         const projectId = projects[0].id;
-        const result = await executeUpgrade(secretKey, jwt, plan, period, projectId, couponCode, MCP_USER_AGENT);
+        const result = await executeUpgrade(secretKey, jwt, plan, period, projectId, couponCode, MCP_USER_AGENT, { email, firstName, lastName });
 
         if (result.status !== 'completed') {
           return mcpError(
