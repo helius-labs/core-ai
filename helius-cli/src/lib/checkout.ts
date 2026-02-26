@@ -35,8 +35,10 @@ export async function executeCheckout(
   secretKey: Uint8Array,
   jwt: string,
   request: CheckoutRequest,
+  userAgent?: string,
+  options?: { skipProjectPolling?: boolean },
 ): Promise<CheckoutResult> {
-  return sdkExecuteCheckout(secretKey, jwt, request, CLI_USER_AGENT);
+  return sdkExecuteCheckout(secretKey, jwt, request, userAgent ?? CLI_USER_AGENT, options);
 }
 
 export async function getCheckoutPreview(
@@ -63,10 +65,8 @@ export async function executeUpgrade(
   period: "monthly" | "yearly",
   projectId: string,
   couponCode?: string,
-  userAgent?: string,
-  customerInfo?: { email?: string; firstName?: string; lastName?: string },
 ): Promise<CheckoutResult> {
-  return sdkExecuteUpgrade(secretKey, jwt, plan, period, projectId, couponCode, userAgent ?? CLI_USER_AGENT, customerInfo);
+  return sdkExecuteUpgrade(secretKey, jwt, plan, period, projectId, couponCode, CLI_USER_AGENT);
 }
 
 export async function executeRenewal(

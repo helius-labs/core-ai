@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
-import { getCheckoutPreview, executeUpgrade, PLAN_CATALOG } from "../lib/checkout.js";
+import { getCheckoutPreview, executeUpgrade, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -138,16 +138,31 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     // 5. Execute upgrade
     spinner?.start("Processing upgrade payment...");
-    const result = await executeUpgrade(
-      keypair.secretKey,
-      authResult.token,
-      planKey,
-      options.period,
-      project.id,
-      options.coupon,
-      undefined,
-      { email: options.email, firstName: options.firstName, lastName: options.lastName },
-    );
+    const hasCustomerInfo = options.email || options.firstName || options.lastName;
+    const result = hasCustomerInfo
+      ? await executeCheckout(
+          keypair.secretKey,
+          authResult.token,
+          {
+            plan: planKey,
+            period: options.period,
+            refId: project.id,
+            couponCode: options.coupon,
+            email: options.email,
+            firstName: options.firstName,
+            lastName: options.lastName,
+          },
+          undefined,
+          { skipProjectPolling: true },
+        )
+      : await executeUpgrade(
+          keypair.secretKey,
+          authResult.token,
+          planKey,
+          options.period,
+          project.id,
+          options.coupon,
+        );
 
     if (result.status !== "completed") {
       throw new Error(

@@ -5,7 +5,7 @@ import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
 import { checkSolBalance, checkUsdcBalance } from 'helius-sdk/auth/checkBalances';
 import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
-import { getCheckoutPreview, executeUpgrade, executeRenewal } from 'helius-sdk/auth/checkout';
+import { getCheckoutPreview, executeUpgrade, executeCheckout, executeRenewal } from 'helius-sdk/auth/checkout';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
@@ -325,7 +325,15 @@ export function registerAuthTools(server: McpServer) {
         }
 
         const projectId = projects[0].id;
-        const result = await executeUpgrade(secretKey, jwt, plan, period, projectId, couponCode, MCP_USER_AGENT, { email, firstName, lastName });
+        const result = await executeCheckout(secretKey, jwt, {
+          plan,
+          period,
+          refId: projectId,
+          couponCode,
+          email,
+          firstName,
+          lastName,
+        }, MCP_USER_AGENT, { skipProjectPolling: true });
 
         if (result.status !== 'completed') {
           return mcpError(
