@@ -12,6 +12,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
+    "test": "echo \"No tests yet\"",
     "prepublishOnly": "pnpm build"
   },
   "keywords": [
