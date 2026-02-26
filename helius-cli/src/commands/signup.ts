@@ -1,38 +1,30 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
-import { signup, createProject, listProjects, getProject, type Project } from "../lib/api.js";
-import { payUSDC, checkUsdcBalance, checkSolBalance, MIN_SOL_FOR_TX } from "../lib/payment.js";
+import { loadKeypairFromFile } from "../lib/wallet.js";
+import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
-import { PAYMENT_AMOUNT } from "../constants.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
+  plan?: string;
+  period?: string;
+  coupon?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function createProjectWithRetry(
-  jwt: string,
-  maxRetries = 3,
-  delayMs = 2000
-): Promise<Project> {
-  let lastError: Error | null = null;
-
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await createProject(jwt);
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (i < maxRetries - 1) {
-        await sleep(delayMs);
-      }
-    }
-  }
-
-  throw lastError;
+function mapErrorToExitCode(message: string): number {
+  if (message.includes("Insufficient SOL")) return ExitCode.INSUFFICIENT_SOL;
+  if (message.includes("Insufficient USDC")) return ExitCode.INSUFFICIENT_USDC;
+  if (
+    message.includes("Checkout failed") ||
+    message.includes("Checkout expired") ||
+    message.includes("Checkout timeout")
+  ) return ExitCode.PAYMENT_FAILED;
+  return ExitCode.GENERAL_ERROR;
 }
 
 export async function signupCommand(options: SignupOptions): Promise<void> {
@@ -49,174 +41,131 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       process.exit(ExitCode.KEYPAIR_NOT_FOUND);
     }
 
-    // 1. Load keypair
+    // Load keypair
     spinner?.start("Loading keypair...");
     const keypair = await loadKeypairFromFile(options.keypair);
-    const walletAddress = await getAddress(keypair);
-    spinner?.succeed(`Wallet: ${chalk.cyan(walletAddress)}`);
+    spinner?.succeed("Wallet loaded");
 
-    // 2. Authenticate first (no payment yet)
-    spinner?.start("Signing authentication message...");
-    const { message, signature } = await signAuthMessage(keypair.secretKey);
-    spinner?.succeed("Message signed");
+    // Run agenticSignup (handles all plan paths)
+    const planLabel = options.plan || "basic";
+    spinner?.start(`Signing up (${planLabel} plan)...`);
 
-    spinner?.start("Authenticating...");
-    const authResult = await signup(message, signature, walletAddress);
-    setJwt(authResult.token);
-    spinner?.succeed(authResult.newUser ? "Account created" : "Authenticated");
+    const result = await agenticSignup({
+      secretKey: keypair.secretKey,
+      plan: options.plan,
+      period: (options.period as "monthly" | "yearly") || undefined,
+      couponCode: options.coupon,
+      email: options.email,
+      firstName: options.firstName,
+      lastName: options.lastName,
+    });
 
-    // 3. Check existing projects BEFORE payment
-    spinner?.start("Checking existing projects...");
-    const existingProjects = await listProjects(authResult.token);
+    spinner?.succeed("Signup complete");
 
-    if (existingProjects.length > 0) {
-      // User already has projects - no payment needed
-      spinner?.succeed("Found existing project(s)");
+    // Save config
+    if (result.jwt) {
+      setJwt(result.jwt);
+    }
+    if (result.apiKey) {
+      setApiKey(result.apiKey);
+      setSharedApiKey(result.apiKey);
+    }
 
-      // Fetch full details to get API key
-      const project = existingProjects[0];
-      const projectDetails = await getProject(authResult.token, project.id);
-      const apiKey = projectDetails.apiKeys?.[0]?.keyId || null;
-
-      if (apiKey) {
-        setApiKey(apiKey);
-        setSharedApiKey(apiKey);
-      }
+    // Handle result statuses
+    if (result.status === "existing_project") {
+      // Show all projects for existing users
+      const allProjects = await listProjects(result.jwt);
 
       if (options.json) {
         outputJson({
           status: "EXISTING_PROJECT",
-          wallet: walletAddress,
-          projectId: project.id,
-          projectName: project.name,
-          apiKey,
-          configPath: apiKey ? SHARED_CONFIG_PATH : null,
-          endpoints: apiKey ? {
-            mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
-            devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
-          } : null,
-          credits: projectDetails.creditsUsage?.remainingCredits || null,
+          wallet: result.walletAddress,
+          projectId: result.projectId,
+          apiKey: result.apiKey,
+          configPath: result.apiKey ? SHARED_CONFIG_PATH : null,
+          endpoints: result.endpoints,
+          credits: result.credits,
+          projects: allProjects.map((p) => ({ id: p.id, name: p.name })),
         });
         return;
       }
 
       console.log("\n" + chalk.yellow("You already have project(s):"));
-      for (const p of existingProjects) {
+      for (const p of allProjects) {
         console.log(`  ${chalk.cyan(p.id)} - ${p.name}`);
         if (p.subscription) {
           console.log(`    Plan: ${p.subscription.plan}`);
         }
       }
-      if (apiKey) {
+      if (result.apiKey) {
         console.log(chalk.green(`\nAPI key saved to ${SHARED_CONFIG_PATH}`));
       }
       console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
       return;
     }
 
-    spinner?.succeed("No existing projects");
-
-    // 4. Check SOL balance for transaction fees
-    spinner?.start("Checking SOL balance...");
-    const solBalance = await checkSolBalance(walletAddress);
-    if (solBalance < MIN_SOL_FOR_TX) {
+    if (result.status === "upgraded") {
       if (options.json) {
-        exitWithError("INSUFFICIENT_SOL", "Insufficient SOL for transaction fees", {
-          have: Number(solBalance) / 1_000_000_000,
-          need: 0.001,
-          fundAddress: walletAddress,
-        }, true);
+        outputJson({
+          status: "UPGRADED",
+          wallet: result.walletAddress,
+          projectId: result.projectId,
+          apiKey: result.apiKey,
+          plan: planLabel,
+          transaction: result.txSignature || null,
+        });
+        return;
       }
-      spinner?.fail(`Insufficient SOL for transaction fees`);
-      console.error(chalk.red(`Have: ${(Number(solBalance) / 1_000_000_000).toFixed(6)} SOL`));
-      console.error(chalk.red(`Need: ~0.001 SOL`));
-      console.error(chalk.gray(`\nSend SOL to: ${walletAddress}`));
-      process.exit(ExitCode.INSUFFICIENT_SOL);
-    }
-    spinner?.succeed(`SOL balance: ${chalk.green((Number(solBalance) / 1_000_000_000).toFixed(4))} SOL`);
 
-    // 5. Check USDC balance
-    spinner?.start("Checking USDC balance...");
-    const usdcBalance = await checkUsdcBalance(walletAddress);
-    if (usdcBalance < PAYMENT_AMOUNT) {
-      if (options.json) {
-        exitWithError("INSUFFICIENT_USDC", "Insufficient USDC", {
-          have: Number(usdcBalance) / 1_000_000,
-          need: 1,
-          fundAddress: walletAddress,
-        }, true);
+      console.log("\n" + chalk.green(`Plan upgraded to ${planLabel}!`));
+      console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
+      if (result.txSignature) {
+        console.log(
+          `Transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`
+        );
       }
-      spinner?.fail(`Insufficient USDC`);
-      console.error(chalk.red(`Have: ${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC`));
-      console.error(chalk.red(`Need: 1 USDC`));
-      console.error(chalk.gray(`\nSend USDC to: ${walletAddress}`));
-      process.exit(ExitCode.INSUFFICIENT_USDC);
-    }
-    spinner?.succeed(`USDC balance: ${chalk.green((Number(usdcBalance) / 1_000_000).toFixed(2))} USDC`);
-
-    spinner?.start("Sending 1 USDC payment...");
-    const txSignature = await payUSDC(keypair.secretKey);
-    spinner?.succeed(`Payment sent: ${chalk.cyan(txSignature)}`);
-
-    // 6. Create project (with retry - backend needs time to verify payment)
-    spinner?.start("Creating project...");
-    const project = await createProjectWithRetry(authResult.token, 3, 2000);
-    spinner?.succeed("Project created");
-
-    // Get full project details for comprehensive output
-    const projectDetails = await getProject(authResult.token, project.id);
-    const apiKey = projectDetails.apiKeys?.[0]?.keyId || project.apiKeys?.[0]?.keyId || null;
-
-    if (apiKey) {
-      setApiKey(apiKey);
-      setSharedApiKey(apiKey);
+      return;
     }
 
+    // status === "success"
     if (options.json) {
       outputJson({
         status: "SUCCESS",
-        wallet: walletAddress,
-        projectId: project.id,
-        projectName: project.name,
-        apiKey,
-        configPath: apiKey ? SHARED_CONFIG_PATH : null,
-        endpoints: apiKey ? {
-          mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
-          devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
-        } : null,
-        credits: projectDetails.creditsUsage?.remainingCredits || 1000000,
-        transaction: txSignature,
+        wallet: result.walletAddress,
+        projectId: result.projectId,
+        apiKey: result.apiKey,
+        configPath: result.apiKey ? SHARED_CONFIG_PATH : null,
+        endpoints: result.endpoints,
+        credits: result.credits,
+        transaction: result.txSignature || null,
       });
       return;
     }
 
-    console.log("\n" + chalk.green("✓ Signup complete!"));
-    console.log(`\nProject ID: ${chalk.cyan(project.id)}`);
-    if (apiKey) {
-      console.log(`API Key: ${chalk.cyan(apiKey)}`);
+    console.log("\n" + chalk.green("Signup complete!"));
+    console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
+    if (result.apiKey) {
+      console.log(`API Key: ${chalk.cyan(result.apiKey)}`);
       console.log(chalk.green(`API key saved to ${SHARED_CONFIG_PATH}`));
     }
-
-    // Show RPC endpoints if available
-    if (project.dnsRecords && project.dnsRecords.length > 0) {
+    if (result.endpoints) {
       console.log(chalk.bold("\nRPC Endpoints:"));
-      for (const record of project.dnsRecords) {
-        if (record.usageType === "rpc") {
-          console.log(`  ${record.network}: ${chalk.blue("https://" + record.dns)}`);
-        }
-      }
+      console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
+      console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
     }
-
-    console.log(
-      `\nView transaction: ${chalk.blue(`https://solscan.io/tx/${txSignature}`)}`
-    );
+    if (result.txSignature) {
+      console.log(
+        `\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`
+      );
+    }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const exitCode = mapErrorToExitCode(message);
+
     if (options.json) {
-      exitWithError("SIGNUP_FAILED", error instanceof Error ? error.message : String(error), undefined, true);
+      exitWithError("SIGNUP_FAILED", message, undefined, true);
     }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.GENERAL_ERROR);
+    spinner?.fail(`Error: ${message}`);
+    process.exit(exitCode);
   }
 }

@@ -5,12 +5,15 @@ import { createProject as sdkCreateProject } from "helius-sdk/auth/createProject
 import { listProjects as sdkListProjects } from "helius-sdk/auth/listProjects";
 import { getProject as sdkGetProject } from "helius-sdk/auth/getProject";
 import { createApiKey as sdkCreateApiKey } from "helius-sdk/auth/createApiKey";
+import { agenticSignup as sdkAgenticSignup } from "helius-sdk/auth/agenticSignup";
 import type {
   SignupResponse,
   Project,
   ProjectListItem,
   ProjectDetails,
   ApiKey,
+  AgenticSignupOptions,
+  AgenticSignupResult,
 } from "helius-sdk/auth/types";
 
 // Wrap SDK functions to pass CLI user agent
@@ -42,11 +45,18 @@ export async function createApiKey(
   return sdkCreateApiKey(jwt, projectId, walletAddress, CLI_USER_AGENT);
 }
 
+export async function agenticSignup(
+  options: Omit<AgenticSignupOptions, "userAgent">,
+): Promise<AgenticSignupResult> {
+  return sdkAgenticSignup({ ...options, userAgent: CLI_USER_AGENT });
+}
+
 export type {
   Project,
   ProjectListItem,
   ProjectDetails,
   ApiKey,
+  AgenticSignupResult,
   CreditsUsage,
   DnsRecord,
   Subscription,

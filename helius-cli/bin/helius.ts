@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { signupCommand } from "../src/commands/signup.js";
+import { upgradeCommand } from "../src/commands/upgrade.js";
+import { payCommand } from "../src/commands/pay.js";
 import { loginCommand } from "../src/commands/login.js";
 import { projectsCommand } from "../src/commands/projects.js";
 import { projectCommand } from "../src/commands/project.js";
@@ -73,10 +75,35 @@ program
 
 program
   .command("signup")
-  .description("Pay 1 USDC + create account + project")
+  .description("Create a Helius account (default: $1 basic plan, or specify a paid plan)")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
+  .option("--plan <plan>", "Plan: basic ($1), developer ($49/mo), business ($499/mo), professional ($999/mo)")
+  .option("--period <period>", "Billing period: monthly or yearly (paid plans only)", "monthly")
+  .option("--coupon <code>", "Coupon code (paid plans only)")
+  .option("--email <email>", "Email address (required for paid plans)")
+  .option("--first-name <name>", "First name (required for paid plans)")
+  .option("--last-name <name>", "Last name (required for paid plans)")
   .option("--json", "Output in JSON format")
   .action(signupCommand);
+
+program
+  .command("upgrade")
+  .description("Upgrade your Helius plan")
+  .requiredOption("--plan <name>", "Target plan: developer, business, professional")
+  .option("--period <period>", "Billing period: monthly or yearly", "monthly")
+  .option("--coupon <code>", "Coupon code")
+  .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
+  .option("-y, --yes", "Skip confirmation prompt")
+  .option("--json", "Output in JSON format")
+  .action(function(this: any) { upgradeCommand(opts(this)); });
+
+program
+  .command("pay <payment-intent-id>")
+  .description("Pay an existing payment intent (e.g., renewal)")
+  .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
+  .option("-y, --yes", "Skip confirmation prompt")
+  .option("--json", "Output in JSON format")
+  .action(function(this: any, id: string) { payCommand(id, opts(this)); });
 
 program
   .command("login")

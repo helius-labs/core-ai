@@ -5,6 +5,7 @@ import os from "os";
 import { generateKeypair } from "helius-sdk/auth/generateKeypair";
 import { getAddress } from "helius-sdk/auth/getAddress";
 import { loadKeypair } from "helius-sdk/auth/loadKeypair";
+import { PLAN_CATALOG } from "helius-sdk/auth/constants";
 
 const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius", "keypair.json");
 
@@ -47,8 +48,20 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   console.log(`Address: ${chalk.cyan(address)}`);
   console.log("");
   console.log(chalk.yellow("To use this wallet, fund it with:"));
-  console.log(`  • ${chalk.cyan("~0.001 SOL")} for transaction fees`);
-  console.log(`  • ${chalk.cyan("1 USDC")} for Helius signup`);
+  console.log(`  • ${chalk.cyan("~0.01 SOL")} for transaction fees`);
+  console.log(`  • USDC for your chosen plan:`);
+  console.log(`      ${"basic".padEnd(15)}${chalk.cyan("$1")} (one-time)`);
+  for (const [key, plan] of Object.entries(PLAN_CATALOG)) {
+    const price = `$${plan.monthlyPrice / 100}`;
+    console.log(`      ${key.padEnd(15)}${chalk.cyan(price)}/mo`);
+  }
+  console.log("");
+  console.log(`Then run: ${chalk.green("helius signup")}`);
+  console.log(
+    chalk.gray(
+      "  Options: --plan <plan> --email <email> --first-name <name> --last-name <name> --coupon <code>",
+    ),
+  );
 }
 
 export function getDefaultKeypairPath(): string {
