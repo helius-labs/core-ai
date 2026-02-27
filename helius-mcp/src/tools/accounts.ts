@@ -39,7 +39,7 @@ export function registerAccountTools(server: McpServer) {
   // Get Account Info (single or batch) — uses SDK standard Solana RPC (Kit, bigint)
   server.tool(
     'getAccountInfo',
-    'Get detailed Solana account information for one or more accounts. For a single account: returns owner program, lamport balance, data size, executable status, and rent epoch. For batch: pass up to 100 addresses in "addresses" for fast bulk lookups. Use jsonParsed encoding (default) on token mint addresses to see Token-2022 extensions, authorities, and supply data. Use this to inspect any on-chain account.',
+    'Get detailed Solana account information for one or more accounts. For a single account: returns owner program, lamport balance, data size, executable status, and rent epoch. For batch: pass up to 100 addresses in "addresses" for fast bulk lookups. Use jsonParsed encoding (default) on token mint addresses to see Token-2022 extensions, authorities, and supply data. Use this to inspect any on-chain account. Credit cost: 1 credit (standard RPC).',
     {
       address: z.string().optional().describe('Single account address (base58 encoded). Use this OR addresses, not both.'),
       addresses: z.array(z.string()).optional().describe('Array of account addresses for batch lookup (up to 100). Use this OR address, not both.'),
@@ -133,7 +133,7 @@ export function registerAccountTools(server: McpServer) {
   // Get Token Accounts
   server.tool(
     'getTokenAccounts',
-    'Query token accounts with advanced filters. Can filter by mint address, owner address, or both. Returns token account addresses and balances.',
+    'Query token accounts with advanced filters. Can filter by mint address, owner address, or both. Returns token account addresses and balances. Credit cost: 10 credits/call (DAS API).',
     {
       owner: z.string().optional().describe('Filter by owner wallet address'),
       mint: z.string().optional().describe('Filter by token mint address'),

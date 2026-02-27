@@ -8,7 +8,7 @@ export function registerFeeTools(server: McpServer) {
   // Get Priority Fee Estimate
   server.tool(
     'getPriorityFeeEstimate',
-    'Get optimal priority fee estimates for Solana transactions. Returns recommended fees in microlamports for different priority levels (Min, Low, Medium, High, VeryHigh, UnsafeMax). Essential for ensuring transaction confirmation during network congestion.',
+    'Get optimal priority fee estimates for Solana transactions. Returns recommended fees in microlamports for different priority levels (Min, Low, Medium, High, VeryHigh, UnsafeMax). Essential for ensuring transaction confirmation during network congestion. Credit cost: 1 credit (Priority Fee API).',
     {
       accountKeys: z.array(z.string()).optional().describe('Account addresses involved in transaction for more accurate estimates'),
       priorityLevel: z.string().optional().describe('Desired priority level'),

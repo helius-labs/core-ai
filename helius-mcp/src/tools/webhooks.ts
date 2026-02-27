@@ -9,7 +9,7 @@ import { mcpText, mcpError, validateEnum, handleToolError, http404Error, http400
 export function registerWebhookTools(server: McpServer) {
   server.tool(
     'getAllWebhooks',
-    'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses.',
+    'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses. Credit cost: 100 credits/call (management operation).',
     {},
     async () => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -41,7 +41,7 @@ export function registerWebhookTools(server: McpServer) {
 
   server.tool(
     'getWebhookByID',
-    'Get detailed information about a specific webhook by its ID.',
+    'Get detailed information about a specific webhook by its ID. Credit cost: 100 credits/call (management operation).',
     {
       webhookID: z.string().describe('Webhook ID')
     },

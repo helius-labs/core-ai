@@ -9,7 +9,7 @@ export function registerBalanceTools(server: McpServer) {
   // Get SOL Balance
   server.tool(
     'getBalance',
-    'Get native SOL balance for a Solana wallet address. Returns balance in both SOL and lamports (1 SOL = 1 billion lamports). Use this for checking how much SOL a wallet has. For token balances, use getTokenBalances instead.',
+    'Get native SOL balance for a Solana wallet address. Returns balance in both SOL and lamports (1 SOL = 1 billion lamports). Use this for checking how much SOL a wallet has. For token balances, use getTokenBalances instead. Credit cost: 1 credit (standard RPC).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded, e.g. Gh4tdJhLP1s55xGfghHHvPNPPrNtaDjc6dzZJ374DGHJ)')
     },
