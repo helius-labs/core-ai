@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
-import { getCheckoutPreview, executeUpgrade, PLAN_CATALOG } from "../lib/checkout.js";
+import { getCheckoutPreview, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
@@ -13,6 +13,9 @@ interface UpgradeOptions extends OutputOptions {
   plan: string;
   period: "monthly" | "yearly";
   coupon?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
   yes?: boolean;
 }
 
@@ -39,6 +42,32 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       }
       console.error(chalk.red(`Unknown plan: ${options.plan}`));
       console.error(chalk.gray(`Available plans: ${available}`));
+      process.exit(ExitCode.GENERAL_ERROR);
+    }
+
+    // All-or-none customer info validation
+    const hasAnyCustomerInfo = options.email || options.firstName || options.lastName;
+    if (hasAnyCustomerInfo && (!options.email || !options.firstName || !options.lastName)) {
+      const missing = [
+        !options.email && "email",
+        !options.firstName && "firstName",
+        !options.lastName && "lastName",
+      ].filter(Boolean);
+      const msg = `Partial customer info provided. If any of --email/--first-name/--last-name is given, all three are required. Missing: ${missing.join(", ")}`;
+      if (options.json) {
+        exitWithError("VALIDATION_ERROR", msg, undefined, true);
+      }
+      console.error(chalk.red(msg));
+      process.exit(ExitCode.GENERAL_ERROR);
+    }
+
+    // Basic email format validation
+    if (options.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(options.email)) {
+      const msg = `Invalid email format: ${options.email}`;
+      if (options.json) {
+        exitWithError("VALIDATION_ERROR", msg, undefined, true);
+      }
+      console.error(chalk.red(msg));
       process.exit(ExitCode.GENERAL_ERROR);
     }
 
@@ -135,13 +164,19 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     // 5. Execute upgrade
     spinner?.start("Processing upgrade payment...");
-    const result = await executeUpgrade(
+    const result = await executeCheckout(
       keypair.secretKey,
       authResult.token,
-      planKey,
-      options.period,
-      project.id,
-      options.coupon,
+      {
+        plan: planKey,
+        period: options.period,
+        refId: project.id,
+        couponCode: options.coupon,
+        email: options.email,
+        firstName: options.firstName,
+        lastName: options.lastName,
+      },
+      { skipProjectPolling: true },
     );
 
     if (result.status !== "completed") {

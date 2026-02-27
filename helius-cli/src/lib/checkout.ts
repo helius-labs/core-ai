@@ -5,7 +5,6 @@ import { pollCheckoutCompletion as sdkPollCheckoutCompletion } from "helius-sdk/
 import { executeCheckout as sdkExecuteCheckout } from "helius-sdk/auth/checkout";
 import { getCheckoutPreview as sdkGetCheckoutPreview } from "helius-sdk/auth/checkout";
 import { getPaymentIntent as sdkGetPaymentIntent } from "helius-sdk/auth/checkout";
-import { executeUpgrade as sdkExecuteUpgrade } from "helius-sdk/auth/checkout";
 import { executeRenewal as sdkExecuteRenewal } from "helius-sdk/auth/checkout";
 import type {
   CheckoutInitializeRequest,
@@ -35,8 +34,9 @@ export async function executeCheckout(
   secretKey: Uint8Array,
   jwt: string,
   request: CheckoutRequest,
+  options?: { skipProjectPolling?: boolean },
 ): Promise<CheckoutResult> {
-  return sdkExecuteCheckout(secretKey, jwt, request, CLI_USER_AGENT);
+  return sdkExecuteCheckout(secretKey, jwt, request, CLI_USER_AGENT, options);
 }
 
 export async function getCheckoutPreview(
@@ -54,17 +54,6 @@ export async function getPaymentIntent(
   paymentIntentId: string,
 ): Promise<CheckoutInitializeResponse> {
   return sdkGetPaymentIntent(jwt, paymentIntentId, CLI_USER_AGENT);
-}
-
-export async function executeUpgrade(
-  secretKey: Uint8Array,
-  jwt: string,
-  plan: string,
-  period: "monthly" | "yearly",
-  projectId: string,
-  couponCode?: string,
-): Promise<CheckoutResult> {
-  return sdkExecuteUpgrade(secretKey, jwt, plan, period, projectId, couponCode, CLI_USER_AGENT);
 }
 
 export async function executeRenewal(

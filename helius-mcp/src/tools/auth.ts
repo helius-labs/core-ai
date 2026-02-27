@@ -5,7 +5,7 @@ import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
 import { checkSolBalance, checkUsdcBalance } from 'helius-sdk/auth/checkBalances';
 import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
-import { getCheckoutPreview, executeUpgrade, executeRenewal } from 'helius-sdk/auth/checkout';
+import { getCheckoutPreview, executeCheckout, executeRenewal } from 'helius-sdk/auth/checkout';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
@@ -294,9 +294,25 @@ export function registerAuthTools(server: McpServer) {
       plan: z.enum(['developer', 'business', 'professional']).describe('Target plan name'),
       period: z.enum(['monthly', 'yearly']).default('monthly').describe('Billing period'),
       couponCode: z.string().optional().describe('Optional coupon code'),
+      email: z.string().email().optional().describe('Email address (required for first-time upgrades)'),
+      firstName: z.string().optional().describe('First name (required for first-time upgrades)'),
+      lastName: z.string().optional().describe('Last name (required for first-time upgrades)'),
     },
-    async ({ plan, period, couponCode }) => {
+    async ({ plan, period, couponCode, email, firstName, lastName }) => {
       try {
+        // All-or-none customer info validation
+        const hasAny = email || firstName || lastName;
+        if (hasAny && (!email || !firstName || !lastName)) {
+          const missing = [
+            !email && 'email',
+            !firstName && 'firstName',
+            !lastName && 'lastName',
+          ].filter(Boolean);
+          return mcpError(
+            `Partial customer info provided. If any of email/firstName/lastName is given, all three are required. Missing: ${missing.join(', ')}`
+          );
+        }
+
         let secretKey = getSessionSecretKey();
         if (!secretKey) {
           secretKey = loadKeypairFromDisk();
@@ -322,7 +338,15 @@ export function registerAuthTools(server: McpServer) {
         }
 
         const projectId = projects[0].id;
-        const result = await executeUpgrade(secretKey, jwt, plan, period, projectId, couponCode, MCP_USER_AGENT);
+        const result = await executeCheckout(secretKey, jwt, {
+          plan,
+          period,
+          refId: projectId,
+          couponCode,
+          email,
+          firstName,
+          lastName,
+        }, MCP_USER_AGENT, { skipProjectPolling: true });
 
         if (result.status !== 'completed') {
           return mcpError(
