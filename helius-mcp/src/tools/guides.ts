@@ -132,7 +132,7 @@ export function registerGuideTools(server: McpServer) {
   // Tool 1: getRateLimitInfo — fetches live billing docs
   server.tool(
     'getRateLimitInfo',
-    'Get official Helius rate limits and credit costs per API method. Fetches live from the billing documentation so values are always accurate.',
+    'BEST FOR: credit costs and rate limits per API method. PREFER getHeliusPlanInfo for plan pricing/features overview. Get official Helius rate limits and credit costs per API method. Fetches live from the billing documentation so values are always accurate.',
     {},
     async () => {
       try {
@@ -213,7 +213,7 @@ export function registerGuideTools(server: McpServer) {
   // Tool 4: troubleshootError — kept hardcoded (no llms.txt equivalent)
   server.tool(
     'troubleshootError',
-    'Get detailed explanation and fixes for common Helius/Solana RPC error codes. Covers JSON-RPC errors, HTTP status codes, and WebSocket close codes.',
+    'BEST FOR: diagnosing specific error codes. Always use this first when the user encounters an error, before attempting manual diagnosis. Get detailed explanation and fixes for common Helius/Solana RPC error codes. Covers JSON-RPC errors, HTTP status codes, and WebSocket close codes.',
     {
       errorCode: z
         .string()

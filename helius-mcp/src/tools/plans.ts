@@ -104,7 +104,7 @@ function formatPlanDetails(planKey: string): string {
 export function registerPlanTools(server: McpServer) {
   server.tool(
     'getHeliusPlanInfo',
-    'Get detailed Helius plan information including pricing, credits, rate limits, and feature availability. Shows what features are available on each tier (Free, Developer, Business, Professional). Useful for understanding WebSocket limits, Laserstream access, and API rate limits per plan.',
+    'BEST FOR: pricing questions — "how much does Helius cost?", "what plan should I get?". Start here for any plan/pricing question. PREFER compareHeliusPlans for side-by-side category comparisons. PREFER getRateLimitInfo for credit costs per API method. Get detailed Helius plan information including pricing, credits, rate limits, and feature availability. Shows what features are available on each tier (Free, Developer, Business, Professional). Useful for understanding WebSocket limits, Laserstream access, and API rate limits per plan.',
     {
       plan: z.enum(['free', 'developer', 'business', 'professional', 'all']).optional().default('all').describe('Specific plan to show details for, or "all" for comparison'),
     },
@@ -177,7 +177,7 @@ export function registerPlanTools(server: McpServer) {
 
   server.tool(
     'compareHeliusPlans',
-    'Compare specific Helius plans side-by-side for a specific feature category (rate limits, features, connections, or pricing).',
+    'BEST FOR: side-by-side plan comparison in a specific category. PREFER getHeliusPlanInfo for a general pricing overview. Compare specific Helius plans side-by-side for a specific feature category (rate limits, features, connections, or pricing).',
     {
       category: z.enum(['rates', 'features', 'connections', 'pricing', 'support']).describe('Category to compare'),
       plans: z.array(z.enum(['free', 'developer', 'business', 'professional'])).optional().describe('Plans to compare (default: all)'),

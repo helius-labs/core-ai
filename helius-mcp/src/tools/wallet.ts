@@ -86,7 +86,7 @@ export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Balances ───
   server.tool(
     'getWalletBalances',
-    'Get all token and NFT balances with USD values, sorted by value. Includes SOL, SPL, Token-2022, and optionally NFTs. Different from getTokenBalances — this uses the Wallet API with USD pricing built-in. Credit cost: 100 credits/call. For fungible tokens only (no SOL or NFTs needed) on small wallets, getTokenBalances is cheaper (10 credits/page via DAS).',
+    'BEST FOR: complete portfolio view — "show my wallet", "portfolio", "all balances with USD". Includes SOL + tokens + optional NFTs sorted by value. PREFER getBalance for SOL-only. PREFER getTokenBalances for cheaper per-token lookups. Get all token and NFT balances with USD values, sorted by value. Includes SOL, SPL, Token-2022, and optionally NFTs. Different from getTokenBalances — this uses the Wallet API with USD pricing built-in. Credit cost: 100 credits/call. For fungible tokens only (no SOL or NFTs needed) on small wallets, getTokenBalances is cheaper (10 credits/page via DAS).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       page: z.number().optional().default(1).describe('Page number (starts at 1)'),
@@ -158,7 +158,7 @@ export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet History ───
   server.tool(
     'getWalletHistory',
-    'Get transaction history with balance changes per transaction. Parsed, human-readable format from the Wallet API. Different from getTransactionHistory — returns balance changes per tx with simpler pagination. Credit cost: 100 credits/call. Requires Developer+ plan (not available on Free plan).',
+    'BEST FOR: balance change deltas per transaction (+/-). PREFER getTransactionHistory for general decoded transaction history. PREFER getWalletTransfers for sends/receives with counterparty info. Get transaction history with balance changes per transaction. Parsed, human-readable format from the Wallet API. Different from getTransactionHistory — returns balance changes per tx with simpler pagination. Credit cost: 100 credits/call. Requires Developer+ plan (not available on Free plan).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       limit: z.number().optional().default(100).describe('Number of results (max 100)'),
@@ -231,7 +231,7 @@ export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Transfers ───
   server.tool(
     'getWalletTransfers',
-    'Get all token transfers with sender/recipient info, direction (in/out), and amounts. Focused on transfers only (not all tx types). Shows counterparty addresses and transfer direction. Credit cost: 100 credits/call (Wallet API).',
+    'BEST FOR: tracking sends/receives with direction (in/out) and counterparty addresses. PREFER getTransactionHistory for general transaction history. PREFER getWalletHistory for balance change deltas. Get all token transfers with sender/recipient info, direction (in/out), and amounts. Focused on transfers only (not all tx types). Shows counterparty addresses and transfer direction. Credit cost: 100 credits/call (Wallet API).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       limit: z.number().optional().default(50).describe('Number of results (max 100)'),
