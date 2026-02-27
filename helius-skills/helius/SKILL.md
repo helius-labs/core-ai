@@ -17,18 +17,38 @@ Before doing anything, verify these two things:
 
 ### 1. Helius MCP Server
 
-Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `parseTransactions`). If they are NOT available, tell the user:
+**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `parseTransactions`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl, CLI commands, or any other workaround. Tell the user:
 
 ```
 You need to install the Helius MCP server first:
 claude mcp add helius npx helius-mcp@latest
+Then restart Claude so the tools become available.
 ```
 
 ### 2. API Key
 
-If any MCP tool returns an "API key not configured" error, guide the user:
-- If they have a key: use the `setHeliusApiKey` MCP tool
-- If they need a key: use `generateKeypair` then `agenticSignup` for autonomous signup, or direct them to https://dashboard.helius.dev
+If any MCP tool returns an "API key not configured" error, guide the user through one of these paths:
+
+**Path A — Existing key (fastest):** If the user already has a Helius API key from https://dashboard.helius.dev, use the `setHeliusApiKey` MCP tool to configure it.
+
+**Path B — New account (agentic signup):** Walk the user through ALL of these steps:
+
+1. **Generate a keypair** — call the `generateKeypair` MCP tool. It returns a wallet address.
+2. **Fund the wallet** — the user must send funds to that wallet address:
+   - **~0.001 SOL** for transaction fees
+   - **1 USDC** for the basic plan ($1), or more for paid plans ($49 Developer, $499 Business, $999 Professional)
+   - They can fund from any Solana wallet or exchange. The USDC mint on Solana is `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
+3. **Verify funding** — call `checkSignupBalance` to confirm SOL + USDC are sufficient.
+4. **Create the account** — call `agenticSignup` to process the USDC payment and create the Helius account. The API key is automatically configured.
+
+**IMPORTANT**: Do NOT skip or simplify these steps. The signup requires on-chain payment — the wallet MUST be funded before `agenticSignup` will succeed.
+
+**Path C — Helius CLI:** The same flow from the terminal:
+```bash
+npx helius-cli@latest keygen        # Step 1: generate keypair
+# Step 2: fund the wallet address shown above
+npx helius-cli@latest signup        # Step 3+4: verify balance and create account
+```
 
 ## Routing
 
