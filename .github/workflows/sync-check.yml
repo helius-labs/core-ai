@@ -1,0 +1,63 @@
+name: Sync Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-references-sync:
+    name: Verify reference files are in sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare reference files
+        run: |
+          SKILLS_DIR="helius-skills/helius/references"
+          PLUGIN_DIR="helius-plugin/skills/build/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$PLUGIN_DIR" ]; then
+            echo "One or both reference directories are missing."
+            echo "  helius-skills: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-plugin: $([ -d "$PLUGIN_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          # Check for files only in one directory
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          PLUGIN_FILES=$(cd "$PLUGIN_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$PLUGIN_FILES" ]; then
+            echo "File lists differ between reference directories:"
+            echo ""
+            echo "Only in helius-skills/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$PLUGIN_FILES") | sed 's/^/  /'
+            echo ""
+            echo "Only in helius-plugin/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$PLUGIN_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          # Compare file contents
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$PLUGIN_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills and helius-plugin"
+              diff --unified=3 "$SKILLS_DIR/$file" "$PLUGIN_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo ""
+            echo "Reference files are out of sync!"
+            echo "The canonical source is helius-skills/helius/references/."
+            echo "Copy changes to helius-plugin/skills/build/references/ to fix."
+            exit 1
+          fi
+
+          echo "All reference files are in sync."
