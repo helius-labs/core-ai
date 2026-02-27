@@ -1,0 +1,13 @@
+{
+  "name": "helius",
+  "description": "Build on Solana with Helius — live blockchain tools, expert coding patterns, and autonomous account signup",
+  "version": "1.0.0",
+  "author": {
+    "name": "Helius Labs",
+    "url": "https://helius.dev"
+  },
+  "homepage": "https://www.helius.dev/docs",
+  "repository": "https://github.com/helius-labs/core-ai",
+  "license": "MIT",
+  "keywords": ["solana", "blockchain", "rpc", "nft", "defi", "web3", "helius"]
+}

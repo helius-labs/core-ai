@@ -35,5 +35,4 @@ pnpm-debug.log*
 pnpm-lock.yaml
 
 # Project docs (not for git)
-CLAUDE.md
 TG.md

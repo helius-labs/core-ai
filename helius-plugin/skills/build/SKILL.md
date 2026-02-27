@@ -1,10 +1,6 @@
 ---
-name: helius
+name: build
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
-metadata:
-  author: Helius Labs
-  version: "0.1.0"
-  mcp-server: helius-mcp
 ---
 
 # Helius — Build on Solana
@@ -17,10 +13,13 @@ Before doing anything, verify these two things:
 
 ### 1. Helius MCP Server
 
-**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `parseTransactions`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl, CLI commands, or any other workaround. Tell the user:
+The Helius MCP server should start automatically with this plugin. Check that Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `parseTransactions`).
+
+If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl, CLI commands, or any other workaround. Tell the user:
 
 ```
-You need to install the Helius MCP server first:
+The Helius MCP server isn't running. Try restarting Claude Code.
+If the problem persists, you can add it manually:
 claude mcp add helius npx helius-mcp@latest
 Then restart Claude so the tools become available.
 ```
