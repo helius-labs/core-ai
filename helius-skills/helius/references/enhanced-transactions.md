@@ -219,21 +219,137 @@ The MCP `getTransactionHistory` tool handles this automatically in parsed mode.
 - **Filter by type**: append `&type=SWAP&token-accounts=balanceChanged` to the history URL
 - **Oldest transactions first**: use `sort-order=asc` — no need to paginate to the end
 
-## SDK Usage
+## SDK Methods & Parameter Names
+
+The SDK exposes **two different methods** for transaction history with **different parameter names**. Mixing them up causes silent bugs.
+
+### Method 1: `helius.enhanced.getTransactionsByAddress()` — Enhanced API
+
+Direct wrapper around the Enhanced Transactions REST API. Returns parsed `EnhancedTransaction[]`.
 
 ```typescript
-// Parse transactions
-const parsed = await helius.enhanced.getTransactions({ transactions: ['sig1', 'sig2'] });
+import type { GetEnhancedTransactionsByAddressRequest } from 'helius-sdk';
 
-// Transaction history
-const history = await helius.getTransactionsForAddress([
-  'address',
-  { limit: 25, transactionDetails: 'full', filters: { tokenAccounts: 'balanceChanged' } },
-]);
+const history = await helius.enhanced.getTransactionsByAddress({
+  address: 'WalletAddress',
+  limit: 100,
+  sortOrder: 'desc',
+  beforeSignature: 'lastSigFromPreviousPage',  // NOT "before"
+  // afterSignature: 'sig',  // for ascending pagination
+  // type: TransactionType.SWAP,
+  // source: TransactionSource.JUPITER,
+  gteTime: Math.floor(new Date('2025-01-01').getTime() / 1000),
+  lteTime: Math.floor(new Date('2025-01-31').getTime() / 1000),
+  // gteSlot: 250000000,
+  // lteSlot: 251000000,
+});
+```
+
+**Pagination**: use `beforeSignature` (desc) or `afterSignature` (asc) with the last signature from the previous page.
+
+### Method 2: `helius.getTransactionsForAddress()` — RPC-based
+
+Uses `getSignaturesForAddress` + enrichment. Supports filters object with nested comparison operators.
+
+```typescript
+const history = await helius.getTransactionsForAddress(
+  'WalletAddress',
+  {
+    limit: 25,
+    sortOrder: 'desc',
+    transactionDetails: 'full',
+    paginationToken: 'tokenFromPreviousResponse',
+    filters: {
+      status: 'succeeded',
+      tokenAccounts: 'balanceChanged',
+      blockTime: { gte: startTimestamp, lte: endTimestamp },
+      slot: { gte: 250000000 },
+    },
+  }
+);
+```
+
+**Pagination**: use `paginationToken` from the previous response.
+
+### Parameter Name Mapping
+
+| Concept | REST API (kebab-case) | Enhanced SDK method | RPC SDK method | MCP tool param |
+|---|---|---|---|---|
+| Pagination cursor (backward) | `before-signature` | `beforeSignature` | `paginationToken` | `paginationToken` or `before` |
+| Pagination cursor (forward) | `after-signature` | `afterSignature` | — | — |
+| Time range (start) | `gte-time` | `gteTime` | `filters.blockTime.gte` | `blockTimeGte` |
+| Time range (end) | `lte-time` | `lteTime` | `filters.blockTime.lte` | `blockTimeLte` |
+| Slot range (start) | `gte-slot` | `gteSlot` | `filters.slot.gte` | `slotGte` |
+| Slot range (end) | `lte-slot` | `lteSlot` | `filters.slot.lte` | `slotLte` |
+| Sort order | `sort-order` | `sortOrder` | `sortOrder` | `sortOrder` |
+| Token account filter | `token-accounts` | — | `filters.tokenAccounts` | `tokenAccounts` |
+
+### SDK Pagination Examples
+
+**Enhanced API — paginate all transactions in a date range:**
+
+```typescript
+import type { EnhancedTransaction } from 'helius-sdk';
+
+async function getAllTransactions(
+  address: string,
+  startTime: number,
+  endTime: number,
+): Promise<EnhancedTransaction[]> {
+  const all: EnhancedTransaction[] = [];
+  let beforeSignature: string | undefined;
+
+  while (true) {
+    const batch = await helius.enhanced.getTransactionsByAddress({
+      address,
+      limit: 100,
+      sortOrder: 'desc',
+      gteTime: startTime,
+      lteTime: endTime,
+      ...(beforeSignature && { beforeSignature }),
+    });
+
+    if (batch.length === 0) break;
+    all.push(...batch);
+    beforeSignature = batch[batch.length - 1].signature;
+  }
+
+  return all;
+}
+```
+
+**RPC method — paginate with paginationToken:**
+
+```typescript
+let paginationToken: string | undefined;
+const all = [];
+
+while (true) {
+  const result = await helius.getTransactionsForAddress('address', {
+    limit: 100,
+    transactionDetails: 'full',
+    filters: { tokenAccounts: 'balanceChanged' },
+    ...(paginationToken && { paginationToken }),
+  });
+
+  if (result.transactions.length === 0) break;
+  all.push(...result.transactions);
+  paginationToken = result.paginationToken;
+  if (!paginationToken) break;
+}
+```
+
+### Parse Transactions
+
+```typescript
+const parsed = await helius.enhanced.getTransactions({ transactions: ['sig1', 'sig2'] });
 ```
 
 ## Common Mistakes
 
+- **Using `before` instead of `beforeSignature`** — The Enhanced SDK method uses `beforeSignature` (camelCase). Using `before` silently does nothing because JavaScript destructuring ignores unknown keys. This causes infinite pagination loops returning page 1 repeatedly. Always import and use the `GetEnhancedTransactionsByAddressRequest` type to catch this at compile time.
+- **Using `any` for SDK params** — Casting params as `any` disables TypeScript's ability to catch name mismatches. Always use the proper request types: `GetEnhancedTransactionsByAddressRequest`, `GetEnhancedTransactionsRequest`, or `GetTransactionsForAddressConfigFull`.
+- **Mixing up the two SDK methods** — `helius.enhanced.getTransactionsByAddress()` uses `beforeSignature`/`afterSignature` for pagination. `helius.getTransactionsForAddress()` uses `paginationToken`. They are NOT interchangeable.
 - Using raw RPC `getTransaction` when you could use `parseTransactions` for human-readable data — Enhanced Transactions saves significant parsing work
 - Not handling the runtime type filtering continuation pattern — the API may return an error with a continuation signature instead of results
 - Using `tokenAccounts: "all"` when `"balanceChanged"` would filter spam
