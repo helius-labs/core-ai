@@ -6,7 +6,7 @@
     "name": "Helius Labs",
     "url": "https://helius.dev"
   },
-  "homepage": "https://docs.helius.dev",
+  "homepage": "https://www.helius.dev/docs",
   "repository": "https://github.com/helius-labs/helius-plugin",
   "license": "MIT",
   "keywords": ["solana", "blockchain", "rpc", "nft", "defi", "web3", "helius"]
