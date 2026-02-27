@@ -8,7 +8,7 @@ export function registerDocsTools(server: McpServer) {
    */
   server.tool(
     'lookupHeliusDocs',
-    'Fetch official Helius documentation for accurate, up-to-date information. Use this when you need precise details about APIs, pricing, rate limits, or features. Returns the official llms.txt documentation which is optimized for AI consumption.',
+    'BEST FOR: API documentation and technical details. Use for "how does X work?" questions. NOT for pricing — use getHeliusPlanInfo instead. NOT for error codes — use troubleshootError instead. Fetch official Helius documentation for accurate, up-to-date information. Use this when you need precise details about APIs, rate limits, or features. Returns the official llms.txt documentation which is optimized for AI consumption.',
     {
       topic: z
         .enum([
@@ -164,7 +164,7 @@ export function registerDocsTools(server: McpServer) {
    */
   server.tool(
     'getHeliusCreditsInfo',
-    'Get official Helius credit costs from documentation. Fetches the latest pricing information directly from Helius docs.',
+    'BEST FOR: credit cost lookup table. PREFER getRateLimitInfo for per-method rate limits and costs. PREFER getHeliusPlanInfo for plan pricing. Get official Helius credit costs from documentation. Fetches the latest pricing information directly from Helius docs.',
     {},
     async () => {
       try {
