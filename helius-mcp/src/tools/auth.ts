@@ -43,7 +43,6 @@ export function registerAuthTools(server: McpServer) {
           'You\'re all set! Your API key and account session are configured.',
           '',
           '**What you can do:**',
-          '- Plan your project: `recommendStack` — describe what you\'re building to get architecture recommendations with cost estimates',
           '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
           '- Check balances: `getBalance`, `getTokenAccounts`',
           '- Parse transactions: `parseTransactions`',
@@ -51,6 +50,8 @@ export function registerAuthTools(server: McpServer) {
           '- Check your account: `getAccountStatus`',
           '',
           'Just ask a question in plain English and the right tool will be used automatically.',
+          '',
+          '**IMPORTANT — if the user described a project they want to build, call `recommendStack` now** with their project description. It returns architecture recommendations with Helius products, MCP tools, credit costs, and reference files tailored to their plan.',
         );
         return mcpText(lines.join('\n'));
       }
@@ -62,13 +63,14 @@ export function registerAuthTools(server: McpServer) {
           'Your API key is configured — all Helius tools are ready to use.',
           '',
           '**What you can do:**',
-          '- Plan your project: `recommendStack` — get architecture recommendations with cost estimates',
           '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
           '- Check balances: `getBalance`, `getTokenAccounts`',
           '- Parse transactions: `parseTransactions`',
           '- Manage webhooks: `createWebhook`, `getAllWebhooks`',
           '',
           'Just ask a question in plain English and the right tool will be used automatically.',
+          '',
+          '**IMPORTANT — if the user described a project they want to build, call `recommendStack` now** with their project description. It returns architecture recommendations with Helius products, MCP tools, credit costs, and reference files.',
           '',
           '**Optional:** To see your plan, credits, and rate limits, call `agenticSignup` — it will detect your existing account (no payment needed) and enable `getAccountStatus`.',
         );

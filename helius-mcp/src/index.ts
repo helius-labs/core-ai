@@ -57,8 +57,9 @@ const server = new McpServer(
 - Batch identity lookup → batchWalletIdentity
 
 ### Project Planning / Architecture
-- "I want to build X", "help me create Y" → getStarted first (checks setup, then mentions recommendStack)
-- "What Helius products do I need?", explicit architecture ask → recommendStack directly
+- User describes ANY Solana project, app, tool, or feature they want to build → recommendStack (call it immediately with their description — don't ask clarifying questions first)
+- This includes phrases like "I want to build/make/create...", "help me build...", "I need a...", or any description of a new Solana project (e.g. "tax reporting tool", "PnL tracker", "token sniper", "NFT gallery")
+- If the user hasn't set up an API key yet, recommendStack will append a setup hint — no need to call getStarted first
 - After recommendations → getHeliusPlanInfo for pricing, lookupHeliusDocs for API details
 
 ### Account Setup (no API key yet)

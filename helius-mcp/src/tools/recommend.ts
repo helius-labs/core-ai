@@ -1281,13 +1281,15 @@ function formatRecommendation(
 export function registerRecommendTools(server: McpServer) {
   server.tool(
     'recommendStack',
-    'BEST FOR: architecture recommendations — "what Helius products do I need?", ' +
-    '"how should I architect this?". Usually called after getStarted for new projects. ' +
+    'BEST FOR: ANY time a user describes a Solana project, app, or tool they want to build. ' +
+    'Call this immediately when the user says they want to build, make, or create something — ' +
+    'do not ask clarifying questions first. Examples: "I want to build a PnL tracker", ' +
+    '"make a tax reporting tool", "create a token sniper", "I need an NFT gallery". ' +
     'PREFER getHeliusPlanInfo for pricing-only questions. ' +
-    'PREFER lookupHeliusDocs for specific API docs. Analyzes a project description and ' +
-    'returns tiered architecture recommendations: which Helius products to use, why, which ' +
-    'MCP tools to call, credit costs per call, minimum plan required, and reference files ' +
-    'to read. Supports saved preferences for budget and complexity level.',
+    'PREFER lookupHeliusDocs for specific API docs. Returns tiered architecture ' +
+    'recommendations: which Helius products to use, why, which MCP tools to call, ' +
+    'credit costs per call, minimum plan required, and reference files to read. ' +
+    'Supports saved preferences for budget and complexity level.',
     {
       description: z.string().describe('What the user wants to build, in their own words'),
       projectType: z.enum([
