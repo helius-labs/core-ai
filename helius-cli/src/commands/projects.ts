@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { listProjects } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 export async function projectsCommand(options: OutputOptions): Promise<void> {
   const spinner = options.json ? null : ora();
@@ -73,12 +73,6 @@ export async function projectsCommand(options: OutputOptions): Promise<void> {
     console.log(chalk.gray(`\nRun \`helius apikeys ${firstProjectId}\` to view API keys`));
     console.log(chalk.gray(`Run \`helius rpc ${firstProjectId}\` to view RPC endpoints`));
   } catch (error) {
-    if (options.json) {
-      exitWithError("API_ERROR", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.API_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

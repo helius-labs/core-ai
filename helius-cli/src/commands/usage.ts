@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { getProject, listProjects } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 export async function usageCommand(projectId?: string, options: OutputOptions = {}): Promise<void> {
   const spinner = options.json ? null : ora();
@@ -110,12 +110,6 @@ export async function usageCommand(projectId?: string, options: OutputOptions = 
       console.log(`  ${project.billingCycle.start} to ${project.billingCycle.end}`);
     }
   } catch (error) {
-    if (options.json) {
-      exitWithError("API_ERROR", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.API_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

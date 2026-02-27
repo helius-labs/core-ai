@@ -30,7 +30,7 @@ src/
     helius.ts          # SDK client wrapper — resolveApiKey(), getClient(), restRequest(), HeliusHttpError
     formatters.ts      # formatSol(), formatAddress(), formatTimestamp(), formatTable()
     config.ts          # ~/.helius-cli/config.json — jwt, apiKey, network, projectId
-    output.ts          # ExitCode enum, classifyError(), outputJson(), exitWithError()
+    output.ts          # ExitCode enum, classifyError(), handleCommandError(), outputJson(), exitWithError()
     api.ts             # Helius management API (signup, projects, API keys)
     payment.ts         # USDC payment for signup
     wallet.ts          # Keypair loading
@@ -45,24 +45,18 @@ All data commands follow this pattern:
 3. Get SDK client via `getClient(apiKey, network)`
 4. Call SDK method
 5. Output: formatted terminal (chalk) or `outputJson()` for `--json`
-6. Error: call `classifyError(error)`, emit `outputJson({ error, message, retryable })` in JSON mode, show spinner hint in terminal mode, exit with the classified exit code
+6. Error: use `handleCommandError(error, options, spinner)` — classifies the error, emits JSON or spinner output, and exits with the classified exit code
 
-Standard catch block template (all commands except `ws.ts`):
+Standard catch block template (all commands except `ws.ts` and `signup.ts`):
 ```ts
 } catch (error) {
-  const { exitCode, errorCode, retryable } = classifyError(error);
-  const message = error instanceof Error ? error.message : String(error);
-  if (options.json) {
-    outputJson({ error: errorCode, message, retryable });
-  } else {
-    const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-    spinner?.fail(`${message}${hint}`);
-  }
-  process.exit(exitCode);
+  handleCommandError(error, options, spinner);
 }
 ```
 
-WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-return and uses `console.error` instead of spinner.
+`handleCommandError()` in `src/lib/output.ts` calls `classifyError()` internally, formats JSON or spinner output (with retryable hint), and exits with the classified exit code. All error output logic lives in this single function — do not duplicate it inline.
+
+WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-return and uses `console.error` instead of spinner. `signup.ts` uses a custom catch block with `mapErrorToExitCode()` for domain-specific payment errors (Insufficient SOL/USDC, Checkout failed).
 
 ## API Key Resolution Chain
 
@@ -123,6 +117,6 @@ node dist/bin/helius.js --help
 1. Create `src/commands/mycommand.ts` exporting async handler(s)
 2. Use `resolveApiKey(options)` + `getClient(apiKey, network)` from `src/lib/helius.ts`
 3. Support `--json` via `outputJson()` / formatted chalk output
-4. Use the standard catch block template (see Command Pattern above) — import `classifyError` from `../lib/output.js`
+4. Use `handleCommandError(error, options, spinner)` in the catch block — import from `../lib/output.js`
 5. Register in `bin/helius.ts` with Commander.js
 6. Run `pnpm build` and verify

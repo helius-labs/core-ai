@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatAddress, formatTokenAmount, formatTable, type TableColumn } from "../lib/formatters.js";
-import { outputJson, classifyError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface BalanceOptions extends OutputOptions, ResolveOptions {}
 
@@ -29,15 +29,7 @@ export async function balanceCommand(address: string, options: BalanceOptions = 
     console.log(`  ${chalk.gray(`(${lamports.toLocaleString()} lamports)`)}`);
     console.log(`  ${chalk.gray(`Network: ${network}`)}`);
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -91,15 +83,7 @@ export async function tokensCommand(address: string, options: BalanceOptions & {
     console.log(formatTable(rows, columns));
     console.log(chalk.gray(`\n  ${fungibles.length} token(s) found`));
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -144,14 +128,6 @@ export async function tokenHoldersCommand(mint: string, options: BalanceOptions 
     console.log(formatTable(rows, columns));
     console.log(chalk.gray(`\n  ${accounts.length} holder(s) shown`));
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }

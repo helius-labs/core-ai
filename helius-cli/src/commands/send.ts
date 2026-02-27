@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { outputJson, classifyError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface SendOptions extends OutputOptions, ResolveOptions {}
 
@@ -21,15 +21,7 @@ export async function sendBroadcastCommand(base64Tx: string, options: SendOption
     console.log(chalk.green("\nTransaction broadcast successfully!"));
     console.log(`  ${chalk.gray("Signature:")} ${chalk.cyan(signature)}`);
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -49,15 +41,7 @@ export async function sendRawCommand(base64Tx: string, options: SendOptions = {}
     console.log(chalk.green("\nTransaction sent!"));
     console.log(`  ${chalk.gray("Signature:")} ${chalk.cyan(String(signature))}`);
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -81,15 +65,7 @@ export async function sendSenderCommand(base64Tx: string, options: SendOptions &
     console.log(chalk.green("\nTransaction sent via Helius Sender!"));
     console.log(`  ${chalk.gray("Signature:")} ${chalk.cyan(signature)}`);
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -109,15 +85,7 @@ export async function sendPollCommand(signature: string, options: SendOptions = 
     console.log(chalk.green("\nTransaction confirmed!"));
     console.log(`  ${chalk.gray("Signature:")} ${chalk.cyan(String(result))}`);
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -137,14 +105,6 @@ export async function sendComputeUnitsCommand(base64Tx: string, options: SendOpt
     console.log(chalk.bold("\nCompute Unit Estimate:\n"));
     console.log(`  ${chalk.cyan(String(result))} CU`);
   } catch (error) {
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      spinner?.fail(`${message}${hint}`);
-    }
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }

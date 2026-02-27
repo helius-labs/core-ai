@@ -1,4 +1,5 @@
 // Output utilities for JSON mode
+import chalk from "chalk";
 
 export interface OutputOptions {
   json?: boolean;
@@ -153,7 +154,7 @@ export function classifyError(error: unknown): ErrorClassification {
   }
 
   // Invalid address / pubkey — @solana/kit throws on bad base58
-  if (/invalid.*(address|pubkey|base58)|PublicKey/i.test(msg)) {
+  if (/invalid.*(address|pubkey|base58|public.?key)/i.test(msg)) {
     return { exitCode: ExitCode.INVALID_ADDRESS, errorCode: "INVALID_ADDRESS", retryable: false };
   }
 
@@ -173,6 +174,32 @@ export function classifyError(error: unknown): ErrorClassification {
   }
 
   return { exitCode: ExitCode.SDK_ERROR, errorCode: "SDK_ERROR", retryable: false };
+}
+
+/**
+ * Shared error handler for command catch blocks.
+ *
+ * Classifies the error, emits JSON or spinner output, and exits.
+ * All commands except ws.ts should use this in their catch block:
+ *
+ *   } catch (error) {
+ *     handleCommandError(error, options, spinner);
+ *   }
+ */
+export function handleCommandError(
+  error: unknown,
+  options: { json?: boolean },
+  spinner?: { fail(text: string): void } | null,
+): never {
+  const { exitCode, errorCode, retryable } = classifyError(error);
+  const message = error instanceof Error ? error.message : String(error);
+  if (options.json) {
+    outputJson({ error: errorCode, message, retryable });
+  } else {
+    const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+    spinner?.fail(`${message}${hint}`);
+  }
+  process.exit(exitCode);
 }
 
 function classifyByStatus(status: number): ErrorClassification {

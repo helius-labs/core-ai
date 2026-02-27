@@ -5,7 +5,7 @@ import { signup, listProjects, getProject } from "../lib/api.js";
 import { getCheckoutPreview, executeUpgrade, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 
 interface UpgradeOptions extends OutputOptions {
@@ -169,12 +169,6 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       console.log(`\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`);
     }
   } catch (error) {
-    if (options.json) {
-      exitWithError("PAYMENT_FAILED", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.GENERAL_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

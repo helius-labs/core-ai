@@ -3,7 +3,7 @@ import ora from "ora";
 import { listProjects, getProject } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 export async function rpcCommand(projectId?: string, options: OutputOptions = {}): Promise<void> {
   const spinner = options.json ? null : ora();
@@ -154,12 +154,6 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
       console.log(`  ${chalk.blue("https://" + record.dns)}`);
     }
   } catch (error) {
-    if (options.json) {
-      exitWithError("API_ERROR", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.API_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

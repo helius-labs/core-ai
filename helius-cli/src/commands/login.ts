@@ -4,7 +4,7 @@ import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.
 import { signup } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface LoginOptions extends OutputOptions {
   keypair: string;
@@ -52,12 +52,6 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
     console.log("\n" + chalk.green("✓ Login successful!"));
     console.log(`\nJWT saved to ~/.helius/config.json`);
   } catch (error) {
-    if (options.json) {
-      exitWithError("AUTH_FAILED", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.AUTH_FAILED);
+    handleCommandError(error, options, spinner);
   }
 }

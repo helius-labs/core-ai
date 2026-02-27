@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { getProject, listProjects, createApiKey } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 async function resolveProjectId(jwt: string, projectId?: string, json?: boolean): Promise<string> {
   if (projectId) {
@@ -100,13 +100,7 @@ export async function apikeysCommand(projectId?: string, options: ApikeysOptions
       `\n${chalk.gray(`Total: ${project.apiKeys.length} API key(s)`)}`
     );
   } catch (error) {
-    if (options.json) {
-      exitWithError("API_ERROR", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.API_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -181,12 +175,6 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
       console.log(`Name:   ${apiKey.keyName}`);
     }
   } catch (error) {
-    if (options.json) {
-      exitWithError("API_ERROR", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.API_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
