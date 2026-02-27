@@ -23,6 +23,19 @@ async function streamSubscription(
   }
 }
 
+function handleWsError(error: unknown, options: WsOptions): void {
+  if ((error as any)?.name === "AbortError") return;
+  const { exitCode, errorCode, retryable } = classifyError(error);
+  const message = error instanceof Error ? error.message : String(error);
+  if (options.json) {
+    outputJson({ error: errorCode, message, retryable });
+  } else {
+    const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
+    console.error(chalk.red(`Error: ${message}${hint}`));
+  }
+  process.exit(exitCode);
+}
+
 function setupShutdown(helius: any, abortController: AbortController, label: string): void {
   console.log(chalk.gray(`\nStreaming ${label}... (Ctrl+C to stop)\n`));
   const cleanup = () => {
@@ -46,16 +59,7 @@ export async function wsAccountCommand(address: string, options: WsOptions = {})
     const channel = await helius.ws.accountNotifications(address as any, { encoding: "jsonParsed" });
     await streamSubscription(channel as any, ac, options);
   } catch (error) {
-    if ((error as any)?.name === "AbortError") return;
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      console.error(chalk.red(`Error: ${message}${hint}`));
-    }
-    process.exit(exitCode);
+    handleWsError(error, options);
   }
 }
 
@@ -71,16 +75,7 @@ export async function wsLogsCommand(options: WsOptions & { mentions?: string } =
     const channel = await helius.ws.logsNotifications(filter);
     await streamSubscription(channel as any, ac, options);
   } catch (error) {
-    if ((error as any)?.name === "AbortError") return;
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      console.error(chalk.red(`Error: ${message}${hint}`));
-    }
-    process.exit(exitCode);
+    handleWsError(error, options);
   }
 }
 
@@ -106,16 +101,7 @@ export async function wsSlotCommand(options: WsOptions = {}): Promise<void> {
       printNotification(notification, options);
     }
   } catch (error) {
-    if ((error as any)?.name === "AbortError") return;
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      console.error(chalk.red(`Error: ${message}${hint}`));
-    }
-    process.exit(exitCode);
+    handleWsError(error, options);
   }
 }
 
@@ -130,16 +116,7 @@ export async function wsSignatureCommand(signature: string, options: WsOptions =
     const channel = await helius.ws.signatureNotifications(signature);
     await streamSubscription(channel as any, ac, options);
   } catch (error) {
-    if ((error as any)?.name === "AbortError") return;
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      console.error(chalk.red(`Error: ${message}${hint}`));
-    }
-    process.exit(exitCode);
+    handleWsError(error, options);
   }
 }
 
@@ -154,15 +131,6 @@ export async function wsProgramCommand(programId: string, options: WsOptions = {
     const channel = await helius.ws.programNotifications(programId as any, { encoding: "jsonParsed" });
     await streamSubscription(channel as any, ac, options);
   } catch (error) {
-    if ((error as any)?.name === "AbortError") return;
-    const { exitCode, errorCode, retryable } = classifyError(error);
-    const message = error instanceof Error ? error.message : String(error);
-    if (options.json) {
-      outputJson({ error: errorCode, message, retryable });
-    } else {
-      const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
-      console.error(chalk.red(`Error: ${message}${hint}`));
-    }
-    process.exit(exitCode);
+    handleWsError(error, options);
   }
 }
