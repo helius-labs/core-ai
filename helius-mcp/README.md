@@ -1,6 +1,6 @@
 # Helius MCP Server
 
-MCP server for Helius — Solana blockchain data access for AI assistantsprovided by Solana's fastest, most reliable infrastructure provider
+MCP server for Helius — Solana blockchain data access for AI assistants, provided by Solana's fastest, most reliable infrastructure provider
 
 ## Quick Start
 
