@@ -164,9 +164,29 @@ For any documentation question, prefer `lookupHeliusDocs` with the relevant topi
 
 Use this when the user asks about pricing, plans, or rate limits.
 
+### Project Planning & Architecture
+**MCP tools**: `getStarted` → `recommendStack` → `getHeliusPlanInfo`, `lookupHeliusDocs`
+
+Use this when the user wants to:
+- Plan a new Solana project from scratch
+- Understand which Helius products to use for their use case
+- Compare budget vs. production architecture options
+- Get cost estimates before choosing a plan
+
+**Routing:** Always call `getStarted` first when the user describes a project they
+want to build ("I want to build X"). `getStarted` checks setup state and surfaces
+`recommendStack` as the next step. Only call `recommendStack` directly when the
+user explicitly asks for product recommendations ("what Helius products do I need?").
+
+When calling `recommendStack`, pass the user's project description via the
+`description` parameter. If it matches a known template (portfolio tracker,
+trading bot, NFT marketplace, etc.), also provide `projectType` for a tailored
+recommendation. Otherwise, omit it for the general capability catalog.
+
 ## Composing Multiple Domains
 
-Many real tasks span multiple domains. Here's how to compose them:
+For a structured recommendation with cost/complexity tiers, use `getStarted` (which
+surfaces `recommendStack`). For manual composition, here are common patterns:
 
 ### "Build a swap/trading app"
 1. Read `references/sender.md` + `references/priority-fees.md`

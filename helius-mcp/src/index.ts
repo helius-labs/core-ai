@@ -56,6 +56,11 @@ const server = new McpServer(
 - "Who funded this wallet?" → getWalletFundedBy (funding source)
 - Batch identity lookup → batchWalletIdentity
 
+### Project Planning / Architecture
+- "I want to build X", "help me create Y" → getStarted first (checks setup, then mentions recommendStack)
+- "What Helius products do I need?", explicit architecture ask → recommendStack directly
+- After recommendations → getHeliusPlanInfo for pricing, lookupHeliusDocs for API details
+
 ### Account Setup (no API key yet)
 - generateKeypair → fund wallet → agenticSignup`
   }

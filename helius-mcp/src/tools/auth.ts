@@ -43,6 +43,7 @@ export function registerAuthTools(server: McpServer) {
           'You\'re all set! Your API key and account session are configured.',
           '',
           '**What you can do:**',
+          '- Plan your project: `recommendStack` — describe what you\'re building to get architecture recommendations with cost estimates',
           '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
           '- Check balances: `getBalance`, `getTokenAccounts`',
           '- Parse transactions: `parseTransactions`',
@@ -61,6 +62,7 @@ export function registerAuthTools(server: McpServer) {
           'Your API key is configured — all Helius tools are ready to use.',
           '',
           '**What you can do:**',
+          '- Plan your project: `recommendStack` — get architecture recommendations with cost estimates',
           '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
           '- Check balances: `getBalance`, `getTokenAccounts`',
           '- Parse transactions: `parseTransactions`',
@@ -138,6 +140,10 @@ export function registerAuthTools(server: McpServer) {
         '# Fund the wallet address shown above',
         'npx helius-cli@latest signup      # Verify balance + create account',
         '```',
+        '',
+        '---',
+        '',
+        '**After setup:** Use `recommendStack` to plan your project — describe what you\'re building and get architecture recommendations at different cost and complexity levels.',
       );
 
       return mcpText(lines.join('\n'));
