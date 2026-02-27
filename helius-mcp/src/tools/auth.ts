@@ -27,7 +27,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'getStarted',
-    'Get setup instructions for Helius. Detects your current state (API key, keypair, account) and tells you exactly what to do next. Call this when a user asks "how do I get started?" or needs onboarding help.',
+    'Get setup instructions for Helius. Checks whether an API key is configured (not validated), whether a keypair exists on disk, and whether a JWT session is present, then tells you exactly what to do next. Call this when a user asks "how do I get started?" or needs onboarding help.',
     {},
     async () => {
       const lines: string[] = ['# Getting Started with Helius'];
