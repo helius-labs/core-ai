@@ -10,7 +10,7 @@ export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Identity ───
   server.tool(
     'getWalletIdentity',
-    'Identify known wallets (exchanges, protocols, institutions). Returns name, type, category, tags. Use this to check if a wallet belongs to a known entity like Binance, Coinbase, Jupiter, etc. Credit cost: 100 credits/call (Wallet API).',
+    'BEST FOR: identifying a single known wallet (exchange, protocol, institution). PREFER batchWalletIdentity for multiple addresses. Identify known wallets (exchanges, protocols, institutions). Returns name, type, category, tags. Use this to check if a wallet belongs to a known entity like Binance, Coinbase, Jupiter, etc. Credit cost: 100 credits/call (Wallet API).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)')
     },
@@ -40,7 +40,7 @@ export function registerWalletTools(server: McpServer) {
   // ─── Batch Wallet Identity ───
   server.tool(
     'batchWalletIdentity',
-    'Look up identities for up to 100 Solana addresses in one request. Returns known names, types, and categories for recognized wallets (exchanges, protocols, institutions). Credit cost: 100 credits/call (Wallet API).',
+    'BEST FOR: identifying multiple wallets at once (up to 100). PREFER getWalletIdentity for a single address. Look up identities for up to 100 Solana addresses in one request. Returns known names, types, and categories for recognized wallets (exchanges, protocols, institutions). Credit cost: 100 credits/call (Wallet API).',
     {
       addresses: z.array(z.string()).describe('Array of Solana wallet addresses (max 100)')
     },
@@ -287,7 +287,7 @@ export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Funded By ───
   server.tool(
     'getWalletFundedBy',
-    'Find the original funding source of a wallet (first SOL transfer). Shows funder identity if known (e.g. which exchange funded this wallet). Useful for wallet provenance and tracing. Credit cost: 100 credits/call (Wallet API).',
+    'BEST FOR: wallet provenance — "who funded this wallet?". PREFER getWalletIdentity for identifying a wallet entity. Find the original funding source of a wallet (first SOL transfer). Shows funder identity if known (e.g. which exchange funded this wallet). Useful for wallet provenance and tracing. Credit cost: 100 credits/call (Wallet API).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)')
     },

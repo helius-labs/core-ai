@@ -164,7 +164,7 @@ export function registerDocsTools(server: McpServer) {
    */
   server.tool(
     'getHeliusCreditsInfo',
-    'Get official Helius credit costs from documentation. Fetches the latest pricing information directly from Helius docs.',
+    'BEST FOR: credit cost lookup table. PREFER getRateLimitInfo for per-method rate limits and costs. PREFER getHeliusPlanInfo for plan pricing. Get official Helius credit costs from documentation. Fetches the latest pricing information directly from Helius docs.',
     {},
     async () => {
       try {
