@@ -185,13 +185,29 @@ export function classifyError(error: unknown): ErrorClassification {
  *   } catch (error) {
  *     handleCommandError(error, options, spinner);
  *   }
+ *
+ * Commands with domain-specific knowledge can pass `fallbackCode` so that
+ * unclassified errors (SDK_ERROR) get a more meaningful code.  Specific
+ * classifications (RATE_LIMITED, NETWORK_ERROR, etc.) are never overridden.
+ *
+ *   handleCommandError(error, options, spinner, "AUTH_FAILED");
  */
 export function handleCommandError(
   error: unknown,
   options: { json?: boolean },
   spinner?: { fail(text: string): void } | null,
+  fallbackCode?: string,
 ): never {
-  const { exitCode, errorCode, retryable } = classifyError(error);
+  let { exitCode, errorCode, retryable } = classifyError(error);
+
+  // If the generic classifier couldn't do better than SDK_ERROR and the
+  // caller provided a domain-specific fallback, use it instead.
+  if (fallbackCode && errorCode === "SDK_ERROR") {
+    errorCode = fallbackCode;
+    exitCode = getExitCode(fallbackCode);
+    retryable = RETRYABLE_CODES.has(exitCode);
+  }
+
   const message = error instanceof Error ? error.message : String(error);
   if (options.json) {
     outputJson({ error: errorCode, message, retryable });

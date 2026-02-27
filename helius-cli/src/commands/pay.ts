@@ -113,6 +113,6 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
       console.log(`\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`);
     }
   } catch (error) {
-    handleCommandError(error, options, spinner);
+    handleCommandError(error, options, spinner, "PAYMENT_FAILED");
   }
 }
