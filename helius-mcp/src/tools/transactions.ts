@@ -261,7 +261,7 @@ export function registerTransactionTools(server: McpServer) {
   // Parse Transactions (Enhanced API)
   server.tool(
     'parseTransactions',
-    'Parse one or more Solana transactions into human-readable format. Returns transaction type (SWAP, TRANSFER, NFT_SALE, etc.), source program (Jupiter, Raydium, Magic Eden, etc.), SOL and token transfers with token names and proper decimal formatting, fees (in both SOL and lamports), timestamp, program IDs involved, and a plain-English description. Use showRaw=true to see all program IDs, instruction accounts, instruction data bytes, inner instructions, and auto-decoded ComputeBudget instructions (CU limit, priority fee, heap frame).',
+    'Parse one or more Solana transactions into human-readable format. Returns transaction type (SWAP, TRANSFER, NFT_SALE, etc.), source program (Jupiter, Raydium, Magic Eden, etc.), SOL and token transfers with token names and proper decimal formatting, fees (in both SOL and lamports), timestamp, program IDs involved, and a plain-English description. Use showRaw=true to see all program IDs, instruction accounts, instruction data bytes, inner instructions, and auto-decoded ComputeBudget instructions (CU limit, priority fee, heap frame). Credit cost: 100 credits/call (Enhanced Transactions API). To fetch and parse wallet transaction history, use getTransactionHistory instead.',
     {
       signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded). Can be 1 or more.'),
       showRaw: z.boolean().optional().default(false).describe('Include raw instruction data: program IDs, accounts, inner instructions. Useful for debugging or tracing fund flows.')
@@ -494,7 +494,7 @@ export function registerTransactionTools(server: McpServer) {
   // Get Transaction History (unified: parsed, signatures, or raw mode)
   server.tool(
     'getTransactionHistory',
-    'Get transaction history for a Solana wallet. Supports three modes: "parsed" (default) returns human-readable decoded data with types, descriptions, actions, and fees. "signatures" returns a lightweight list of transaction signatures with slot/time/status. "raw" returns full raw data with advanced Helius filters (time/slot ranges, status, token accounts). All modes support sortOrder="asc" for finding wallet funding sources — no pagination needed. By default only successful transactions are shown; set status="any" or status="failed" to include failed ones.',
+    'Get transaction history for a Solana wallet. Supports three modes: "parsed" (default) returns human-readable decoded data with types, descriptions, actions, and fees. "signatures" returns a lightweight list of transaction signatures with slot/time/status. "raw" returns full raw data with advanced Helius filters (time/slot ranges, status, token accounts). All modes support sortOrder="asc" for finding wallet funding sources — no pagination needed. By default only successful transactions are shown; set status="any" or status="failed" to include failed ones. Credit cost varies by mode: "parsed" ~110 credits/call (signatures fetch + Enhanced API enrichment); "signatures" and "raw" ~10 credits/call.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),

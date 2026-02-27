@@ -9,7 +9,7 @@ import { mcpText, mcpError, validateEnum, handleToolError, http404Error, http400
 export function registerWebhookTools(server: McpServer) {
   server.tool(
     'getAllWebhooks',
-    'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses.',
+    'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses. Credit cost: 100 credits/call (management operation).',
     {},
     async () => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -41,7 +41,7 @@ export function registerWebhookTools(server: McpServer) {
 
   server.tool(
     'getWebhookByID',
-    'Get detailed information about a specific webhook by its ID.',
+    'Get detailed information about a specific webhook by its ID. Credit cost: 100 credits/call (management operation).',
     {
       webhookID: z.string().describe('Webhook ID')
     },
@@ -81,7 +81,7 @@ export function registerWebhookTools(server: McpServer) {
 
   server.tool(
     'createWebhook',
-    'Create a webhook to monitor Solana events in real-time with powerful filtering. Use this to track NFT sales, token swaps, staking, and 150+ transaction types. Webhooks send HTTP POST with parsed transaction data to your URL. Enhanced webhooks include human-readable descriptions.',
+    'Create a webhook to monitor Solana events in real-time with powerful filtering. Use this to track NFT sales, token swaps, staking, and 150+ transaction types. Webhooks send HTTP POST with parsed transaction data to your URL. Enhanced webhooks include human-readable descriptions. Credit cost: 100 credits to create (management operation). Each event delivered subsequently costs 1 credit.',
     {
       webhookURL: z.string().describe('Your webhook URL endpoint'),
       webhookType: z.string().describe('Webhook type - use "enhanced" for parsed transaction data with descriptions'),
@@ -118,7 +118,7 @@ export function registerWebhookTools(server: McpServer) {
 
   server.tool(
     'updateWebhook',
-    'Update webhook configuration including URL, monitored addresses, or transaction type filters. Use this to add/remove addresses or change which transaction types trigger notifications.',
+    'Update webhook configuration including URL, monitored addresses, or transaction type filters. Use this to add/remove addresses or change which transaction types trigger notifications. Credit cost: 100 credits/call (management operation).',
     {
       webhookID: z.string().describe('Webhook ID to update'),
       webhookURL: z.string().optional().describe('New webhook URL'),
@@ -168,7 +168,7 @@ export function registerWebhookTools(server: McpServer) {
 
   server.tool(
     'deleteWebhook',
-    'Delete a webhook by its ID. This permanently removes the webhook and stops all notifications.',
+    'Delete a webhook by its ID. This permanently removes the webhook and stops all notifications. Credit cost: 100 credits/call (management operation).',
     {
       webhookID: z.string().describe('Webhook ID to delete')
     },

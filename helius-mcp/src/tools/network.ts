@@ -7,7 +7,7 @@ import { mcpText, handleToolError } from '../utils/errors.js';
 export function registerNetworkTools(server: McpServer) {
   server.tool(
     'getNetworkStatus',
-    'Get current Solana network status including epoch info (current epoch, slot, progress), total SOL supply, cluster version, and current block height. No parameters needed — gives a quick overview of blockchain health and state.',
+    'Get current Solana network status including epoch info (current epoch, slot, progress), total SOL supply, cluster version, and current block height. No parameters needed — gives a quick overview of blockchain health and state. Credit cost: 3 credits (3 standard RPC calls).',
     {},
     async () => {
       if (!hasApiKey()) return noApiKeyResponse();
