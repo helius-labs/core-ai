@@ -9,14 +9,17 @@
  * 3. Plan-feature compatibility (e.g., Laserstream mainnet requires professional)
  * 4. Tier ordering (budget <= standard <= production plan rank)
  * 5. No empty arrays (products, limitations, references)
+ * 6. All catalogKey values exist in PRODUCT_CATALOG
+ * 7. mcpToolsOverride entries are subsets of the catalog entry's mcpTools
  */
 
 import fs from 'fs';
 import path from 'path';
-import { PROJECT_TEMPLATES, KNOWN_TOOLS } from '../tools/recommend.js';
+import { PROJECT_TEMPLATES, TEMPLATE_SOURCES } from '../tools/project-templates.js';
+import { KNOWN_TOOLS, PLAN_RANK } from '../tools/recommend.js';
+import { PRODUCT_CATALOG } from '../tools/product-catalog.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 
-const PLAN_RANK: Record<string, number> = { free: 0, developer: 1, business: 2, professional: 3 };
 const TIER_RANK: Record<string, number> = { budget: 0, standard: 1, production: 2 };
 
 // Resolve skill references relative to repo root
@@ -28,6 +31,36 @@ let errors: string[] = [];
 function error(templateName: string, msg: string) {
   errors.push(`[${templateName}] ${msg}`);
 }
+
+// ── Catalog key & override validation (source-level) ──
+
+for (const [key, source] of Object.entries(TEMPLATE_SOURCES)) {
+  for (const tier of source.tiers) {
+    const tierLabel = `${key}/${tier.tier}`;
+
+    for (const product of tier.products) {
+      // catalogKey must exist in PRODUCT_CATALOG
+      if (!(product.catalogKey in PRODUCT_CATALOG)) {
+        error(tierLabel, `Unknown catalogKey "${product.catalogKey}" in product`);
+        continue;
+      }
+
+      const catalogEntry = PRODUCT_CATALOG[product.catalogKey];
+
+      // mcpToolsOverride entries should be a subset of catalog mcpTools
+      // (unless nameOverride is set, which indicates a composite/custom product)
+      if (product.mcpToolsOverride && !product.nameOverride) {
+        for (const tool of product.mcpToolsOverride) {
+          if (!catalogEntry.mcpTools.includes(tool)) {
+            error(tierLabel, `mcpToolsOverride tool "${tool}" not in catalog "${product.catalogKey}" mcpTools (${catalogEntry.mcpTools.join(', ')})`);
+          }
+        }
+      }
+    }
+  }
+}
+
+// ── Hydrated template validation (same as before) ──
 
 for (const [key, template] of Object.entries(PROJECT_TEMPLATES)) {
   // ── Check tier ordering ──
