@@ -12,6 +12,7 @@ import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
 import { MCP_USER_AGENT } from '../http.js';
 import {
   setApiKey,
+  hasApiKey,
   setSessionSecretKey,
   getSessionSecretKey,
   setSessionWalletAddress,
@@ -19,6 +20,7 @@ import {
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
 import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk } from '../utils/config.js';
+import { HELIUS_PLANS } from './plans.js';
 
 export function registerAuthTools(server: McpServer) {
   server.tool(
@@ -367,6 +369,132 @@ export function registerAuthTools(server: McpServer) {
         );
       } catch (err) {
         return handleToolError(err, 'Error upgrading plan');
+      }
+    }
+  );
+
+  server.tool(
+    'getAccountStatus',
+    'Check your Helius account status: current plan, remaining credits, rate limits, and billing cycle. ' +
+    'Call this before bulk operations to verify you have sufficient credits. ' +
+    'Requires a JWT session (i.e., you signed up via agenticSignup). ' +
+    'If you only have an API key configured, auth status is confirmed but credit data is unavailable — call agenticSignup to enable full status.',
+    {},
+    async () => {
+      try {
+        // ── Tier 1: not authenticated at all ──
+        if (!hasApiKey()) {
+          return mcpText(
+            `## Account Status\n\n` +
+            `**Auth:** Not authenticated\n\n` +
+            `No API key or session found. To get started:\n` +
+            `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
+            `- If you need an account: use \`generateKeypair\` → fund wallet → \`agenticSignup\``
+          );
+        }
+
+        // ── Tier 2: API key present but no JWT — can't reach dashboard API ──
+        const jwt = getJwt();
+        if (!jwt) {
+          return mcpText(
+            `## Account Status\n\n` +
+            `**Auth:** Authenticated (API key configured)\n` +
+            `**Credit usage:** Not available — no JWT session found\n\n` +
+            `To see your plan, rate limits, and credit balance, call \`agenticSignup\`.\n` +
+            `Your existing account will be detected automatically — no payment needed.`
+          );
+        }
+
+        // ── Tier 3: full status via JWT ──
+        const projects = await listProjects(jwt, MCP_USER_AGENT);
+        if (projects.length === 0) {
+          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+        }
+
+        const projectId = projects[0].id;
+        const details = await getProject(jwt, projectId, MCP_USER_AGENT);
+
+        const planKey = details.subscriptionPlanDetails?.currentPlan ?? 'unknown';
+        const upcomingPlan = details.subscriptionPlanDetails?.upcomingPlan;
+        const isUpgrading = details.subscriptionPlanDetails?.isUpgrading ?? false;
+        const planInfo = HELIUS_PLANS[planKey];
+
+        const usage = details.creditsUsage;
+        const cycle = details.billingCycle;
+
+        const lines: string[] = [`## Account Status`, ''];
+
+        // ── Auth + plan ──
+        lines.push(`**Auth:** Authenticated`);
+        lines.push(`**Plan:** ${planInfo ? planInfo.name : planKey}  |  **Project:** \`${projectId}\``);
+        if (isUpgrading && upcomingPlan && upcomingPlan !== planKey) {
+          lines.push(`**Upcoming plan:** ${upcomingPlan} (takes effect at next billing cycle)`);
+        }
+
+        // ── Rate limits (only when we have static data for the plan) ──
+        if (planInfo) {
+          lines.push('', '### Rate Limits');
+          lines.push(`- RPC: ${planInfo.rateLimit.rpc}`);
+          lines.push(`- sendTransaction: ${planInfo.rateLimit.sendTransaction}`);
+          lines.push(`- getProgramAccounts: ${planInfo.rateLimit.getProgramAccounts}  _(10 credits/call)_`);
+          lines.push(`- DAS: ${planInfo.rateLimit.das}  _(10 credits/call)_`);
+        }
+
+        // ── Credits ──
+        if (usage) {
+          const total = usage.remainingCredits + usage.totalCreditsUsed;
+          const pctUsed = total > 0 ? ((usage.totalCreditsUsed / total) * 100).toFixed(1) : '0.0';
+          const pctRemaining = total > 0 ? (100 - parseFloat(pctUsed)).toFixed(1) : '100.0';
+
+          // Billing cycle + days remaining
+          let cycleStr = '';
+          let daysNote = '';
+          if (cycle) {
+            const end = new Date(cycle.end);
+            const now = new Date();
+            const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            cycleStr = ` (${cycle.start} - ${cycle.end}, ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining)`;
+
+            // Burn-rate warning: project usage over elapsed days to end of cycle
+            const start = new Date(cycle.start);
+            const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+            const elapsedDays = totalDays - daysLeft;
+            if (elapsedDays > 0 && daysLeft > 0) {
+              const projectedTotal = Math.round((usage.totalCreditsUsed / elapsedDays) * totalDays);
+              if (projectedTotal > total) {
+                const overageM = ((projectedTotal - total) / 1_000_000).toFixed(1);
+                daysNote = `\n> At current burn rate you're projected to use ~${(projectedTotal / 1_000_000).toFixed(1)}M credits this cycle — ${overageM}M over your ${(total / 1_000_000).toFixed(0)}M limit. Consider upgrading or reducing usage.`;
+              }
+            }
+          }
+
+          lines.push('', `### Credits — Billing Cycle${cycleStr}`);
+          lines.push(`- **Remaining:** ${usage.remainingCredits.toLocaleString()} / ${total.toLocaleString()}  (${pctRemaining}%)`);
+          lines.push(`- **Used:** ${usage.totalCreditsUsed.toLocaleString()}  (${pctUsed}%)`);
+          lines.push(`  - API: ${usage.apiUsage.toLocaleString()}`);
+          lines.push(`  - RPC: ${usage.rpcUsage.toLocaleString()}  |  RPC GPA: ${usage.rpcGPAUsage.toLocaleString()}  |  Webhooks: ${usage.webhookUsage.toLocaleString()}`);
+
+          if (usage.overageCreditsUsed > 0) {
+            lines.push(`- **Overage:** ${usage.overageCreditsUsed.toLocaleString()} credits  ($${usage.overageCost.toFixed(2)})`);
+          } else {
+            lines.push(`- **Overage:** none`);
+          }
+
+          if (usage.remainingPrepaidCredits > 0 || usage.prepaidCreditsUsed > 0) {
+            lines.push(`- **Prepaid:** ${usage.remainingPrepaidCredits.toLocaleString()} remaining  (${usage.prepaidCreditsUsed.toLocaleString()} used)`);
+          }
+
+          if (daysNote) lines.push(daysNote);
+
+          // Low-credit warning
+          if (parseFloat(pctRemaining) < 20) {
+            lines.push(`\n> Less than 20% of credits remaining. Use \`previewUpgrade\` to see upgrade pricing, or \`getHeliusPlanInfo\` to compare plans.`);
+          }
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching account status');
       }
     }
   );
