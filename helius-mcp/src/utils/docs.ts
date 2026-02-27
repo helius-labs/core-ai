@@ -14,6 +14,10 @@ export const DOCS_INDEX: Record<string, { path: string; description: string }> =
     path: '/llms.txt',
     description: 'Main Helius overview: plans, credits, rate limits, use cases, API index',
   },
+  agents: {
+    path: '/agents/llms.txt',
+    description: 'AI Agents: Helius CLI signup, MCP integration, SDK references, preferred API patterns',
+  },
   billing: {
     path: '/billing/llms.txt',
     description: 'Billing & Plans: pricing tiers, credits, rate limits, autoscaling, payment methods',

@@ -15,6 +15,8 @@ import { registerEnhancedWebSocketTools } from './enhanced-websockets.js';
 import { registerLaserstreamTools } from './laserstream.js';
 import { registerWalletTools } from './wallet.js';
 import { registerPlanTools } from './plans.js';
+import { registerDocsTools } from './docs.js';
+import { registerGuideTools } from './guides.js';
 
 export function registerTools(server: McpServer) {
   registerAuthTools(server);
@@ -33,4 +35,6 @@ export function registerTools(server: McpServer) {
   registerEnhancedWebSocketTools(server);
   registerLaserstreamTools(server);
   registerWalletTools(server);
+  registerDocsTools(server);
+  registerGuideTools(server);
 }
