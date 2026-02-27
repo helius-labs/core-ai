@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface ZkOptions extends OutputOptions, ResolveOptions {}
 
@@ -28,8 +28,7 @@ export async function zkAccountCommand(addressOrHash: string, options: ZkOptions
     const result = await helius.zk.getCompressedAccount({ address: addressOrHash });
     handleResult(spinner, result, options, "Compressed Account");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -40,8 +39,7 @@ export async function zkAccountsByOwnerCommand(owner: string, options: ZkOptions
     const result = await helius.zk.getCompressedAccountsByOwner({ owner });
     handleResult(spinner, result, options, "Compressed Accounts by Owner");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -52,8 +50,7 @@ export async function zkBalanceCommand(addressOrHash: string, options: ZkOptions
     const result = await helius.zk.getCompressedBalance({ address: addressOrHash });
     handleResult(spinner, result, options, "Compressed Balance");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -64,8 +61,7 @@ export async function zkBalanceByOwnerCommand(owner: string, options: ZkOptions 
     const result = await helius.zk.getCompressedBalanceByOwner({ owner });
     handleResult(spinner, result, options, "Compressed Balance by Owner");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -76,8 +72,7 @@ export async function zkTokenHoldersCommand(mint: string, options: ZkOptions = {
     const result = await helius.zk.getCompressedMintTokenHolders({ mint });
     handleResult(spinner, result, options, "Compressed Token Holders");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -88,8 +83,7 @@ export async function zkTokenBalanceCommand(account: string, options: ZkOptions 
     const result = await helius.zk.getCompressedTokenAccountBalance({ address: account });
     handleResult(spinner, result, options, "Compressed Token Account Balance");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -100,8 +94,7 @@ export async function zkTokenAccountsByOwnerCommand(owner: string, options: ZkOp
     const result = await helius.zk.getCompressedTokenAccountsByOwner({ owner });
     handleResult(spinner, result, options, "Compressed Token Accounts by Owner");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -112,8 +105,7 @@ export async function zkTokenAccountsByDelegateCommand(delegate: string, options
     const result = await helius.zk.getCompressedTokenAccountsByDelegate({ delegate });
     handleResult(spinner, result, options, "Compressed Token Accounts by Delegate");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -124,8 +116,7 @@ export async function zkTokenBalancesByOwnerCommand(owner: string, options: ZkOp
     const result = await helius.zk.getCompressedTokenBalancesByOwnerV2({ owner });
     handleResult(spinner, result, options, "Compressed Token Balances by Owner (V2)");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -136,8 +127,7 @@ export async function zkProofCommand(addressOrHash: string, options: ZkOptions =
     const result = await helius.zk.getCompressedAccountProof({ hash: addressOrHash });
     handleResult(spinner, result, options, "Compressed Account Proof");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -148,8 +138,7 @@ export async function zkProofsCommand(addresses: string[], options: ZkOptions = 
     const result = await helius.zk.getMultipleCompressedAccountProofs({ hashes: addresses });
     handleResult(spinner, result, options, "Multiple Compressed Account Proofs");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -160,8 +149,7 @@ export async function zkMultipleAccountsCommand(addresses: string[], options: Zk
     const result = await helius.zk.getMultipleCompressedAccounts({ addresses });
     handleResult(spinner, result, options, "Multiple Compressed Accounts");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -172,8 +160,7 @@ export async function zkAddressProofsCommand(addresses: string[], options: ZkOpt
     const result = await helius.zk.getMultipleNewAddressProofsV2(addresses);
     handleResult(spinner, result, options, "Multiple New Address Proofs (V2)");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -184,8 +171,7 @@ export async function zkSignaturesAccountCommand(account: string, options: ZkOpt
     const result = await helius.zk.getCompressionSignaturesForAccount({ hash: account });
     handleResult(spinner, result, options, "Compression Signatures for Account");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -196,8 +182,7 @@ export async function zkSignaturesAddressCommand(address: string, options: ZkOpt
     const result = await helius.zk.getCompressionSignaturesForAddress({ address });
     handleResult(spinner, result, options, "Compression Signatures for Address");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -208,8 +193,7 @@ export async function zkSignaturesOwnerCommand(owner: string, options: ZkOptions
     const result = await helius.zk.getCompressionSignaturesForOwner({ owner });
     handleResult(spinner, result, options, "Compression Signatures for Owner");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -220,8 +204,7 @@ export async function zkSignaturesTokenOwnerCommand(owner: string, options: ZkOp
     const result = await helius.zk.getCompressionSignaturesForTokenOwner({ owner });
     handleResult(spinner, result, options, "Compression Signatures for Token Owner");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -232,8 +215,7 @@ export async function zkLatestSignaturesCommand(options: ZkOptions = {}): Promis
     const result = await helius.zk.getLatestCompressionSignatures({});
     handleResult(spinner, result, options, "Latest Compression Signatures");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -244,8 +226,7 @@ export async function zkLatestNonVotingCommand(options: ZkOptions = {}): Promise
     const result = await helius.zk.getLatestNonVotingSignatures({});
     handleResult(spinner, result, options, "Latest Non-Voting Signatures");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -256,8 +237,7 @@ export async function zkTxCommand(signature: string, options: ZkOptions = {}): P
     const result = await helius.zk.getTransactionWithCompressionInfo({ signature });
     handleResult(spinner, result, options, "Transaction with Compression Info");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -271,8 +251,7 @@ export async function zkValidityProofCommand(options: ZkOptions & { hashes?: str
     const result = await helius.zk.getValidityProof(params);
     handleResult(spinner, result, options, "Validity Proof");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -283,8 +262,7 @@ export async function zkIndexerHealthCommand(options: ZkOptions = {}): Promise<v
     const result = await helius.zk.getIndexerHealth();
     handleResult(spinner, result, options, "Indexer Health");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -295,8 +273,7 @@ export async function zkIndexerSlotCommand(options: ZkOptions = {}): Promise<voi
     const result = await helius.zk.getIndexerSlot();
     handleResult(spinner, result, options, "Indexer Slot");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -307,7 +284,6 @@ export async function zkSignaturesForAssetCommand(id: string, options: ZkOptions
     const result = await helius.zk.getSignaturesForAsset({ id, page: 1 });
     handleResult(spinner, result, options, "Signatures for Asset");
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

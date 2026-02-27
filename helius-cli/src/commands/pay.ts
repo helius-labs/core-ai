@@ -6,7 +6,7 @@ import { getPaymentIntent, executeRenewal } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 
 interface PayOptions extends OutputOptions {
@@ -113,12 +113,6 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
       console.log(`\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`);
     }
   } catch (error) {
-    if (options.json) {
-      exitWithError("PAYMENT_FAILED", error instanceof Error ? error.message : String(error), undefined, true);
-    }
-    spinner?.fail(
-      `Error: ${error instanceof Error ? error.message : String(error)}`
-    );
-    process.exit(ExitCode.GENERAL_ERROR);
+    handleCommandError(error, options, spinner, "PAYMENT_FAILED");
   }
 }

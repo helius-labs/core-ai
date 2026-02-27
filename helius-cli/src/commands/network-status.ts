@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface NetworkOptions extends OutputOptions, ResolveOptions {}
 
@@ -36,7 +36,6 @@ export async function networkStatusCommand(options: NetworkOptions = {}): Promis
     const progress = (Number(epochInfo.slotIndex) / Number(epochInfo.slotsInEpoch) * 100).toFixed(1);
     console.log(`  ${chalk.gray("Epoch progress:")} ${progress}%`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

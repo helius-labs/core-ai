@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatAddress, formatTable, type TableColumn } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface ProgramOptions extends OutputOptions, ResolveOptions {}
 
@@ -43,8 +43,7 @@ export async function programAccountsCommand(programId: string, options: Program
     console.log(formatTable(rows, columns));
     console.log(chalk.gray(`\n  ${items.length} account(s) shown`));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -68,8 +67,7 @@ export async function programAccountsAllCommand(programId: string, options: Prog
     console.log(chalk.bold(`\nAll program accounts for ${chalk.cyan(programId)}:\n`));
     console.log(`  ${chalk.gray("Total accounts:")} ${chalk.cyan(items.length.toLocaleString())}`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }
 
@@ -112,7 +110,6 @@ export async function programTokenAccountsCommand(owner: string, options: Progra
     console.log(formatTable(rows, columns));
     console.log(chalk.gray(`\n  ${items.length} account(s) shown`));
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

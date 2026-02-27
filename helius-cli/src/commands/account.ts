@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface AccountOptions extends OutputOptions, ResolveOptions {}
 
@@ -36,7 +36,6 @@ export async function accountCommand(address: string, options: AccountOptions = 
     console.log(`  ${chalk.gray("Executable:")}  ${info.executable ? chalk.green("yes") : "no"}`);
     console.log(`  ${chalk.gray("Rent epoch:")}  ${info.rentEpoch ?? "N/A"}`);
   } catch (error) {
-    spinner?.fail(`Error: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(ExitCode.SDK_ERROR);
+    handleCommandError(error, options, spinner);
   }
 }

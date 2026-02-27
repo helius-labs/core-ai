@@ -1,6 +1,22 @@
 import { createHelius, type HeliusClient } from "helius-sdk";
 import { getApiKey as getConfigApiKey, getNetwork as getConfigNetwork, getJwt, getProjectId } from "./config.js";
 import { listProjects, getProject } from "./api.js";
+import { registerHttpErrorClass } from "./output.js";
+
+/**
+ * Thrown by restRequest() on non-2xx responses
+ * Carries the exact HTTP status code for precise error classification
+ */
+export class HeliusHttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = "HeliusHttpError";
+  }
+}
+
+// Register with classifyError() in output.ts so it can instanceof-check
+// without creating a circular import
+registerHttpErrorClass(HeliusHttpError);
 
 let cachedClient: HeliusClient | null = null;
 let cachedClientKey: string | null = null;
@@ -79,7 +95,8 @@ export function getClient(apiKey: string, network?: string): HeliusClient {
 }
 
 /**
- * REST request helper for Wallet API endpoints (not in SDK)
+ * REST request helper for Wallet API endpoints (not in SDK).
+ * Throws HeliusHttpError on non-2xx so classifyError() gets an exact status code.
  */
 export async function restRequest(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<any> {
   const separator = endpoint.includes("?") ? "&" : "?";
@@ -94,7 +111,7 @@ export async function restRequest(endpoint: string, apiKey: string, options: Req
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
+    throw new HeliusHttpError(response.status, `HTTP ${response.status}: ${text}`);
   }
 
   const text = await response.text();
