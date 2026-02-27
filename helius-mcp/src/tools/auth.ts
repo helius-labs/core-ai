@@ -19,10 +19,133 @@ import {
   getSessionWalletAddress,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
-import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk } from '../utils/config.js';
+import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk, keypairExistsOnDisk } from '../utils/config.js';
 import { HELIUS_PLANS } from './plans.js';
 
 export function registerAuthTools(server: McpServer) {
+  // ── Getting Started Guide ──
+
+  server.tool(
+    'getStarted',
+    'Get setup instructions for Helius. Detects your current state (API key, keypair, account) and tells you exactly what to do next. Call this when a user asks "how do I get started?" or needs onboarding help.',
+    {},
+    async () => {
+      const lines: string[] = ['# Getting Started with Helius'];
+
+      const apiKeyConfigured = hasApiKey();
+      const hasKeypair = keypairExistsOnDisk();
+      const jwt = getJwt();
+
+      // ── Already fully set up ──
+      if (apiKeyConfigured && jwt) {
+        lines.push(
+          '',
+          'You\'re all set! Your API key and account session are configured.',
+          '',
+          '**What you can do:**',
+          '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
+          '- Check balances: `getBalance`, `getTokenAccounts`',
+          '- Parse transactions: `parseTransactions`',
+          '- Manage webhooks: `createWebhook`, `getAllWebhooks`',
+          '- Check your account: `getAccountStatus`',
+          '',
+          'Just ask a question in plain English and the right tool will be used automatically.',
+        );
+        return mcpText(lines.join('\n'));
+      }
+
+      // ── API key set but no JWT (e.g., set via env or setHeliusApiKey) ──
+      if (apiKeyConfigured) {
+        lines.push(
+          '',
+          'Your API key is configured — all Helius tools are ready to use.',
+          '',
+          '**What you can do:**',
+          '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
+          '- Check balances: `getBalance`, `getTokenAccounts`',
+          '- Parse transactions: `parseTransactions`',
+          '- Manage webhooks: `createWebhook`, `getAllWebhooks`',
+          '',
+          'Just ask a question in plain English and the right tool will be used automatically.',
+          '',
+          '**Optional:** To see your plan, credits, and rate limits, call `agenticSignup` — it will detect your existing account (no payment needed) and enable `getAccountStatus`.',
+        );
+        return mcpText(lines.join('\n'));
+      }
+
+      // ── No API key — need to set up ──
+      lines.push(
+        '',
+        'You need a Helius API key to use these tools. Choose one of these paths:',
+        '',
+        '---',
+        '',
+        '## Path A — I already have an API key',
+        '',
+        'If you have a key from https://dashboard.helius.dev:',
+        '1. Call the `setHeliusApiKey` tool with your key',
+        '2. Done — all tools are immediately available',
+        '',
+        '---',
+        '',
+        '## Path B — Create a new account',
+        '',
+        'The signup is fully autonomous — no browser needed. It takes ~2 minutes:',
+        '',
+      );
+
+      // Adapt steps based on whether a keypair already exists
+      if (hasKeypair) {
+        lines.push(
+          '### Step 1: Keypair ✓',
+          `You already have a keypair saved at \`${KEYPAIR_PATH}\`.`,
+          'Call `generateKeypair` to load it and see the wallet address.',
+          '',
+        );
+      } else {
+        lines.push(
+          '### Step 1: Generate a keypair',
+          'Call the `generateKeypair` tool. It creates a Solana wallet and returns the address.',
+          '',
+        );
+      }
+
+      lines.push(
+        '### Step 2: Fund the wallet',
+        'Send the following to the wallet address from Step 1:',
+        '- **~0.001 SOL** — covers transaction fees',
+        '- **1 USDC** — pays for the basic plan ($1)',
+        '',
+        'You can send from any Solana wallet, exchange, or on-ramp.',
+        'The USDC token mint on Solana is: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`',
+        '',
+        'For paid plans, send more USDC instead: $49 (Developer), $499 (Business), $999 (Professional).',
+        '',
+        '### Step 3: Verify funding',
+        'Call `checkSignupBalance` to confirm your SOL and USDC balances are sufficient.',
+        '',
+        '### Step 4: Create the account',
+        'Call `agenticSignup` to process the payment and create your Helius account.',
+        'Your API key will be configured automatically — no extra steps needed.',
+        '',
+        '---',
+        '',
+        '## Path C — Use the Helius CLI',
+        '',
+        'Same flow from the terminal:',
+        '```',
+        'npx helius-cli@latest keygen     # Generate keypair',
+        '# Fund the wallet address shown above',
+        'npx helius-cli@latest signup      # Verify balance + create account',
+        '```',
+      );
+
+      return mcpText(lines.join('\n'));
+    }
+  );
+
+  // ── Keypair Generation ──
+
   server.tool(
     'generateKeypair',
     'Generate a new Solana keypair for Helius account signup. Returns the wallet address. The user must fund this wallet with ~0.001 SOL + 1 USDC (basic plan) or more USDC (for paid plans) before calling agenticSignup.',
