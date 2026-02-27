@@ -2,8 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { mcpText } from '../utils/errors.js';
 import { hasApiKey } from '../utils/helius.js';
-import { getPreferences, savePreferences } from '../utils/config.js';
+import { getPreferences, savePreferences, getJwt } from '../utils/config.js';
 import { HELIUS_PLANS } from './plans.js';
+import { listProjects } from 'helius-sdk/auth/listProjects';
+import { getProject } from 'helius-sdk/auth/getProject';
+import { MCP_USER_AGENT } from '../http.js';
 
 // ─── Types ───
 
@@ -1133,13 +1136,22 @@ const PROJECT_TEMPLATES: Record<string, ProjectTemplate> = {
 
 const TIER_DISPLAY: Record<string, string> = { budget: 'Budget', standard: 'Standard', production: 'Production' };
 
-function formatTier(tier: TierRecommendation): string {
+function formatTier(tier: TierRecommendation, detectedPlan?: string): string {
   const planInfo = HELIUS_PLANS[tier.minimumPlan];
   const planPrice = planInfo ? planInfo.price : tier.minimumPlan;
   const planName = planInfo ? planInfo.name : tier.minimumPlan;
 
+  let heading = `## ${TIER_DISPLAY[tier.tier]} Tier`;
+  if (detectedPlan) {
+    if (planAtOrBelow(tier.minimumPlan, detectedPlan)) {
+      heading += ` — Available on your plan`;
+    } else {
+      heading += ` — Requires ${planName} (${planPrice})`;
+    }
+  }
+
   const lines: string[] = [
-    `## ${TIER_DISPLAY[tier.tier]} Tier`,
+    heading,
     `**Plan:** ${planName} (${planPrice}) | **Complexity:** ${tier.complexity === 'low' ? 'Beginner-friendly' : tier.complexity === 'medium' ? 'Intermediate' : 'Advanced'}`,
     '',
     '### What to use:',
@@ -1170,32 +1182,80 @@ function formatTier(tier: TierRecommendation): string {
   return lines.join('\n');
 }
 
+function formatUpgradeTier(tier: TierRecommendation): string {
+  const planInfo = HELIUS_PLANS[tier.minimumPlan];
+  const planPrice = planInfo ? planInfo.price : tier.minimumPlan;
+  const planName = planInfo ? planInfo.name : tier.minimumPlan;
+  const planCredits = planInfo ? planInfo.credits : '';
+  const planRps = planInfo ? planInfo.rateLimit.rpc : '';
+
+  const productNames = tier.products.map(p => p.product);
+  const capabilities = tier.products.map(p => p.plainEnglish);
+  const productLine = `Adds: ${productNames.join(', ')} (${capabilities[0]})`;
+
+  const statsLine = planInfo
+    ? `${planInfo.rateLimit.sendTransaction} send rate, ${planCredits} credits/month, ${planRps}`
+    : `Requires ${planName}`;
+
+  const refsLine = `Read: ${tier.references.map(r => '`' + r + '`').join(', ')}`;
+
+  return [
+    `### ${TIER_DISPLAY[tier.tier]} Tier — Requires ${planName} (${planPrice})`,
+    productLine,
+    statsLine,
+    refsLine,
+  ].join('\n');
+}
+
 function formatRecommendation(
   template: ProjectTemplate,
-  tiers: TierRecommendation[],
+  availableTiers: TierRecommendation[],
+  upgradeTiers: TierRecommendation[],
   description: string,
   complexity?: 'low' | 'medium' | 'high',
+  detectedPlan?: string,
 ): string {
   const lines: string[] = [
     `# Architecture Recommendation: ${template.name}`,
     '',
     `> "${description}"`,
     '',
-    '---',
-    '',
   ];
 
+  if (detectedPlan) {
+    const planInfo = HELIUS_PLANS[detectedPlan];
+    if (planInfo) {
+      lines.push(
+        `**Your plan:** ${planInfo.name} (${planInfo.price}) — ${planInfo.credits} credits/month, ${planInfo.rateLimit.rpc}`,
+        '',
+      );
+    }
+  }
+
+  lines.push('---', '');
+
   if (complexity) {
-    const matched = tiers.filter(t => t.complexity === complexity);
+    const allTiers = [...availableTiers, ...upgradeTiers];
+    const matched = allTiers.filter(t => t.complexity === complexity);
     if (matched.length > 0) {
       lines.push(`_Filtered by complexity: ${complexity}_`, '', '---', '');
     }
   }
 
-  for (let i = 0; i < tiers.length; i++) {
-    lines.push(formatTier(tiers[i]));
-    if (i < tiers.length - 1) {
+  for (let i = 0; i < availableTiers.length; i++) {
+    lines.push(formatTier(availableTiers[i], detectedPlan));
+    if (i < availableTiers.length - 1) {
       lines.push('', '---', '');
+    }
+  }
+
+  if (upgradeTiers.length > 0) {
+    lines.push('', '---', '', '## Upgrade Paths', '');
+    for (let i = 0; i < upgradeTiers.length; i++) {
+      lines.push(formatUpgradeTier(upgradeTiers[i]));
+      if (i < upgradeTiers.length - 1) {
+        lines.push('');
+      }
     }
   }
 
@@ -1254,10 +1314,29 @@ export function registerRecommendTools(server: McpServer) {
         });
       }
 
-      // 3. Look up template (or fall back to general)
+      // 3. Detect current plan from JWT (free, 0 credits)
+      const VALID_PLANS = new Set(['free', 'developer', 'business', 'professional']);
+      let detectedPlan: string | undefined;
+      const jwt = getJwt();
+      if (jwt) {
+        try {
+          const projects = await listProjects(jwt, MCP_USER_AGENT);
+          if (projects.length > 0) {
+            const details = await getProject(jwt, projects[0].id, MCP_USER_AGENT);
+            const raw = details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase();
+            if (raw && VALID_PLANS.has(raw)) {
+              detectedPlan = raw;
+            }
+          }
+        } catch {
+          // Silent fallback — plan detection is best-effort
+        }
+      }
+
+      // 4. Look up template (or fall back to general)
       const template = PROJECT_TEMPLATES[projectType ?? 'general'];
 
-      // 4. Filter tiers by scale and/or budget
+      // 5. Filter tiers by scale and/or budget
       let tiers = template.tiers;
 
       if (scale !== 'all') {
@@ -1279,10 +1358,25 @@ export function registerRecommendTools(server: McpServer) {
         );
       }
 
-      // 5. Format output
-      let output = formatRecommendation(template, tiers, description, effectiveComplexity);
+      // 6. Partition tiers when plan is detected and no explicit budget filter
+      const shouldSplit = detectedPlan && !budget && !savedPrefs.budget;
+      let availableTiers: TierRecommendation[] = tiers;
+      let upgradeTiers: TierRecommendation[] = [];
 
-      // 6. Soft hint: if no API key, append setup note
+      if (shouldSplit) {
+        const available = tiers.filter(t => planAtOrBelow(t.minimumPlan, detectedPlan!));
+        const upgrades = tiers.filter(t => !planAtOrBelow(t.minimumPlan, detectedPlan!));
+        // Only split if at least one tier is available; otherwise show all with labels
+        if (available.length > 0) {
+          availableTiers = available;
+          upgradeTiers = upgrades;
+        }
+      }
+
+      // 7. Format output
+      let output = formatRecommendation(template, availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan);
+
+      // 8. Soft hint: if no API key, append setup note
       if (!hasApiKey()) {
         output += '\n\n---\n\n> **Setup needed:** You\'ll need a Helius API key to use these tools. Call `getStarted` for setup instructions.';
       }
