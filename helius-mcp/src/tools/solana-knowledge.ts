@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { MCP_USER_AGENT } from '../http.js';
+import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
 
 // ---------------------------------------------------------------------------
 // Cache
@@ -62,6 +63,9 @@ async function getSimdIndex(): Promise<NonNullable<typeof simdIndex>> {
   });
 
   if (!response.ok) {
+    if (response.status === 403 || response.status === 429) {
+      throw new Error(`GitHub API rate limit exceeded (HTTP ${response.status}). Set GITHUB_TOKEN env var to increase the limit.`);
+    }
     throw new Error(`Failed to fetch SIMD index: HTTP ${response.status}`);
   }
 
@@ -304,14 +308,9 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
             .map((e) => `  SIMD-${e.number}: ${e.slug}`)
             .join('\n');
 
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `SIMD-${paddedNumber} not found.\n\n${nearby ? `Nearby proposals:\n${nearby}` : `Total proposals available: ${index.length}`}`,
-              },
-            ],
-          };
+          return mcpText(
+            `SIMD-${paddedNumber} not found.\n\n${nearby ? `Nearby proposals:\n${nearby}` : `Total proposals available: ${index.length}`}`
+          );
         }
 
         const url = `${SIMD_RAW_BASE}/${entry.filename}`;
@@ -326,13 +325,9 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
           `Source: https://github.com/${SIMD_REPO}/blob/main/proposals/${entry.filename}`,
         ].join('\n');
 
-        return { content: [{ type: 'text' as const, text: result }] };
+        return mcpText(result);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error fetching SIMD: ${errorMsg}` }],
-          isError: true,
-        };
+        return handleToolError(error, 'Error fetching SIMD');
       }
     }
   );
@@ -348,7 +343,7 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
       try {
         const index = await getSimdIndex();
         if (index.length === 0) {
-          throw new Error('Could not fetch SIMD index');
+          return mcpText('No SIMD proposals found in the repository.');
         }
 
         const lines = [
@@ -361,13 +356,9 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
           ...index.map((e) => `| ${e.number} | ${e.slug.replace(/-/g, ' ')} |`),
         ];
 
-        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+        return mcpText(lines.join('\n'));
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error listing SIMDs: ${errorMsg}` }],
-          isError: true,
-        };
+        return handleToolError(error, 'Error listing SIMDs');
       }
     }
   );
@@ -397,6 +388,10 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
     },
     async ({ path, repo, branch }) => {
       try {
+        if (path.includes('..')) {
+          return mcpText('Invalid path: must not contain ".." segments.');
+        }
+
         const repoMap: Record<string, { fullName: string; defaultBranch: string }> = {
           agave: { fullName: 'anza-xyz/agave', defaultBranch: 'master' },
           firedancer: { fullName: 'firedancer-io/firedancer', defaultBranch: 'main' },
@@ -426,18 +421,19 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
           `Source: https://github.com/${repoFullName}/blob/${resolvedBranch}/${path}`,
         ].join('\n');
 
-        return { content: [{ type: 'text' as const, text: result }] };
+        return mcpText(result);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Error reading source file: ${errorMsg}\n\nTips:\n- Check the path is correct (e.g., "svm/src/lib.rs")\n- Browse https://github.com/anza-xyz/agave to find the right path\n- The default branch is "master"`,
-            },
-          ],
-          isError: true,
-        };
+        const repoInfo = { agave: 'anza-xyz/agave', firedancer: 'firedancer-io/firedancer' }[repo] ?? 'anza-xyz/agave';
+        const defaultBr = repo === 'firedancer' ? 'main' : 'master';
+        return handleToolError(error, 'Error reading source file', [
+          {
+            match: (msg) => msg.includes('404'),
+            respond: () =>
+              mcpText(
+                `**File not found:** \`${path}\`\n\nTips:\n- Check the path is correct\n- Browse https://github.com/${repoInfo} to find the right path\n- The default branch for ${repo} is "${defaultBr}"`
+              ),
+          },
+        ]);
       }
     }
   );
@@ -534,17 +530,12 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
               '---',
               'Source: https://solana.com/docs',
             ].join('\n');
-            return { content: [{ type: 'text' as const, text: result }] };
+            return mcpText(result);
           }
 
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `No matches for "${query}" in Solana docs. Try:\n- Broader terms (e.g., "accounts" instead of "account info")\n- Official API method names (e.g., "getAccountInfo")\n- Core concepts: accounts, transactions, programs, PDAs, CPI, fees, tokens`,
-              },
-            ],
-          };
+          return mcpText(
+            `No matches for "${query}" in Solana docs. Try:\n- Broader terms (e.g., "accounts" instead of "account info")\n- Official API method names (e.g., "getAccountInfo")\n- Core concepts: accounts, transactions, programs, PDAs, CPI, fees, tokens`
+          );
         }
 
         const MAX_CHARS = 40_000;
@@ -562,13 +553,9 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
           'Source: https://solana.com/docs',
         ].join('\n');
 
-        return { content: [{ type: 'text' as const, text: result }] };
+        return mcpText(result);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error searching Solana docs: ${errorMsg}` }],
-          isError: true,
-        };
+        return handleToolError(error, 'Error searching Solana docs');
       }
     }
   );
@@ -634,19 +621,14 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
             lines.push('');
           }
 
-          return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+          return mcpText(lines.join('\n'));
         }
 
         // Fetch a specific post
         if (!slug) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: 'Please provide a slug. Use `fetchHeliusBlog` with action "list" to see available posts.',
-              },
-            ],
-          };
+          return mcpText(
+            'Please provide a slug. Use `fetchHeliusBlog` with action "list" to see available posts.'
+          );
         }
 
         const url = `https://www.helius.dev/blog/${slug}`;
@@ -662,18 +644,12 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
 
         const result = [`# ${title}`, '', displayContent, '', '---', `Source: ${url}`].join('\n');
 
-        return { content: [{ type: 'text' as const, text: result }] };
+        return mcpText(result);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Error fetching blog: ${errorMsg}\n\nUse \`fetchHeliusBlog\` with action "list" to see available posts.`,
-            },
-          ],
-          isError: true,
-        };
+        return handleToolError(
+          error,
+          'Error fetching blog. Use `fetchHeliusBlog` with action "list" to see available posts'
+        );
       }
     }
   );
