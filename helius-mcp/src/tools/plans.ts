@@ -45,7 +45,12 @@ const BILLING_FETCH_ERROR =
   '- `lookupHeliusDocs({ topic: \'billing\' })` for full billing documentation\n' +
   '- Visit https://www.helius.dev/docs/billing directly';
 
-async function detectCurrentPlan(): Promise<string | undefined> {
+/**
+ * Detect the user's current Helius plan from their JWT session.
+ * Returns the plan key (e.g. "developer") or undefined if unavailable.
+ * Best-effort — never throws.
+ */
+export async function detectCurrentPlan(): Promise<string | undefined> {
   const jwt = getJwt();
   if (!jwt) return undefined;
   try {
@@ -53,7 +58,7 @@ async function detectCurrentPlan(): Promise<string | undefined> {
     if (projects.length > 0) {
       const details = await getProject(jwt, projects[0].id, MCP_USER_AGENT);
       const raw = details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase();
-      if (raw && raw in HELIUS_PLANS) return HELIUS_PLANS[raw].name;
+      if (raw && raw in HELIUS_PLANS) return raw;
     }
   } catch {
     // Best-effort — don't block the response
@@ -89,8 +94,11 @@ export function registerPlanTools(server: McpServer) {
 
       const sections: string[] = [];
 
-      const currentPlan = await detectCurrentPlan();
-      if (currentPlan) sections.push(`**Your current plan: ${currentPlan}**`, '');
+      const currentPlanKey = await detectCurrentPlan();
+      if (currentPlanKey) {
+        const displayName = HELIUS_PLANS[currentPlanKey]?.name ?? currentPlanKey;
+        sections.push(`**Your current plan: ${displayName}**`, '');
+      }
 
       if (plan !== 'all') {
         const planInfo = HELIUS_PLANS[plan];
@@ -121,9 +129,9 @@ export function registerPlanTools(server: McpServer) {
 
   server.tool(
     'compareHeliusPlans',
-    'BEST FOR: side-by-side plan comparison in a specific category. Fetches live from official billing documentation. Compare Helius plans for a specific feature category (rate limits, features, connections, pricing, or support).',
+    'BEST FOR: side-by-side plan comparison in a specific category. Fetches live from official billing documentation. Compare Helius plans for a specific feature category (rate limits, features, or pricing).',
     {
-      category: z.enum(['rates', 'features', 'connections', 'pricing', 'support']).describe('Category to compare'),
+      category: z.enum(['rates', 'features', 'pricing']).describe('Category to compare'),
     },
     async ({ category }) => {
       let billingDoc: string;
@@ -134,11 +142,9 @@ export function registerPlanTools(server: McpServer) {
       }
 
       const sectionMap: Record<string, string[]> = {
-        rates: ['rate limits', 'standard rate limits'],
+        rates: ['rate limits', 'standard rate limits', 'special rate limits'],
         features: ['standard plans', 'standard pricing'],
-        connections: ['websockets', 'websocket connections'],
-        pricing: ['standard plans', 'standard pricing'],
-        support: ['standard plans', 'standard pricing'],
+        pricing: ['credits system', 'credit costs', 'data add-ons'],
       };
 
       const extracted = extractSections(billingDoc, sectionMap[category], { includeLooseMatches: false });
@@ -148,8 +154,11 @@ export function registerPlanTools(server: McpServer) {
 
       const lines: string[] = [];
 
-      const currentPlan = await detectCurrentPlan();
-      if (currentPlan) lines.push(`**Your current plan: ${currentPlan}**`, '');
+      const currentPlanKey = await detectCurrentPlan();
+      if (currentPlanKey) {
+        const displayName = HELIUS_PLANS[currentPlanKey]?.name ?? currentPlanKey;
+        lines.push(`**Your current plan: ${displayName}**`, '');
+      }
 
       lines.push(extracted);
       lines.push('', '---', 'Source: https://www.helius.dev/docs/billing (fetched live)');

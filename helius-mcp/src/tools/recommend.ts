@@ -2,11 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { mcpText } from '../utils/errors.js';
 import { hasApiKey } from '../utils/helius.js';
-import { getPreferences, savePreferences, getJwt } from '../utils/config.js';
-import { HELIUS_PLANS } from './plans.js';
-import { listProjects } from 'helius-sdk/auth/listProjects';
-import { getProject } from 'helius-sdk/auth/getProject';
-import { MCP_USER_AGENT } from '../http.js';
+import { getPreferences, savePreferences } from '../utils/config.js';
+import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct } from './product-catalog.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 
@@ -284,23 +281,7 @@ export function registerRecommendTools(server: McpServer) {
       }
 
       // 3. Detect current plan from JWT
-      const VALID_PLANS = new Set(Object.keys(PLAN_RANK));
-      let detectedPlan: string | undefined;
-      const jwt = getJwt();
-      if (jwt) {
-        try {
-          const projects = await listProjects(jwt, MCP_USER_AGENT);
-          if (projects.length > 0) {
-            const details = await getProject(jwt, projects[0].id, MCP_USER_AGENT);
-            const raw = details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase();
-            if (raw && VALID_PLANS.has(raw)) {
-              detectedPlan = raw;
-            }
-          }
-        } catch {
-          // Silent fallback — plan detection is best-effort
-        }
-      }
+      const detectedPlan = await detectCurrentPlan();
 
       // 4. Group catalog into tiers
       let tiers = groupCatalogByTier();

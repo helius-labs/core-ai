@@ -164,20 +164,16 @@ export function registerLaserstreamTools(server: McpServer) {
     'Get Helius Laserstream gRPC capabilities, regions, pricing, and plan requirements. Lowest latency Solana streaming with 24h replay. Fetches live from official documentation.',
     {},
     async () => {
+      let endpoint: string;
       try {
-        const endpoint = getLaserstreamUrl();
-        const content = await fetchDoc('laserstream');
-        const result = [
-          '# Helius Laserstream (Official)',
-          '',
-          `**Endpoint:** \`${endpoint}\``,
-          '',
-          content,
-          '',
-          '---',
-          'Source: https://www.helius.dev/docs/laserstream/grpc (fetched live)',
-        ].join('\n');
-        return mcpText(result);
+        endpoint = getLaserstreamUrl();
+      } catch (err) {
+        return handleToolError(err, 'Laserstream Error');
+      }
+
+      let content: string;
+      try {
+        content = await fetchDoc('laserstream');
       } catch {
         return mcpError(
           'Could not fetch live Laserstream documentation. Try:\n' +
@@ -185,6 +181,18 @@ export function registerLaserstreamTools(server: McpServer) {
           '- Visit https://www.helius.dev/docs/laserstream/grpc directly'
         );
       }
+
+      const result = [
+        '# Helius Laserstream (Official)',
+        '',
+        `**Endpoint:** \`${endpoint}\``,
+        '',
+        content,
+        '',
+        '---',
+        'Source: https://www.helius.dev/docs/laserstream/grpc (fetched live)',
+      ].join('\n');
+      return mcpText(result);
     }
   );
 }

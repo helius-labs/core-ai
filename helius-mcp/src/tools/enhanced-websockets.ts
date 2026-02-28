@@ -201,20 +201,16 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets. Fetches live from official documentation.',
     {},
     async () => {
+      let wsUrl: string;
       try {
-        const wsUrl = getEnhancedWebSocketUrl();
-        const content = await fetchDoc('enhanced-websockets');
-        const result = [
-          '# Helius Enhanced WebSockets (Official)',
-          '',
-          `**Endpoint:** \`${wsUrl}\``,
-          '',
-          content,
-          '',
-          '---',
-          'Source: https://www.helius.dev/docs/enhanced-websockets (fetched live)',
-        ].join('\n');
-        return mcpText(result);
+        wsUrl = getEnhancedWebSocketUrl();
+      } catch (err) {
+        return handleToolError(err, 'Enhanced WebSocket Error');
+      }
+
+      let content: string;
+      try {
+        content = await fetchDoc('enhanced-websockets');
       } catch {
         return mcpError(
           'Could not fetch live Enhanced WebSocket documentation. Try:\n' +
@@ -222,6 +218,18 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
           '- Visit https://www.helius.dev/docs/enhanced-websockets directly'
         );
       }
+
+      const result = [
+        '# Helius Enhanced WebSockets (Official)',
+        '',
+        `**Endpoint:** \`${wsUrl}\``,
+        '',
+        content,
+        '',
+        '---',
+        'Source: https://www.helius.dev/docs/enhanced-websockets (fetched live)',
+      ].join('\n');
+      return mcpText(result);
     }
   );
 }

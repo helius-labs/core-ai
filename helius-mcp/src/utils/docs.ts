@@ -188,7 +188,7 @@ export function extractSections(
     let sectionDepth = 0;
 
     for (const line of lines) {
-      const headerMatch = line.match(/^(#{1,4})\s+(.+)/);
+      const headerMatch = line.match(/^(#{1,6})\s+(.+)/);
       if (headerMatch) {
         const depth = headerMatch[1].length;
         const title = headerMatch[2].toLowerCase();
