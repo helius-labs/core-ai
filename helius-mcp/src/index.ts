@@ -24,6 +24,7 @@ const server = new McpServer(
 - "portfolio", "all balances", "show my wallet", "what's in this wallet" → getWalletBalances (100 credits, full portfolio with USD values sorted by value, includes SOL + tokens + optional NFTs)
 
 ### Transaction History
+- Parse specific transaction(s) by signature → parseTransactions (100 credits)
 - "show transactions", "transaction history", general history → getTransactionHistory (default choice, parsed human-readable, ~110 credits)
 - "balance changes per transaction", "+/- deltas" → getWalletHistory (100 credits, balance change deltas)
 - "who sent tokens to", "transfers", "sends/receives" → getWalletTransfers (100 credits, direction + counterparty info)
@@ -33,10 +34,21 @@ const server = new McpServer(
 - "NFTs in this wallet", "what NFTs" → getAssetsByOwner (by wallet, 10 credits)
 - Multi-filter search (creator, authority, name, compression) → searchAssets (10 credits)
 - "NFTs in this collection" → getAssetsByGroup (by collection, 10 credits)
+- Transaction history for a specific asset (by mint) → getSignaturesForAsset (10 credits)
+- Edition prints of a master NFT → getNftEditions (10 credits)
 
-### Streaming (Real-time)
-- Enhanced WebSockets (Business+ plan) → transactionSubscribe / accountSubscribe
-- Laserstream gRPC (Professional plan) → laserstreamSubscribe
+### Accounts & Tokens
+- Raw account inspection (owner program, data, executable) → getAccountInfo (1 credit)
+- "token holders", "who holds this token" → getTokenHolders (20 credits, top 20 by mint)
+- Advanced token account queries (filter by mint, owner, or both) → getTokenAccounts (10 credits)
+- "program accounts", investigate protocol state → getProgramAccounts (10 credits)
+
+### Streaming / Real-time
+Choose based on your use case:
+- Fire-and-forget notifications (server-to-server) → createWebhook (any plan)
+- Live client-side updates (WebSocket) → transactionSubscribe / accountSubscribe (Business+)
+- Lowest-latency production streaming (gRPC) → laserstreamSubscribe (Professional)
+- Manage existing webhooks → getAllWebhooks, getWebhookByID, updateWebhook, deleteWebhook
 
 ### Docs & Info (10+ tools — use the right one)
 - "How much does Helius cost?" / pricing / plans → getHeliusPlanInfo (start here for ANY pricing question)

@@ -7,7 +7,7 @@ export function registerLaserstreamTools(server: McpServer) {
 
   server.tool(
     'laserstreamSubscribe',
-    'Get Laserstream gRPC config for high-performance Solana streaming. Subscribe to slots, accounts, transactions, blocks, or entries. 24h historical replay. Professional plan for mainnet. Returns connection config and code example.',
+    'BEST FOR: lowest-latency production streaming via gRPC (slots, accounts, transactions, blocks). PREFER transactionSubscribe for simpler WebSocket-based streaming. PREFER createWebhook for fire-and-forget notifications. Get Laserstream gRPC config for high-performance Solana streaming. Subscribe to slots, accounts, transactions, blocks, or entries. 24h historical replay. Professional plan for mainnet. Returns connection config and code example.',
     {
       region: z.string().optional().default('ewr'),
       commitment: z.string().optional(),
