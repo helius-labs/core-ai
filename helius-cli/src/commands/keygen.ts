@@ -48,7 +48,7 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   console.log(`Address: ${chalk.cyan(address)}`);
   console.log("");
   console.log(chalk.yellow("To use this wallet, fund it with:"));
-  console.log(`  • ${chalk.cyan("~0.01 SOL")} for transaction fees`);
+  console.log(`  • ${chalk.cyan("~0.001 SOL")} for transaction fees`);
   console.log(`  • USDC for your chosen plan:`);
   console.log(`      ${"basic".padEnd(15)}${chalk.cyan("$1")} (one-time)`);
   for (const [key, plan] of Object.entries(PLAN_CATALOG)) {
