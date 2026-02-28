@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { CLI_USER_AGENT } from "../http.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 
 // ---------------------------------------------------------------------------
 // GitHub constants
@@ -35,6 +35,9 @@ interface SimdEntry {
 async function fetchSimdIndex(): Promise<SimdEntry[]> {
   const response = await fetch(SIMD_API_URL, { headers: githubHeaders() });
   if (!response.ok) {
+    if (response.status === 403 || response.status === 429) {
+      throw new Error(`GitHub API rate limit exceeded (HTTP ${response.status}). Set GITHUB_TOKEN env var to increase the limit.`);
+    }
     throw new Error(`GitHub API returned HTTP ${response.status}: ${response.statusText}`);
   }
 
@@ -104,6 +107,14 @@ interface SimdGetOptions extends OutputOptions {}
 export async function simdGetCommand(number: string, options: SimdGetOptions = {}): Promise<void> {
   const spinner = options.json ? null : ora();
   try {
+    if (!/^\d+$/.test(number)) {
+      if (options.json) {
+        exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, true);
+      }
+      console.error(chalk.red(`Invalid SIMD number: "${number}". Must be a numeric value (e.g. 96, 0228).`));
+      process.exit(ExitCode.INVALID_INPUT);
+    }
+
     const paddedNumber = number.replace(/^0+/, "").padStart(4, "0");
 
     spinner?.start(`Fetching SIMD-${paddedNumber}...`);
@@ -125,8 +136,7 @@ export async function simdGetCommand(number: string, options: SimdGetOptions = {
         .join("\n");
 
       if (options.json) {
-        outputJson({ error: "NOT_FOUND", message: `SIMD-${paddedNumber} not found` });
-        process.exit(1);
+        exitWithError("NOT_FOUND", `SIMD-${paddedNumber} not found`, undefined, true);
       }
 
       console.log(chalk.yellow(`\nSIMD-${paddedNumber} not found.`));
