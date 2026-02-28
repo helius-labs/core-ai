@@ -16,11 +16,21 @@ The reference files in `helius-skills/helius/references/` and `helius-plugin/ski
 - When updating any reference file, update it in `helius-skills/` first, then copy the change to `helius-plugin/`.
 - CI will fail if these directories diverge.
 
+### DFlow Skill References
+
+The DFlow skill (`helius-skills/helius-dflow/` and `helius-plugin/skills/dflow/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/helius-dflow/references/`
+- **Copy**: `helius-plugin/skills/dflow/references/`
+- The DFlow skill contains 12 reference files: 7 Helius copies (prefixed with `helius-`), 4 DFlow-specific files, and 1 integration-patterns file.
+- The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside DFlow files in the same directory.
+- When updating DFlow reference files, update in `helius-skills/helius-dflow/references/` first, then copy to `helius-plugin/skills/dflow/references/`.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
 
-- Skill name (`helius` vs `build`)
+- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`)
 - Metadata/frontmatter
 - MCP prerequisite messaging (manual install vs plugin auto-start)
 
