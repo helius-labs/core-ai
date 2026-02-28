@@ -1,5 +1,5 @@
 // Helius supported transaction types
-// https://docs.helius.dev/webhooks/transaction-types
+// https://www.helius.dev/docs/webhooks/transaction-types
 
 export const TRANSACTION_TYPES = [
   'ANY',

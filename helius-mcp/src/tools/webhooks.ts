@@ -95,7 +95,7 @@ export function registerWebhookTools(server: McpServer) {
       if (transactionTypes) {
         const invalid = transactionTypes.filter(t => !(TRANSACTION_TYPES as readonly string[]).includes(t));
         if (invalid.length > 0) {
-          return mcpText(`**Create Webhook Error**\n\nInvalid transaction type(s): ${invalid.join(', ')}. See valid types: https://docs.helius.dev/webhooks/transaction-types`);
+          return mcpText(`**Create Webhook Error**\n\nInvalid transaction type(s): ${invalid.join(', ')}. See valid types: https://www.helius.dev/docs/webhooks/transaction-types`);
         }
       }
       try {
@@ -135,7 +135,7 @@ export function registerWebhookTools(server: McpServer) {
       if (transactionTypes) {
         const invalid = transactionTypes.filter(t => !(TRANSACTION_TYPES as readonly string[]).includes(t));
         if (invalid.length > 0) {
-          return mcpText(`**Update Webhook Error**\n\nInvalid transaction type(s): ${invalid.join(', ')}. See valid types: https://docs.helius.dev/webhooks/transaction-types`);
+          return mcpText(`**Update Webhook Error**\n\nInvalid transaction type(s): ${invalid.join(', ')}. See valid types: https://www.helius.dev/docs/webhooks/transaction-types`);
         }
       }
       try {

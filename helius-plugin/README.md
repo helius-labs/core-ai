@@ -47,6 +47,6 @@ The plugin auto-starts the MCP server, but you still need a Helius API key. On f
 
 ## Links
 
-- [Helius Documentation](https://docs.helius.dev)
+- [Helius Documentation](https://www.helius.dev/docs)
 - [Dashboard](https://dashboard.helius.dev)
 - [helius-mcp on npm](https://www.npmjs.com/package/helius-mcp)
