@@ -18,6 +18,7 @@ import { registerPlanTools } from './plans.js';
 import { registerDocsTools } from './docs.js';
 import { registerGuideTools } from './guides.js';
 import { registerRecommendTools } from './recommend.js';
+import { registerSolanaKnowledgeTools } from './solana-knowledge.js';
 
 export function registerTools(server: McpServer) {
   registerAuthTools(server);
@@ -39,4 +40,5 @@ export function registerTools(server: McpServer) {
   registerDocsTools(server);
   registerGuideTools(server);
   registerRecommendTools(server);
+  registerSolanaKnowledgeTools(server);
 }
