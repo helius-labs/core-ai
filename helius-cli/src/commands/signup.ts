@@ -102,7 +102,13 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         }
       }
       if (result.apiKey) {
-        console.log(chalk.green(`\nAPI key saved to ${SHARED_CONFIG_PATH}`));
+        console.log(`\nAPI Key: ${chalk.cyan(result.apiKey)}`);
+        console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+      }
+      if (result.endpoints) {
+        console.log(chalk.bold("\nRPC Endpoints:"));
+        console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
+        console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
       }
       console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
       return;
