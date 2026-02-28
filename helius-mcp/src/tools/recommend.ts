@@ -54,7 +54,7 @@ function derivePlanLimitations(minimumPlan: string): string[] {
   if (!plan.features.enhancedWebSockets) gates.push('Enhanced WebSockets');
   if (!plan.features.laserstream) {
     gates.push('Laserstream');
-  } else if (typeof plan.features.laserstream === 'string' && plan.features.laserstream.toLowerCase().includes('devnet')) {
+  } else if (typeof plan.features.laserstream === 'string' && plan.features.laserstream.toLowerCase().includes('devnet only')) {
     limitations.push('Laserstream limited to devnet');
   }
 

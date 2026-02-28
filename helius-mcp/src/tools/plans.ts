@@ -2,6 +2,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { mcpError } from '../utils/errors.js';
+import { getJwt } from '../utils/config.js';
+import { listProjects } from 'helius-sdk/auth/listProjects';
+import { getProject } from 'helius-sdk/auth/getProject';
+import { MCP_USER_AGENT } from '../http.js';
 
 /**
  * Static plan metadata — NOT the source of truth for pricing or billing data.
@@ -41,6 +45,22 @@ const BILLING_FETCH_ERROR =
   '- `lookupHeliusDocs({ topic: \'billing\' })` for full billing documentation\n' +
   '- Visit https://www.helius.dev/docs/billing directly';
 
+async function detectCurrentPlan(): Promise<string | undefined> {
+  const jwt = getJwt();
+  if (!jwt) return undefined;
+  try {
+    const projects = await listProjects(jwt, MCP_USER_AGENT);
+    if (projects.length > 0) {
+      const details = await getProject(jwt, projects[0].id, MCP_USER_AGENT);
+      const raw = details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase();
+      if (raw && raw in HELIUS_PLANS) return HELIUS_PLANS[raw].name;
+    }
+  } catch {
+    // Best-effort — don't block the response
+  }
+  return undefined;
+}
+
 export function registerPlanTools(server: McpServer) {
   server.tool(
     'getHeliusPlanInfo',
@@ -68,6 +88,9 @@ export function registerPlanTools(server: McpServer) {
       const rateLimits = extractSections(billingDoc, ['rate limits', 'standard rate limits'], { includeLooseMatches: false });
 
       const sections: string[] = [];
+
+      const currentPlan = await detectCurrentPlan();
+      if (currentPlan) sections.push(`**Your current plan: ${currentPlan}**`, '');
 
       if (plan !== 'all') {
         const planInfo = HELIUS_PLANS[plan];
@@ -101,9 +124,8 @@ export function registerPlanTools(server: McpServer) {
     'BEST FOR: side-by-side plan comparison in a specific category. Fetches live from official billing documentation. Compare Helius plans for a specific feature category (rate limits, features, connections, pricing, or support).',
     {
       category: z.enum(['rates', 'features', 'connections', 'pricing', 'support']).describe('Category to compare'),
-      plans: z.array(z.enum(['free', 'developer', 'business', 'professional'])).optional().describe('Plans to highlight in the comparison (default: all). Full live tables are returned; this parameter indicates which plans to focus on.'),
     },
-    async ({ category, plans }) => {
+    async ({ category }) => {
       let billingDoc: string;
       try {
         billingDoc = await fetchDoc('billing');
@@ -126,10 +148,8 @@ export function registerPlanTools(server: McpServer) {
 
       const lines: string[] = [];
 
-      const plansToCompare = plans || ['free', 'developer', 'business', 'professional'];
-      if (plans && plans.length < 4) {
-        lines.push(`_Comparing: ${plansToCompare.join(', ')}_`, '');
-      }
+      const currentPlan = await detectCurrentPlan();
+      if (currentPlan) lines.push(`**Your current plan: ${currentPlan}**`, '');
 
       lines.push(extracted);
       lines.push('', '---', 'Source: https://www.helius.dev/docs/billing (fetched live)');
