@@ -1,11 +1,12 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypairFromFile } from "../lib/wallet.js";
+import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } from "../lib/config.js";
-import { keypairExists } from "./keygen.js";
+import { keypairExists, keygenCommand } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { checkSolBalance, checkUsdcBalance } from "helius-sdk/auth/checkBalances";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -32,14 +33,15 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = options.json ? null : ora();
 
   try {
-    // Check keypair exists
+    // Auto-generate keypair if none exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
+        // In JSON mode, don't do interactive keygen — just error
         exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, true);
       }
-      console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
-      console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
-      process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+      console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
+      await keygenCommand({ output: options.keypair });
+      console.log();
     }
 
     // Load keypair
