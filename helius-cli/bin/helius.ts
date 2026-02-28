@@ -48,6 +48,7 @@ import {
 } from "../src/commands/zk.js";
 import { sendBroadcastCommand, sendRawCommand, sendSenderCommand, sendPollCommand, sendComputeUnitsCommand } from "../src/commands/send.js";
 import { wsAccountCommand, wsLogsCommand, wsSlotCommand, wsSignatureCommand, wsProgramCommand } from "../src/commands/ws.js";
+import { simdListCommand, simdGetCommand } from "../src/commands/simd.js";
 import { VERSION } from "../src/constants.js";
 
 const program = new Command();
@@ -768,5 +769,23 @@ wsCmd
   .description("Stream program account change notifications")
   .option("--json", "Output in JSON format")
   .action(function(this: any, programId: string) { wsProgramCommand(programId, opts(this)); });
+
+// ── SIMD (Solana Improvement Documents) ──
+
+const simdCmd = program
+  .command("simd")
+  .description("Browse Solana Improvement Documents (SIMDs)");
+
+simdCmd
+  .command("list")
+  .description("List all SIMD proposals")
+  .option("--json", "Output in JSON format")
+  .action(function(this: any) { simdListCommand(opts(this)); });
+
+simdCmd
+  .command("get <number>")
+  .description("Read a specific SIMD proposal by number")
+  .option("--json", "Output in JSON format")
+  .action(function(this: any, number: string) { simdGetCommand(number, opts(this)); });
 
 program.parse();
