@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { fetchDoc, fetchDocs, getDocsIndex, DOCS_INDEX } from '../utils/docs.js';
+import { fetchDoc, fetchDocs, getDocsIndex, extractSections, DOCS_INDEX } from '../utils/docs.js';
 
 export function registerDocsTools(server: McpServer) {
   /**
@@ -43,42 +43,13 @@ export function registerDocsTools(server: McpServer) {
 
         // If a section filter is provided, extract relevant parts
         if (section) {
-          const sectionLower = section.toLowerCase();
-          const lines = content.split('\n');
-          const relevantLines: string[] = [];
-          let inRelevantSection = false;
-          let sectionDepth = 0;
+          const extracted = extractSections(content, section, { includeLooseMatches: true });
 
-          for (const line of lines) {
-            // Check if this is a header
-            const headerMatch = line.match(/^(#{1,4})\s+(.+)/);
-            if (headerMatch) {
-              const depth = headerMatch[1].length;
-              const title = headerMatch[2].toLowerCase();
-
-              if (title.includes(sectionLower)) {
-                inRelevantSection = true;
-                sectionDepth = depth;
-                relevantLines.push(line);
-              } else if (inRelevantSection && depth <= sectionDepth) {
-                // We've hit a new section at same or higher level
-                inRelevantSection = false;
-              } else if (inRelevantSection) {
-                relevantLines.push(line);
-              }
-            } else if (inRelevantSection) {
-              relevantLines.push(line);
-            } else if (line.toLowerCase().includes(sectionLower)) {
-              // Include lines that mention the section keyword even outside headers
-              relevantLines.push(line);
-            }
-          }
-
-          if (relevantLines.length > 0) {
+          if (extracted) {
             const result = [
               `# Helius Docs: ${topic} (filtered by "${section}")`,
               '',
-              ...relevantLines,
+              extracted,
               '',
               '---',
               `Source: https://www.helius.dev/docs (${topic})`,

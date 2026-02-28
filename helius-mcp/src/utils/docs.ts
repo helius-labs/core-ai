@@ -158,6 +158,66 @@ export function getDocsIndex(): Array<{ key: string; description: string }> {
 }
 
 /**
+ * Extract sections from markdown content that match keyword(s).
+ *
+ * Matches headers whose text contains the keyword (case-insensitive),
+ * collecting all content until the next header at same/higher level.
+ *
+ * When `keywords` is an array, tries each keyword in order and returns the
+ * first non-null match (handles header drift across doc versions).
+ *
+ * `includeLooseMatches` (default `true`): Also include non-header lines
+ * containing the keyword outside matched sections. Set `false` for clean
+ * section-only extraction (used by plan tools to avoid false positives).
+ *
+ * Returns `null` if nothing matched.
+ */
+export function extractSections(
+  content: string,
+  keywords: string | string[],
+  opts?: { includeLooseMatches?: boolean }
+): string | null {
+  const keywordList = Array.isArray(keywords) ? keywords : [keywords];
+  const includeLoose = opts?.includeLooseMatches ?? true;
+
+  for (const keyword of keywordList) {
+    const keywordLower = keyword.toLowerCase();
+    const lines = content.split('\n');
+    const relevantLines: string[] = [];
+    let inRelevantSection = false;
+    let sectionDepth = 0;
+
+    for (const line of lines) {
+      const headerMatch = line.match(/^(#{1,6})\s+(.+)/);
+      if (headerMatch) {
+        const depth = headerMatch[1].length;
+        const title = headerMatch[2].toLowerCase();
+
+        if (title.includes(keywordLower)) {
+          inRelevantSection = true;
+          sectionDepth = depth;
+          relevantLines.push(line);
+        } else if (inRelevantSection && depth <= sectionDepth) {
+          inRelevantSection = false;
+        } else if (inRelevantSection) {
+          relevantLines.push(line);
+        }
+      } else if (inRelevantSection) {
+        relevantLines.push(line);
+      } else if (includeLoose && line.toLowerCase().includes(keywordLower)) {
+        relevantLines.push(line);
+      }
+    }
+
+    if (relevantLines.length > 0) {
+      return relevantLines.join('\n');
+    }
+  }
+
+  return null;
+}
+
+/**
  * Search docs content for a specific term (searches cached docs only)
  */
 export function searchCachedDocs(searchTerm: string): Array<{ docKey: string; matches: string[] }> {
