@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getEnhancedWebSocketUrl } from '../utils/helius.js';
-import { mcpText, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
+import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
+import { fetchDoc } from '../utils/docs.js';
 
 export function registerEnhancedWebSocketTools(server: McpServer) {
 
@@ -197,27 +198,29 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
 
   server.tool(
     'getEnhancedWebSocketInfo',
-    'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets.',
+    'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets. Fetches live from official documentation.',
     {},
     async () => {
       try {
         const wsUrl = getEnhancedWebSocketUrl();
-        const lines = [
-          '**Helius Enhanced WebSocket Service**',
+        const content = await fetchDoc('enhanced-websockets');
+        const result = [
+          '# Helius Enhanced WebSockets (Official)',
           '',
           `**Endpoint:** \`${wsUrl}\``,
           '',
-          '**Subscriptions:** transactionSubscribe, accountSubscribe',
-          '**Speed:** 1.5-2x faster than standard WebSockets',
-          '**Filtering:** Up to 50,000 addresses per filter',
-          '**Plans:** Business or Professional tier',
-          '**Timeout:** 10 min inactivity, ping every 30-60s',
+          content,
           '',
-          '**Docs:** https://www.helius.dev/docs/enhanced-websockets',
-        ];
-        return mcpText(lines.join('\n'));
-      } catch (err) {
-        return handleToolError(err, 'Error');
+          '---',
+          'Source: https://www.helius.dev/docs/enhanced-websockets (fetched live)',
+        ].join('\n');
+        return mcpText(result);
+      } catch {
+        return mcpError(
+          'Could not fetch live Enhanced WebSocket documentation. Try:\n' +
+          '- `lookupHeliusDocs({ topic: \'enhanced-websockets\' })` for full documentation\n' +
+          '- Visit https://www.helius.dev/docs/enhanced-websockets directly'
+        );
       }
     }
   );

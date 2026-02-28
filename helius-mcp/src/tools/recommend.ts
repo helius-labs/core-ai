@@ -8,6 +8,7 @@ import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { MCP_USER_AGENT } from '../http.js';
 import { PRODUCT_CATALOG, CatalogProduct } from './product-catalog.js';
+import { fetchDoc, extractSections } from '../utils/docs.js';
 
 // ─── Known MCP Tools (for validation script) ───
 
@@ -47,7 +48,7 @@ function derivePlanLimitations(minimumPlan: string): string[] {
 
   const limitations: string[] = [];
 
-  limitations.push(`${plan.credits} credits/month (${plan.name} plan)`);
+  limitations.push(`${plan.name} plan — see \`getHeliusPlanInfo\` for credits and rate limits`);
 
   const gates: string[] = [];
   if (!plan.features.enhancedWebSockets) gates.push('Enhanced WebSockets');
@@ -111,7 +112,6 @@ function formatProduct(product: CatalogProduct): string {
 }
 
 function formatTier(tier: CatalogTier, detectedPlan?: string): string {
-  const planInfo = HELIUS_PLANS[tier.tierPlan];
   const tierLabel = TIER_DISPLAY[tier.tier];
 
   let heading = `## ${tierLabel} Tier`;
@@ -119,9 +119,7 @@ function formatTier(tier: CatalogTier, detectedPlan?: string): string {
     if (planAtOrBelow(tier.tierPlan, detectedPlan)) {
       heading += ` \u2014 Available on your plan`;
     } else {
-      const planName = planInfo ? planInfo.name : tier.tierPlan;
-      const planPrice = planInfo ? planInfo.price : tier.tierPlan;
-      heading += ` \u2014 Requires ${planName} (${planPrice})`;
+      heading += ` \u2014 Requires upgrade`;
     }
   }
 
@@ -145,16 +143,11 @@ function formatTier(tier: CatalogTier, detectedPlan?: string): string {
 function formatUpgradeTier(tier: CatalogTier): string {
   const planInfo = HELIUS_PLANS[tier.tierPlan];
   const planName = planInfo ? planInfo.name : tier.tierPlan;
-  const planPrice = planInfo ? planInfo.price : tier.tierPlan;
   const tierLabel = TIER_DISPLAY[tier.tier];
 
   const productNames = tier.products.map(p => p.name);
   const firstDesc = tier.products[0].description.split('.')[0];
   const addsLine = `Adds: ${productNames.join(', ')} \u2014 ${firstDesc}`;
-
-  const statsLine = planInfo
-    ? `${planInfo.rateLimit.rpc} RPC RPS, ${planInfo.credits} credits/month`
-    : `Requires ${planName}`;
 
   const refs = tier.products
     .filter(p => p.referenceFile)
@@ -162,9 +155,8 @@ function formatUpgradeTier(tier: CatalogTier): string {
   const refsLine = refs.length > 0 ? `Read: ${refs.join(', ')}` : '';
 
   const lines = [
-    `### ${tierLabel} Tier \u2014 Requires ${planName} (${planPrice})`,
+    `### ${tierLabel} Tier \u2014 Requires ${planName} plan`,
     addsLine,
-    statsLine,
   ];
   if (refsLine) lines.push(refsLine);
 
@@ -177,6 +169,7 @@ function formatCatalog(
   description: string,
   complexity: 'low' | 'medium' | 'high' | undefined,
   detectedPlan?: string,
+  livePlansSection?: string | null,
 ): string {
   const lines: string[] = ['# Helius Product Catalog', ''];
 
@@ -186,7 +179,7 @@ function formatCatalog(
     const planInfo = HELIUS_PLANS[detectedPlan];
     if (planInfo) {
       lines.push(
-        `**Your plan:** ${planInfo.name} (${planInfo.price}) \u2014 ${planInfo.credits} credits/month, ${planInfo.rateLimit.rpc}`,
+        `**Your plan:** ${planInfo.name}`,
         '',
       );
     }
@@ -214,6 +207,13 @@ function formatCatalog(
         lines.push('');
       }
     }
+  }
+
+  // Live plans & pricing section from billing doc
+  if (livePlansSection) {
+    lines.push('', '---', '', '## Plans & Pricing', '', livePlansSection);
+  } else {
+    lines.push('', '---', '', '_For current plan pricing, use `getHeliusPlanInfo` or visit https://www.helius.dev/docs/billing_');
   }
 
   lines.push(
@@ -345,10 +345,19 @@ export function registerRecommendTools(server: McpServer) {
         }
       }
 
-      // 7. Format output
-      let output = formatCatalog(availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan);
+      // 7. Fetch live billing data for plans section
+      let livePlansSection: string | null = null;
+      try {
+        const billingDoc = await fetchDoc('billing');
+        livePlansSection = extractSections(billingDoc, ['standard plans', 'standard pricing'], { includeLooseMatches: false });
+      } catch {
+        // Silent fallback — live pricing is best-effort
+      }
 
-      // 8. Soft hint: if no API key, append setup note
+      // 8. Format output
+      let output = formatCatalog(availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan, livePlansSection);
+
+      // 9. Soft hint: if no API key, append setup note
       if (!hasApiKey()) {
         output += '\n\n---\n\n> **Setup needed:** You\'ll need a Helius API key to use these tools. Call `getStarted` for setup instructions.';
       }

@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getLaserstreamUrl, getNetwork } from '../utils/helius.js';
-import { mcpText, validateEnum, handleToolError, warnInvalidAddresses, warnAddressConflicts } from '../utils/errors.js';
+import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnAddressConflicts } from '../utils/errors.js';
+import { fetchDoc } from '../utils/docs.js';
 
 export function registerLaserstreamTools(server: McpServer) {
 
@@ -160,32 +161,29 @@ export function registerLaserstreamTools(server: McpServer) {
 
   server.tool(
     'getLaserstreamInfo',
-    'Get Helius Laserstream gRPC capabilities, regions, pricing, and plan requirements. Lowest latency Solana streaming with 24h replay.',
+    'Get Helius Laserstream gRPC capabilities, regions, pricing, and plan requirements. Lowest latency Solana streaming with 24h replay. Fetches live from official documentation.',
     {},
     async () => {
       try {
-        const network = getNetwork();
         const endpoint = getLaserstreamUrl();
-        const lines = [
-          '**Helius Laserstream gRPC**',
+        const content = await fetchDoc('laserstream');
+        const result = [
+          '# Helius Laserstream (Official)',
           '',
-          `**Network:** ${network}`,
           `**Endpoint:** \`${endpoint}\``,
           '',
-          '**Subscriptions:** slots, accounts, transactions, blocks, block metadata, entries',
-          '**Replay:** 24h historical (up to 216,000 slots)',
-          '**Cost:** 3 credits per 0.1 MB',
+          content,
           '',
-          '**Plans:** Professional (mainnet + devnet), Developer/Business (devnet only)',
-          '',
-          '**Regions:** ewr (Newark), pitt (Pittsburgh), slc (Salt Lake City), lax (Los Angeles), lon (London), ams (Amsterdam), fra (Frankfurt), tyo (Tokyo), sgp (Singapore)',
-          '',
-          '**SDKs:** TypeScript (@helius/laserstream), Rust (helius-laserstream), Go (laserstream-go)',
-          '**Docs:** https://www.helius.dev/docs/laserstream/grpc',
-        ];
-        return mcpText(lines.join('\n'));
-      } catch (err) {
-        return handleToolError(err, 'Error');
+          '---',
+          'Source: https://www.helius.dev/docs/laserstream/grpc (fetched live)',
+        ].join('\n');
+        return mcpText(result);
+      } catch {
+        return mcpError(
+          'Could not fetch live Laserstream documentation. Try:\n' +
+          '- `lookupHeliusDocs({ topic: \'laserstream\' })` for full documentation\n' +
+          '- Visit https://www.helius.dev/docs/laserstream/grpc directly'
+        );
       }
     }
   );

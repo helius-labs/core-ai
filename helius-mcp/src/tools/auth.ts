@@ -19,8 +19,11 @@ import {
   getSessionWalletAddress,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
+import { fetchDoc, extractSections } from '../utils/docs.js';
 import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk, keypairExistsOnDisk } from '../utils/config.js';
 import { HELIUS_PLANS } from './plans.js';
+
+const PAID_PLAN_ORDER = ['developer', 'business', 'professional'] as const;
 
 export function registerAuthTools(server: McpServer) {
   // ── Getting Started Guide ──
@@ -123,7 +126,7 @@ export function registerAuthTools(server: McpServer) {
         'You can send from any Solana wallet, exchange, or on-ramp.',
         'The USDC token mint on Solana is: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`',
         '',
-        'For paid plans, send more USDC instead: $49 (Developer), $499 (Business), $999 (Professional).',
+        `For paid plans, send more USDC instead: ${PAID_PLAN_ORDER.filter(k => k in PLAN_CATALOG).map(k => `$${PLAN_CATALOG[k].monthlyPrice / 100} (${PLAN_CATALOG[k].name})`).join(', ')}.`,
         '',
         '### Step 3: Verify funding',
         'Call `checkSignupBalance` to confirm your SOL and USDC balances are sufficient.',
@@ -562,13 +565,17 @@ export function registerAuthTools(server: McpServer) {
           lines.push(`**Upcoming plan:** ${upcomingPlan} (takes effect at next billing cycle)`);
         }
 
-        // ── Rate limits (only when we have static data for the plan) ──
-        if (planInfo) {
-          lines.push('', '### Rate Limits');
-          lines.push(`- RPC: ${planInfo.rateLimit.rpc}`);
-          lines.push(`- sendTransaction: ${planInfo.rateLimit.sendTransaction}`);
-          lines.push(`- getProgramAccounts: ${planInfo.rateLimit.getProgramAccounts}  _(10 credits/call)_`);
-          lines.push(`- DAS: ${planInfo.rateLimit.das}  _(10 credits/call)_`);
+        // ── Rate limits (fetched live from billing docs) ──
+        try {
+          const billingDoc = await fetchDoc('billing');
+          const rateLimits = extractSections(billingDoc, ['standard rate limits', 'rate limits'], { includeLooseMatches: false });
+          if (rateLimits) {
+            lines.push('', '### Rate Limits (live)', '', rateLimits);
+          } else {
+            lines.push('', '_Rate limit details: use `getRateLimitInfo` or visit https://www.helius.dev/docs/billing_');
+          }
+        } catch {
+          lines.push('', '_Rate limit details: use `getRateLimitInfo` or visit https://www.helius.dev/docs/billing_');
         }
 
         // ── Credits ──
