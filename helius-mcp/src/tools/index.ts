@@ -17,6 +17,7 @@ import { registerWalletTools } from './wallet.js';
 import { registerPlanTools } from './plans.js';
 import { registerDocsTools } from './docs.js';
 import { registerGuideTools } from './guides.js';
+import { registerRecommendTools } from './recommend.js';
 
 export function registerTools(server: McpServer) {
   registerAuthTools(server);
@@ -37,4 +38,5 @@ export function registerTools(server: McpServer) {
   registerWalletTools(server);
   registerDocsTools(server);
   registerGuideTools(server);
+  registerRecommendTools(server);
 }

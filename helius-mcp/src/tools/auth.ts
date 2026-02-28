@@ -50,6 +50,8 @@ export function registerAuthTools(server: McpServer) {
           '- Check your account: `getAccountStatus`',
           '',
           'Just ask a question in plain English and the right tool will be used automatically.',
+          '',
+          '**IMPORTANT — if the user described a project they want to build, call `recommendStack` now** with their project description. It returns architecture recommendations with Helius products, MCP tools, credit costs, and reference files tailored to their plan.',
         );
         return mcpText(lines.join('\n'));
       }
@@ -67,6 +69,8 @@ export function registerAuthTools(server: McpServer) {
           '- Manage webhooks: `createWebhook`, `getAllWebhooks`',
           '',
           'Just ask a question in plain English and the right tool will be used automatically.',
+          '',
+          '**IMPORTANT — if the user described a project they want to build, call `recommendStack` now** with their project description. It returns architecture recommendations with Helius products, MCP tools, credit costs, and reference files.',
           '',
           '**Optional:** To see your plan, credits, and rate limits, call `agenticSignup` — it will detect your existing account (no payment needed) and enable `getAccountStatus`.',
         );
@@ -138,6 +142,10 @@ export function registerAuthTools(server: McpServer) {
         '# Fund the wallet address shown above',
         'npx helius-cli@latest signup      # Verify balance + create account',
         '```',
+        '',
+        '---',
+        '',
+        '**After setup:** Use `recommendStack` to plan your project — describe what you\'re building and get architecture recommendations at different cost and complexity levels.',
       );
 
       return mcpText(lines.join('\n'));

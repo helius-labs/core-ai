@@ -11,6 +11,10 @@ interface HeliusConfig {
   jwt?: string;
   network?: string;
   projectId?: string;
+  preferences?: {
+    budget?: 'free' | 'developer' | 'business' | 'professional';
+    complexity?: 'low' | 'medium' | 'high';
+  };
 }
 
 function ensureDir(): void {
@@ -53,6 +57,18 @@ export function getJwt(): string | undefined {
 export function setJwt(jwt: string): void {
   const config = loadConfig();
   config.jwt = jwt;
+  saveConfig(config);
+}
+
+// Preferences
+
+export function getPreferences() {
+  return loadConfig().preferences ?? {};
+}
+
+export function savePreferences(prefs: HeliusConfig['preferences']) {
+  const config = loadConfig();
+  config.preferences = { ...config.preferences, ...prefs };
   saveConfig(config);
 }
 
