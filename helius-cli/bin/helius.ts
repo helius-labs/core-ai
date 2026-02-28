@@ -163,6 +163,7 @@ const configCmd = program
 configCmd
   .command("show")
   .description("Show current configuration")
+  .option("--reveal", "Show full API key (not truncated)")
   .option("--json", "Output in JSON format")
   .action(function(this: any) { configShowCommand(opts(this)); });
 
