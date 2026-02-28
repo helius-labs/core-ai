@@ -6,7 +6,8 @@ import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } 
 import { keypairExists, keygenCommand } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
-import { checkSolBalance, checkUsdcBalance } from "helius-sdk/auth/checkBalances";
+import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
+import { PLAN_CATALOG } from "../lib/checkout.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -57,13 +58,28 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const solAmount = Number(solBalance) / 1_000_000_000;
     const usdcAmount = Number(usdcBalance) / 1_000_000;
     const solOk = solBalance >= 1_000_000n;    // ~0.001 SOL
-    const usdcOk = usdcBalance >= 1_000_000n;  // 1 USDC minimum
+
+    // Compute required USDC based on selected plan
+    const planKey = options.plan?.toLowerCase();
+    const catalogEntry = planKey ? PLAN_CATALOG[planKey] : null;
+    let requiredUsdcRaw: bigint;
+    let requiredUsdcLabel: string;
+    if (catalogEntry) {
+      const period = options.period?.toLowerCase();
+      const priceInCents = period === "yearly" ? catalogEntry.yearlyPrice : catalogEntry.monthlyPrice;
+      requiredUsdcRaw = BigInt(priceInCents) * 10_000n; // cents → USDC raw (6 decimals)
+      requiredUsdcLabel = `${priceInCents / 100} USDC`;
+    } else {
+      requiredUsdcRaw = 1_000_000n; // $1 basic plan
+      requiredUsdcLabel = "1 USDC";
+    }
+    const usdcOk = usdcBalance >= requiredUsdcRaw;
 
     if (!solOk || !usdcOk) {
       spinner?.fail("Insufficient balance");
       const missing: string[] = [];
       if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
-      if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
+      if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmount.toFixed(2)})`);
 
       if (options.json) {
         exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, undefined, true);
