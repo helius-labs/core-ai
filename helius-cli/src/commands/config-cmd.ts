@@ -3,11 +3,19 @@ import { formatEnumLabel } from "../lib/formatters.js";
 import { load, setApiKey, setNetwork, setProjectId, clearConfig } from "../lib/config.js";
 import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
 
-export function configShowCommand(options: OutputOptions = {}): void {
+interface ConfigShowOptions extends OutputOptions {
+  reveal?: boolean;
+}
+
+export function configShowCommand(options: ConfigShowOptions = {}): void {
   const config = load();
+  const displayKey = config.apiKey
+    ? (options.reveal ? config.apiKey : config.apiKey.slice(0, 8) + "...")
+    : null;
+
   if (options.json) {
     outputJson({
-      apiKey: config.apiKey ? config.apiKey.slice(0, 8) + "..." : null,
+      apiKey: displayKey,
       network: config.network || "mainnet",
       projectId: config.projectId || null,
       loggedIn: !!config.jwt,
@@ -16,10 +24,13 @@ export function configShowCommand(options: OutputOptions = {}): void {
   }
 
   console.log(chalk.bold("\nHelius CLI Configuration:\n"));
-  console.log(`  ${chalk.gray("API Key:")}     ${config.apiKey ? chalk.cyan(config.apiKey.slice(0, 8) + "...") : chalk.yellow("not set")}`);
+  console.log(`  ${chalk.gray("API Key:")}     ${displayKey ? chalk.cyan(displayKey) : chalk.yellow("not set")}`);
   console.log(`  ${chalk.gray("Network:")}     ${chalk.cyan(formatEnumLabel(config.network || "mainnet"))}`);
   console.log(`  ${chalk.gray("Project ID:")}  ${config.projectId ? chalk.cyan(config.projectId) : chalk.yellow("not set")}`);
   console.log(`  ${chalk.gray("Logged in:")}   ${config.jwt ? chalk.green("yes") : chalk.yellow("no")}`);
+  if (config.apiKey && !options.reveal) {
+    console.log(chalk.gray("\n  Use --reveal to show the full API key."));
+  }
   console.log();
 }
 

@@ -1,11 +1,13 @@
 import chalk from "chalk";
 import ora from "ora";
-import { loadKeypairFromFile } from "../lib/wallet.js";
+import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } from "../lib/config.js";
-import { keypairExists } from "./keygen.js";
+import { keypairExists, keygenCommand } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
+import { PLAN_CATALOG } from "../lib/checkout.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -32,20 +34,64 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = options.json ? null : ora();
 
   try {
-    // Check keypair exists
+    // Auto-generate keypair if none exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
+        // In JSON mode, don't do interactive keygen — just error
         exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, true);
       }
-      console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
-      console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
-      process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+      console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
+      await keygenCommand({ output: options.keypair });
+      console.log();
     }
 
     // Load keypair
     spinner?.start("Loading keypair...");
     const keypair = await loadKeypairFromFile(options.keypair);
-    spinner?.succeed("Wallet loaded");
+    const walletAddress = await getAddress(keypair);
+    spinner?.succeed(`Wallet loaded: ${walletAddress}`);
+
+    // Check balance before attempting payment
+    spinner?.start("Checking wallet balance...");
+    const solBalance = await checkSolBalance(walletAddress);
+    const usdcBalance = await checkUsdcBalance(walletAddress);
+    const solAmount = Number(solBalance) / 1_000_000_000;
+    const usdcAmount = Number(usdcBalance) / 1_000_000;
+    const solOk = solBalance >= 1_000_000n;    // ~0.001 SOL
+
+    // Compute required USDC based on selected plan
+    const planKey = options.plan?.toLowerCase();
+    const catalogEntry = planKey ? PLAN_CATALOG[planKey] : null;
+    let requiredUsdcRaw: bigint;
+    let requiredUsdcLabel: string;
+    if (catalogEntry) {
+      const period = options.period?.toLowerCase();
+      const priceInCents = period === "yearly" ? catalogEntry.yearlyPrice : catalogEntry.monthlyPrice;
+      requiredUsdcRaw = BigInt(priceInCents) * 10_000n; // cents → USDC raw (6 decimals)
+      requiredUsdcLabel = `${priceInCents / 100} USDC`;
+    } else {
+      requiredUsdcRaw = 1_000_000n; // $1 basic plan
+      requiredUsdcLabel = "1 USDC";
+    }
+    const usdcOk = usdcBalance >= requiredUsdcRaw;
+
+    if (!solOk || !usdcOk) {
+      spinner?.fail("Insufficient balance");
+      const missing: string[] = [];
+      if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
+      if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmount.toFixed(2)})`);
+
+      if (options.json) {
+        exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, undefined, true);
+      }
+      console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
+      for (const m of missing) {
+        console.error(`  • ${m}`);
+      }
+      console.error(chalk.gray("\nThen run `helius signup` again."));
+      process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
+    }
+    spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
 
     // Run agenticSignup (handles all plan paths)
     const planLabel = options.plan || "basic";
@@ -102,7 +148,13 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         }
       }
       if (result.apiKey) {
-        console.log(chalk.green(`\nAPI key saved to ${SHARED_CONFIG_PATH}`));
+        console.log(`\nAPI Key: ${chalk.cyan(result.apiKey)}`);
+        console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+      }
+      if (result.endpoints) {
+        console.log(chalk.bold("\nRPC Endpoints:"));
+        console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
+        console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
       }
       console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
       return;
