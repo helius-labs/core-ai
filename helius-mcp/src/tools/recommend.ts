@@ -39,7 +39,7 @@ function planAtOrBelow(plan: string, maxPlan: string): boolean {
   return (PLAN_RANK[plan] ?? 99) <= (PLAN_RANK[maxPlan] ?? 99);
 }
 
-// ─── Plan Limitations (moved from project-templates.ts) ───
+// ─── Plan Limitations ───
 
 function derivePlanLimitations(minimumPlan: string): string[] {
   const plan = HELIUS_PLANS[minimumPlan];
@@ -175,17 +175,12 @@ function formatCatalog(
   availableTiers: CatalogTier[],
   upgradeTiers: CatalogTier[],
   description: string,
-  projectType: string | undefined,
   complexity: 'low' | 'medium' | 'high' | undefined,
   detectedPlan?: string,
 ): string {
   const lines: string[] = ['# Helius Product Catalog', ''];
 
-  if (projectType) {
-    lines.push(`> "${description}" (${projectType})`, '');
-  } else {
-    lines.push(`> "${description}"`, '');
-  }
+  lines.push(`> "${description}"`, '');
 
   if (detectedPlan) {
     const planInfo = HELIUS_PLANS[detectedPlan];
@@ -269,17 +264,12 @@ export function registerRecommendTools(server: McpServer) {
     'Supports saved preferences for budget and complexity level.',
     {
       description: z.string().describe('What the user wants to build, in their own words'),
-      projectType: z.enum([
-        'portfolio-tracker', 'trading-bot', 'nft-marketplace',
-        'blockchain-explorer', 'notification-system', 'data-indexer',
-        'wallet-analytics', 'token-launch', 'general',
-      ]).optional().describe('Optional classifier \u2014 omit for the general capability catalog'),
       budget: z.enum(['free', 'developer', 'business', 'professional']).optional(),
       complexity: z.enum(['low', 'medium', 'high']).optional(),
       scale: z.enum(['budget', 'standard', 'production', 'all']).optional().default('all'),
       remember: z.boolean().optional().describe('Save budget/complexity preferences for future sessions'),
     },
-    async ({ description, projectType, budget, complexity, scale, remember }) => {
+    async ({ description, budget, complexity, scale, remember }) => {
       // 1. Load saved preferences, merge with provided params
       const savedPrefs = getPreferences();
       const effectiveBudget = budget ?? savedPrefs.budget;
@@ -356,7 +346,7 @@ export function registerRecommendTools(server: McpServer) {
       }
 
       // 7. Format output
-      let output = formatCatalog(availableTiers, upgradeTiers, description, projectType, effectiveComplexity, detectedPlan);
+      let output = formatCatalog(availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan);
 
       // 8. Soft hint: if no API key, append setup note
       if (!hasApiKey()) {
