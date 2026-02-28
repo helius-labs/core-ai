@@ -7,8 +7,7 @@ import { HELIUS_PLANS } from './plans.js';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { MCP_USER_AGENT } from '../http.js';
-import { PROJECT_TEMPLATES } from './project-templates.js';
-import type { ProjectTemplate, TierRecommendation, ProductRecommendation } from './project-templates.js';
+import { PRODUCT_CATALOG, CatalogProduct } from './product-catalog.js';
 
 // ─── Known MCP Tools (for validation script) ───
 
@@ -40,102 +39,159 @@ function planAtOrBelow(plan: string, maxPlan: string): boolean {
   return (PLAN_RANK[plan] ?? 99) <= (PLAN_RANK[maxPlan] ?? 99);
 }
 
+// ─── Plan Limitations (moved from project-templates.ts) ───
+
+function derivePlanLimitations(minimumPlan: string): string[] {
+  const plan = HELIUS_PLANS[minimumPlan];
+  if (!plan) return [];
+
+  const limitations: string[] = [];
+
+  limitations.push(`${plan.credits} credits/month (${plan.name} plan)`);
+
+  const gates: string[] = [];
+  if (!plan.features.enhancedWebSockets) gates.push('Enhanced WebSockets');
+  if (!plan.features.laserstream) {
+    gates.push('Laserstream');
+  } else if (typeof plan.features.laserstream === 'string' && plan.features.laserstream.toLowerCase().includes('devnet')) {
+    limitations.push('Laserstream limited to devnet');
+  }
+
+  if (gates.length > 0) limitations.push(`No ${gates.join(' or ')}`);
+
+  return limitations;
+}
+
+// ─── Tier Grouping ───
+
+interface CatalogTier {
+  tier: 'budget' | 'standard' | 'production';
+  tierPlan: string; // the minimumPlan that defines this tier
+  products: CatalogProduct[];
+}
+
+const TIER_MAP: Record<string, 'budget' | 'standard' | 'production'> = {
+  free: 'budget',
+  developer: 'standard',
+  business: 'production',
+  professional: 'production',
+};
+
+const TIER_DISPLAY: Record<string, string> = { budget: 'Free', standard: 'Developer', production: 'Business / Professional' };
+const TIER_PLANS: Record<string, string> = { budget: 'free', standard: 'developer', production: 'business' };
+
+function groupCatalogByTier(): CatalogTier[] {
+  const groups: Record<string, CatalogProduct[]> = { budget: [], standard: [], production: [] };
+
+  for (const product of Object.values(PRODUCT_CATALOG)) {
+    const tier = TIER_MAP[product.minimumPlan] ?? 'production';
+    groups[tier].push(product);
+  }
+
+  const tiers: CatalogTier[] = [];
+  if (groups.budget.length > 0) tiers.push({ tier: 'budget', tierPlan: 'free', products: groups.budget });
+  if (groups.standard.length > 0) tiers.push({ tier: 'standard', tierPlan: 'developer', products: groups.standard });
+  if (groups.production.length > 0) tiers.push({ tier: 'production', tierPlan: 'business', products: groups.production });
+
+  return tiers;
+}
+
 // ─── Formatting ───
 
-const TIER_DISPLAY: Record<string, string> = { budget: 'Budget', standard: 'Standard', production: 'Production' };
-const COMPLEXITY_LABEL: Record<string, string> = { low: 'budget', medium: 'standard', high: 'production' };
+function formatProduct(product: CatalogProduct): string {
+  const lines: string[] = [
+    `**${product.name}** \u2014 ${product.description}`,
+    `- Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`,
+    `- Cost: ${product.creditCostPerCall}`,
+  ];
+  if (product.referenceFile) {
+    lines.push(`- Docs: \`${product.referenceFile}\``);
+  }
+  return lines.join('\n');
+}
 
-function formatTier(tier: TierRecommendation, detectedPlan?: string): string {
-  const planInfo = HELIUS_PLANS[tier.minimumPlan];
-  const planPrice = planInfo ? planInfo.price : tier.minimumPlan;
-  const planName = planInfo ? planInfo.name : tier.minimumPlan;
+function formatTier(tier: CatalogTier, detectedPlan?: string): string {
+  const planInfo = HELIUS_PLANS[tier.tierPlan];
+  const tierLabel = TIER_DISPLAY[tier.tier];
 
-  let heading = `## ${TIER_DISPLAY[tier.tier]} Tier`;
+  let heading = `## ${tierLabel} Tier`;
   if (detectedPlan) {
-    if (planAtOrBelow(tier.minimumPlan, detectedPlan)) {
-      heading += ` — Available on your plan`;
+    if (planAtOrBelow(tier.tierPlan, detectedPlan)) {
+      heading += ` \u2014 Available on your plan`;
     } else {
-      heading += ` — Requires ${planName} (${planPrice})`;
+      const planName = planInfo ? planInfo.name : tier.tierPlan;
+      const planPrice = planInfo ? planInfo.price : tier.tierPlan;
+      heading += ` \u2014 Requires ${planName} (${planPrice})`;
     }
   }
 
-  const lines: string[] = [
-    heading,
-    `**Plan:** ${planName} (${planPrice}) | **Complexity:** ${tier.complexity === 'low' ? 'Beginner-friendly' : tier.complexity === 'medium' ? 'Intermediate' : 'Advanced'}`,
-    '',
-    '### What to use:',
-    '',
-  ];
+  const lines: string[] = [heading, ''];
 
   for (const product of tier.products) {
-    const productPlan = HELIUS_PLANS[product.minimumPlan];
-    const productPlanName = productPlan ? productPlan.name : product.minimumPlan;
-    lines.push(
-      `**${product.product}** — ${product.plainEnglish}`,
-      `- Why: ${product.why}`,
-      `- Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`,
-      `- Cost: ${product.creditCostPerCall}, ${product.callPattern}`,
-      `- Requires: ${productPlanName} plan`,
-      '',
-    );
+    lines.push(formatProduct(product), '');
   }
 
-  lines.push('### Limitations:');
-  for (const limitation of tier.limitations) {
-    lines.push(`- ${limitation}`);
+  const limitations = derivePlanLimitations(tier.tierPlan);
+  if (limitations.length > 0) {
+    lines.push(`### ${tierLabel} Tier Limits`);
+    for (const lim of limitations) {
+      lines.push(`- ${lim}`);
+    }
   }
-
-  lines.push('');
-  lines.push(`### To implement, read: ${tier.references.map(r => '`' + r + '`').join(', ')}`);
 
   return lines.join('\n');
 }
 
-function formatUpgradeTier(tier: TierRecommendation): string {
-  const planInfo = HELIUS_PLANS[tier.minimumPlan];
-  const planPrice = planInfo ? planInfo.price : tier.minimumPlan;
-  const planName = planInfo ? planInfo.name : tier.minimumPlan;
-  const planCredits = planInfo ? planInfo.credits : '';
-  const planRps = planInfo ? planInfo.rateLimit.rpc : '';
+function formatUpgradeTier(tier: CatalogTier): string {
+  const planInfo = HELIUS_PLANS[tier.tierPlan];
+  const planName = planInfo ? planInfo.name : tier.tierPlan;
+  const planPrice = planInfo ? planInfo.price : tier.tierPlan;
+  const tierLabel = TIER_DISPLAY[tier.tier];
 
-  const productNames = tier.products.map(p => p.product);
-  const capabilities = tier.products.map(p => p.plainEnglish);
-  const productLine = `Adds: ${productNames.join(', ')} (${capabilities[0]})`;
+  const productNames = tier.products.map(p => p.name);
+  const firstDesc = tier.products[0].description.split('.')[0];
+  const addsLine = `Adds: ${productNames.join(', ')} \u2014 ${firstDesc}`;
 
   const statsLine = planInfo
-    ? `${planInfo.rateLimit.sendTransaction} send rate, ${planCredits} credits/month, ${planRps}`
+    ? `${planInfo.rateLimit.rpc} RPC RPS, ${planInfo.credits} credits/month`
     : `Requires ${planName}`;
 
-  const refsLine = `Read: ${tier.references.map(r => '`' + r + '`').join(', ')}`;
+  const refs = tier.products
+    .filter(p => p.referenceFile)
+    .map(p => `\`${p.referenceFile}\``);
+  const refsLine = refs.length > 0 ? `Read: ${refs.join(', ')}` : '';
 
-  return [
-    `### ${TIER_DISPLAY[tier.tier]} Tier — Requires ${planName} (${planPrice})`,
-    productLine,
+  const lines = [
+    `### ${tierLabel} Tier \u2014 Requires ${planName} (${planPrice})`,
+    addsLine,
     statsLine,
-    refsLine,
-  ].join('\n');
+  ];
+  if (refsLine) lines.push(refsLine);
+
+  return lines.join('\n');
 }
 
-function formatRecommendation(
-  template: ProjectTemplate,
-  availableTiers: TierRecommendation[],
-  upgradeTiers: TierRecommendation[],
+function formatCatalog(
+  availableTiers: CatalogTier[],
+  upgradeTiers: CatalogTier[],
   description: string,
+  projectType: string | undefined,
   complexity: 'low' | 'medium' | 'high' | undefined,
   detectedPlan?: string,
 ): string {
-  const lines: string[] = [
-    `# Architecture Recommendation: ${template.name}`,
-    '',
-    `> "${description}"`,
-    '',
-  ];
+  const lines: string[] = ['# Helius Product Catalog', ''];
+
+  if (projectType) {
+    lines.push(`> "${description}" (${projectType})`, '');
+  } else {
+    lines.push(`> "${description}"`, '');
+  }
 
   if (detectedPlan) {
     const planInfo = HELIUS_PLANS[detectedPlan];
     if (planInfo) {
       lines.push(
-        `**Your plan:** ${planInfo.name} (${planInfo.price}) — ${planInfo.credits} credits/month, ${planInfo.rateLimit.rpc}`,
+        `**Your plan:** ${planInfo.name} (${planInfo.price}) \u2014 ${planInfo.credits} credits/month, ${planInfo.rateLimit.rpc}`,
         '',
       );
     }
@@ -144,7 +200,8 @@ function formatRecommendation(
   lines.push('---', '');
 
   if (complexity) {
-    lines.push(`_Showing ${COMPLEXITY_LABEL[complexity]} complexity tier_`, '', '---', '');
+    const label: Record<string, string> = { low: 'free tier only', medium: 'free + developer tiers', high: 'all tiers' };
+    lines.push(`_Showing ${label[complexity]}_`, '', '---', '');
   }
 
   for (let i = 0; i < availableTiers.length; i++) {
@@ -169,11 +226,11 @@ function formatRecommendation(
     '---',
     '',
     '## Estimate your monthly cost',
-    'credits/month = (calls per user per day) x (credits per call) x (active users) x 30',
+    'credits/month = (calls per user per day) \u00d7 (credits per call) \u00d7 (active users) \u00d7 30',
     'Use `getRateLimitInfo` for exact per-method credit costs.',
     '',
     '## Next steps',
-    '1. Pick a tier → `getHeliusPlanInfo` for full plan details',
+    '1. Pick a tier \u2192 `getHeliusPlanInfo` for full plan details',
     '2. Read the reference files listed above',
     '3. Start building with the MCP tools listed',
   );
@@ -181,13 +238,28 @@ function formatRecommendation(
   return lines.join('\n');
 }
 
+// ─── Filtering ───
+
+const COMPLEXITY_MAX_TIER: Record<string, string[]> = {
+  low: ['budget'],
+  medium: ['budget', 'standard'],
+  high: ['budget', 'standard', 'production'],
+};
+
+const SCALE_TIERS: Record<string, string[]> = {
+  budget: ['budget'],
+  standard: ['standard'],
+  production: ['production'],
+  all: ['budget', 'standard', 'production'],
+};
+
 // ─── Tool Registration ───
 
 export function registerRecommendTools(server: McpServer) {
   server.tool(
     'recommendStack',
     'BEST FOR: ANY time a user describes a Solana project, app, or tool they want to build. ' +
-    'Call this immediately when the user says they want to build, make, or create something — ' +
+    'Call this immediately when the user says they want to build, make, or create something \u2014 ' +
     'do not ask clarifying questions first. Examples: "I want to build a PnL tracker", ' +
     '"make a tax reporting tool", "create a token sniper", "I need an NFT gallery". ' +
     'PREFER getHeliusPlanInfo for pricing-only questions. ' +
@@ -201,7 +273,7 @@ export function registerRecommendTools(server: McpServer) {
         'portfolio-tracker', 'trading-bot', 'nft-marketplace',
         'blockchain-explorer', 'notification-system', 'data-indexer',
         'wallet-analytics', 'token-launch', 'general',
-      ]).optional().describe('Optional classifier — omit for the general capability catalog'),
+      ]).optional().describe('Optional classifier \u2014 omit for the general capability catalog'),
       budget: z.enum(['free', 'developer', 'business', 'professional']).optional(),
       complexity: z.enum(['low', 'medium', 'high']).optional(),
       scale: z.enum(['budget', 'standard', 'production', 'all']).optional().default('all'),
@@ -240,29 +312,27 @@ export function registerRecommendTools(server: McpServer) {
         }
       }
 
-      // 4. Look up template (or fall back to general)
-      const template = PROJECT_TEMPLATES[projectType ?? 'general'];
+      // 4. Group catalog into tiers
+      let tiers = groupCatalogByTier();
 
-      // 5. Filter tiers by scale and/or budget
-      let tiers = template.tiers;
-
+      // 5. Apply filters (AND logic)
       if (scale !== 'all') {
-        tiers = tiers.filter(t => t.tier === scale);
+        const allowed = SCALE_TIERS[scale] ?? [];
+        tiers = tiers.filter(t => allowed.includes(t.tier));
+      }
+
+      if (effectiveComplexity) {
+        const allowed = COMPLEXITY_MAX_TIER[effectiveComplexity] ?? [];
+        tiers = tiers.filter(t => allowed.includes(t.tier));
       }
 
       if (effectiveBudget) {
-        tiers = tiers.filter(t => planAtOrBelow(t.minimumPlan, effectiveBudget));
-      }
-
-      // 5b. Filter by complexity (maps 1:1 to tier: low=budget, medium=standard, high=production)
-      if (effectiveComplexity) {
-        const targetTier = COMPLEXITY_LABEL[effectiveComplexity];
-        tiers = tiers.filter(t => t.tier === targetTier);
+        tiers = tiers.filter(t => planAtOrBelow(t.tierPlan, effectiveBudget));
       }
 
       if (tiers.length === 0) {
         return mcpText(
-          `# Architecture Recommendation: ${template.name}\n\n` +
+          `# Helius Product Catalog\n\n` +
           `> "${description}"\n\n` +
           'No tiers match your current filters. Try:\n' +
           '- Increasing your `budget` (e.g., `developer`, `business`)\n' +
@@ -273,13 +343,12 @@ export function registerRecommendTools(server: McpServer) {
 
       // 6. Partition tiers when plan is detected and no explicit budget filter
       const shouldSplit = detectedPlan && !budget && !savedPrefs.budget;
-      let availableTiers: TierRecommendation[] = tiers;
-      let upgradeTiers: TierRecommendation[] = [];
+      let availableTiers: CatalogTier[] = tiers;
+      let upgradeTiers: CatalogTier[] = [];
 
       if (shouldSplit) {
-        const available = tiers.filter(t => planAtOrBelow(t.minimumPlan, detectedPlan!));
-        const upgrades = tiers.filter(t => !planAtOrBelow(t.minimumPlan, detectedPlan!));
-        // Only split if at least one tier is available; otherwise show all with labels
+        const available = tiers.filter(t => planAtOrBelow(t.tierPlan, detectedPlan!));
+        const upgrades = tiers.filter(t => !planAtOrBelow(t.tierPlan, detectedPlan!));
         if (available.length > 0) {
           availableTiers = available;
           upgradeTiers = upgrades;
@@ -287,7 +356,7 @@ export function registerRecommendTools(server: McpServer) {
       }
 
       // 7. Format output
-      let output = formatRecommendation(template, availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan);
+      let output = formatCatalog(availableTiers, upgradeTiers, description, projectType, effectiveComplexity, detectedPlan);
 
       // 8. Soft hint: if no API key, append setup note
       if (!hasApiKey()) {
@@ -298,6 +367,3 @@ export function registerRecommendTools(server: McpServer) {
     }
   );
 }
-
-export { PROJECT_TEMPLATES };
-export type { ProjectTemplate, TierRecommendation, ProductRecommendation };
