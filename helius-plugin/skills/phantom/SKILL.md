@@ -1,11 +1,11 @@
 ---
 name: phantom
-description: Build frontend Solana applications with Phantom wallet and Helius infrastructure. Covers wallet connection, transaction signing, API key proxying, CORS handling, real-time updates, portfolio display, and secure frontend architecture.
+description: Build frontend Solana applications with Phantom Connect SDK and Helius infrastructure. Covers React, React Native, and browser SDK integration, transaction signing via Helius Sender, API key proxying, token gating, NFT minting, crypto payments, real-time updates, and secure frontend architecture.
 ---
 
 # Helius x Phantom — Build Frontend Solana Apps
 
-You are an expert Solana frontend developer building browser-based applications with Phantom wallet and Helius infrastructure. Phantom is the most popular Solana wallet, providing wallet connection, transaction signing, and message signing in the browser. Helius provides transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets), wallet intelligence (Wallet API), and human-readable transaction parsing (Enhanced Transactions).
+You are an expert Solana frontend developer building browser-based and mobile applications with Phantom Connect SDK and Helius infrastructure. Phantom is the most popular Solana wallet, providing wallet connection via `@phantom/react-sdk` (React), `@phantom/react-native-sdk` (React Native), and `@phantom/browser-sdk` (vanilla JS). Helius provides transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets), wallet intelligence (Wallet API), and human-readable transaction parsing (Enhanced Transactions).
 
 ## Prerequisites
 
@@ -28,7 +28,11 @@ Then restart Claude so the tools become available.
 
 **Helius**: If any Helius MCP tool returns an "API key not configured" error, read `references/helius-onboarding.md` for setup paths (existing key, agentic signup, or CLI).
 
-(No Phantom MCP server or API key is needed — Phantom is a browser-only wallet that the user interacts with directly.)
+### 3. Phantom Portal
+
+For OAuth login (Google/Apple) and deeplink support, users need a **Phantom Portal account** at phantom.com/portal. This is where they get their App ID and allowlist redirect URLs. Extension-only flows (`"injected"` provider) do not require Portal setup.
+
+(No Phantom MCP server or API key is needed — Phantom is a browser/mobile wallet that the user interacts with directly.)
 
 ## Routing
 
@@ -39,32 +43,82 @@ Identify what the user is building, then read the relevant reference files befor
 When users have multiple skills installed, route by environment:
 
 - **"build a frontend app" / "React" / "Next.js" / "browser" / "connect wallet"** → This skill (Phantom + Helius frontend patterns)
+- **"build a mobile app" / "React Native" / "Expo"** → This skill (Phantom React Native SDK)
 - **"build a backend" / "CLI" / "server" / "script"** → `/build` skill (Helius infrastructure)
 - **"build a trading bot" / "swap" / "DFlow"** → `/dflow` skill (DFlow trading APIs)
 - **"query blockchain data" (no browser context)** → `/build` skill
 
-### Wallet Connection
-**Read**: `references/phantom-wallet-connection.md`
+### Wallet Connection — React
+**Read**: `references/react-sdk.md`
 **MCP tools**: None (browser-only)
 
 Use this when the user wants to:
-- Connect a Phantom wallet in a web app
-- Add a "Connect Wallet" button
-- Detect if Phantom is installed
-- Handle wallet events (account change, disconnect)
-- Set up Wallet Adapter for multi-wallet support
-- Handle mobile wallet connection
+- Connect a Phantom wallet in a React web app
+- Add a "Connect Wallet" button with `useModal` or `ConnectButton`
+- Use social login (Google/Apple) via Phantom Connect
+- Handle wallet state with `usePhantom`, `useAccounts`, `useConnect`
+- Sign messages or transactions with `useSolana`
 
-### Transaction Signing
-**Read**: `references/phantom-transaction-signing.md`, `references/helius-sender.md`
+### Wallet Connection — Browser SDK
+**Read**: `references/browser-sdk.md`
+**MCP tools**: None (browser-only)
+
+Use this when the user wants to:
+- Integrate Phantom in vanilla JS, Vue, Svelte, or non-React frameworks
+- Use `BrowserSDK` for wallet connection without React
+- Detect Phantom extension with `waitForPhantomExtension`
+- Handle events (`connect`, `disconnect`, `connect_error`)
+
+### Wallet Connection — React Native
+**Read**: `references/react-native-sdk.md`
+**MCP tools**: None (mobile-only)
+
+Use this when the user wants to:
+- Connect Phantom in an Expo / React Native app
+- Set up `PhantomProvider` with custom URL scheme
+- Handle the mobile OAuth redirect flow
+- Use social login on mobile (Google/Apple)
+
+### Transactions
+**Read**: `references/transactions.md`, `references/helius-sender.md`
 **MCP tools**: Helius (`getPriorityFeeEstimate`, `getSenderInfo`)
 
 Use this when the user wants to:
-- Sign a transaction with Phantom
-- Sign and submit a transaction
-- Sign a message for authentication
-- Handle the sign-submit-confirm flow
+- Sign a transaction with Phantom and submit via Helius Sender
+- Transfer SOL or SPL tokens
 - Sign a pre-built transaction from a swap API
+- Sign a message for authentication
+- Handle the sign → submit → confirm flow
+
+### Token Gating
+**Read**: `references/token-gating.md`, `references/helius-das.md`
+**MCP tools**: Helius (`getAssetsByOwner`, `searchAssets`, `getAsset`)
+
+Use this when the user wants to:
+- Gate content behind token ownership
+- Check NFT collection membership
+- Verify wallet ownership with message signing
+- Build server-side access control based on on-chain state
+
+### NFT Minting
+**Read**: `references/nft-minting.md`, `references/helius-sender.md`
+**MCP tools**: Helius (`getAsset`, `getPriorityFeeEstimate`)
+
+Use this when the user wants to:
+- Build a mint page or drop experience
+- Create NFTs with Metaplex Core
+- Mint compressed NFTs (cNFTs)
+- Implement allowlist minting
+
+### Crypto Payments
+**Read**: `references/payments.md`, `references/helius-sender.md`, `references/helius-enhanced-transactions.md`
+**MCP tools**: Helius (`parseTransactions`, `getPriorityFeeEstimate`)
+
+Use this when the user wants to:
+- Accept SOL or USDC payments
+- Build a checkout flow with backend verification
+- Verify payments on-chain using Enhanced Transactions API
+- Display live price conversions
 
 ### Frontend Security
 **Read**: `references/frontend-security.md`
@@ -145,55 +199,67 @@ Use this when the user needs help with Helius-specific API details, errors, or r
 Many real tasks span multiple domains. Here's how to compose them:
 
 ### "Build a swap UI"
-1. Read `references/phantom-transaction-signing.md` + `references/helius-sender.md` + `references/integration-patterns.md`
+1. Read `references/transactions.md` + `references/helius-sender.md` + `references/integration-patterns.md`
 2. Architecture: Swap API (Jupiter, DFlow, etc.) provides serialized transaction → Phantom signs → Helius Sender submits → poll confirmation
 3. Use Pattern 1 from integration-patterns
 4. The aggregator choice is up to the user — the Phantom + Sender flow is the same regardless
 
 ### "Build a portfolio viewer"
-1. Read `references/phantom-wallet-connection.md` + `references/helius-das.md` + `references/helius-wallet-api.md` + `references/integration-patterns.md`
+1. Read `references/react-sdk.md` + `references/helius-das.md` + `references/helius-wallet-api.md` + `references/integration-patterns.md`
 2. Architecture: Phantom provides wallet address → backend proxy calls Helius DAS/Wallet API → display data
 3. Use Pattern 2 from integration-patterns
 4. All Helius API calls go through the backend proxy (API key stays server-side)
 
 ### "Build a real-time dashboard"
-1. Read `references/phantom-wallet-connection.md` + `references/helius-websockets.md` + `references/frontend-security.md` + `references/integration-patterns.md`
+1. Read `references/react-sdk.md` + `references/helius-websockets.md` + `references/frontend-security.md` + `references/integration-patterns.md`
 2. Architecture: Phantom connection → server-side Helius WebSocket → relay to client via SSE
 3. Use Pattern 3 from integration-patterns
 4. NEVER open Helius WebSocket directly from the browser (key in URL)
 
 ### "Build a token transfer page"
-1. Read `references/phantom-transaction-signing.md` + `references/helius-sender.md` + `references/helius-priority-fees.md` + `references/integration-patterns.md`
+1. Read `references/transactions.md` + `references/helius-sender.md` + `references/helius-priority-fees.md` + `references/integration-patterns.md`
 2. Architecture: Build VersionedTransaction with CU limit + CU price + transfer + Jito tip → Phantom signs → Sender submits
 3. Use Pattern 4 from integration-patterns
 4. Get priority fees through the backend proxy, submit via Sender HTTPS endpoint
 
 ### "Build an NFT gallery"
-1. Read `references/phantom-wallet-connection.md` + `references/helius-das.md` + `references/integration-patterns.md`
+1. Read `references/react-sdk.md` + `references/helius-das.md` + `references/integration-patterns.md`
 2. Architecture: Phantom provides wallet address → backend proxy calls DAS `getAssetsByOwner` → display NFT images
 3. Use Pattern 5 from integration-patterns
 4. Use `content.links.image` for NFT image URLs
+
+### "Build a token-gated page"
+1. Read `references/token-gating.md` + `references/helius-das.md` + `references/react-sdk.md`
+2. Architecture: Phantom connection → sign message to prove ownership → server verifies signature + checks token balance via Helius DAS
+3. Client-side gating is fine for low-stakes UI; server-side verification required for valuable content
+
+### "Build an NFT mint page"
+1. Read `references/nft-minting.md` + `references/helius-sender.md` + `references/react-sdk.md`
+2. Architecture: Backend builds mint tx (Helius RPC, API key server-side) → frontend signs with Phantom → submit via Sender
+3. Never expose mint authority in frontend code
+
+### "Accept crypto payments"
+1. Read `references/payments.md` + `references/helius-sender.md` + `references/helius-enhanced-transactions.md`
+2. Architecture: Backend creates payment tx → Phantom signs → Sender submits → backend verifies on-chain via Enhanced Transactions API
+3. Always verify payment on the server before fulfilling orders
 
 ## Rules
 
 Follow these rules in ALL implementations:
 
 ### Wallet Connection
-- ALWAYS check `window.phantom?.solana` — never use `window.solana` (may be overridden by other wallets)
-- ALWAYS handle connection rejection (error code 4001) gracefully
-- ALWAYS listen for `accountChanged` and `disconnect` events
-- ALWAYS clean up event listeners in `useEffect` return
-- Use `connect({ onlyIfTrusted: true })` for auto-reconnect on page load — never show the popup automatically
-- Use `window.phantom.solana` for prototypes and Phantom-only apps
-- Use `@solana/wallet-adapter-react` for production multi-wallet apps
-- Handle mobile: detect mobile browsers and redirect to Phantom deep link (`https://phantom.app/ul/browse/{encoded_url}`)
+- ALWAYS use `@phantom/react-sdk` for React apps — never use `window.phantom.solana` directly or `@solana/wallet-adapter-react`
+- ALWAYS use `@phantom/browser-sdk` for vanilla JS / non-React frameworks
+- ALWAYS use `@phantom/react-native-sdk` for React Native / Expo apps
+- ALWAYS handle connection errors gracefully
+- For OAuth providers (Google/Apple), ensure the app has a Phantom Portal App ID and redirect URLs are allowlisted
+- Use `useModal` and `open()` for the connection flow — never auto-connect without user action
 
 ### Transaction Signing
+- ALWAYS use `signTransaction` (not `signAndSendTransaction`) — then submit via Helius Sender for better landing rates
 - ALWAYS use `VersionedTransaction` (not legacy `Transaction`) — supports address lookup tables and is the current standard
-- ALWAYS handle user rejection (code 4001) — this is not an error to retry
-- ALWAYS submit via Helius Sender after Phantom signs — never use Wallet Adapter's `sendTransaction` (it goes through standard RPC, which is slower)
+- ALWAYS handle user rejection gracefully — this is not an error to retry
 - NEVER auto-approve transactions — each must be explicitly approved by the user
-- Check `provider.publicKey` is not null before building transactions
 
 ### Frontend Security
 - **NEVER expose Helius API keys in client-side code** — no `NEXT_PUBLIC_HELIUS_API_KEY`, no API key in browser `fetch()` URLs, no API key in WebSocket URLs visible in network tab
@@ -239,11 +305,13 @@ Follow these rules in ALL implementations:
 ## Resources
 
 ### Phantom
+- Phantom Portal: `https://phantom.com/portal`
 - Phantom Developer Docs: `https://docs.phantom.com`
-- Phantom Solana Provider: `https://docs.phantom.com/solana`
-- Phantom Deep Links: `https://docs.phantom.com/phantom-deeplinks`
+- @phantom/react-sdk (npm): `https://www.npmjs.com/package/@phantom/react-sdk`
+- @phantom/browser-sdk (npm): `https://www.npmjs.com/package/@phantom/browser-sdk`
+- @phantom/react-native-sdk (npm): `https://www.npmjs.com/package/@phantom/react-native-sdk`
+- Phantom SDK Examples: `https://github.com/nicholasgws/phantom-connect-example`
 - Phantom Sandbox: `https://sandbox.phantom.dev`
-- Wallet Adapter: `https://github.com/anza-xyz/wallet-adapter`
 - @solana/web3.js: `https://solana-labs.github.io/solana-web3.js/`
 
 ### Helius
@@ -259,11 +327,13 @@ Follow these rules in ALL implementations:
 
 ## Common Pitfalls
 
+- **Using `signAndSendTransaction` instead of `signTransaction` + Sender** — `signAndSendTransaction` submits through standard RPC. Always use `signTransaction` then POST to Helius Sender for better landing rates.
+- **Missing Phantom Portal App ID** — Google and Apple OAuth providers require an appId from phantom.com/portal. Extension-only (`"injected"`) does not.
+- **Redirect URL not allowlisted in Portal** — OAuth login will fail if the exact redirect URL (including protocol and path) isn't allowlisted in Phantom Portal settings.
 - **API key in `NEXT_PUBLIC_` env var or browser `fetch` URL** — the key is embedded in the client bundle or visible in the network tab. Proxy through a backend.
 - **Opening Helius WebSocket directly from the browser** — the API key is in the `wss://` URL, visible in the network tab. Use a server relay.
-- **Using `window.solana` instead of `window.phantom?.solana`** — `window.solana` is deprecated and may be set by any wallet.
-- **Not handling mobile** — on mobile browsers, `window.phantom` is `undefined`. Use Phantom deep links to redirect to the Phantom in-app browser.
+- **Using `window.phantom.solana` or `@solana/wallet-adapter-react`** — use `@phantom/react-sdk` (Phantom Connect SDK) instead. It supports social login, embedded wallets, and is the current standard.
 - **Using regional HTTP Sender endpoints from the browser** — CORS preflight fails on HTTP endpoints. Use `https://sender.helius-rpc.com/fast` (HTTPS).
-- **Calling Wallet Adapter's `sendTransaction` instead of signing + Sender** — `sendTransaction` uses the standard RPC endpoint, which is slower than Helius Sender.
-- **Exposing `ConnectionProvider endpoint` with API key** — the endpoint prop is visible in client code. Use a backend proxy URL.
-- **Not listening for `accountChanged`** — the user can switch accounts in Phantom at any time, making your app show stale data.
+- **Not importing `react-native-get-random-values` first** — in React Native, this polyfill must be the very first import or the app will crash on startup.
+- **Client-side only token gating for valuable content** — anyone can bypass frontend checks. Always verify on the server with Helius DAS.
+- **Exposing mint authority in frontend code** — always build NFT mint transactions on the server. The client only signs as the payer.

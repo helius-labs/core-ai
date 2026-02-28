@@ -1,6 +1,6 @@
 # Integration Patterns — Phantom + Helius
 
-End-to-end patterns for building frontend Solana applications combining Phantom wallet with Helius infrastructure.
+End-to-end patterns for building frontend Solana applications combining Phantom Connect SDK with Helius infrastructure.
 
 ## Pattern 1: Swap UI
 
@@ -9,16 +9,17 @@ End-to-end patterns for building frontend Solana applications combining Phantom 
 This pattern is aggregator-agnostic — works with Jupiter, DFlow, or any API that returns a serialized transaction.
 
 ```tsx
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useSolana, useAccounts } from '@phantom/react-sdk';
 import { VersionedTransaction } from '@solana/web3.js';
 import { useState } from 'react';
 
 function SwapButton({ serializedTransaction }: { serializedTransaction: string }) {
-  const { publicKey, signTransaction } = useWallet();
+  const { solana } = useSolana();
+  const { isConnected, addresses } = useAccounts();
   const [status, setStatus] = useState<'idle' | 'signing' | 'submitting' | 'confirming' | 'done' | 'error'>('idle');
 
   async function handleSwap() {
-    if (!publicKey || !signTransaction) return;
+    if (!isConnected || !solana) return;
 
     try {
       // 1. Deserialize the transaction from the swap API
@@ -26,8 +27,8 @@ function SwapButton({ serializedTransaction }: { serializedTransaction: string }
       const txBytes = Uint8Array.from(atob(serializedTransaction), (c) => c.charCodeAt(0));
       const transaction = VersionedTransaction.deserialize(txBytes);
 
-      // 2. Phantom signs
-      const signedTx = await signTransaction(transaction);
+      // 2. Phantom signs (does NOT send)
+      const signedTx = await solana.signTransaction(transaction);
 
       // 3. Submit to Helius Sender (browser-safe, no API key)
       setStatus('submitting');
@@ -55,7 +56,7 @@ function SwapButton({ serializedTransaction }: { serializedTransaction: string }
 
       setStatus('done');
     } catch (error: any) {
-      if (error.code === 4001) {
+      if (error.message?.includes('User rejected')) {
         setStatus('idle'); // User cancelled
       } else {
         setStatus('error');
@@ -77,7 +78,7 @@ function SwapButton({ serializedTransaction }: { serializedTransaction: string }
 
 async function pollConfirmation(signature: string): Promise<void> {
   for (let i = 0; i < 30; i++) {
-    const response = await fetch('/api/helius/rpc', {
+    const response = await fetch('/api/rpc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -101,7 +102,7 @@ async function pollConfirmation(signature: string): Promise<void> {
 
 **Key points**:
 - The swap API (Jupiter, DFlow, etc.) returns a serialized transaction — you don't build it yourself
-- Phantom signs the pre-built transaction
+- Phantom signs the pre-built transaction via `solana.signTransaction`
 - Submit via Helius Sender HTTPS endpoint (browser-safe, no API key)
 - Poll confirmation through your backend proxy (needs API key)
 
@@ -110,8 +111,7 @@ async function pollConfirmation(signature: string): Promise<void> {
 **Architecture**: Phantom provides wallet address → backend proxy calls Helius DAS and Wallet API → display balances with USD values.
 
 ```tsx
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useAccounts, useModal } from '@phantom/react-sdk';
 import { useState, useEffect } from 'react';
 
 interface TokenBalance {
@@ -124,13 +124,16 @@ interface TokenBalance {
 }
 
 function PortfolioViewer() {
-  const { publicKey, connected } = useWallet();
+  const { isConnected, addresses } = useAccounts();
+  const { open } = useModal();
   const [tokens, setTokens] = useState<TokenBalance[]>([]);
   const [solBalance, setSolBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const walletAddress = addresses?.find(a => a.addressType === 'solana')?.address;
+
   useEffect(() => {
-    if (!publicKey) {
+    if (!walletAddress) {
       setTokens([]);
       setSolBalance(null);
       return;
@@ -139,7 +142,7 @@ function PortfolioViewer() {
     setLoading(true);
 
     // Fetch portfolio via backend proxy (Helius Wallet API — 100 credits)
-    fetch(`/api/helius/v1/wallet/${publicKey.toBase58()}/balances?showNative=true`)
+    fetch(`/api/helius/v1/wallet/${walletAddress}/balances?showNative=true`)
       .then((r) => r.json())
       .then((data) => {
         // Native SOL
@@ -160,13 +163,13 @@ function PortfolioViewer() {
         setTokens(tokenList);
       })
       .finally(() => setLoading(false));
-  }, [publicKey]);
+  }, [walletAddress]);
 
-  if (!connected) {
+  if (!isConnected) {
     return (
       <div>
         <p>Connect your wallet to view your portfolio</p>
-        <WalletMultiButton />
+        <button onClick={open}>Connect Wallet</button>
       </div>
     );
   }
@@ -192,7 +195,7 @@ function PortfolioViewer() {
 ```
 
 **Key points**:
-- Phantom provides the wallet address — no signing needed for read-only operations
+- Phantom provides the wallet address via `useAccounts` — no signing needed for read-only operations
 - All Helius API calls go through the backend proxy (`/api/helius/...`) to keep the API key server-side
 - `getWalletBalances` returns tokens sorted by USD value — ideal for portfolio display
 - For detailed token metadata or NFTs, supplement with DAS `getAssetsByOwner` via the proxy
@@ -203,7 +206,7 @@ function PortfolioViewer() {
 
 ```tsx
 // Client component
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useAccounts } from '@phantom/react-sdk';
 import { useState, useEffect } from 'react';
 
 interface AccountUpdate {
@@ -212,16 +215,18 @@ interface AccountUpdate {
 }
 
 function RealTimeDashboard() {
-  const { publicKey } = useWallet();
+  const { addresses } = useAccounts();
   const [updates, setUpdates] = useState<AccountUpdate[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
 
+  const walletAddress = addresses?.find(a => a.addressType === 'solana')?.address;
+
   useEffect(() => {
-    if (!publicKey) return;
+    if (!walletAddress) return;
 
     // SSE stream from our backend (which connects to Helius WS)
     const eventSource = new EventSource(
-      `/api/stream?address=${publicKey.toBase58()}`
+      `/api/stream?address=${walletAddress}`
     );
 
     eventSource.onmessage = (event) => {
@@ -238,7 +243,7 @@ function RealTimeDashboard() {
     };
 
     return () => eventSource.close();
-  }, [publicKey]);
+  }, [walletAddress]);
 
   return (
     <div>
@@ -264,7 +269,7 @@ function RealTimeDashboard() {
 **Architecture**: Build `VersionedTransaction` with CU limit + CU price + transfer instruction + Jito tip → Phantom signs → Sender submits → parse confirmation.
 
 ```tsx
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useSolana, useAccounts } from '@phantom/react-sdk';
 import {
   TransactionMessage,
   VersionedTransaction,
@@ -281,28 +286,42 @@ const TIP_ACCOUNTS = [
 ];
 
 function TransferForm() {
-  const { publicKey, signTransaction } = useWallet();
-  const { connection } = useConnection();
+  const { solana } = useSolana();
+  const { addresses } = useAccounts();
 
   async function handleTransfer(recipient: string, amountSOL: number) {
-    if (!publicKey || !signTransaction) return;
+    if (!solana) return;
+
+    const walletAddress = addresses?.find(a => a.addressType === 'solana')?.address;
+    if (!walletAddress) return;
+
+    const publicKey = new PublicKey(walletAddress);
 
     // 1. Get priority fee from backend proxy
-    const feeRes = await fetch('/api/helius/rpc', {
+    const feeRes = await fetch('/api/rpc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jsonrpc: '2.0', id: '1',
         method: 'getPriorityFeeEstimate',
-        params: [{ accountKeys: [publicKey.toBase58()], options: { priorityLevel: 'High' } }],
+        params: [{ accountKeys: [walletAddress], options: { priorityLevel: 'High' } }],
       }),
     });
     const { result: feeResult } = await feeRes.json();
     const priorityFee = Math.ceil((feeResult?.priorityFeeEstimate || 200_000) * 1.2);
 
-    // 2. Get blockhash
-    const { blockhash, lastValidBlockHeight } =
-      await connection.getLatestBlockhash('confirmed');
+    // 2. Get blockhash via proxy
+    const bhRes = await fetch('/api/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: '1',
+        method: 'getLatestBlockhash',
+        params: [{ commitment: 'confirmed' }],
+      }),
+    });
+    const { result: bhResult } = await bhRes.json();
+    const blockhash = bhResult.value.blockhash;
 
     // 3. Build transaction
     const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
@@ -331,7 +350,7 @@ function TransferForm() {
     );
 
     // 4. Sign with Phantom
-    const signedTx = await signTransaction(transaction);
+    const signedTx = await solana.signTransaction(transaction);
 
     // 5. Submit to Sender
     const serialized = signedTx.serialize();
@@ -379,7 +398,7 @@ function TransferForm() {
 **Architecture**: Phantom provides wallet address → backend proxy calls Helius DAS `getAssetsByOwner` → display NFT images.
 
 ```tsx
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useAccounts, useModal } from '@phantom/react-sdk';
 import { useState, useEffect } from 'react';
 
 interface NFT {
@@ -390,17 +409,20 @@ interface NFT {
 }
 
 function NFTGallery() {
-  const { publicKey } = useWallet();
+  const { addresses, isConnected } = useAccounts();
+  const { open } = useModal();
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const walletAddress = addresses?.find(a => a.addressType === 'solana')?.address;
+
   useEffect(() => {
-    if (!publicKey) return;
+    if (!walletAddress) return;
 
     setLoading(true);
 
     // DAS getAssetsByOwner via backend proxy (10 credits/page)
-    fetch('/api/helius/rpc', {
+    fetch('/api/rpc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -408,7 +430,7 @@ function NFTGallery() {
         id: '1',
         method: 'getAssetsByOwner',
         params: {
-          ownerAddress: publicKey.toBase58(),
+          ownerAddress: walletAddress,
           page: 1,
           limit: 100,
           displayOptions: { showCollectionMetadata: true },
@@ -432,7 +454,16 @@ function NFTGallery() {
         setNfts(nftItems);
       })
       .finally(() => setLoading(false));
-  }, [publicKey]);
+  }, [walletAddress]);
+
+  if (!isConnected) {
+    return (
+      <div>
+        <p>Connect your wallet to view your NFTs</p>
+        <button onClick={open}>Connect Wallet</button>
+      </div>
+    );
+  }
 
   if (loading) return <p>Loading NFTs...</p>;
 

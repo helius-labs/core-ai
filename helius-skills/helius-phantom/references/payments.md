@@ -1,0 +1,346 @@
+# Crypto Payments
+
+Accept cryptocurrency payments using Phantom Connect for signing and Helius infrastructure for submission and verification.
+
+## Architecture
+
+```
+1. User connects wallet (Phantom Connect SDK)
+2. Backend creates payment transaction (Helius RPC, API key server-side)
+3. Frontend receives serialized transaction
+4. Phantom signs (signTransaction)
+5. Submit to Helius Sender
+6. Backend verifies on-chain (Helius Enhanced Transactions API)
+7. Fulfill order
+```
+
+## Simple SOL Payment
+
+```tsx
+import { useSolana, useAccounts } from "@phantom/react-sdk";
+import {
+  PublicKey,
+  SystemProgram,
+  VersionedTransaction,
+  TransactionMessage,
+  ComputeBudgetProgram,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import { useState } from "react";
+
+const TIP_ACCOUNTS = [
+  "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",
+  "D2L6yPZ2FmmmTKPgzaMKdhu6EWZcTpLy1Vhx8uvZe7NZ",
+];
+
+function PayButton({ recipient, amountSol }: { recipient: string; amountSol: number }) {
+  const { solana } = useSolana();
+  const { isConnected } = useAccounts();
+  const [status, setStatus] = useState<"idle" | "paying" | "success" | "error">("idle");
+
+  async function handlePay() {
+    setStatus("paying");
+    try {
+      const wallet = await solana.getPublicKey();
+
+      // Get blockhash + priority fee via backend proxy
+      // See references/frontend-security.md for proxy setup
+      const bhRes = await fetch("/api/rpc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0", id: "1",
+          method: "getLatestBlockhash",
+          params: [{ commitment: "confirmed" }],
+        }),
+      });
+      const { result: bhResult } = await bhRes.json();
+
+      const feeRes = await fetch("/api/rpc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0", id: "1",
+          method: "getPriorityFeeEstimate",
+          params: [{ accountKeys: [wallet], options: { priorityLevel: "High" } }],
+        }),
+      });
+      const { result: feeResult } = await feeRes.json();
+      const priorityFee = Math.ceil((feeResult?.priorityFeeEstimate || 200_000) * 1.2);
+
+      const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
+
+      const message = new TransactionMessage({
+        payerKey: new PublicKey(wallet),
+        recentBlockhash: bhResult.value.blockhash,
+        instructions: [
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 50_000 }),
+          ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
+          SystemProgram.transfer({
+            fromPubkey: new PublicKey(wallet),
+            toPubkey: new PublicKey(recipient),
+            lamports: Math.floor(amountSol * LAMPORTS_PER_SOL),
+          }),
+          SystemProgram.transfer({
+            fromPubkey: new PublicKey(wallet),
+            toPubkey: new PublicKey(tipAccount),
+            lamports: 200_000, // Jito tip
+          }),
+        ],
+      }).compileToV0Message();
+
+      const tx = new VersionedTransaction(message);
+
+      // Sign with Phantom, submit to Helius Sender
+      const signedTx = await solana.signTransaction(tx);
+      const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+
+      const senderRes = await fetch("https://sender.helius-rpc.com/fast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "1",
+          method: "sendTransaction",
+          params: [base64Tx, { encoding: "base64", skipPreflight: true, maxRetries: 0 }],
+        }),
+      });
+      const senderResult = await senderRes.json();
+      if (senderResult.error) throw new Error(senderResult.error.message);
+
+      setStatus("success");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <button onClick={handlePay} disabled={!isConnected || status === "paying"}>
+      {status === "paying" ? "Processing..." : `Pay ${amountSol} SOL`}
+    </button>
+  );
+}
+```
+
+## SPL Token Payment (USDC)
+
+```tsx
+import {
+  getAssociatedTokenAddress,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+} from "@solana/spl-token";
+
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+async function payWithUSDC(solana: any, recipient: string, amount: number) {
+  const wallet = await solana.getPublicKey();
+
+  // Get blockhash via proxy
+  const bhRes = await fetch("/api/rpc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: "1",
+      method: "getLatestBlockhash",
+      params: [{ commitment: "confirmed" }],
+    }),
+  });
+  const { result: bhResult } = await bhRes.json();
+
+  const mint = new PublicKey(USDC_MINT);
+  const from = new PublicKey(wallet);
+  const to = new PublicKey(recipient);
+
+  const fromAta = await getAssociatedTokenAddress(mint, from);
+  const toAta = await getAssociatedTokenAddress(mint, to);
+
+  const instructions: any[] = [];
+
+  // Check if recipient's token account exists (via proxy)
+  const ataRes = await fetch("/api/rpc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: "1",
+      method: "getAccountInfo",
+      params: [toAta.toBase58(), { encoding: "jsonParsed" }],
+    }),
+  });
+  const ataData = await ataRes.json();
+  if (!ataData.result?.value) {
+    instructions.push(createAssociatedTokenAccountInstruction(from, toAta, to, mint));
+  }
+
+  // Transfer (USDC has 6 decimals)
+  instructions.push(createTransferInstruction(fromAta, toAta, from, amount * 1e6));
+
+  const message = new TransactionMessage({
+    payerKey: from,
+    recentBlockhash: bhResult.value.blockhash,
+    instructions,
+  }).compileToV0Message();
+
+  // Sign with Phantom, submit to Sender
+  const tx = new VersionedTransaction(message);
+  const signedTx = await solana.signTransaction(tx);
+  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+
+  const response = await fetch("https://sender.helius-rpc.com/fast", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "sendTransaction",
+      params: [base64Tx, { encoding: "base64", skipPreflight: true, maxRetries: 0 }],
+    }),
+  });
+
+  const result = await response.json();
+  if (result.error) throw new Error(result.error.message);
+  return result.result;
+}
+```
+
+## Checkout with Backend Verification
+
+### Client
+
+```tsx
+async function checkout(orderId: string, solana: any) {
+  // 1. Create payment on backend
+  const { paymentId, transaction } = await fetch("/api/payments/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderId }),
+  }).then(r => r.json());
+
+  // 2. Deserialize, sign with Phantom, submit to Sender
+  const txBytes = Uint8Array.from(atob(transaction), (c) => c.charCodeAt(0));
+  const { VersionedTransaction } = await import("@solana/web3.js");
+  const tx = VersionedTransaction.deserialize(txBytes);
+  const signedTx = await solana.signTransaction(tx);
+
+  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+  const senderRes = await fetch("https://sender.helius-rpc.com/fast", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "sendTransaction",
+      params: [base64Tx, { encoding: "base64", skipPreflight: true, maxRetries: 0 }],
+    }),
+  });
+  const senderResult = await senderRes.json();
+  if (senderResult.error) throw new Error(senderResult.error.message);
+  const txHash = senderResult.result;
+
+  // 3. Confirm with backend (backend verifies on-chain via Helius)
+  const { success } = await fetch("/api/payments/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paymentId, txHash }),
+  }).then(r => r.json());
+
+  return success;
+}
+```
+
+### Server
+
+```ts
+// app/api/payments/create/route.ts
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY!;
+
+export async function POST(req: Request) {
+  const { orderId } = await req.json();
+
+  // Get order, calculate amount
+  const order = await db.orders.findUnique({ where: { id: orderId } });
+  const solAmount = order.total / await getSolPrice();
+
+  // Create payment record
+  const payment = await db.payments.create({
+    data: { orderId, solAmount, status: "pending" }
+  });
+
+  // Build transaction using Helius RPC (API key server-side)
+  // ... build and serialize transaction ...
+
+  return Response.json({ paymentId: payment.id, transaction: "..." });
+}
+
+// app/api/payments/confirm/route.ts
+export async function POST(req: Request) {
+  const { paymentId, txHash } = await req.json();
+
+  // Verify transaction on-chain using Helius Enhanced Transactions API
+  // See references/helius-enhanced-transactions.md
+  const txRes = await fetch(`https://api.helius.xyz/v0/transactions?api-key=${HELIUS_API_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transactions: [txHash] }),
+  });
+  const [parsed] = await txRes.json();
+
+  if (!parsed || parsed.transactionError) {
+    return Response.json({ success: false });
+  }
+
+  // Verify amount and recipient match expected values
+  // Update payment status
+  // Fulfill order
+
+  return Response.json({ success: true });
+}
+```
+
+## Price Display with Live Rates
+
+```tsx
+import { useState, useEffect } from "react";
+
+function PriceDisplay({ usdAmount }: { usdAmount: number }) {
+  const [solPrice, setSolPrice] = useState(0);
+
+  useEffect(() => {
+    async function fetchPrice() {
+      const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
+      const data = await res.json();
+      setSolPrice(data.solana.usd);
+    }
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const solAmount = solPrice ? (usdAmount / solPrice).toFixed(4) : "...";
+
+  return (
+    <div>
+      <p>${usdAmount} USD</p>
+      <p>{solAmount} SOL</p>
+    </div>
+  );
+}
+```
+
+## Best Practices
+
+1. **Always verify on-chain** — don't trust client-side confirmation alone. Use Helius Enhanced Transactions API to verify payment details on the server.
+2. **Use unique payment IDs** — track each payment to prevent double-fulfillment.
+3. **Handle price volatility** — lock prices or use stablecoins (USDC) for predictable amounts.
+4. **Set expiration** — payment requests should expire (blockhash expiry is ~60 seconds; create fresh transactions for each attempt).
+5. **Wait for confirmations** — use `confirmed` commitment level before fulfilling orders.
+6. **Link to explorer** — show users `https://orbmarkets.io/tx/{signature}` for transparency.
+
+## Common Mistakes
+
+- **Using `signAndSendTransaction`** — use `signTransaction` + Helius Sender for better landing rates. See `references/transactions.md`.
+- **Not verifying on the server** — the client can lie about transaction success. Always verify on-chain using Helius Enhanced Transactions API.
+- **Exposing Helius API key in payment flow** — build payment transactions on the server, verify on the server. Only signing happens client-side.
+- **Not handling blockhash expiry** — if the user takes too long to sign, the transaction will fail. Build a fresh transaction on each attempt.
+- **Trusting client-reported amounts** — always compute the expected payment amount on the server and verify it matches the on-chain transaction.

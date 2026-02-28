@@ -32,7 +32,7 @@ The Phantom skill (`helius-skills/helius-phantom/` and `helius-plugin/skills/pha
 
 - **Canonical source**: `helius-skills/helius-phantom/references/`
 - **Copy**: `helius-plugin/skills/phantom/references/`
-- The Phantom skill contains 11 reference files: 7 Helius copies (prefixed with `helius-`), 3 Phantom-specific files, and 1 integration-patterns file.
+- The Phantom skill contains 16 reference files: 7 Helius copies (prefixed with `helius-`), 8 Phantom-specific files (react-sdk, browser-sdk, react-native-sdk, transactions, token-gating, nft-minting, payments, frontend-security), and 1 integration-patterns file.
 - The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
 - When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to `helius-plugin/skills/phantom/references/`.
 
