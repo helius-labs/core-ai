@@ -462,43 +462,62 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
         const queryLower = query.toLowerCase();
         const queryWords = queryLower.split(/\s+/).filter((w) => w.length > 2);
         const lines = content.split('\n');
-        const relevantSections: string[] = [];
-        let inRelevantSection = false;
-        let sectionDepth = 0;
-        let sectionLines: string[] = [];
 
-        for (const line of lines) {
-          const headerMatch = line.match(/^(#{1,4})\s+(.+)/);
-
-          if (headerMatch) {
-            const depth = headerMatch[1].length;
-            const title = headerMatch[2].toLowerCase();
-
-            // Flush previous relevant section
-            if (inRelevantSection && depth <= sectionDepth) {
-              relevantSections.push(sectionLines.join('\n'));
-              sectionLines = [];
-              inRelevantSection = false;
-            }
-
-            if (
-              title.includes(queryLower) ||
-              (queryWords.length > 0 && queryWords.every((word) => title.includes(word)))
-            ) {
-              inRelevantSection = true;
-              sectionDepth = depth;
-              sectionLines.push(line);
-            } else if (inRelevantSection) {
-              sectionLines.push(line);
-            }
-          } else if (inRelevantSection) {
-            sectionLines.push(line);
-          }
+        // Phase 1: Locate all headers and compute section boundaries.
+        // Each section spans from its header to the next header of same or
+        // lesser depth (i.e. it includes all nested sub-sections).
+        const headers: Array<{ depth: number; title: string; lineIdx: number }> = [];
+        for (let i = 0; i < lines.length; i++) {
+          const m = lines[i].match(/^(#{1,4})\s+(.+)/);
+          if (m) headers.push({ depth: m[1].length, title: m[2], lineIdx: i });
         }
 
-        // Flush last section
-        if (inRelevantSection && sectionLines.length > 0) {
-          relevantSections.push(sectionLines.join('\n'));
+        const sectionRanges: Array<{ depth: number; title: string; start: number; end: number }> = [];
+        for (let i = 0; i < headers.length; i++) {
+          let endLineIdx = lines.length;
+          for (let j = i + 1; j < headers.length; j++) {
+            if (headers[j].depth <= headers[i].depth) {
+              endLineIdx = headers[j].lineIdx;
+              break;
+            }
+          }
+          sectionRanges.push({
+            depth: headers[i].depth,
+            title: headers[i].title,
+            start: headers[i].lineIdx,
+            end: endLineIdx,
+          });
+        }
+
+        // Phase 2: Match sections against query (header OR body), dedup
+        // overlapping ranges so a parent section subsumes its children.
+        // Body-only matches are restricted to depth >= 2 so the root-level
+        // section (which spans the entire document) doesn't swallow everything.
+        const matched: Array<{ start: number; end: number }> = [];
+        const relevantSections: string[] = [];
+
+        for (const sec of sectionRanges) {
+          const titleLower = sec.title.toLowerCase();
+          const sectionText = lines.slice(sec.start, sec.end).join('\n');
+          const textLower = sectionText.toLowerCase();
+
+          const headerHit =
+            titleLower.includes(queryLower) ||
+            (queryWords.length > 0 && queryWords.every((w) => titleLower.includes(w)));
+
+          const bodyHit =
+            sec.depth >= 2 &&
+            (textLower.includes(queryLower) ||
+              (queryWords.length > 0 && queryWords.every((w) => textLower.includes(w))));
+
+          if (headerHit || bodyHit) {
+            // Skip if already covered by a wider matched section
+            const alreadyCovered = matched.some((r) => r.start <= sec.start && r.end >= sec.end);
+            if (!alreadyCovered) {
+              matched.push({ start: sec.start, end: sec.end });
+              relevantSections.push(sectionText);
+            }
+          }
         }
 
         if (relevantSections.length === 0) {

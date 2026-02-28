@@ -61,6 +61,7 @@ These intents overlap across multiple files. Route them correctly:
 - **"transaction history"** — Parsed, human-readable history → `references/enhanced-transactions.md`. Balance changes per tx → `references/wallet-api.md`. Trigger actions on new txs → `references/webhooks.md`.
 - **"real-time" / "streaming"** — WebSocket subscriptions (accountSubscribe, logsSubscribe, transactionSubscribe) → `references/websockets.md`. gRPC streaming (all accounts, all transactions, high-throughput indexing) → `references/laserstream.md`.
 - **"monitor wallet"** — Fire-and-forget notifications (webhook POSTs to your server) → `references/webhooks.md`. Live UI updates (persistent connection) → `references/websockets.md`. Investigate past activity → `references/wallet-api.md`.
+- **"how does X work on Solana"** — Protocol internals, SIMDs, source code → `getSIMD`, `readSolanaSourceFile`, `searchSolanaDocs`. Helius blog deep-dives → `fetchHeliusBlog`. Helius API docs → `lookupHeliusDocs`.
 
 ### Transaction Sending & Swaps
 **Read**: `references/sender.md`, `references/priority-fees.md`
@@ -163,6 +164,18 @@ For any documentation question, prefer `lookupHeliusDocs` with the relevant topi
 **MCP tools**: `getHeliusPlanInfo`, `compareHeliusPlans`, `getHeliusCreditsInfo`, `getRateLimitInfo`
 
 Use this when the user asks about pricing, plans, or rate limits.
+
+### Solana Knowledge & Research
+**MCP tools**: `getSIMD`, `listSIMDs`, `readSolanaSourceFile`, `searchSolanaDocs`, `fetchHeliusBlog`
+
+Use this when the user wants to:
+- Understand Solana protocol internals (consensus, runtime, transactions, fees, SVM)
+- Read or reference Solana Improvement Documents (SIMDs)
+- Look up validator source code from Agave or Firedancer
+- Research architecture, design decisions, or protocol changes
+- Get deep technical explanations from the Helius blog
+
+No API key needed — these tools fetch from public GitHub and Solana sources.
 
 ### Project Planning & Architecture
 **MCP tools**: `getStarted` → `recommendStack` → `getHeliusPlanInfo`, `lookupHeliusDocs`
