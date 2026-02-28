@@ -47,7 +47,35 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     // Load keypair
     spinner?.start("Loading keypair...");
     const keypair = await loadKeypairFromFile(options.keypair);
-    spinner?.succeed("Wallet loaded");
+    const walletAddress = await getAddress(keypair);
+    spinner?.succeed(`Wallet loaded: ${walletAddress}`);
+
+    // Check balance before attempting payment
+    spinner?.start("Checking wallet balance...");
+    const solBalance = await checkSolBalance(walletAddress);
+    const usdcBalance = await checkUsdcBalance(walletAddress);
+    const solAmount = Number(solBalance) / 1_000_000_000;
+    const usdcAmount = Number(usdcBalance) / 1_000_000;
+    const solOk = solBalance >= 1_000_000n;    // ~0.001 SOL
+    const usdcOk = usdcBalance >= 1_000_000n;  // 1 USDC minimum
+
+    if (!solOk || !usdcOk) {
+      spinner?.fail("Insufficient balance");
+      const missing: string[] = [];
+      if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
+      if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
+
+      if (options.json) {
+        exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, undefined, true);
+      }
+      console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
+      for (const m of missing) {
+        console.error(`  • ${m}`);
+      }
+      console.error(chalk.gray("\nThen run `helius signup` again."));
+      process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
+    }
+    spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
 
     // Run agenticSignup (handles all plan paths)
     const planLabel = options.plan || "basic";
