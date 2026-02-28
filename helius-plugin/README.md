@@ -27,7 +27,9 @@ claude --plugin-dir ./helius-plugin
 
 **DFlow trading skill** (`/helius:dflow`) — makes Claude an expert at building Solana trading applications. Combines DFlow's trading APIs (spot swaps, prediction markets, real-time streaming, Proof KYC) with Helius infrastructure (Sender, priority fees, DAS, WebSockets, LaserStream, Wallet API).
 
-**Reference files** — deep documentation for DAS API, Sender, Priority Fees, Webhooks, WebSockets, Laserstream, Wallet API, Enhanced Transactions, Onboarding, DFlow spot trading, prediction markets, WebSocket streaming, Proof KYC, and integration patterns.
+**Phantom frontend skill** (`/helius:phantom`) — makes Claude an expert at building frontend Solana dApps. Covers Phantom wallet connection, transaction signing, API key proxying, CORS handling, secure frontend architecture, and end-to-end patterns for swaps, portfolios, dashboards, and NFT galleries.
+
+**Reference files** — deep documentation for DAS API, Sender, Priority Fees, Webhooks, WebSockets, Laserstream, Wallet API, Enhanced Transactions, Onboarding, DFlow spot trading, prediction markets, WebSocket streaming, Proof KYC, Phantom wallet connection, transaction signing, frontend security, and integration patterns.
 
 ## Usage
 

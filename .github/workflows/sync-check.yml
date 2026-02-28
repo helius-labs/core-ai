@@ -109,3 +109,51 @@ jobs:
           fi
 
           echo "All DFlow reference files are in sync."
+
+      - name: Compare Phantom reference files
+        run: |
+          SKILLS_DIR="helius-skills/helius-phantom/references"
+          PLUGIN_DIR="helius-plugin/skills/phantom/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$PLUGIN_DIR" ]; then
+            echo "One or both Phantom reference directories are missing."
+            echo "  helius-skills/helius-phantom: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-plugin/skills/phantom: $([ -d "$PLUGIN_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          # Check for files only in one directory
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          PLUGIN_FILES=$(cd "$PLUGIN_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$PLUGIN_FILES" ]; then
+            echo "File lists differ between Phantom reference directories:"
+            echo ""
+            echo "Only in helius-skills/helius-phantom/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$PLUGIN_FILES") | sed 's/^/  /'
+            echo ""
+            echo "Only in helius-plugin/skills/phantom/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$PLUGIN_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          # Compare file contents
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$PLUGIN_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills/helius-phantom and helius-plugin/skills/phantom"
+              diff --unified=3 "$SKILLS_DIR/$file" "$PLUGIN_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo ""
+            echo "Phantom reference files are out of sync!"
+            echo "The canonical source is helius-skills/helius-phantom/references/."
+            echo "Copy changes to helius-plugin/skills/phantom/references/ to fix."
+            exit 1
+          fi
+
+          echo "All Phantom reference files are in sync."

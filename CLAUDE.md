@@ -26,11 +26,21 @@ The DFlow skill (`helius-skills/helius-dflow/` and `helius-plugin/skills/dflow/`
 - The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside DFlow files in the same directory.
 - When updating DFlow reference files, update in `helius-skills/helius-dflow/references/` first, then copy to `helius-plugin/skills/dflow/references/`.
 
+### Phantom Skill References
+
+The Phantom skill (`helius-skills/helius-phantom/` and `helius-plugin/skills/phantom/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/helius-phantom/references/`
+- **Copy**: `helius-plugin/skills/phantom/references/`
+- The Phantom skill contains 11 reference files: 7 Helius copies (prefixed with `helius-`), 3 Phantom-specific files, and 1 integration-patterns file.
+- The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
+- When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to `helius-plugin/skills/phantom/references/`.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
 
-- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`)
+- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-phantom` vs `phantom`)
 - Metadata/frontmatter
 - MCP prerequisite messaging (manual install vs plugin auto-start)
 
