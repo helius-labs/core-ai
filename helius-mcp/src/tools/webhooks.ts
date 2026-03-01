@@ -81,7 +81,7 @@ export function registerWebhookTools(server: McpServer) {
 
   server.tool(
     'createWebhook',
-    'Create a webhook to monitor Solana events in real-time with powerful filtering. Use this to track NFT sales, token swaps, staking, and 150+ transaction types. Webhooks send HTTP POST with parsed transaction data to your URL. Enhanced webhooks include human-readable descriptions. Credit cost: 100 credits to create (management operation). Each event delivered subsequently costs 1 credit.',
+    'BEST FOR: fire-and-forget event notifications (server-to-server push). PREFER transactionSubscribe for live client-side streaming. PREFER laserstreamSubscribe for lowest-latency production streaming. Create a webhook to monitor Solana events in real-time with powerful filtering. Use this to track NFT sales, token swaps, staking, and 150+ transaction types. Webhooks send HTTP POST with parsed transaction data to your URL. Enhanced webhooks include human-readable descriptions. Credit cost: 100 credits to create (management operation). Each event delivered subsequently costs 1 credit.',
     {
       webhookURL: z.string().describe('Your webhook URL endpoint'),
       webhookType: z.string().describe('Webhook type - use "enhanced" for parsed transaction data with descriptions'),
