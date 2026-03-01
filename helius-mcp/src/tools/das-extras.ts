@@ -8,7 +8,7 @@ import { noApiKeyResponse } from './shared.js';
 export function registerDasExtraTools(server: McpServer) {
   server.tool(
     'getAssetProof',
-    'BEST FOR: getting Merkle proof required for transferring or burning a cNFT. Get Merkle proof for a compressed NFT. Required for transferring or burning cNFTs. DAS API (10 credits/call).',
+    'BEST FOR: getting Merkle proof required for transferring or burning a cNFT. PREFER getAssetProofBatch when you need proofs for multiple cNFTs. Get Merkle proof for a compressed NFT. Required for transferring or burning cNFTs. DAS API (10 credits/call).',
     {
       id: z.string().describe('Compressed NFT mint address')
     },
@@ -30,7 +30,7 @@ export function registerDasExtraTools(server: McpServer) {
 
   server.tool(
     'getAssetProofBatch',
-    'BEST FOR: batch Merkle proofs for multiple cNFT operations. Get Merkle proofs for multiple compressed NFTs in one request (up to 1000). DAS API (10 credits/call).',
+    'BEST FOR: batch Merkle proofs for multiple cNFT operations. PREFER getAssetProof for a single cNFT. Get Merkle proofs for multiple compressed NFTs in one request (up to 1000). DAS API (10 credits/call).',
     {
       ids: z.array(z.string()).describe('Array of cNFT mint addresses (up to 1000)')
     },

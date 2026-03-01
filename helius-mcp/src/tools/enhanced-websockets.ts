@@ -124,7 +124,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
 
   server.tool(
     'accountSubscribe',
-    'BEST FOR: real-time account change monitoring for live UI updates (WebSocket). PREFER createWebhook for fire-and-forget notifications on account changes. Get Enhanced WebSocket config for real-time Solana account monitoring. Track balance changes and data updates. Business+ plans only. Returns connection config and code example. Data streaming cost: 3 credits per 0.1 MB received.',
+    'BEST FOR: real-time account change monitoring for live UI updates (WebSocket). PREFER createWebhook for fire-and-forget notifications on account changes. PREFER laserstreamSubscribe for lowest-latency production streaming. Get Enhanced WebSocket config for real-time Solana account monitoring. Track balance changes and data updates. Business+ plans only. Returns connection config and code example. Data streaming cost: 3 credits per 0.1 MB received.',
     {
       account: z.string().describe('Account public key (base58)'),
       encoding: z.string().optional().default('base58'),
