@@ -288,8 +288,8 @@ Follow these rules in ALL implementations:
 - Instruction ordering: CU limit first, CU price second, your instructions, Jito tip last
 
 ### SDK Versions
-- Use `@solana/web3.js` v1 (`Connection`, `VersionedTransaction`, `Keypair`, `PublicKey`) for all code examples — this is what Phantom's provider API expects and the standard for frontend Solana development
-- Note: `@solana/web3.js` v2 (`@solana/kit`) exists and is the future direction, but v1 is the current standard for frontend apps. Use v1 unless the user explicitly requests v2.
+- Use `@solana/kit` + `helius-sdk` patterns for all code examples
+- If an example imports `@/lib/solana-kit-compat`, treat it as a thin app-local wrapper around `@solana/kit` primitives
 - Use `Uint8Array` and `btoa`/`atob` for binary and base64 encoding in the browser — avoid Node.js `Buffer`
 
 ### Data Queries
@@ -323,7 +323,7 @@ Follow these rules in ALL implementations:
 - @phantom/react-native-sdk (npm): `https://www.npmjs.com/package/@phantom/react-native-sdk`
 - Phantom SDK Examples: `https://github.com/nicholasgws/phantom-connect-example`
 - Phantom Sandbox: `https://sandbox.phantom.dev`
-- @solana/web3.js: `https://solana-labs.github.io/solana-web3.js/`
+- @solana/kit (npm): `https://www.npmjs.com/package/@solana/kit`
 
 ### Helius
 - Helius Docs: `https://www.helius.dev/docs`

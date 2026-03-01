@@ -26,7 +26,7 @@ Use `"injected"` for extension-only flows (no appId needed). Add `"google"` and/
 ```bash
 npm install @phantom/react-sdk
 # For Solana support
-npm install @solana/web3.js
+npm install @solana/kit @solana-program/system @solana-program/compute-budget
 ```
 
 ## PhantomProvider Configuration
@@ -59,7 +59,7 @@ import { AddressType } from "@phantom/browser-sdk";
 | `useModal`                | Control connection modal     | `{ open, close, isOpened }`                  |
 | `usePhantom`              | Access wallet/user state     | `{ isConnected, isLoading, user, wallet }`   |
 | `useConnect`              | Connect to wallet            | `{ connect, isConnecting, isLoading, error }`|
-| `useAccounts`             | Get wallet addresses         | `WalletAddress[]` or `null`                  |
+| `useAccounts`             | Get wallet addresses         | `{ addresses, isConnected, walletId }`       |
 | `useDisconnect`           | Disconnect wallet            | `{ disconnect, isDisconnecting }`            |
 | `useSolana`               | Solana operations            | `{ solana, isAvailable }`                    |
 | `useAutoConfirm`          | Auto-confirm (injected only) | `{ enable, disable, status }`                |

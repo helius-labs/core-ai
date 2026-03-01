@@ -129,10 +129,10 @@ const priorityFee = Math.ceil(result.priorityFeeEstimate * 1.2); // 20% buffer
 
 ## Adding Fees to Transactions
 
-### @solana/web3.js
+### Kit Compat Wrapper (built on @solana/kit)
 
 ```typescript
-import { ComputeBudgetProgram } from '@solana/web3.js';
+import { ComputeBudgetProgram } from '@/lib/solana-kit-compat';
 
 // 1. Get the estimate (via MCP tool or API call)
 const feeEstimate = result.priorityFeeEstimate; // microLamports per CU

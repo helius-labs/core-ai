@@ -49,7 +49,7 @@ function MintPage() {
 
       // 2. Deserialize and sign with Phantom
       const txBytes = Uint8Array.from(atob(transaction), (c) => c.charCodeAt(0));
-      const { VersionedTransaction } = await import("@solana/web3.js");
+      const { VersionedTransaction } = await import("@/lib/solana-kit-compat");
       const tx = VersionedTransaction.deserialize(txBytes);
       const signedTx = await solana.signTransaction(tx);
 
@@ -157,7 +157,7 @@ async function allowlistMint(solana: any, wallet: string, qty: number) {
 
   // Sign with Phantom, submit to Sender
   const txBytes = Uint8Array.from(atob(transaction), (c) => c.charCodeAt(0));
-  const { VersionedTransaction } = await import("@solana/web3.js");
+  const { VersionedTransaction } = await import("@/lib/solana-kit-compat");
   const tx = VersionedTransaction.deserialize(txBytes);
   const signedTx = await solana.signTransaction(tx);
 

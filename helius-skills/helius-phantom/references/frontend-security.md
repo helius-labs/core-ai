@@ -251,13 +251,14 @@ Helius WebSocket URLs contain the API key (`wss://mainnet.helius-rpc.com/?api-ke
 // Server: connect to Helius WS, relay via SSE
 // app/api/stream/route.ts (Next.js App Router)
 import { NextRequest } from 'next/server';
+import WebSocket from 'ws';
 
 export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     start(controller) {
-      const ws = new (require('ws'))(`wss://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`);
+      const ws = new WebSocket(`wss://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`);
 
       ws.on('open', () => {
         ws.send(JSON.stringify({

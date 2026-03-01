@@ -32,7 +32,7 @@ npx expo install expo-secure-store expo-web-browser expo-auth-session expo-route
 npm install react-native-get-random-values
 
 # For Solana support
-npm install @solana/web3.js
+npm install @solana/kit @solana-program/system @solana-program/compute-budget
 ```
 
 ## Critical Setup

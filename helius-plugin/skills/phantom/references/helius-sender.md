@@ -124,9 +124,9 @@ https://sender.helius-rpc.com/fast?api-key=YOUR_SENDER_API_KEY
 }
 ```
 
-## Implementation Pattern — Basic Send (@solana/web3.js)
+## Implementation Pattern — Basic Send (Kit Compat Wrapper)
 
-When building a basic Sender transaction with `@solana/web3.js`, follow this pattern:
+When building a basic Sender transaction with a local Kit compatibility wrapper (implemented on top of `@solana/kit`), follow this pattern:
 
 ```typescript
 import {
@@ -139,7 +139,7 @@ import {
   LAMPORTS_PER_SOL,
   ComputeBudgetProgram,
   TransactionInstruction
-} from '@solana/web3.js';
+} from '@/lib/solana-kit-compat';
 
 const TIP_ACCOUNTS = [
   "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",

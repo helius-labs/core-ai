@@ -27,7 +27,7 @@ Use `"injected"` for extension-only flows (no appId needed). Add `"google"` and/
 npm install @phantom/browser-sdk
 
 # For Solana support
-npm install @solana/web3.js
+npm install @solana/kit @solana-program/system @solana-program/compute-budget
 ```
 
 ## Quick Start Template
