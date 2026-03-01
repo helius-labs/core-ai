@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { fetchDoc, fetchDocs, getDocsIndex, extractSections, DOCS_INDEX } from '../utils/docs.js';
+import { fetchDoc, fetchDocs, getDocsIndex, extractSections, truncateDoc, DOCS_INDEX } from '../utils/docs.js';
 
 export function registerDocsTools(server: McpServer) {
   /**
@@ -8,7 +8,7 @@ export function registerDocsTools(server: McpServer) {
    */
   server.tool(
     'lookupHeliusDocs',
-    'BEST FOR: API documentation and technical details. Use for "how does X work?" questions. NOT for pricing — use getHeliusPlanInfo instead. NOT for error codes — use troubleshootError instead. Fetch official Helius documentation for accurate, up-to-date information. Use this when you need precise details about APIs, rate limits, or features. Returns the official llms.txt documentation which is optimized for AI consumption.',
+    'BEST FOR: API documentation and technical details. NOT for pricing (use getHeliusPlanInfo) or errors (use troubleshootError). Fetch official Helius documentation by topic. Use `section` parameter to fetch only relevant sections and save tokens.',
     {
       topic: z
         .enum([
@@ -67,14 +67,16 @@ export function registerDocsTools(server: McpServer) {
           }
         }
 
-        // Return full documentation
+        // Return full documentation (truncated to save tokens)
         const result = [
           `# Helius Docs: ${topic}`,
           '',
-          content,
+          truncateDoc(content),
           '',
           '---',
           `Source: https://www.helius.dev/docs`,
+          '',
+          '*Tip: Use the `section` parameter (e.g., section: "rate limits") to fetch only what you need and save tokens.*',
         ].join('\n');
 
         return { content: [{ type: 'text' as const, text: result }] };
@@ -105,25 +107,11 @@ export function registerDocsTools(server: McpServer) {
       const lines = [
         '# Available Helius Documentation Topics',
         '',
-        'Use `lookupHeliusDocs` with any of these topics to fetch official documentation:',
+        'Use `lookupHeliusDocs` with any of these topics. Add `section` to filter.',
         '',
         '| Topic | Description |',
         '|-------|-------------|',
         ...index.map((doc) => `| \`${doc.key}\` | ${doc.description} |`),
-        '',
-        '## Usage Examples',
-        '',
-        '```',
-        '// Get overview with plans, credits, rate limits',
-        'lookupHeliusDocs({ topic: "overview" })',
-        '',
-        '// Get DAS API documentation',
-        'lookupHeliusDocs({ topic: "das" })',
-        '',
-        '// Get specific section from docs',
-        'lookupHeliusDocs({ topic: "overview", section: "credits" })',
-        'lookupHeliusDocs({ topic: "das", section: "rate limits" })',
-        '```',
       ];
 
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
@@ -135,7 +123,7 @@ export function registerDocsTools(server: McpServer) {
    */
   server.tool(
     'getHeliusCreditsInfo',
-    'BEST FOR: credit cost lookup table. PREFER getRateLimitInfo for per-method rate limits and costs. PREFER getHeliusPlanInfo for plan pricing. Get official Helius credit costs from documentation. Fetches the latest pricing information directly from Helius docs.',
+    'BEST FOR: credit cost lookup table. PREFER getRateLimitInfo for per-method rate limits, getHeliusPlanInfo for plan pricing. Get official Helius credit costs from documentation.',
     {},
     async () => {
       try {

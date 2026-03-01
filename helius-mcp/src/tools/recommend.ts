@@ -5,7 +5,8 @@ import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct } from './product-catalog.js';
-import { fetchDoc, extractSections } from '../utils/docs.js';
+// fetchDoc/extractSections no longer needed — live billing fetch removed
+
 
 // ─── Known MCP Tools (for validation script) ───
 
@@ -97,15 +98,8 @@ function groupCatalogByTier(): CatalogTier[] {
 // ─── Formatting ───
 
 function formatProduct(product: CatalogProduct): string {
-  const lines: string[] = [
-    `**${product.name}** \u2014 ${product.description}`,
-    `- Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`,
-    `- Cost: ${product.creditCostPerCall}`,
-  ];
-  if (product.referenceFile) {
-    lines.push(`- Docs: \`${product.referenceFile}\``);
-  }
-  return lines.join('\n');
+  const docs = product.referenceFile ? ` | Docs: \`${product.referenceFile}\`` : '';
+  return `- **${product.name}** \u2014 ${product.description} (${product.creditCostPerCall})${docs}\n  Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`;
 }
 
 function formatTier(tier: CatalogTier, detectedPlan?: string): string {
@@ -166,7 +160,6 @@ function formatCatalog(
   description: string,
   complexity: 'low' | 'medium' | 'high' | undefined,
   detectedPlan?: string,
-  livePlansSection?: string | null,
 ): string {
   const lines: string[] = ['# Helius Product Catalog', ''];
 
@@ -206,25 +199,13 @@ function formatCatalog(
     }
   }
 
-  // Live plans & pricing section from billing doc
-  if (livePlansSection) {
-    lines.push('', '---', '', '## Plans & Pricing', '', livePlansSection);
-  } else {
-    lines.push('', '---', '', '_For current plan pricing, use `getHeliusPlanInfo` or visit https://www.helius.dev/docs/billing_');
-  }
-
   lines.push(
     '',
     '---',
     '',
-    '## Estimate your monthly cost',
-    'credits/month = (calls per user per day) \u00d7 (credits per call) \u00d7 (active users) \u00d7 30',
-    'Use `getRateLimitInfo` for exact per-method credit costs.',
+    '_Use `getHeliusPlanInfo` for pricing and `lookupHeliusDocs` for API details._',
     '',
-    '## Next steps',
-    '1. Pick a tier \u2192 `getHeliusPlanInfo` for full plan details',
-    '2. Read the reference files listed above',
-    '3. Start building with the MCP tools listed',
+    '*Token tip: Use batch endpoints and `section` filters on `lookupHeliusDocs` to minimize per-call context usage.*',
   );
 
   return lines.join('\n');
@@ -250,15 +231,7 @@ const SCALE_TIERS: Record<string, string[]> = {
 export function registerRecommendTools(server: McpServer) {
   server.tool(
     'recommendStack',
-    'BEST FOR: ANY time a user describes a Solana project, app, or tool they want to build. ' +
-    'Call this immediately when the user says they want to build, make, or create something \u2014 ' +
-    'do not ask clarifying questions first. Examples: "I want to build a PnL tracker", ' +
-    '"make a tax reporting tool", "create a token sniper", "I need an NFT gallery". ' +
-    'PREFER getHeliusPlanInfo for pricing-only questions. ' +
-    'PREFER lookupHeliusDocs for specific API docs. Returns tiered architecture ' +
-    'recommendations: which Helius products to use, why, which MCP tools to call, ' +
-    'credit costs per call, minimum plan required, and reference files to read. ' +
-    'Supports saved preferences for budget and complexity level.',
+    'BEST FOR: project architecture when user describes a Solana app to build. PREFER getHeliusPlanInfo for pricing-only, lookupHeliusDocs for API docs. Get tiered architecture recommendations. Returns Helius products, MCP tools, credit costs, minimum plan, and reference files.',
     {
       description: z.string().describe('What the user wants to build, in their own words'),
       budget: z.enum(['free', 'developer', 'business', 'professional']).optional(),
@@ -326,17 +299,8 @@ export function registerRecommendTools(server: McpServer) {
         }
       }
 
-      // 7. Fetch live billing data for plans section
-      let livePlansSection: string | null = null;
-      try {
-        const billingDoc = await fetchDoc('billing');
-        livePlansSection = extractSections(billingDoc, ['standard plans', 'standard pricing'], { includeLooseMatches: false });
-      } catch {
-        // Silent fallback — live pricing is best-effort
-      }
-
-      // 8. Format output
-      let output = formatCatalog(availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan, livePlansSection);
+      // 7. Format output
+      let output = formatCatalog(availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan);
 
       // 9. Soft hint: if no API key, append setup note
       if (!hasApiKey()) {

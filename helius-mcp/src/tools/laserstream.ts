@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getLaserstreamUrl, getNetwork } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnAddressConflicts } from '../utils/errors.js';
-import { fetchDoc } from '../utils/docs.js';
+import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 
 export function registerLaserstreamTools(server: McpServer) {
 
@@ -182,12 +182,18 @@ export function registerLaserstreamTools(server: McpServer) {
         );
       }
 
+      const capabilities = extractSections(content, ['capabilities', 'features'], { includeLooseMatches: false });
+      const regions = extractSections(content, ['regions', 'endpoints'], { includeLooseMatches: false });
+      const plans = extractSections(content, ['plan requirements', 'pricing'], { includeLooseMatches: false });
+      const sections = [capabilities, regions, plans].filter(Boolean).join('\n\n');
+      const body = sections || truncateDoc(content);
+
       const result = [
         '# Helius Laserstream (Official)',
         '',
         `**Endpoint:** \`${endpoint}\``,
         '',
-        content,
+        body,
         '',
         '---',
         'Source: https://www.helius.dev/docs/laserstream/grpc (fetched live)',

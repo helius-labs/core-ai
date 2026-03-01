@@ -14,56 +14,46 @@ const server = new McpServer(
     version: '0.3.0'
   },
   {
-    instructions: `These instructions provide fallback tool selection guidance. If you have more specific routing instructions from a Helius skill or system prompt, prefer those over this guide — they provide richer context including reference files and composition patterns.
+    instructions: `These instructions provide fallback tool selection guidance. If you have more specific routing instructions from a Helius skill or system prompt, prefer those.
 
-## Tool Selection Guide
+## Tool Routing
 
-### Balance / Portfolio
-- "SOL balance" → getBalance (1 credit, SOL only)
-- "token balances", "what tokens" → getTokenBalances (10 credits/page, SPL tokens with prices)
-- "portfolio", "all balances", "show my wallet", "what's in this wallet" → getWalletBalances (100 credits, full portfolio with USD values sorted by value, includes SOL + tokens + optional NFTs)
+| Intent | Tool | Credits |
+|--------|------|---------|
+| SOL balance | getBalance | 1 |
+| token balances | getTokenBalances | 10/pg |
+| full portfolio + USD | getWalletBalances | 100 |
+| parse tx by signature | parseTransactions | 100 |
+| transaction history | getTransactionHistory | ~110 |
+| balance deltas/tx | getWalletHistory | 100 |
+| sends/receives | getWalletTransfers | 100 |
+| asset by mint | getAsset | 10 |
+| wallet NFTs | getAssetsByOwner | 10 |
+| filtered asset search | searchAssets | 10 |
+| collection NFTs | getAssetsByGroup | 10 |
+| asset tx history (by mint) | getSignaturesForAsset | 10 |
+| edition prints of master NFT | getNftEditions | 10 |
+| raw account inspection | getAccountInfo | 1 |
+| token holders by mint | getTokenHolders | ~20 |
+| token account queries | getTokenAccounts | 10 |
+| program accounts / protocol state | getProgramAccounts | 10 |
+| plans/pricing | getHeliusPlanInfo | 0 |
+| plan comparison | compareHeliusPlans | 0 |
+| rate limits/credits | getRateLimitInfo | 0 |
+| API docs by topic | lookupHeliusDocs | 0 |
+| error diagnosis | troubleshootError | 0 |
+| project architecture | recommendStack | 0 |
+| wallet identity | getWalletIdentity | 100 |
+| funding source | getWalletFundedBy | 100 |
+| event notifications (any plan) | createWebhook | 100 |
+| live streaming (WS, Business+) | transactionSubscribe, accountSubscribe | — |
+| production streaming (gRPC, Pro) | laserstreamSubscribe | — |
+| Account setup | getStarted → generateKeypair → agenticSignup | — |
 
-### Transaction History
-- "show transactions", "transaction history", general history → getTransactionHistory (default choice, parsed human-readable, ~110 credits)
-- "balance changes per transaction", "+/- deltas" → getWalletHistory (100 credits, balance change deltas)
-- "who sent tokens to", "transfers", "sends/receives" → getWalletTransfers (100 credits, direction + counterparty info)
-
-### NFTs & Assets
-- Specific mint address → getAsset (by mint, 10 credits)
-- "NFTs in this wallet", "what NFTs" → getAssetsByOwner (by wallet, 10 credits)
-- Multi-filter search (creator, authority, name, compression) → searchAssets (10 credits)
-- "NFTs in this collection" → getAssetsByGroup (by collection, 10 credits)
-
-### Streaming (Real-time)
-- Enhanced WebSockets (Business+ plan) → transactionSubscribe / accountSubscribe
-- Laserstream gRPC (Professional plan) → laserstreamSubscribe
-
-### Docs & Info (10+ tools — use the right one)
-- "How much does Helius cost?" / pricing / plans → getHeliusPlanInfo (start here for ANY pricing question)
-- "Compare plans" / side-by-side → compareHeliusPlans (category-specific)
-- "Rate limits" / "credits per method" → getRateLimitInfo (live billing docs)
-- "How many credits does X cost?" → getHeliusCreditsInfo (credit cost table)
-- API docs / "how does X work?" → lookupHeliusDocs (by topic)
-- Error codes / debugging → troubleshootError (always use this first for errors)
-- Transaction sending / Jito / SWQoS → getSenderInfo
-- Webhook setup → getWebhookGuide
-- Streaming latency → getLatencyComparison
-- pump.fun tokens → getPumpFunGuide
-- Rule: For pricing/plans, start with getHeliusPlanInfo — NOT lookupHeliusDocs. For errors, use troubleshootError first.
-
-### Wallet Investigation
-- "Who is this wallet?" → getWalletIdentity (known entity lookup)
-- "Who funded this wallet?" → getWalletFundedBy (funding source)
-- Batch identity lookup → batchWalletIdentity
-
-### Project Planning / Architecture
-- User describes ANY Solana project, app, tool, or feature they want to build → recommendStack (call it immediately with their description — don't ask clarifying questions first)
-- This includes phrases like "I want to build/make/create...", "help me build...", "I need a...", or any description of a new Solana project (e.g. "tax reporting tool", "PnL tracker", "token sniper", "NFT gallery")
-- If the user hasn't set up an API key yet, recommendStack will append a setup hint — no need to call getStarted first
-- After recommendations → getHeliusPlanInfo for pricing, lookupHeliusDocs for API details
-
-### Account Setup (no API key yet)
-- generateKeypair → fund wallet → agenticSignup`
+Rules:
+- For pricing, start with getHeliusPlanInfo — NOT lookupHeliusDocs.
+- For errors, use troubleshootError first.
+- When a user describes ANY project they want to build ("I want to build/make/create...", "help me build...", "I need a..."), call recommendStack immediately with their description — do not ask clarifying questions first. After recommendations, use getHeliusPlanInfo for pricing and lookupHeliusDocs for API details.`
   }
 );
 

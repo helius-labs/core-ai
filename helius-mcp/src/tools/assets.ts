@@ -9,7 +9,7 @@ export function registerAssetTools(server: McpServer) {
   // Get Assets by Owner (NFTs and tokens via DAS)
   server.tool(
     'getAssetsByOwner',
-    'BEST FOR: listing NFTs/digital assets owned by a wallet. PREFER getTokenBalances for fungible token balances. PREFER getAsset when you have a specific mint address. Get all NFTs and digital assets owned by a Solana wallet using the DAS (Digital Asset Standard) API. Returns asset names, types (NFT, cNFT, Fungible, etc.), and mint addresses. Supports both regular NFTs and compressed NFTs (cNFTs). Use this to see what NFTs/collectibles a wallet owns. For fungible token balances, use getTokenBalances instead. DAS API (10 credits/call).',
+    'BEST FOR: listing NFTs/digital assets owned by a wallet. PREFER getTokenBalances for fungible tokens, getAsset for a specific mint. Get all NFTs and digital assets owned by a wallet. Returns asset names, types, and mint addresses. Supports regular NFTs and cNFTs. Credit cost: 10 credits (DAS API).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       limit: z.number().optional().default(20).describe('Number of assets to return (default 20). Increase for wallets with many NFTs.'),
@@ -269,7 +269,7 @@ export function registerAssetTools(server: McpServer) {
   // Search Assets — unified search with smart routing for creator/authority/general queries
   server.tool(
     'searchAssets',
-    'BEST FOR: filtered multi-criteria asset search (creator, authority, name, compression). PREFER getAssetsByOwner for simple wallet NFT listing. PREFER getAssetsByGroup for collection browsing. Advanced search for digital assets (NFTs, tokens) with multiple filters. Search by owner, creator, authority, name, compression status, burnt status, or frozen status. Also replaces getAssetsByCreator and getAssetsByAuthority — pass creatorAddress (with optional onlyVerified) to find assets by creator, or authorityAddress to find assets controlled by an authority. DAS API (10 credits/call).',
+    'BEST FOR: filtered multi-criteria asset search. PREFER getAssetsByOwner for simple wallet NFT listing, getAssetsByGroup for collection browsing. Search digital assets by owner, creator, authority, name, compression, burnt, or frozen status. Also supports getAssetsByCreator and getAssetsByAuthority queries. Credit cost: 10 credits (DAS API).',
     {
       ownerAddress: z.string().optional().describe('Filter by owner wallet address'),
       creatorAddress: z.string().optional().describe('Filter by creator address'),

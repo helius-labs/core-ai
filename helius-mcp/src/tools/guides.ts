@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { fetchDoc, fetchDocs } from '../utils/docs.js';
+import { fetchDoc, fetchDocs, extractSections, truncateDoc } from '../utils/docs.js';
 
 // Error codes and their meanings — no canonical llms.txt equivalent
 const ERROR_CODES: Record<string, { meaning: string; causes: string[]; fixes: string[] }> = {
@@ -132,15 +132,19 @@ export function registerGuideTools(server: McpServer) {
   // Tool 1: getRateLimitInfo — fetches live billing docs
   server.tool(
     'getRateLimitInfo',
-    'BEST FOR: credit costs and rate limits per API method. PREFER getHeliusPlanInfo for plan pricing/features overview. Get official Helius rate limits and credit costs per API method. Fetches live from the billing documentation so values are always accurate.',
+    'BEST FOR: per-method rate limits and credit costs. PREFER getHeliusPlanInfo for plan pricing/features. Get official Helius rate limits and credit costs per API method. Fetches live from billing docs.',
     {},
     async () => {
       try {
         const content = await fetchDoc('billing');
+        const rateLimits = extractSections(content, ['rate limits', 'standard rate limits'], { includeLooseMatches: false });
+        const creditCosts = extractSections(content, ['credit costs', 'credits system'], { includeLooseMatches: false });
+        const sections = [rateLimits, creditCosts].filter(Boolean).join('\n\n');
+        const body = sections || truncateDoc(content);
         const result = [
           '# Helius Rate Limits & Credits (Official)',
           '',
-          content,
+          body,
           '',
           '---',
           'Source: https://www.helius.dev/docs/billing (fetched live)',
@@ -164,10 +168,15 @@ export function registerGuideTools(server: McpServer) {
     async () => {
       try {
         const content = await fetchDoc('sender');
+        const howItWorks = extractSections(content, ['how it works', 'overview'], { includeLooseMatches: false });
+        const endpoints = extractSections(content, ['endpoints', 'api'], { includeLooseMatches: false });
+        const bestPractices = extractSections(content, ['best practices', 'tips'], { includeLooseMatches: false });
+        const sections = [howItWorks, endpoints, bestPractices].filter(Boolean).join('\n\n');
+        const body = sections || truncateDoc(content);
         const result = [
           '# Helius Sender (Official)',
           '',
-          content,
+          body,
           '',
           '---',
           'Source: https://www.helius.dev/docs (fetched live)',
@@ -191,10 +200,15 @@ export function registerGuideTools(server: McpServer) {
     async () => {
       try {
         const content = await fetchDoc('webhooks');
+        const setup = extractSections(content, ['setup', 'configuration'], { includeLooseMatches: false });
+        const types = extractSections(content, ['transaction types', 'event types'], { includeLooseMatches: false });
+        const delivery = extractSections(content, ['delivery', 'troubleshooting'], { includeLooseMatches: false });
+        const sections = [setup, types, delivery].filter(Boolean).join('\n\n');
+        const body = sections || truncateDoc(content);
         const result = [
           '# Helius Webhooks (Official)',
           '',
-          content,
+          body,
           '',
           '---',
           'Source: https://www.helius.dev/docs (fetched live)',
@@ -213,7 +227,7 @@ export function registerGuideTools(server: McpServer) {
   // Tool 4: troubleshootError — kept hardcoded (no llms.txt equivalent)
   server.tool(
     'troubleshootError',
-    'BEST FOR: diagnosing specific error codes. Always use this first when the user encounters an error, before attempting manual diagnosis. Get detailed explanation and fixes for common Helius/Solana RPC error codes. Covers JSON-RPC errors, HTTP status codes, and WebSocket close codes.',
+    'BEST FOR: diagnosing specific error codes — use this first for any error. Get detailed explanation and fixes for Helius/Solana error codes. Covers JSON-RPC errors, HTTP status codes, and WebSocket close codes.',
     {
       errorCode: z
         .string()
@@ -244,13 +258,14 @@ export function registerGuideTools(server: McpServer) {
         lines.push('3. Check your plan limits in dashboard');
         lines.push('4. Try the request with curl to isolate client issues');
         lines.push('5. Contact support with request ID if persistent');
-      }
 
-      lines.push('', '## Common Error Codes Reference', '');
-      lines.push('| Code | Meaning |');
-      lines.push('|------|---------|');
-      for (const [c, e] of Object.entries(ERROR_CODES)) {
-        lines.push(`| ${c} | ${e.meaning} |`);
+        // Only show full reference table when code is unknown
+        lines.push('', '## Common Error Codes Reference', '');
+        lines.push('| Code | Meaning |');
+        lines.push('|------|---------|');
+        for (const [c, e] of Object.entries(ERROR_CODES)) {
+          lines.push(`| ${c} | ${e.meaning} |`);
+        }
       }
 
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
@@ -279,7 +294,10 @@ export function registerGuideTools(server: McpServer) {
         };
 
         for (const [key, content] of docs.entries()) {
-          sections.push(`## ${labels[key] ?? key}`, '', content, '', '---', '');
+          const latency = extractSections(content, ['latency', 'performance'], { includeLooseMatches: false });
+          const speed = extractSections(content, ['speed', 'comparison'], { includeLooseMatches: false });
+          const combined = [latency, speed].filter(Boolean).join('\n\n');
+          sections.push(`## ${labels[key] ?? key}`, '', combined || truncateDoc(content), '', '---', '');
         }
 
         sections.push('Source: https://www.helius.dev/docs (fetched live)');
@@ -306,113 +324,37 @@ export function registerGuideTools(server: McpServer) {
         '',
         '## Why getAssetsByCreator Doesn\'t Work',
         '',
-        'When you call `getAssetsByCreator` with a pump.fun deployer wallet, it returns empty.',
-        '',
-        '**Reason**: DAS API\'s "creator" field refers to **Metaplex creators** metadata, not the wallet that deployed the token.',
-        '',
-        '- Pump.fun tokens don\'t use Metaplex creators array',
-        '- The deployer wallet is not stored in the same way',
-        '- DAS cannot index pump.fun deployers as "creators"',
+        'DAS API\'s "creator" field refers to **Metaplex creators** metadata, not the deployer wallet. Pump.fun tokens don\'t use the Metaplex creators array, so `getAssetsByCreator` returns empty.',
         '',
         '## How to Find Pump.fun Tokens',
         '',
-        '### Option 1: Listen to Migration Events',
-        '```',
-        '// Subscribe to pump.fun migration program',
-        'Program ID: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
-        '',
-        '// Filter for "migrate" instruction',
-        '// This fires when a token graduates from bonding curve',
-        '```',
-        '',
-        '### Option 2: Query by Mint/Update Authority',
-        '',
-        'Instead of creator, try:',
-        '- `getAsset` with the specific mint address',
-        '- Filter by update authority or freeze authority',
-        '- Search by token metadata name/symbol patterns',
-        '',
-        '### Option 3: Historical Backfill',
-        '',
-        'For historical graduated tokens:',
-        '```',
-        '1. Query migration program transaction history',
-        '2. Parse the "migrate" instruction logs',
-        '3. Extract token mint addresses',
-        '4. Use getAsset to get full token details',
-        '```',
+        '1. **By mint address** — `getAsset` with the specific mint address (most direct)',
+        '2. **By authority** — `searchAssets` filtering by update/freeze authority',
+        '3. **Listen to migrations** — Subscribe to the migration program to catch graduates:',
+        '   - Migration Program: `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`',
+        '   - Use `transactionSubscribe` or `laserstreamSubscribe` with `accountInclude` set to this program',
+        '4. **Historical backfill** — Query migration program transaction history, parse "migrate" instructions, extract mint addresses',
         '',
         '## Tracking Migrations (Graduates)',
         '',
-        '### What is a Migration/Graduate?',
         'When a pump.fun token completes its bonding curve, it "graduates" and migrates to Raydium.',
         '',
-        '### Migration Program',
-        '```',
-        'Program: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
-        'Instruction: migrate',
-        '```',
-        '',
-        '### Real-time Migration Tracking',
+        '**Real-time tracking:**',
         '```typescript',
-        '// Using Laserstream/gRPC',
-        'subscribe({',
-        '  transactions: {',
-        '    accountInclude: ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"],',
-        '  }',
-        '});',
-        '',
-        '// Or Enhanced WebSockets',
+        '// Laserstream or Enhanced WebSockets',
         'transactionSubscribe({',
         '  accountInclude: ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"],',
         '});',
         '```',
         '',
-        '### Historical Migrations',
+        '**Historical migrations:**',
         '```typescript',
-        '// Get past migrations',
         'const signatures = await connection.getSignaturesForAddress(',
         '  new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"),',
         '  { limit: 1000 }',
         ');',
-        '',
-        '// Parse each transaction for migrate instruction',
-        'for (const sig of signatures) {',
-        '  const tx = await parseTransactions([sig.signature]);',
-        '  // Extract token mint from parsed data',
-        '}',
+        '// Parse each transaction with parseTransactions to extract token mints',
         '```',
-        '',
-        '## Common Pump.fun Queries',
-        '',
-        '### Get Token Details',
-        '```typescript',
-        '// If you have the mint address',
-        'const asset = await helius.getAsset({ id: mintAddress });',
-        '```',
-        '',
-        '### Check if Token is Graduated',
-        '```typescript',
-        '// Graduated tokens will have Raydium LP',
-        '// Check for AMM/CPMM pool with the token',
-        '```',
-        '',
-        '### Get Token Holders',
-        '```typescript',
-        'const holders = await helius.getTokenAccounts({',
-        '  mint: mintAddress,',
-        '  limit: 100,',
-        '});',
-        '```',
-        '',
-        '## Feature Request Status',
-        '',
-        'Helius is aware of demand for:',
-        '- Native pump.fun migration filter in Events API',
-        '- Historical graduates backfill endpoint',
-        '- Creator-by-deployer-wallet queries',
-        '',
-        'Check docs.helius.dev for updates.',
       ];
 
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
