@@ -362,11 +362,14 @@ export function registerTransactionTools(server: McpServer) {
           };
           collectProgramIds(tx.instructions);
 
-          if (programIds.size <= 5) {
-            outputLines.push('', '**Programs Involved:**');
-            programIds.forEach(pid => {
-              outputLines.push(`- ${pid}`);
-            });
+          outputLines.push('', '**Programs Involved:**');
+          const pidArray = Array.from(programIds);
+          const shown = pidArray.slice(0, 5);
+          shown.forEach(pid => {
+            outputLines.push(`- ${pid}`);
+          });
+          if (programIds.size > 5) {
+            outputLines.push(`_(Showing 5 of ${programIds.size} programs)_`);
           }
         }
 
@@ -399,7 +402,7 @@ export function registerTransactionTools(server: McpServer) {
 
         // Skip SOL transfers when there's only 1 and a description already covers it
         if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
-          if (tx.nativeTransfers.length > 1 || !tx.description) {
+          if (!(tx.nativeTransfers.length === 1 && tx.description)) {
             outputLines.push('', '**SOL Transfers:**');
             tx.nativeTransfers.forEach((t) => {
               const from = t.fromUserAccount || 'unknown';

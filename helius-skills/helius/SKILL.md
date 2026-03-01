@@ -23,7 +23,7 @@ If any MCP tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Agentic signup:** `generateKeypair` → user funds wallet (~0.001 SOL + 1 USDC for basic/$49+ for paid) → `checkSignupBalance` → `agenticSignup`. **Do NOT skip steps** — on-chain payment required.
+**Path B — Agentic signup:** `generateKeypair` → user funds wallet with **~0.001 SOL** for fees + **USDC** (USDC mint: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`) — **1 USDC** basic, **$49** Developer, **$499** Business, **$999** Professional → `checkSignupBalance` → `agenticSignup`. **Do NOT skip steps** — on-chain payment required.
 
 **Path C — CLI:** `npx helius-cli@latest keygen` → fund wallet → `npx helius-cli@latest signup`
 

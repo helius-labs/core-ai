@@ -42,6 +42,10 @@ const server = new McpServer(
 | rate limits/credits | getRateLimitInfo | 0 |
 | API docs by topic | lookupHeliusDocs | 0 |
 | error diagnosis | troubleshootError | 0 |
+| tx sending / Jito / SWQoS | getSenderInfo | 0 |
+| webhook setup guide | getWebhookGuide | 0 |
+| streaming latency | getLatencyComparison | 0 |
+| pump.fun tokens | getPumpFunGuide | 0 |
 | project architecture | recommendStack | 0 |
 | wallet identity | getWalletIdentity | 100 |
 | funding source | getWalletFundedBy | 100 |

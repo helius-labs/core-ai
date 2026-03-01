@@ -8,7 +8,7 @@ import { noApiKeyResponse } from './shared.js';
 export function registerDasExtraTools(server: McpServer) {
   server.tool(
     'getAssetProof',
-    'Get Merkle proof for a compressed NFT. Required for transferring or burning cNFTs. DAS API (10 credits/call).',
+    'BEST FOR: getting Merkle proof required for transferring or burning a cNFT. PREFER getAssetProofBatch when you need proofs for multiple cNFTs. Get Merkle proof for a compressed NFT. Required for transferring or burning cNFTs. DAS API (10 credits/call).',
     {
       id: z.string().describe('Compressed NFT mint address')
     },
@@ -30,7 +30,7 @@ export function registerDasExtraTools(server: McpServer) {
 
   server.tool(
     'getAssetProofBatch',
-    'Get Merkle proofs for multiple compressed NFTs in one request (up to 1000). DAS API (10 credits/call).',
+    'BEST FOR: batch Merkle proofs for multiple cNFT operations. PREFER getAssetProof for a single cNFT. Get Merkle proofs for multiple compressed NFTs in one request (up to 1000). DAS API (10 credits/call).',
     {
       ids: z.array(z.string()).describe('Array of cNFT mint addresses (up to 1000)')
     },
@@ -55,9 +55,9 @@ export function registerDasExtraTools(server: McpServer) {
 
   server.tool(
     'getSignaturesForAsset',
-    'Get transaction history for a compressed NFT. DAS API (10 credits/call).',
+    'BEST FOR: transaction history for a specific asset by mint address. PREFER getTransactionHistory for wallet-level transaction history. Get transaction history for any DAS asset. DAS API (10 credits/call).',
     {
-      id: z.string().describe('Compressed NFT mint address'),
+      id: z.string().describe('Asset mint address (any DAS asset)'),
       page: z.number().optional().default(1),
       limit: z.number().optional().default(20)
     },
@@ -88,7 +88,7 @@ export function registerDasExtraTools(server: McpServer) {
 
   server.tool(
     'getNftEditions',
-    'Get all edition NFTs for a master NFT. DAS API (10 credits/call).',
+    'BEST FOR: finding numbered edition prints of a master NFT. Get all edition NFTs for a master NFT. DAS API (10 credits/call).',
     {
       mint: z.string().describe('Master NFT mint address'),
       page: z.number().optional().default(1),
