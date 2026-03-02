@@ -30,8 +30,8 @@ describe('Helius MCP Tools', () => {
     registerTools(mockServer);
   });
 
-  it('registers 46 tools', () => {
-    expect(tools.size).toBe(46);
+  it('registers 48 tools', () => {
+    expect(tools.size).toBe(48);
   });
 
   it('all tools have descriptions', () => {
@@ -68,6 +68,8 @@ describe('Helius MCP Tools', () => {
       'getRateLimitInfo', 'getSenderInfo', 'troubleshootError',
       // Docs
       'lookupHeliusDocs', 'getHeliusCreditsInfo',
+      // Transfers
+      'transferSol', 'transferToken',
     ];
 
     for (const name of expected) {

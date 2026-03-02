@@ -74,6 +74,11 @@ Choose based on your use case:
 - If the user hasn't set up an API key yet, recommendStack will append a setup hint — no need to call getStarted first
 - After recommendations → getHeliusPlanInfo for pricing, lookupHeliusDocs for API details
 
+### Transfers / Sending
+- "send SOL", "transfer SOL" → transferSol (~3 credits)
+- "send tokens", "transfer USDC/BONK/etc" → transferToken (~13 credits)
+- Both require a configured keypair (generateKeypair) and use Helius Sender
+
 ### Account Setup (no API key yet)
 - generateKeypair → fund wallet → agenticSignup`
   }

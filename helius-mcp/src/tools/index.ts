@@ -19,6 +19,7 @@ import { registerDocsTools } from './docs.js';
 import { registerGuideTools } from './guides.js';
 import { registerRecommendTools } from './recommend.js';
 import { registerSolanaKnowledgeTools } from './solana-knowledge.js';
+import { registerTransferTools } from './transfers.js';
 
 export function registerTools(server: McpServer) {
   registerAuthTools(server);
@@ -41,4 +42,5 @@ export function registerTools(server: McpServer) {
   registerGuideTools(server);
   registerRecommendTools(server);
   registerSolanaKnowledgeTools(server);
+  registerTransferTools(server);
 }

@@ -113,6 +113,15 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     referenceFile: 'references/laserstream.md',
     description: 'Lowest-latency gRPC streaming with 24h historical replay for production indexers, trading infrastructure, and data pipelines. Subscribe to all transactions, accounts, blocks, or entries on mainnet.',
   },
+  'token-transfers': {
+    name: 'Token Transfers',
+    mcpTools: ['transferSol', 'transferToken'],
+    creditCostPerCall: '~3-13 credits + on-chain fees',
+    minimumPlan: 'free',
+    docKey: 'sender',
+    referenceFile: 'references/sender.md',
+    description: 'Send native SOL or SPL tokens from the MCP keypair to any Solana address. Uses Helius Sender for optimal landing rates. Requires a configured keypair.',
+  },
   'token-holders': {
     name: 'Token Holders',
     mcpTools: ['getTokenHolders'],

@@ -65,9 +65,11 @@ These intents overlap across multiple files. Route them correctly:
 
 ### Transaction Sending & Swaps
 **Read**: `references/sender.md`, `references/priority-fees.md`
-**MCP tools**: `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`
+**MCP tools**: `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`
 
 Use this when the user wants to:
+- Send SOL to another wallet
+- Transfer SPL tokens (USDC, BONK, JUP, etc.)
 - Send transactions with optimal landing rates
 - Integrate with DFlow, Jupiter, Titan, or other swap APIs
 - Build trading bots, swap interfaces, or trading terminals
