@@ -64,6 +64,12 @@ export function registerTransferTools(server: McpServer) {
         let sendAmount: number;
 
         if (sendMax) {
+          // WARNING: This assumes sendSmartTransaction with priorityFeeCap=0 produces a
+          // single-signer transaction whose only lamport cost is the 5000-lamport base fee.
+          // If the SDK ever adds additional signers, compute budget instructions, or other
+          // lamport-consuming operations, this will under-transfer and leave a dust balance
+          // (or over-transfer and fail). Verify this invariant after any SDK upgrade.
+          //
           // The account must reach exactly 0 lamports — any non-zero balance below the
           // rent-exempt minimum (~0.00089 SOL) is rejected by the runtime. We cap the
           // priority fee at 0 so the total fee is deterministically 5000 lamports

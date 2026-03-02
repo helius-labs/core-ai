@@ -106,7 +106,15 @@ export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walle
   if (!secretKey) {
     throw new Error('NO_KEYPAIR');
   }
-  return { secretKey, walletAddress: getSessionWalletAddress()! };
+
+  // Derive the address from the key if not already cached in session
+  let walletAddress = getSessionWalletAddress();
+  if (!walletAddress) {
+    const walletKeypair = loadKeypair(secretKey);
+    walletAddress = await getAddress(walletKeypair);
+    setSessionWalletAddress(walletAddress);
+  }
+  return { secretKey, walletAddress };
 }
 
 export async function restRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
