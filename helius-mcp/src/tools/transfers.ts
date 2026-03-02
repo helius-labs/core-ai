@@ -4,6 +4,7 @@ import { createKeyPairSignerFromBytes, address } from '@solana/kit';
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   findAssociatedTokenPda,
+  getCloseAccountInstruction,
   getCreateAssociatedTokenIdempotentInstruction,
   getTransferCheckedInstruction,
   TOKEN_PROGRAM_ADDRESS,
@@ -27,12 +28,14 @@ export function registerTransferTools(server: McpServer) {
     'Transfers native SOL using Helius Sender for optimal landing rates. ' +
     'Requires a configured keypair (call generateKeypair if needed). ' +
     'This is an irreversible on-chain transaction. ' +
+    'Set sendMax to true to drain the entire SOL balance (sends balance minus transaction fees). ' +
     'Credit cost: ~3 credits (CU simulation + priority fee estimate + send).',
     {
       recipientAddress: z.string().describe('Recipient Solana wallet address (base58 encoded)'),
-      amount: z.number().positive().describe('Amount of SOL to send (e.g., 0.5 for half a SOL)'),
+      amount: z.number().positive().optional().describe('Amount of SOL to send (e.g., 0.5 for half a SOL). Required unless sendMax is true.'),
+      sendMax: z.boolean().optional().default(false).describe('Send the maximum possible amount (entire balance minus transaction fees). When true, amount is ignored.'),
     },
-    async ({ recipientAddress, amount }) => {
+    async ({ recipientAddress, amount, sendMax }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
@@ -53,21 +56,43 @@ export function registerTransferTools(server: McpServer) {
           );
         }
 
-        // Convert SOL to lamports
-        const lamports = BigInt(Math.round(amount * 1_000_000_000));
-
-        // Pre-flight balance check
         const helius = getHeliusClient();
         const balanceResult = await helius.getBalance(signerData.walletAddress);
         const balanceLamports = BigInt(balanceResult.value);
-        // Reserve ~0.005 SOL for tx fees (priority fee + rent if needed)
-        const reserveLamports = 5_000_000n;
-        if (balanceLamports < lamports + reserveLamports) {
-          const available = Number(balanceLamports) / 1_000_000_000;
-          return mcpError(
-            `Insufficient SOL balance. You have ${available} SOL but need ${amount} SOL plus ~0.005 SOL for transaction fees.\n\n` +
-            `Wallet: \`${signerData.walletAddress}\``
-          );
+
+        let lamports: bigint;
+        let sendAmount: number;
+
+        if (sendMax) {
+          // The account must reach exactly 0 lamports — any non-zero balance below the
+          // rent-exempt minimum (~0.00089 SOL) is rejected by the runtime. We cap the
+          // priority fee at 0 so the total fee is deterministically 5000 lamports
+          // (the base fee per signature), and transfer balance - 5000 to drain to zero.
+          const txFee = 5000n;
+          lamports = balanceLamports - txFee;
+          if (lamports <= 0n) {
+            const available = Number(balanceLamports) / 1_000_000_000;
+            return mcpError(
+              `Balance too low to cover the transaction fee. You have ${available} SOL.\n\n` +
+              `Wallet: \`${signerData.walletAddress}\``
+            );
+          }
+          sendAmount = Number(lamports) / 1_000_000_000;
+        } else {
+          if (amount === undefined) {
+            return mcpError('Either `amount` must be specified or `sendMax` must be true.');
+          }
+          lamports = BigInt(Math.round(amount * 1_000_000_000));
+          sendAmount = amount;
+          // Reserve ~0.005 SOL for tx fees (priority fee + sender tip)
+          const reserveLamports = 5_000_000n;
+          if (balanceLamports < lamports + reserveLamports) {
+            const available = Number(balanceLamports) / 1_000_000_000;
+            return mcpError(
+              `Insufficient SOL balance. You have ${available} SOL but need ${sendAmount} SOL plus ~0.005 SOL for transaction fees.\n\n` +
+              `Wallet: \`${signerData.walletAddress}\``
+            );
+          }
         }
 
         // Create signer from keypair bytes
@@ -80,20 +105,31 @@ export function registerTransferTools(server: McpServer) {
           amount: lamports,
         });
 
-        // Send via Helius Sender
-        const signature = await helius.tx.sendTransactionWithSender({
-          signers: [signer],
-          instructions: [ix],
-          region: 'Default',
-        });
+        let signature: string;
+        if (sendMax) {
+          // Use sendSmartTransaction (no sender tip) with priorityFeeCap=0 so the
+          // total fee is exactly 5000 lamports, draining the account to zero.
+          signature = await helius.tx.sendSmartTransaction({
+            signers: [signer],
+            instructions: [ix],
+            priorityFeeCap: 0,
+          });
+        } else {
+          // Use Helius Sender for optimal landing rates
+          signature = await helius.tx.sendTransactionWithSender({
+            signers: [signer],
+            instructions: [ix],
+            region: 'Default',
+          });
+        }
 
         return mcpText(
           `**SOL Transfer Sent**\n\n` +
           `- **From:** \`${signerData.walletAddress}\`\n` +
           `- **To:** \`${recipientAddress}\`\n` +
-          `- **Amount:** ${amount} SOL\n` +
+          `- **Amount:** ${sendAmount} SOL${sendMax ? ' (max)' : ''}\n` +
           `- **Signature:** \`${signature}\`\n` +
-          `- **Explorer:** https://solscan.io/tx/${signature}`
+          `- **Explorer:** https://orbmarkets.io/tx/${signature}`
         );
       } catch (err) {
         return handleToolError(err, 'Error sending SOL transfer');
@@ -111,13 +147,15 @@ export function registerTransferTools(server: McpServer) {
     'Uses Helius Sender for optimal landing rates. ' +
     'Requires a configured keypair. ' +
     'This is an irreversible on-chain transaction. ' +
+    'Set sendMax to true to send the entire token balance and close the sender token account (reclaims rent). ' +
     'Credit cost: ~13 credits (10 DAS for mint info + ~3 for CU simulation, priority fee, send).',
     {
       recipientAddress: z.string().describe('Recipient Solana wallet address (base58 encoded)'),
       mintAddress: z.string().describe('Token mint address (base58 encoded, e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v for USDC)'),
-      amount: z.number().positive().describe('Amount of tokens to send in human-readable units (e.g., 10 for 10 USDC)'),
+      amount: z.number().positive().optional().describe('Amount of tokens to send in human-readable units (e.g., 10 for 10 USDC). Required unless sendMax is true.'),
+      sendMax: z.boolean().optional().default(false).describe('Send the entire token balance and close the sender token account to reclaim rent. When true, amount is ignored.'),
     },
-    async ({ recipientAddress, mintAddress, amount }) => {
+    async ({ recipientAddress, mintAddress, amount, sendMax }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
@@ -172,9 +210,6 @@ export function registerTransferTools(server: McpServer) {
           );
         }
 
-        // Convert human-readable amount to raw amount
-        const rawAmount = BigInt(Math.round(amount * 10 ** decimals));
-
         // Create signer from keypair bytes
         const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
         const mint = address(mintAddress);
@@ -192,20 +227,52 @@ export function registerTransferTools(server: McpServer) {
           tokenProgram: TOKEN_PROGRAM_ADDRESS,
         });
 
-        // Pre-flight token balance check
-        try {
-          const tokenBalance = await helius.getTokenAccountBalance(senderAta);
-          const currentRaw = BigInt(tokenBalance.value.amount);
-          if (currentRaw < rawAmount) {
-            const currentHuman = Number(currentRaw) / 10 ** decimals;
+        let rawAmount: bigint;
+        let sendAmount: number;
+
+        if (sendMax) {
+          // Fetch full token balance for max send
+          let tokenBalance;
+          try {
+            tokenBalance = await helius.getTokenAccountBalance(senderAta);
+          } catch {
             return mcpError(
-              `Insufficient ${tokenSymbol || tokenName} balance. You have ${currentHuman} but are trying to send ${amount}.\n\n` +
+              `No token account found for ${tokenSymbol || tokenName}. You may not hold this token.\n\n` +
               `Wallet: \`${signerData.walletAddress}\`\n` +
               `Mint: \`${mintAddress}\``
             );
           }
-        } catch {
-          // Token account may not exist yet — let the on-chain error handle it
+          rawAmount = BigInt(tokenBalance.value.amount);
+          if (rawAmount === 0n) {
+            return mcpError(
+              `${tokenSymbol || tokenName} balance is 0. Nothing to send.\n\n` +
+              `Wallet: \`${signerData.walletAddress}\`\n` +
+              `Mint: \`${mintAddress}\``
+            );
+          }
+          sendAmount = Number(rawAmount) / 10 ** decimals;
+        } else {
+          if (amount === undefined) {
+            return mcpError('Either `amount` must be specified or `sendMax` must be true.');
+          }
+          rawAmount = BigInt(Math.round(amount * 10 ** decimals));
+          sendAmount = amount;
+
+          // Pre-flight token balance check
+          try {
+            const tokenBalance = await helius.getTokenAccountBalance(senderAta);
+            const currentRaw = BigInt(tokenBalance.value.amount);
+            if (currentRaw < rawAmount) {
+              const currentHuman = Number(currentRaw) / 10 ** decimals;
+              return mcpError(
+                `Insufficient ${tokenSymbol || tokenName} balance. You have ${currentHuman} but are trying to send ${sendAmount}.\n\n` +
+                `Wallet: \`${signerData.walletAddress}\`\n` +
+                `Mint: \`${mintAddress}\``
+              );
+            }
+          } catch {
+            // Token account may not exist yet — let the on-chain error handle it
+          }
         }
 
         // Build instructions: idempotent ATA creation + transfer
@@ -226,25 +293,36 @@ export function registerTransferTools(server: McpServer) {
           decimals,
         });
 
+        // When sending max, close the sender's ATA to reclaim rent
+        const closeIx = sendMax
+          ? getCloseAccountInstruction({
+              account: senderAta,
+              destination: signer.address,
+              owner: signer,
+            })
+          : undefined;
+
         // Send via Helius Sender
         const signature = await helius.tx.sendTransactionWithSender({
           signers: [signer],
-          instructions: [createAtaIx, transferIx],
+          instructions: closeIx
+            ? [createAtaIx, transferIx, closeIx]
+            : [createAtaIx, transferIx],
           region: 'Default',
         });
 
         const displayName = tokenSymbol
-          ? `${amount} ${tokenSymbol} (${tokenName})`
-          : `${amount} ${tokenName}`;
+          ? `${sendAmount} ${tokenSymbol} (${tokenName})`
+          : `${sendAmount} ${tokenName}`;
 
         return mcpText(
           `**Token Transfer Sent**\n\n` +
           `- **From:** \`${signerData.walletAddress}\`\n` +
           `- **To:** \`${recipientAddress}\`\n` +
-          `- **Amount:** ${displayName}\n` +
+          `- **Amount:** ${displayName}${sendMax ? ' (max)' : ''}\n` +
           `- **Mint:** \`${mintAddress}\`\n` +
           `- **Signature:** \`${signature}\`\n` +
-          `- **Explorer:** https://solscan.io/tx/${signature}`
+          `- **Explorer:** https://orbmarkets.io/tx/${signature}`
         );
       } catch (err) {
         return handleToolError(err, 'Error sending token transfer');
