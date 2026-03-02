@@ -501,7 +501,7 @@ export function registerTransactionTools(server: McpServer) {
       limit: z.number().optional().default(10).describe('Number of results (1-1000 for signatures, 1-100 for full/parsed)'),
       sortOrder: z.string().optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first (great for finding funding sources)'),
       before: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to start searching backwards from'),
-      until: z.string().optional().describe('[signatures mode, desc only] Cursor: search until this signature'),
+      until: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to search until'),
       paginationToken: z.string().optional().describe('Pagination token from previous response for fetching next page'),
       transactionDetails: z.string().optional().default('signatures').describe('[raw mode] "signatures" for basic info (up to 1000), "full" for complete transaction data (up to 100)'),
       status: z.string().optional().default('succeeded').describe('Filter by transaction status. Defaults to "succeeded" — set to "failed" or "any" to include failed transactions.'),

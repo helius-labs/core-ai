@@ -89,8 +89,8 @@ export function registerAssetTools(server: McpServer) {
     'getAsset',
     'Get detailed information about one or more NFTs/tokens by mint address. For a single asset: returns name, symbol, description, image, owner, creators, authorities, supply, decimals, royalties, mutability. For batch: pass an array of up to 1000 mint addresses in "ids" for fast bulk lookups. Use this to find who created/deployed a token, verify token details, or get full NFT metadata. DAS API (10 credits/call).',
     {
-      id: z.string().optional().describe('Token mint address (base58 encoded). Use this OR ids, not both.'),
-      ids: z.array(z.string()).optional().describe('Array of asset mint addresses (base58 encoded, up to 1000). Use this OR id, not both.')
+      id: z.string().optional().describe('Single asset mint address (base58 encoded). Use this OR ids, not both.'),
+      ids: z.array(z.string()).optional().describe('Array of asset mint addresses for batch lookup (base58 encoded, up to 1000). Use this OR id, not both.')
     },
     async ({ id, ids }) => {
       if (!hasApiKey()) return noApiKeyResponse();

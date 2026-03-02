@@ -41,8 +41,8 @@ export function registerAccountTools(server: McpServer) {
     'getAccountInfo',
     'BEST FOR: raw on-chain account inspection (owner program, data size, executable status, Token-2022 extensions). PREFER getAsset for token/NFT metadata. PREFER getBalance for SOL balance. Get detailed Solana account information for one or more accounts. For a single account: returns owner program, lamport balance, data size, executable status, and rent epoch. For batch: pass up to 100 addresses in "addresses" for fast bulk lookups. Use jsonParsed encoding (default) on token mint addresses to see Token-2022 extensions, authorities, and supply data. Use this to inspect any on-chain account. Credit cost: 1 credit (standard RPC).',
     {
-      address: z.string().optional().describe('Account address (base58 encoded). Use this OR addresses, not both.'),
-      addresses: z.array(z.string()).optional().describe('Array of account addresses (base58 encoded, up to 100). Use this OR address, not both.'),
+      address: z.string().optional().describe('Single account address (base58 encoded). Use this OR addresses, not both.'),
+      addresses: z.array(z.string()).optional().describe('Array of account addresses for batch lookup (base58 encoded, up to 100). Use this OR address, not both.'),
       encoding: z.string().optional().default('jsonParsed').describe('Data encoding format')
     },
     async ({ address, addresses, encoding }) => {
