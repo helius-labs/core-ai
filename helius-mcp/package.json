@@ -1,7 +1,7 @@
 {
   "name": "helius-mcp",
-  "version": "0.3.0",
-  "description": "Official Helius MCP Server - Complete Solana blockchain data access for Claude",
+  "version": "1.0.0",
+  "description": "Official Helius MCP Server - Complete Solana blockchain data access for AI assistants",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -21,8 +21,10 @@
     "solana",
     "blockchain",
     "mcp",
-    "claude",
+    "model-context-protocol",
     "ai",
+    "llm",
+    "claude",
     "web3",
     "nft",
     "defi",
