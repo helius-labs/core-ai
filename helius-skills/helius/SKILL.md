@@ -13,42 +13,19 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ## Prerequisites
 
-Before doing anything, verify these two things:
-
 ### 1. Helius MCP Server
 
-**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `parseTransactions`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl, CLI commands, or any other workaround. Tell the user:
-
-```
-You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@latest
-Then restart Claude so the tools become available.
-```
+**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`). If NOT available, **STOP** and tell the user: `claude mcp add helius npx helius-mcp@latest` then restart Claude.
 
 ### 2. API Key
 
-If any MCP tool returns an "API key not configured" error, guide the user through one of these paths:
+If any MCP tool returns "API key not configured":
 
-**Path A — Existing key (fastest):** If the user already has a Helius API key from https://dashboard.helius.dev, use the `setHeliusApiKey` MCP tool to configure it.
+**Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — New account (agentic signup):** Walk the user through ALL of these steps:
+**Path B — Agentic signup:** `generateKeypair` → user funds wallet with **~0.001 SOL** for fees + **USDC** (USDC mint: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`) — **1 USDC** basic, **$49** Developer, **$499** Business, **$999** Professional → `checkSignupBalance` → `agenticSignup`. **Do NOT skip steps** — on-chain payment required.
 
-1. **Generate a keypair** — call the `generateKeypair` MCP tool. It returns a wallet address.
-2. **Fund the wallet** — the user must send funds to that wallet address:
-   - **~0.001 SOL** for transaction fees
-   - **1 USDC** for the basic plan ($1), or more for paid plans ($49 Developer, $499 Business, $999 Professional)
-   - They can fund from any Solana wallet or exchange. The USDC mint on Solana is `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`.
-3. **Verify funding** — call `checkSignupBalance` to confirm SOL + USDC are sufficient.
-4. **Create the account** — call `agenticSignup` to process the USDC payment and create the Helius account. The API key is automatically configured.
-
-**IMPORTANT**: Do NOT skip or simplify these steps. The signup requires on-chain payment — the wallet MUST be funded before `agenticSignup` will succeed.
-
-**Path C — Helius CLI:** The same flow from the terminal:
-```bash
-npx helius-cli@latest keygen        # Step 1: generate keypair
-# Step 2: fund the wallet address shown above
-npx helius-cli@latest signup        # Step 3+4: verify balance and create account
-```
+**Path C — CLI:** `npx helius-cli@latest keygen` → fund wallet → `npx helius-cli@latest signup`
 
 ## Routing
 
@@ -56,182 +33,78 @@ Identify what the user is building, then read the relevant reference files befor
 
 ### Quick Disambiguation
 
-These intents overlap across multiple files. Route them correctly:
-
-- **"transaction history"** — Parsed, human-readable history → `references/enhanced-transactions.md`. Balance changes per tx → `references/wallet-api.md`. Trigger actions on new txs → `references/webhooks.md`.
-- **"real-time" / "streaming"** — WebSocket subscriptions (accountSubscribe, logsSubscribe, transactionSubscribe) → `references/websockets.md`. gRPC streaming (all accounts, all transactions, high-throughput indexing) → `references/laserstream.md`.
-- **"monitor wallet"** — Fire-and-forget notifications (webhook POSTs to your server) → `references/webhooks.md`. Live UI updates (persistent connection) → `references/websockets.md`. Investigate past activity → `references/wallet-api.md`.
-- **"how does X work on Solana"** — Protocol internals, SIMDs, source code → `getSIMD`, `readSolanaSourceFile`, `searchSolanaDocs`. Helius blog deep-dives → `fetchHeliusBlog`. Helius API docs → `lookupHeliusDocs`.
+| Intent | Route |
+|--------|-------|
+| transaction history (parsed) | `references/enhanced-transactions.md` |
+| transaction history (balance deltas) | `references/wallet-api.md` |
+| transaction triggers | `references/webhooks.md` |
+| real-time (WebSocket) | `references/websockets.md` |
+| real-time (gRPC/indexing) | `references/laserstream.md` |
+| monitor wallet (notifications) | `references/webhooks.md` |
+| monitor wallet (live UI) | `references/websockets.md` |
+| monitor wallet (past activity) | `references/wallet-api.md` |
+| Solana internals | MCP: `getSIMD`, `searchSolanaDocs`, `fetchHeliusBlog` |
 
 ### Transaction Sending & Swaps
 **Read**: `references/sender.md`, `references/priority-fees.md`
 **MCP tools**: `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`
-
-Use this when the user wants to:
-- Send SOL to another wallet
-- Transfer SPL tokens (USDC, BONK, JUP, etc.)
-- Send transactions with optimal landing rates
-- Integrate with DFlow, Jupiter, Titan, or other swap APIs
-- Build trading bots, swap interfaces, or trading terminals
-- Optimize transaction submission
+**When**: sending SOL/SPL tokens, sending transactions, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
 
 ### Asset & NFT Queries
 **Read**: `references/das.md`
 **MCP tools**: `getAssetsByOwner`, `getAsset`, `searchAssets`, `getAssetsByGroup`, `getAssetProof`, `getAssetProofBatch`, `getSignaturesForAsset`, `getNftEditions`
-
-Use this when the user wants to:
-- Query NFTs, compressed NFTs, or fungible tokens
-- Build NFT marketplaces, galleries, or launchpads
-- Search assets by collection, creator, or authority
-- Work with Merkle proofs for compressed NFTs
+**When**: NFT/cNFT/token queries, marketplaces, galleries, launchpads, collection/creator/authority search, Merkle proofs
 
 ### Real-Time Streaming
 **Read**: `references/laserstream.md` OR `references/websockets.md`
-**MCP tools**: `transactionSubscribe`, `accountSubscribe`, `getEnhancedWebSocketInfo`, `laserstreamSubscribe`, `getLaserstreamInfo`, `getLatencyComparison`
-
-Use this when the user wants to:
-- Monitor transactions or accounts in real time
-- Build live dashboards, alerting systems, trading apps
-- Stream block/slot data for indexing
-- Track specific program or account activity
-
-**Choosing between them**:
-- Enhanced WebSockets: simpler setup, WebSocket protocol, good for most real-time needs (Business+ plan)
-- Laserstream gRPC: lowest latency, historical replay, best for indexers and high-throughput (Professional plan)
-- Use `getLatencyComparison` MCP tool to show the user the tradeoffs
+**MCP tools**: `transactionSubscribe`, `accountSubscribe`, `laserstreamSubscribe`
+**When**: real-time monitoring, live dashboards, alerting, trading apps, block/slot streaming, indexing, program/account tracking
+Enhanced WebSockets (Business+) for most needs; Laserstream gRPC (Professional) for lowest latency and replay.
 
 ### Event Pipelines (Webhooks)
 **Read**: `references/webhooks.md`
 **MCP tools**: `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `deleteWebhook`, `getWebhookGuide`
-
-Use this when the user wants to:
-- Get notified when specific on-chain events happen
-- Build event-driven backends
-- Monitor addresses for transfers, swaps, NFT sales, program upgrades, multi-sig activity
-- Set up Telegram or Discord notifications for on-chain activity
+**When**: on-chain event notifications, event-driven backends, address monitoring (transfers, swaps, NFT sales), Telegram/Discord alerts
 
 ### Wallet Analysis
 **Read**: `references/wallet-api.md`
 **MCP tools**: `getWalletIdentity`, `batchWalletIdentity`, `getWalletBalances`, `getWalletHistory`, `getWalletTransfers`, `getWalletFundedBy`
-
-Use this when the user wants to:
-- Look up who owns a wallet (exchanges, protocols, institutions, KOLs, scammers)
-- Get wallet portfolio or balance breakdowns in a human-readable format
-- Trace fund flows and transfer history
-- Build wallet analytics, bubblemaps, tax reporting software, or investigation tools
+**When**: wallet identity lookup, portfolio/balance breakdowns, fund flow tracing, wallet analytics, tax reporting, investigation tools
 
 ### Account & Token Data
 **MCP tools**: `getBalance`, `getTokenBalances`, `getAccountInfo`, `getTokenAccounts`, `getProgramAccounts`, `getTokenHolders`, `getBlock`, `getNetworkStatus`
-
-Use this when the user wants to:
-- Check balances (SOL or SPL tokens)
-- Inspect account data or program accounts
-- Get token holder distributions
-- Query block or network information
-
-These are straightforward data lookups. No reference file needed — just use the MCP tools directly.
+**When**: balance checks, account inspection, token holder distributions, block/network queries. No reference file needed.
 
 ### Transaction History & Parsing
 **Read**: `references/enhanced-transactions.md`
 **MCP tools**: `parseTransactions`, `getTransactionHistory`
-
-Use this when the user wants to:
-- Get human-readable transaction data from signatures
-- Build transaction explorers or comprehensive history views
-- Analyze past swaps, transfers, or NFT sales
-- Filter transaction history by type, time range, or slot range
+**When**: human-readable tx data, transaction explorers, swap/transfer/NFT sale analysis, history filtering by type/time/slot
 
 ### Getting Started / Onboarding
 **Read**: `references/onboarding.md`
 **MCP tools**: `setHeliusApiKey`, `generateKeypair`, `checkSignupBalance`, `agenticSignup`, `getAccountStatus`, `previewUpgrade`, `upgradePlan`, `payRenewal`
-
-Use this when the user wants to:
-- Create a Helius account
-- Get or manage API keys
-- Check their plan, credits, or usage
-- Upgrade or manage billing
+**When**: account creation, API key management, plan/credits/usage checks, billing
 
 ### Documentation & Troubleshooting
 **MCP tools**: `lookupHeliusDocs`, `listHeliusDocTopics`, `getHeliusCreditsInfo`, `getRateLimitInfo`, `troubleshootError`, `getPumpFunGuide`
-
-Use this when the user wants to:
-- Look up specific API details, pricing, or rate limits
-- Troubleshoot errors
-- Understand credit costs
-- Work with pump.fun tokens
-
-For any documentation question, prefer `lookupHeliusDocs` with the relevant topic — it fetches live from official docs so it's always accurate.
+**When**: API details, pricing, rate limits, error troubleshooting, credit costs, pump.fun tokens. Prefer `lookupHeliusDocs` with `section` parameter for targeted lookups.
 
 ### Plans & Billing
 **MCP tools**: `getHeliusPlanInfo`, `compareHeliusPlans`, `getHeliusCreditsInfo`, `getRateLimitInfo`
-
-Use this when the user asks about pricing, plans, or rate limits.
+**When**: pricing, plans, or rate limit questions.
 
 ### Solana Knowledge & Research
 **MCP tools**: `getSIMD`, `listSIMDs`, `readSolanaSourceFile`, `searchSolanaDocs`, `fetchHeliusBlog`
-
-Use this when the user wants to:
-- Understand Solana protocol internals (consensus, runtime, transactions, fees, SVM)
-- Read or reference Solana Improvement Documents (SIMDs)
-- Look up validator source code from Agave or Firedancer
-- Research architecture, design decisions, or protocol changes
-- Get deep technical explanations from the Helius blog
-
-No API key needed — these tools fetch from public GitHub and Solana sources.
+**When**: Solana protocol internals, SIMDs, validator source code, architecture research, Helius blog deep-dives. No API key needed.
 
 ### Project Planning & Architecture
 **MCP tools**: `getStarted` → `recommendStack` → `getHeliusPlanInfo`, `lookupHeliusDocs`
-
-Use this when the user wants to:
-- Plan a new Solana project from scratch
-- Understand which Helius products to use for their use case
-- Compare budget vs. production architecture options
-- Get cost estimates before choosing a plan
-
-**Routing:** Always call `getStarted` first when the user describes a project they
-want to build ("I want to build X"). `getStarted` checks setup state and surfaces
-`recommendStack` as the next step. Only call `recommendStack` directly when the
-user explicitly asks for product recommendations ("what Helius products do I need?").
-
-When calling `recommendStack`, pass the user's project description via the
-`description` parameter. If it matches a known template (portfolio tracker,
-trading bot, NFT marketplace, etc.), also provide `projectType` for a tailored
-recommendation. Otherwise, omit it for the general capability catalog.
+**When**: planning new projects, choosing Helius products, comparing budget vs. production architectures, cost estimates.
+Call `getStarted` first when user describes a project. Call `recommendStack` directly for explicit product recommendations.
 
 ## Composing Multiple Domains
 
-For a structured recommendation with cost/complexity tiers, use `getStarted` (which
-surfaces `recommendStack`). For manual composition, here are common patterns:
-
-### "Build a swap/trading app"
-1. Read `references/sender.md` + `references/priority-fees.md`
-2. Architecture: DFlow Trading API for routes, Sender for submission, Priority Fee API for fees, Enhanced WebSockets or LaserStream for confirmation tracking
-3. Use `getPriorityFeeEstimate` to get fees, then submit via Sender endpoints with Jito tips
-
-### "Build an NFT marketplace"
-1. Read `references/das.md` + `references/webhooks.md`
-2. Architecture: DAS API for browsing/searching, webhooks for sale/listing events, Enhanced Transactions for history
-3. Use `getAssetsByGroup` for collection pages, `searchAssets` for search, `createWebhook` for event monitoring
-
-### "Build a portfolio tracker"
-1. Read `references/wallet-api.md` + `references/websockets.md`
-2. Architecture: Wallet API for balances/history, DAS for NFTs, Enhanced WebSockets for live updates
-3. Use `getWalletBalances` for current state, `transactionSubscribe` for real-time changes
-
-### "Build an indexer"
-1. Read `references/laserstream.md` + `references/webhooks.md`
-2. Architecture: Laserstream for high-throughput ingestion, your database for storage, webhooks for notifications
-3. Use `laserstreamSubscribe` for the data firehose, `parseTransactions` for enrichment
-
-### "Track specific program activity"
-1. Read `references/websockets.md` or `references/laserstream.md`
-2. Use `transactionSubscribe` with `accountInclude` filter set to the program ID
-3. Parse results with `parseTransactions` for human-readable output
-
-### "Work with pump.fun tokens"
-1. Use `getPumpFunGuide` MCP tool for the full pattern
-2. DAS `getAsset` for individual token details, NOT `getAssetsByCreator` (it won't work for pump.fun)
-3. Track migrations via Laserstream or Enhanced WebSockets monitoring the migration program
+For multi-product architecture recommendations, use `recommendStack` with a project description.
 
 ## Rules
 
@@ -275,6 +148,13 @@ Follow these rules in ALL implementations:
 - Rust: `use helius::Helius` then `Helius::new("apiKey", Cluster::MainnetBeta)?`
 - For @solana/kit integration, use `helius.raw` for the underlying `Rpc` client
 - Check the agents.md in helius-sdk or helius-rust-sdk for complete SDK API references
+
+### Token Efficiency
+- Prefer `getBalance` (returns ~2 lines) over `getWalletBalances` (returns 50+ lines) when only SOL balance is needed
+- Use `lookupHeliusDocs` with the `section` parameter — full docs can be 10,000+ tokens; a targeted section is typically 500-2,000
+- Use batch endpoints (`getAsset` with `ids` array, `getAssetProofBatch`) instead of sequential single calls — one response vs. N responses in context
+- Use `getTransactionHistory` in `signatures` mode for lightweight listing (~5 lines/tx), then `parseTransactions` only on transactions of interest
+- Prefer `getTokenBalances` (compact per-token lines) over `getWalletBalances` (full portfolio with metadata) when you don't need USD values or SOL balance
 
 ### Common Pitfalls
 - **SDK parameter names differ from API names** — The REST API uses kebab-case (`before-signature`), the Enhanced SDK uses camelCase (`beforeSignature`), and the RPC SDK uses different names entirely (`paginationToken`). Always check `references/enhanced-transactions.md` for the parameter name mapping before writing pagination or filtering code.

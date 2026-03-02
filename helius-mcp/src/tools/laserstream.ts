@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getLaserstreamUrl, getNetwork } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnAddressConflicts } from '../utils/errors.js';
-import { fetchDoc } from '../utils/docs.js';
+import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 
 export function registerLaserstreamTools(server: McpServer) {
 
@@ -14,12 +14,12 @@ export function registerLaserstreamTools(server: McpServer) {
       commitment: z.string().optional(),
       subscribeSlots: z.boolean().optional(),
       filterByCommitment: z.boolean().optional(),
-      subscribeAccounts: z.array(z.string()).optional().describe('Account public keys to watch'),
-      accountOwners: z.array(z.string()).optional().describe('Filter by owner addresses'),
+      subscribeAccounts: z.array(z.string()).optional().describe('Account public keys to watch (base58 encoded)'),
+      accountOwners: z.array(z.string()).optional().describe('Filter by owner addresses (base58 encoded)'),
       subscribeTransactions: z.boolean().optional(),
-      transactionAccountInclude: z.array(z.string()).optional().describe('Accounts to include (OR logic)'),
-      transactionAccountExclude: z.array(z.string()).optional(),
-      transactionAccountRequired: z.array(z.string()).optional().describe('Accounts required (AND logic)'),
+      transactionAccountInclude: z.array(z.string()).optional().describe('Accounts to include (base58 encoded, OR logic)'),
+      transactionAccountExclude: z.array(z.string()).optional().describe('Accounts to exclude (base58 encoded)'),
+      transactionAccountRequired: z.array(z.string()).optional().describe('Accounts required (base58 encoded, AND logic)'),
       subscribeBlocks: z.boolean().optional(),
       subscribeBlocksMeta: z.boolean().optional(),
       subscribeEntries: z.boolean().optional(),
@@ -182,12 +182,18 @@ export function registerLaserstreamTools(server: McpServer) {
         );
       }
 
+      const capabilities = extractSections(content, ['capabilities', 'features'], { includeLooseMatches: false });
+      const regions = extractSections(content, ['regions', 'endpoints'], { includeLooseMatches: false });
+      const plans = extractSections(content, ['plan requirements', 'pricing'], { includeLooseMatches: false });
+      const sections = [capabilities, regions, plans].filter(Boolean).join('\n\n');
+      const body = sections || truncateDoc(content);
+
       const result = [
         '# Helius Laserstream (Official)',
         '',
         `**Endpoint:** \`${endpoint}\``,
         '',
-        content,
+        body,
         '',
         '---',
         'Source: https://www.helius.dev/docs/laserstream/grpc (fetched live)',

@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getEnhancedWebSocketUrl } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
-import { fetchDoc } from '../utils/docs.js';
+import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 
 export function registerEnhancedWebSocketTools(server: McpServer) {
 
@@ -12,10 +12,10 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     {
       vote: z.boolean().optional().describe('Include vote transactions'),
       failed: z.boolean().optional().describe('Include failed transactions'),
-      signature: z.string().optional().describe('Filter to specific signature'),
-      accountInclude: z.array(z.string()).optional().describe('Accounts to include (OR logic)'),
-      accountExclude: z.array(z.string()).optional().describe('Accounts to exclude'),
-      accountRequired: z.array(z.string()).optional().describe('Accounts required (AND logic)'),
+      signature: z.string().optional().describe('Transaction signature (base58 encoded, 86-88 characters) to filter to'),
+      accountInclude: z.array(z.string()).optional().describe('Accounts to include (base58 encoded, up to 50,000, OR logic)'),
+      accountExclude: z.array(z.string()).optional().describe('Accounts to exclude (base58 encoded)'),
+      accountRequired: z.array(z.string()).optional().describe('Accounts required (base58 encoded, AND logic)'),
       commitment: z.string().optional().default('confirmed'),
       encoding: z.string().optional().default('jsonParsed'),
       transactionDetails: z.string().optional().default('full'),
@@ -127,7 +127,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     'accountSubscribe',
     'BEST FOR: real-time account change monitoring for live UI updates (WebSocket). PREFER createWebhook for fire-and-forget notifications on account changes. PREFER laserstreamSubscribe for lowest-latency production streaming. Get Enhanced WebSocket config for real-time Solana account monitoring. Track balance changes and data updates. Business+ plans only. Returns connection config and code example. Data streaming cost: 3 credits per 0.1 MB received.',
     {
-      account: z.string().describe('Account public key (base58)'),
+      account: z.string().describe('Account address (base58 encoded)'),
       encoding: z.string().optional().default('base58'),
       commitment: z.string().optional().default('finalized')
     },
@@ -219,12 +219,18 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
         );
       }
 
+      const capabilities = extractSections(content, ['capabilities', 'features'], { includeLooseMatches: false });
+      const subscriptions = extractSections(content, ['subscriptions', 'endpoints'], { includeLooseMatches: false });
+      const plans = extractSections(content, ['plan requirements', 'plans'], { includeLooseMatches: false });
+      const sections = [capabilities, subscriptions, plans].filter(Boolean).join('\n\n');
+      const body = sections || truncateDoc(content);
+
       const result = [
         '# Helius Enhanced WebSockets (Official)',
         '',
         `**Endpoint:** \`${wsUrl}\``,
         '',
-        content,
+        body,
         '',
         '---',
         'Source: https://www.helius.dev/docs/enhanced-websockets (fetched live)',
