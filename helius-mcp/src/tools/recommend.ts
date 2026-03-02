@@ -28,6 +28,7 @@ export const KNOWN_TOOLS = new Set([
   'lookupHeliusDocs', 'listHeliusDocTopics', 'getHeliusCreditsInfo', 'getRateLimitInfo',
   'troubleshootError', 'getSenderInfo', 'getWebhookGuide', 'getLatencyComparison', 'getPumpFunGuide',
   'recommendStack',
+  'transferSol', 'transferToken',
 ]);
 
 // ─── Plan Ranking ───

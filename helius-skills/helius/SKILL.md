@@ -47,8 +47,8 @@ Identify what the user is building, then read the relevant reference files befor
 
 ### Transaction Sending & Swaps
 **Read**: `references/sender.md`, `references/priority-fees.md`
-**MCP tools**: `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`
-**When**: sending transactions, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
+**MCP tools**: `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`
+**When**: sending SOL/SPL tokens, sending transactions, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
 
 ### Asset & NFT Queries
 **Read**: `references/das.md`

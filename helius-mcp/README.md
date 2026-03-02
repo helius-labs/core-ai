@@ -56,6 +56,8 @@ Ask questions in plain English — the right tool is selected automatically:
 
 **Transactions (1):** parseTransactions
 
+**Transfers (2):** transferSol, transferToken
+
 **Priority Fees (1):** getPriorityFeeEstimate
 
 **Webhooks (5):** getAllWebhooks, getWebhookByID, createWebhook, updateWebhook, deleteWebhook

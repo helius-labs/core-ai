@@ -69,7 +69,7 @@ export function registerAccountTools(server: McpServer) {
             return mcpText(`**Error:** Maximum 100 accounts per request. You provided ${addresses.length}.`);
           }
 
-          const result = await (helius as any).getMultipleAccounts(addresses, { encoding }).send();
+          const result = await (helius as any).getMultipleAccounts(addresses, { encoding });
           const accounts = result?.value || [];
           const lines = [`**Multiple Accounts** (${addresses.length} requested)`, ''];
 
@@ -95,7 +95,7 @@ export function registerAccountTools(server: McpServer) {
         }
 
         // --- Single account mode ---
-        const result = await (helius as any).getAccountInfo(address, { encoding }).send();
+        const result = await (helius as any).getAccountInfo(address, { encoding });
         const account = result?.value;
 
         if (!account) {

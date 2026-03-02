@@ -28,7 +28,7 @@ export function registerBlockTools(server: McpServer) {
           transactionDetails,
           maxSupportedTransactionVersion: 0,
           rewards: true
-        }).send();
+        });
 
         if (!block) {
           return mcpText(`**Block at Slot ${slot.toLocaleString()}**\n\nBlock not found. It may have been skipped or not yet confirmed.`);

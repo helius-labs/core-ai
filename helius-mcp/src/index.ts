@@ -57,7 +57,8 @@ const server = new McpServer(
 Rules:
 - For pricing, start with getHeliusPlanInfo — NOT lookupHeliusDocs.
 - For errors, use troubleshootError first.
-- When a user describes ANY project they want to build ("I want to build/make/create...", "help me build...", "I need a..."), call recommendStack immediately with their description — do not ask clarifying questions first. After recommendations, use getHeliusPlanInfo for pricing and lookupHeliusDocs for API details.`
+- When a user describes ANY project they want to build ("I want to build/make/create...", "help me build...", "I need a..."), call recommendStack immediately with their description — do not ask clarifying questions first. After recommendations, use getHeliusPlanInfo for pricing and lookupHeliusDocs for API details.
+- "send SOL" / "transfer SOL" → transferSol (~3 credits). "send tokens" / "transfer USDC/BONK/etc" → transferToken (~13 credits). Both require a configured keypair (generateKeypair) and use Helius Sender.`
   }
 );
 

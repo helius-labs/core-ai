@@ -14,9 +14,9 @@ import {
   setApiKey,
   hasApiKey,
   setSessionSecretKey,
-  getSessionSecretKey,
   setSessionWalletAddress,
   getSessionWalletAddress,
+  loadSignerOrFail,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
@@ -273,25 +273,15 @@ export function registerAuthTools(server: McpServer) {
     },
     async ({ plan, period, email, firstName, lastName, couponCode }) => {
       try {
-        let secretKey = getSessionSecretKey();
-
-        // Fall back to disk keypair if no session key
-        if (!secretKey) {
-          secretKey = loadKeypairFromDisk();
-          if (secretKey) {
-            const walletKeypair = loadKeypair(secretKey);
-            const address = await getAddress(walletKeypair);
-            setSessionSecretKey(secretKey);
-            setSessionWalletAddress(address);
-          }
-        }
-
-        if (!secretKey) {
+        let signerData: { secretKey: Uint8Array; walletAddress: string };
+        try {
+          signerData = await loadSignerOrFail();
+        } catch {
           return mcpError('No signup keypair found. Call `generateKeypair` first to create a wallet, fund it, then call this tool.');
         }
 
         const result = await agenticSignup({
-          secretKey,
+          secretKey: signerData.secretKey,
           userAgent: MCP_USER_AGENT,
           plan,
           period,
@@ -449,17 +439,10 @@ export function registerAuthTools(server: McpServer) {
           );
         }
 
-        let secretKey = getSessionSecretKey();
-        if (!secretKey) {
-          secretKey = loadKeypairFromDisk();
-          if (secretKey) {
-            const walletKeypair = loadKeypair(secretKey);
-            const address = await getAddress(walletKeypair);
-            setSessionSecretKey(secretKey);
-            setSessionWalletAddress(address);
-          }
-        }
-        if (!secretKey) {
+        let signerData: { secretKey: Uint8Array; walletAddress: string };
+        try {
+          signerData = await loadSignerOrFail();
+        } catch {
           return mcpError('No keypair found. Call `generateKeypair` first.');
         }
 
@@ -474,7 +457,7 @@ export function registerAuthTools(server: McpServer) {
         }
 
         const projectId = projects[0].id;
-        const result = await executeCheckout(secretKey, jwt, {
+        const result = await executeCheckout(signerData.secretKey, jwt, {
           plan,
           period,
           refId: projectId,
@@ -645,17 +628,10 @@ export function registerAuthTools(server: McpServer) {
     },
     async ({ paymentIntentId }) => {
       try {
-        let secretKey = getSessionSecretKey();
-        if (!secretKey) {
-          secretKey = loadKeypairFromDisk();
-          if (secretKey) {
-            const walletKeypair = loadKeypair(secretKey);
-            const address = await getAddress(walletKeypair);
-            setSessionSecretKey(secretKey);
-            setSessionWalletAddress(address);
-          }
-        }
-        if (!secretKey) {
+        let signerData: { secretKey: Uint8Array; walletAddress: string };
+        try {
+          signerData = await loadSignerOrFail();
+        } catch {
           return mcpError('No keypair found. Call `generateKeypair` first.');
         }
 
@@ -664,7 +640,7 @@ export function registerAuthTools(server: McpServer) {
           return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
         }
 
-        const result = await executeRenewal(secretKey, jwt, paymentIntentId, MCP_USER_AGENT);
+        const result = await executeRenewal(signerData.secretKey, jwt, paymentIntentId, MCP_USER_AGENT);
 
         if (result.status !== 'completed') {
           return mcpError(
