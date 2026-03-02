@@ -240,6 +240,33 @@ claude --plugin-dir ./helius-plugin
 
 ---
 
+## Cross-Platform Skills
+
+Helius skills are model-agnostic — they work across Claude Code, Codex CLI, OpenAI API, Claude API, Cursor, and other AI tools.
+
+### 3-Layer Architecture
+
+| Layer | What | Where |
+|-------|------|-------|
+| **A: Harness** | Runtime-specific behavior | `AGENTS.md` (Codex), preamble in prompt variants (API), built-in (Claude Code) |
+| **B: Skills** | Reusable domain expertise | `SKILL.md` files — single source of truth in `helius-skills/` |
+| **C: Task** | User request | Provided at runtime |
+
+### Platform Support
+
+| Platform | How to use |
+|----------|-----------|
+| **Claude Code** | Install via `helius-plugin` or `helius-skills/install.sh` |
+| **Codex CLI** | Auto-discovers `AGENTS.md` + `.agents/skills/` from repo root |
+| **OpenAI API** | Use `.agents/skills/<skill>/prompts/openai.developer.md` as a `developer` message |
+| **Claude API** | Use `.agents/skills/<skill>/prompts/claude.system.md` as a system prompt |
+| **Cursor** | Use `.agents/skills/<skill>/prompts/full.md` as Cursor Rules |
+| **npm consumers** | Find prompts in `helius-mcp/system-prompts/` (shipped with the npm package) |
+
+See [`helius-skills/SYSTEM-PROMPTS.md`](./helius-skills/SYSTEM-PROMPTS.md) for detailed integration guides and code examples.
+
+---
+
 ## Development
 
 All packages use TypeScript and `pnpm`.

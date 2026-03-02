@@ -45,6 +45,23 @@ The SVM skill (`helius-skills/svm/` and `helius-plugin/skills/svm/`) has its own
 - The SVM skill contains 10 reference files: compilation, programs, execution, accounts, transactions, consensus, validators, data, development, tokens.
 - When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to `helius-plugin/skills/svm/references/`.
 
+## Generated Output
+
+The following directories are **generated** by `npx tsx scripts/compile-skills.ts` from canonical sources in `helius-skills/`. Do not edit them directly.
+
+- `.agents/skills/` — Codex-native skills + prompt variants
+- `helius-mcp/system-prompts/` — npm-shipped prompt copies
+
+### Sync Paths from Canonical Source
+
+All skill content flows from `helius-skills/` to three destinations:
+
+1. `helius-skills/` → `helius-plugin/skills/` (existing manual copy)
+2. `helius-skills/` → `.agents/skills/` (compiler-generated)
+3. `helius-skills/` → `helius-mcp/system-prompts/` (compiler-generated)
+
+CI validates all three sync paths. After modifying any `SKILL.md` or reference file in `helius-skills/`, run `npx tsx scripts/compile-skills.ts` to regenerate output.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
