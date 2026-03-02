@@ -6,6 +6,21 @@ MCP server for Helius — Solana blockchain data access for AI assistants, provi
 
 ### 1. Add the MCP server
 
+Add to your MCP host's config (works with Claude, Cursor, Windsurf, and any MCP-compatible client):
+
+```json
+{
+  "mcpServers": {
+    "helius": {
+      "command": "npx",
+      "args": ["helius-mcp@latest"]
+    }
+  }
+}
+```
+
+Or if you're using Claude Code:
+
 ```bash
 claude mcp add helius npx helius-mcp@latest
 ```
@@ -18,7 +33,7 @@ claude mcp add helius npx helius-mcp@latest
 export HELIUS_API_KEY=your-api-key
 ```
 
-Or set it inside Claude by calling the `setHeliusApiKey` tool.
+Or set it from your AI assistant by calling the `setHeliusApiKey` tool.
 
 **If you need a new account:**
 
@@ -28,6 +43,8 @@ The MCP includes a fully autonomous signup flow — no browser needed:
 2. Fund the wallet with **~0.001 SOL** (transaction fees) + **1 USDC** (basic plan costs $1)
 3. Call `checkSignupBalance` to verify funds arrived
 4. Call `agenticSignup` to create your account — API key is configured automatically
+
+> **Paid plans (developer/business/professional):** `agenticSignup` and `upgradePlan` require `email`, `firstName`, and `lastName`. Basic plan does not.
 
 Or do the same from the terminal:
 
@@ -48,17 +65,19 @@ Ask questions in plain English — the right tool is selected automatically:
 
 ## Tools
 
-**Onboarding:** getStarted, setHeliusApiKey, generateKeypair, checkSignupBalance, agenticSignup, getAccountStatus
+**Onboarding (6):** getStarted, setHeliusApiKey, generateKeypair, checkSignupBalance, agenticSignup, getAccountStatus
 
-**DAS API (12):** getAsset, getAssetBatch, getAssetsByOwner, getAssetsByGroup, getAssetsByCreator, getAssetsByAuthority, searchAssets, getAssetProof, getAssetProofBatch, getSignaturesForAsset, getNftEditions, getTokenAccounts
+**DAS API (9):** getAsset (single + batch), getAssetsByOwner, getAssetsByGroup, searchAssets (routes getAssetsByCreator / getAssetsByAuthority), getAssetProof, getAssetProofBatch, getSignaturesForAsset, getNftEditions, getTokenAccounts
 
-**RPC (4):** getBalance, getAccountInfo, getMultipleAccounts, getSignaturesForAddress
+**RPC (5):** getBalance, getTokenBalances, getAccountInfo (single + batch), getNetworkStatus, getBlock
 
-**Transactions (1):** parseTransactions
+**Transactions (2):** parseTransactions, getTransactionHistory
 
 **Transfers (2):** transferSol, transferToken
 
 **Priority Fees (1):** getPriorityFeeEstimate
+
+**Tokens (2):** getTokenHolders, getProgramAccounts
 
 **Webhooks (5):** getAllWebhooks, getWebhookByID, createWebhook, updateWebhook, deleteWebhook
 
@@ -68,9 +87,11 @@ Ask questions in plain English — the right tool is selected automatically:
 
 **Wallet (6):** getWalletIdentity, batchWalletIdentity, getWalletBalances, getWalletHistory, getWalletTransfers, getWalletFundedBy
 
-**Plans & Billing:** getHeliusPlanInfo, compareHeliusPlans, previewUpgrade, upgradePlan, payRenewal
+**Plans & Billing (5):** getHeliusPlanInfo, compareHeliusPlans, previewUpgrade, upgradePlan, payRenewal
 
-**Docs & Guides:** lookupHeliusDocs, listHeliusDocTopics, getHeliusCreditsInfo, getRateLimitInfo, troubleshootError, getSenderInfo, getWebhookGuide, getLatencyComparison, getPumpFunGuide
+**Docs & Guides (10):** lookupHeliusDocs, listHeliusDocTopics, getHeliusCreditsInfo, getRateLimitInfo, troubleshootError, getSenderInfo, getWebhookGuide, getLatencyComparison, getPumpFunGuide, recommendStack
+
+**Solana Knowledge (5):** getSIMD, listSIMDs, searchSolanaDocs, readSolanaSourceFile, fetchHeliusBlog
 
 ## Networks
 
