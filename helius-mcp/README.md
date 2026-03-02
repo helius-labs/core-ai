@@ -44,6 +44,8 @@ The MCP includes a fully autonomous signup flow — no browser needed:
 3. Call `checkSignupBalance` to verify funds arrived
 4. Call `agenticSignup` to create your account — API key is configured automatically
 
+> **Paid plans (developer/business/professional):** `agenticSignup` and `upgradePlan` require `email`, `firstName`, and `lastName`. Basic plan does not.
+
 Or do the same from the terminal:
 
 ```bash

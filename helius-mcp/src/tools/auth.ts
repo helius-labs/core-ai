@@ -135,6 +135,8 @@ export function registerAuthTools(server: McpServer) {
         'Call `agenticSignup` to process the payment and create your Helius account.',
         'Your API key will be configured automatically — no extra steps needed.',
         '',
+        '> **Paid plans only:** `agenticSignup` requires `email`, `firstName`, and `lastName` for developer/business/professional plans. Basic plan ($1) does not require them.',
+        '',
         '---',
         '',
         '## Path C — Use the Helius CLI',
@@ -262,7 +264,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'agenticSignup',
-    'Create a Helius account using the generated keypair. Default: basic plan ($1 USDC). For paid plans, specify plan: developer ($49/mo), business ($499/mo), or professional ($999/mo). On success, automatically configures the API key for this session.',
+    'Create a Helius account using the generated keypair. Default: basic plan ($1 USDC). For paid plans (developer/business/professional), email, firstName, and lastName are required. On success, automatically configures the API key for this session.',
     {
       plan: z.string().optional().describe('Plan to sign up for: "basic" ($1, default), "developer", "business", or "professional"'),
       period: z.enum(["monthly", "yearly"]).optional().describe('Billing period for paid plans (default: monthly)'),
@@ -415,7 +417,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'upgradePlan',
-    'Upgrade your Helius plan. Processes USDC payment with proration. Call previewUpgrade first to see pricing.',
+    'Upgrade your Helius plan. Processes USDC payment with proration. Call previewUpgrade first to see pricing. Requires email, firstName, and lastName for first-time upgrades — all three must be provided together.',
     {
       plan: z.enum(['developer', 'business', 'professional']).describe('Target plan name'),
       period: z.enum(['monthly', 'yearly']).default('monthly').describe('Billing period'),
