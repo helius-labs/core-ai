@@ -262,13 +262,15 @@ Follow these rules in ALL implementations:
 - ALWAYS use `@phantom/react-sdk` for React apps — never use `window.phantom.solana` directly or `@solana/wallet-adapter-react`
 - ALWAYS use `@phantom/browser-sdk` for vanilla JS / non-React frameworks
 - ALWAYS use `@phantom/react-native-sdk` for React Native / Expo apps
+- **`window.phantom.solana` (the legacy injected extension provider) requires `@solana/web3.js` v1 types and does NOT work with `@solana/kit`** — the Phantom Connect SDK (`@phantom/react-sdk`, `@phantom/browser-sdk`) handles `@solana/kit` types natively
 - ALWAYS handle connection errors gracefully
 - For OAuth providers (Google/Apple), ensure the app has a Phantom Portal App ID and redirect URLs are allowlisted
 - Use `useModal` and `open()` for the connection flow — never auto-connect without user action
 
 ### Transaction Signing
-- ALWAYS use `signTransaction` (not `signAndSendTransaction`) — then submit via Helius Sender for better landing rates
-- ALWAYS use `VersionedTransaction` (not legacy `Transaction`) — supports address lookup tables and is the current standard
+- For extension wallets (`"injected"` provider): use `signTransaction` then submit via Helius Sender for better landing rates
+- For embedded wallets (`"google"`, `"apple"` providers): `signTransaction` is NOT supported — use `signAndSendTransaction` instead (submits through Phantom's infrastructure)
+- Build transactions with `@solana/kit`: `pipe(createTransactionMessage(...), ...)` → `compileTransaction()` — both `signTransaction` and `signAndSendTransaction` accept the compiled output
 - ALWAYS handle user rejection gracefully — this is not an error to retry
 - NEVER auto-approve transactions — each must be explicitly approved by the user
 
@@ -338,12 +340,12 @@ Follow these rules in ALL implementations:
 
 ## Common Pitfalls
 
-- **Using `signAndSendTransaction` instead of `signTransaction` + Sender** — `signAndSendTransaction` submits through standard RPC. Always use `signTransaction` then POST to Helius Sender for better landing rates.
+- **Using `signAndSendTransaction` when `signTransaction` + Sender is available** — for extension wallets (`"injected"` provider), `signAndSendTransaction` submits through standard RPC. Use `signTransaction` then POST to Helius Sender for better landing rates. Note: embedded wallets (`"google"`, `"apple"`) only support `signAndSendTransaction`.
 - **Missing Phantom Portal App ID** — Google and Apple OAuth providers require an appId from phantom.com/portal. Extension-only (`"injected"`) does not.
 - **Redirect URL not allowlisted in Portal** — OAuth login will fail if the exact redirect URL (including protocol and path) isn't allowlisted in Phantom Portal settings.
 - **API key in `NEXT_PUBLIC_` env var or browser `fetch` URL** — the key is embedded in the client bundle or visible in the network tab. Proxy through a backend.
 - **Opening Helius WebSocket directly from the browser** — the API key is in the `wss://` URL, visible in the network tab. Use a server relay.
-- **Using `window.phantom.solana` or `@solana/wallet-adapter-react`** — use `@phantom/react-sdk` (Phantom Connect SDK) instead. It supports social login, embedded wallets, and is the current standard.
+- **Using `window.phantom.solana` or `@solana/wallet-adapter-react`** — use `@phantom/react-sdk` (Phantom Connect SDK) instead. It supports social login, embedded wallets, `@solana/kit` types, and is the current standard. The legacy `window.phantom.solana` provider requires `@solana/web3.js` v1 types and does not work with `@solana/kit`.
 - **Using regional HTTP Sender endpoints from the browser** — CORS preflight fails on HTTP endpoints. Use `https://sender.helius-rpc.com/fast` (HTTPS).
 - **Not importing `react-native-get-random-values` first** — in React Native, this polyfill must be the very first import or the app will crash on startup.
 - **Client-side only token gating for valuable content** — anyone can bypass frontend checks. Always verify on the server with Helius DAS.

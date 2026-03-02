@@ -4,14 +4,18 @@ Detailed transaction patterns for Solana with Phantom Connect SDKs and Helius in
 
 ## The Sign → Sender Flow
 
-**Always** use this pattern: Phantom signs the transaction, then you submit to Helius Sender for optimal landing rates. Never use `signAndSendTransaction` — it submits through standard RPC, which is slower.
+For extension wallets (`"injected"` provider), use this pattern for optimal landing rates:
 
 ```
-1. Build transaction with priority fees + Jito tip
+1. Build transaction with @solana/kit (pipe → compileTransaction)
 2. Phantom signs (signTransaction)
 3. Submit to Helius Sender (https://sender.helius-rpc.com/fast)
 4. Poll for confirmation
 ```
+
+**Embedded wallet limitation**: `signTransaction` is NOT supported for embedded wallets (`"google"`, `"apple"` providers). Embedded wallets must use `signAndSendTransaction`, which signs and submits atomically through Phantom's infrastructure. The `signTransaction` + Sender pattern in this file applies to extension wallets only.
+
+**`window.phantom.solana` compatibility**: The legacy injected extension provider (`window.phantom.solana`) requires `@solana/web3.js` v1 types (`VersionedTransaction`, `PublicKey`, etc.) and does NOT work with `@solana/kit`. Always use the Phantom Connect SDK (`@phantom/react-sdk` or `@phantom/browser-sdk`), which accepts `@solana/kit` types natively.
 
 ## Dependencies
 
@@ -367,7 +371,8 @@ try {
 
 ## Common Mistakes
 
-- **Using `signAndSendTransaction` instead of `signTransaction` + Sender** — `signAndSendTransaction` submits through standard RPC. Always use `signTransaction`, then POST to Helius Sender for better landing rates.
+- **Using `signAndSendTransaction` when `signTransaction` + Sender is available** — for extension wallets, `signAndSendTransaction` submits through standard RPC. Use `signTransaction` then POST to Helius Sender for better landing rates. Note: embedded wallets (`"google"`, `"apple"`) only support `signAndSendTransaction`.
+- **Using `window.phantom.solana` instead of the Connect SDK** — the legacy injected provider requires `@solana/web3.js` v1 types and does not work with `@solana/kit`. Use `@phantom/react-sdk` or `@phantom/browser-sdk`.
 - **Missing priority fees** — transactions without priority fees are deprioritized. Use `getPriorityFeeEstimate` via your backend proxy.
 - **Missing Jito tip** — Helius Sender uses Jito for dual routing. Include a minimum 0.0002 SOL tip to benefit from Jito block building.
 - **Wrong instruction ordering** — CU limit must be first, CU price second, Jito tip last. Incorrect ordering causes Sender to reject the transaction.

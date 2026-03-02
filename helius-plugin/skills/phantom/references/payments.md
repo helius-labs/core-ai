@@ -353,7 +353,7 @@ function PriceDisplay({ usdAmount }: { usdAmount: number }) {
 
 ## Common Mistakes
 
-- **Using `signAndSendTransaction`** — use `signTransaction` + Helius Sender for better landing rates. See `references/transactions.md`.
+- **Using `signAndSendTransaction` when `signTransaction` + Sender is available** — for extension wallets, use `signTransaction` + Helius Sender for better landing rates. Note: embedded wallets (`"google"`, `"apple"`) only support `signAndSendTransaction`. See `references/transactions.md`.
 - **Not verifying on the server** — the client can lie about transaction success. Always verify on-chain using Helius Enhanced Transactions API.
 - **Exposing Helius API key in payment flow** — build payment transactions on the server, verify on the server. Only signing happens client-side.
 - **Not handling blockhash expiry** — if the user takes too long to sign, the transaction will fail. Build a fresh transaction on each attempt.
