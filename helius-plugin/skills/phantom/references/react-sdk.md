@@ -152,7 +152,7 @@ function SolanaActions() {
         jsonrpc: "2.0",
         id: "1",
         method: "sendTransaction",
-        params: [btoa(String.fromCharCode(...signedTx.serialize())), {
+        params: [btoa(String.fromCharCode(...new Uint8Array(signedTx))), {
           encoding: "base64",
           skipPreflight: true,
           maxRetries: 0,
