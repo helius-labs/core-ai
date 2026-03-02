@@ -129,33 +129,6 @@ const priorityFee = Math.ceil(result.priorityFeeEstimate * 1.2); // 20% buffer
 
 ## Adding Fees to Transactions
 
-### Kit Compat Wrapper (built on @solana/kit)
-
-```typescript
-import { ComputeBudgetProgram } from '@/lib/solana-kit-compat';
-
-// 1. Get the estimate (via MCP tool or API call)
-const feeEstimate = result.priorityFeeEstimate; // microLamports per CU
-
-// 2. Create compute budget instructions
-const computeUnitLimitIx = ComputeBudgetProgram.setComputeUnitLimit({
-  units: computeUnits, // from simulation, NOT default 200k
-});
-
-const computeUnitPriceIx = ComputeBudgetProgram.setComputeUnitPrice({
-  microLamports: feeEstimate,
-});
-
-// 3. PREPEND to transaction — these MUST be the first two instructions
-const allInstructions = [
-  computeUnitLimitIx,   // first
-  computeUnitPriceIx,   // second
-  ...yourInstructions,   // your app logic
-];
-```
-
-### @solana/kit
-
 ```typescript
 import {
   getSetComputeUnitLimitInstruction,
@@ -205,28 +178,28 @@ Do NOT use the default 200,000 CU limit. Simulate first to get actual usage, the
 
 ```typescript
 // 1. Build a test transaction with max CU for simulation
-const testInstructions = [
-  ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-  ...yourInstructions,
-];
-
-const testTx = new VersionedTransaction(
-  new TransactionMessage({
-    instructions: testInstructions,
-    payerKey: keypair.publicKey,
-    recentBlockhash: blockhash,
-  }).compileToV0Message()
+let testMsg = pipe(
+  createTransactionMessage({ version: 0 }),
+  (m) => setTransactionMessageFeePayerSigner(signer, m),
+  (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
+  (m) => appendTransactionMessageInstruction(getSetComputeUnitLimitInstruction({ units: 1_400_000 }), m),
 );
-testTx.sign([keypair]);
+for (const ix of yourInstructions) {
+  testMsg = appendTransactionMessageInstruction(ix, testMsg);
+}
+
+const testTx = await signTransactionMessageWithSigners(testMsg);
+const testBase64 = getBase64EncodedWireTransaction(testTx);
 
 // 2. Simulate
-const simulation = await connection.simulateTransaction(testTx, {
+const { value: simulation } = await rpc.simulateTransaction(testBase64, {
   replaceRecentBlockhash: true,
   sigVerify: false,
-});
+  encoding: "base64",
+}).send();
 
 // 3. Set limit to actual usage + 10% margin (minimum 1000 CUs)
-const units = simulation.value.unitsConsumed;
+const units = simulation.unitsConsumed;
 const computeUnits = units < 1000 ? 1000 : Math.ceil(units * 1.1);
 ```
 

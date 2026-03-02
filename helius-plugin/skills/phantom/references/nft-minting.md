@@ -47,15 +47,12 @@ function MintPage() {
       });
       const { transaction } = await res.json();
 
-      // 2. Deserialize and sign with Phantom
+      // 2. Decode and sign with Phantom (accepts raw transaction bytes)
       const txBytes = Uint8Array.from(atob(transaction), (c) => c.charCodeAt(0));
-      const { VersionedTransaction } = await import("@/lib/solana-kit-compat");
-      const tx = VersionedTransaction.deserialize(txBytes);
-      const signedTx = await solana.signTransaction(tx);
+      const signedTx = await solana.signTransaction(txBytes);
 
       // 3. Submit to Helius Sender — see references/helius-sender.md
-      const serialized = signedTx.serialize();
-      const base64Tx = btoa(String.fromCharCode(...serialized));
+      const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
       const senderRes = await fetch("https://sender.helius-rpc.com/fast", {
         method: "POST",
@@ -155,13 +152,11 @@ async function allowlistMint(solana: any, wallet: string, qty: number) {
 
   if (!proof) throw new Error("Not on allowlist");
 
-  // Sign with Phantom, submit to Sender
+  // Sign with Phantom (accepts raw transaction bytes), submit to Sender
   const txBytes = Uint8Array.from(atob(transaction), (c) => c.charCodeAt(0));
-  const { VersionedTransaction } = await import("@/lib/solana-kit-compat");
-  const tx = VersionedTransaction.deserialize(txBytes);
-  const signedTx = await solana.signTransaction(tx);
+  const signedTx = await solana.signTransaction(txBytes);
 
-  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+  const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
   const response = await fetch("https://sender.helius-rpc.com/fast", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -7,7 +7,7 @@ Detailed transaction patterns for Solana with Phantom Connect SDKs and Helius in
 **Always** use this pattern: Phantom signs the transaction, then you submit to Helius Sender for optimal landing rates. Never use `signAndSendTransaction` — it submits through standard RPC, which is slower.
 
 ```
-1. Build VersionedTransaction with priority fees + Jito tip
+1. Build transaction with priority fees + Jito tip
 2. Phantom signs (signTransaction)
 3. Submit to Helius Sender (https://sender.helius-rpc.com/fast)
 4. Poll for confirmation
@@ -16,21 +16,27 @@ Detailed transaction patterns for Solana with Phantom Connect SDKs and Helius in
 ## Dependencies
 
 ```bash
-npm install @solana/kit @solana-program/system @solana-program/compute-budget
+npm install @solana/kit @solana-program/system @solana-program/compute-budget @solana-program/token @solana-program/associated-token
 ```
 
 ## SOL Transfer
 
 ```ts
 import {
-  Connection,
-  PublicKey,
-  SystemProgram,
-  VersionedTransaction,
-  TransactionMessage,
-  ComputeBudgetProgram,
-  LAMPORTS_PER_SOL,
-} from "@/lib/solana-kit-compat";
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  address,
+  lamports,
+} from "@solana/kit";
+import { getTransferSolInstruction } from "@solana-program/system";
+import {
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from "@solana-program/compute-budget";
 
 const TIP_ACCOUNTS = [
   "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",
@@ -58,7 +64,7 @@ async function transferSol(solana: any, recipient: string, amountSOL: number) {
     }),
   });
   const { result: bhResult } = await bhRes.json();
-  const blockhash = bhResult.value.blockhash;
+  const blockhash = bhResult.value;
 
   // 2. Get priority fee via backend proxy
   const fromAddress = await solana.getPublicKey();
@@ -76,40 +82,37 @@ async function transferSol(solana: any, recipient: string, amountSOL: number) {
 
   // 3. Build transaction with proper instruction ordering
   const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
+  const payer = address(fromAddress);
 
-  const instructions = [
+  const txMessage = pipe(
+    createTransactionMessage({ version: 0 }),
+    (m) => setTransactionMessageFeePayer(payer, m),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
     // CU limit FIRST
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 50_000 }),
+    (m) => appendTransactionMessageInstruction(getSetComputeUnitLimitInstruction({ units: 50_000 }), m),
     // CU price SECOND
-    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
+    (m) => appendTransactionMessageInstruction(getSetComputeUnitPriceInstruction({ microLamports: priorityFee }), m),
     // Your instructions in the MIDDLE
-    SystemProgram.transfer({
-      fromPubkey: new PublicKey(fromAddress),
-      toPubkey: new PublicKey(recipient),
-      lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL),
-    }),
+    (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+      source: payer,
+      destination: address(recipient),
+      amount: lamports(BigInt(Math.floor(amountSOL * 1_000_000_000))),
+    }), m),
     // Jito tip LAST
-    SystemProgram.transfer({
-      fromPubkey: new PublicKey(fromAddress),
-      toPubkey: new PublicKey(tipAccount),
-      lamports: 200_000, // 0.0002 SOL minimum Jito tip
-    }),
-  ];
+    (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+      source: payer,
+      destination: address(tipAccount),
+      amount: lamports(200_000n), // 0.0002 SOL minimum Jito tip
+    }), m),
+  );
 
-  const message = new TransactionMessage({
-    payerKey: new PublicKey(fromAddress),
-    recentBlockhash: blockhash,
-    instructions,
-  }).compileToV0Message();
-
-  const transaction = new VersionedTransaction(message);
+  const transaction = compileTransaction(txMessage);
 
   // 4. Phantom signs (does NOT send)
   const signedTx = await solana.signTransaction(transaction);
 
   // 5. Submit to Helius Sender — see references/helius-sender.md
-  const serialized = signedTx.serialize();
-  const base64Tx = btoa(String.fromCharCode(...serialized));
+  const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
   const response = await fetch("https://sender.helius-rpc.com/fast", {
     method: "POST",
@@ -137,17 +140,25 @@ async function transferSol(solana: any, recipient: string, amountSOL: number) {
 
 ```ts
 import {
-  PublicKey,
-  VersionedTransaction,
-  TransactionMessage,
-  ComputeBudgetProgram,
-  SystemProgram,
-} from "@/lib/solana-kit-compat";
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  address,
+  lamports,
+} from "@solana/kit";
+import { getTransferSolInstruction } from "@solana-program/system";
 import {
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountIdempotentInstruction,
-  createTransferInstruction,
-} from "@solana/spl-token";
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from "@solana-program/compute-budget";
+import { getTransferInstruction } from "@solana-program/token";
+import {
+  findAssociatedTokenPda,
+  getCreateAssociatedTokenIdempotentInstruction,
+} from "@solana-program/associated-token";
 
 async function transferToken(
   solana: any,
@@ -157,14 +168,14 @@ async function transferToken(
   decimals: number
 ) {
   const fromAddress = await solana.getPublicKey();
-  const fromPubkey = new PublicKey(fromAddress);
-  const mintPubkey = new PublicKey(mint);
-  const toPubkey = new PublicKey(recipient);
+  const payer = address(fromAddress);
+  const mintAddress = address(mint);
+  const recipientAddress = address(recipient);
 
-  const fromAta = await getAssociatedTokenAddress(mintPubkey, fromPubkey);
-  const toAta = await getAssociatedTokenAddress(mintPubkey, toPubkey);
+  const [fromAta] = await findAssociatedTokenPda({ mint: mintAddress, owner: payer });
+  const [toAta] = await findAssociatedTokenPda({ mint: mintAddress, owner: recipientAddress });
 
-  const transferAmount = amount * Math.pow(10, decimals);
+  const transferAmount = BigInt(Math.floor(amount * Math.pow(10, decimals)));
 
   // Get blockhash + priority fee via proxy (same as SOL transfer above)
   const bhRes = await fetch("/api/rpc", {
@@ -204,30 +215,37 @@ async function transferToken(
   ];
   const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
 
-  const instructions = [
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 100_000 }),
-    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
+  const txMessage = pipe(
+    createTransactionMessage({ version: 0 }),
+    (m) => setTransactionMessageFeePayer(payer, m),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(bhResult.value, m),
+    (m) => appendTransactionMessageInstruction(getSetComputeUnitLimitInstruction({ units: 100_000 }), m),
+    (m) => appendTransactionMessageInstruction(getSetComputeUnitPriceInstruction({ microLamports: priorityFee }), m),
     // Ensure recipient ATA exists — creates if missing, skips if it exists
-    createAssociatedTokenAccountIdempotentInstruction(fromPubkey, toAta, toPubkey, mintPubkey),
-    createTransferInstruction(fromAta, toAta, fromPubkey, transferAmount),
-    SystemProgram.transfer({
-      fromPubkey,
-      toPubkey: new PublicKey(tipAccount),
-      lamports: 200_000,
-    }),
-  ];
+    (m) => appendTransactionMessageInstruction(getCreateAssociatedTokenIdempotentInstruction({
+      payer,
+      owner: recipientAddress,
+      mint: mintAddress,
+      ata: toAta,
+    }), m),
+    (m) => appendTransactionMessageInstruction(getTransferInstruction({
+      source: fromAta,
+      destination: toAta,
+      authority: payer,
+      amount: transferAmount,
+    }), m),
+    (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+      source: payer,
+      destination: address(tipAccount),
+      amount: lamports(200_000n),
+    }), m),
+  );
 
-  const message = new TransactionMessage({
-    payerKey: fromPubkey,
-    recentBlockhash: bhResult.value.blockhash,
-    instructions,
-  }).compileToV0Message();
-
-  const transaction = new VersionedTransaction(message);
+  const transaction = compileTransaction(txMessage);
 
   // Sign with Phantom, submit to Sender
   const signedTx = await solana.signTransaction(transaction);
-  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+  const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
   const response = await fetch("https://sender.helius-rpc.com/fast", {
     method: "POST",
@@ -251,15 +269,14 @@ When an API (Jupiter, DFlow, etc.) returns a serialized transaction, you only ne
 
 ```ts
 async function signAndSubmitApiTransaction(solana: any, serializedTx: string) {
-  // Deserialize the base64 transaction from the API
+  // Decode the base64 transaction from the API
   const txBytes = Uint8Array.from(atob(serializedTx), (c) => c.charCodeAt(0));
-  const transaction = VersionedTransaction.deserialize(txBytes);
 
-  // Sign with Phantom
-  const signedTx = await solana.signTransaction(transaction);
+  // Sign with Phantom (accepts raw transaction bytes)
+  const signedTx = await solana.signTransaction(txBytes);
 
   // Submit to Helius Sender
-  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+  const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
   const response = await fetch("https://sender.helius-rpc.com/fast", {
     method: "POST",
@@ -323,8 +340,8 @@ async function pollConfirmation(signature: string): Promise<void> {
 
 When building transactions for Helius Sender with Jito tips, instructions **must** be in this order:
 
-1. `ComputeBudgetProgram.setComputeUnitLimit(...)` — first
-2. `ComputeBudgetProgram.setComputeUnitPrice(...)` — second
+1. `getSetComputeUnitLimitInstruction(...)` — first
+2. `getSetComputeUnitPriceInstruction(...)` — second
 3. Your instructions — middle
 4. Jito tip transfer — last
 
@@ -354,7 +371,7 @@ try {
 - **Missing priority fees** — transactions without priority fees are deprioritized. Use `getPriorityFeeEstimate` via your backend proxy.
 - **Missing Jito tip** — Helius Sender uses Jito for dual routing. Include a minimum 0.0002 SOL tip to benefit from Jito block building.
 - **Wrong instruction ordering** — CU limit must be first, CU price second, Jito tip last. Incorrect ordering causes Sender to reject the transaction.
-- **Using legacy `Transaction` instead of `VersionedTransaction`** — always use `VersionedTransaction` for address lookup table support and forward compatibility.
+- **Using legacy `Transaction` class** — always use `@solana/kit`'s `createTransactionMessage({ version: 0 })` for v0 transaction support and forward compatibility.
 - **Hardcoding priority fees** — network conditions change. Always query `getPriorityFeeEstimate` for current fee levels.
 - **Using public RPC for blockhash** — use your backend proxy to get the blockhash via Helius RPC (faster, more reliable). See `references/frontend-security.md`.
 - **Not polling for confirmation** — Sender returns a signature immediately, but the transaction may not be confirmed yet. Always poll `getSignatureStatuses`.

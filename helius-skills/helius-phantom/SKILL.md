@@ -288,8 +288,8 @@ Follow these rules in ALL implementations:
 - Instruction ordering: CU limit first, CU price second, your instructions, Jito tip last
 
 ### SDK Versions
-- Use `@solana/kit` + `helius-sdk` patterns for all code examples
-- If an example imports `@/lib/solana-kit-compat`, treat it as a thin app-local wrapper around `@solana/kit` primitives
+- Use `@solana/kit` + `@solana-program/*` + `helius-sdk` patterns for all code examples
+- Transaction building: `pipe(createTransactionMessage(...), setTransactionMessageFeePayer(...), ...)` then `compileTransaction()` for Phantom signing
 - Use `Uint8Array` and `btoa`/`atob` for binary and base64 encoding in the browser — avoid Node.js `Buffer`
 
 ### Data Queries

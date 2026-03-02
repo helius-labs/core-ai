@@ -277,8 +277,10 @@ import { PhantomProvider, DebugLevel } from "@phantom/react-sdk";
 For RPC calls (e.g., fetching blockhashes, checking balances), use a backend proxy URL instead of a public RPC endpoint. Never expose your Helius API key in client-side code.
 
 ```tsx
+import { createSolanaRpc } from "@solana/kit";
+
 // Use a proxy URL for RPC — see references/frontend-security.md
-const connection = new Connection("/api/rpc");
+const rpc = createSolanaRpc("/api/rpc");
 ```
 
 ## Common Mistakes

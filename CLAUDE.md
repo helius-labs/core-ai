@@ -36,11 +36,20 @@ The Phantom skill (`helius-skills/helius-phantom/` and `helius-plugin/skills/pha
 - The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
 - When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to `helius-plugin/skills/phantom/references/`.
 
+### SVM Skill References
+
+The SVM skill (`helius-skills/svm/` and `helius-plugin/skills/svm/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/svm/references/`
+- **Copy**: `helius-plugin/skills/svm/references/`
+- The SVM skill contains 10 reference files: compilation, programs, execution, accounts, transactions, consensus, validators, data, development, tokens.
+- When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to `helius-plugin/skills/svm/references/`.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
 
-- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-phantom` vs `phantom`)
+- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
 - Metadata/frontmatter
 - MCP prerequisite messaging (manual install vs plugin auto-start)
 

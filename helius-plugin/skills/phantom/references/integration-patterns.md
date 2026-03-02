@@ -10,7 +10,6 @@ This pattern is aggregator-agnostic — works with Jupiter, DFlow, or any API th
 
 ```tsx
 import { useSolana, useAccounts } from '@phantom/react-sdk';
-import { VersionedTransaction } from '@/lib/solana-kit-compat';
 import { useState } from 'react';
 
 function SwapButton({ serializedTransaction }: { serializedTransaction: string }) {
@@ -22,18 +21,16 @@ function SwapButton({ serializedTransaction }: { serializedTransaction: string }
     if (!isConnected || !solana) return;
 
     try {
-      // 1. Deserialize the transaction from the swap API
+      // 1. Decode the transaction from the swap API
       setStatus('signing');
       const txBytes = Uint8Array.from(atob(serializedTransaction), (c) => c.charCodeAt(0));
-      const transaction = VersionedTransaction.deserialize(txBytes);
 
-      // 2. Phantom signs (does NOT send)
-      const signedTx = await solana.signTransaction(transaction);
+      // 2. Phantom signs (accepts raw transaction bytes, does NOT send)
+      const signedTx = await solana.signTransaction(txBytes);
 
       // 3. Submit to Helius Sender (browser-safe, no API key)
       setStatus('submitting');
-      const serialized = signedTx.serialize();
-      const base64Tx = btoa(String.fromCharCode(...serialized));
+      const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
       const response = await fetch('https://sender.helius-rpc.com/fast', {
         method: 'POST',
@@ -271,13 +268,20 @@ function RealTimeDashboard() {
 ```tsx
 import { useSolana, useAccounts } from '@phantom/react-sdk';
 import {
-  TransactionMessage,
-  VersionedTransaction,
-  SystemProgram,
-  PublicKey,
-  LAMPORTS_PER_SOL,
-  ComputeBudgetProgram,
-} from '@/lib/solana-kit-compat';
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  address,
+  lamports,
+} from '@solana/kit';
+import { getTransferSolInstruction } from '@solana-program/system';
+import {
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from '@solana-program/compute-budget';
 
 const TIP_ACCOUNTS = [
   '4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE',
@@ -302,7 +306,7 @@ function TransferForm() {
     const walletAddress = addresses?.find(a => a.addressType === 'solana')?.address;
     if (!walletAddress) return;
 
-    const publicKey = new PublicKey(walletAddress);
+    const payer = address(walletAddress);
 
     // 1. Get priority fee from backend proxy
     const feeRes = await fetch('/api/rpc', {
@@ -328,40 +332,36 @@ function TransferForm() {
       }),
     });
     const { result: bhResult } = await bhRes.json();
-    const blockhash = bhResult.value.blockhash;
+    const blockhash = bhResult.value;
 
     // 3. Build transaction
     const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
 
-    const instructions = [
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 50_000 }),
-      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: new PublicKey(recipient),
-        lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL),
-      }),
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: new PublicKey(tipAccount),
-        lamports: 200_000, // 0.0002 SOL Jito tip
-      }),
-    ];
-
-    const transaction = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: publicKey,
-        recentBlockhash: blockhash,
-        instructions,
-      }).compileToV0Message()
+    const txMessage = pipe(
+      createTransactionMessage({ version: 0 }),
+      (m) => setTransactionMessageFeePayer(payer, m),
+      (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
+      (m) => appendTransactionMessageInstruction(getSetComputeUnitLimitInstruction({ units: 50_000 }), m),
+      (m) => appendTransactionMessageInstruction(getSetComputeUnitPriceInstruction({ microLamports: priorityFee }), m),
+      (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+        source: payer,
+        destination: address(recipient),
+        amount: lamports(BigInt(Math.floor(amountSOL * 1_000_000_000))),
+      }), m),
+      (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+        source: payer,
+        destination: address(tipAccount),
+        amount: lamports(200_000n), // 0.0002 SOL Jito tip
+      }), m),
     );
+
+    const transaction = compileTransaction(txMessage);
 
     // 4. Sign with Phantom
     const signedTx = await solana.signTransaction(transaction);
 
     // 5. Submit to Sender
-    const serialized = signedTx.serialize();
-    const base64Tx = btoa(String.fromCharCode(...serialized));
+    const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
     const response = await fetch('https://sender.helius-rpc.com/fast', {
       method: 'POST',

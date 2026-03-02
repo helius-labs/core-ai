@@ -19,13 +19,20 @@ Accept cryptocurrency payments using Phantom Connect for signing and Helius infr
 ```tsx
 import { useSolana, useAccounts } from "@phantom/react-sdk";
 import {
-  PublicKey,
-  SystemProgram,
-  VersionedTransaction,
-  TransactionMessage,
-  ComputeBudgetProgram,
-  LAMPORTS_PER_SOL,
-} from "@/lib/solana-kit-compat";
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  address,
+  lamports,
+} from "@solana/kit";
+import { getTransferSolInstruction } from "@solana-program/system";
+import {
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from "@solana-program/compute-budget";
 import { useState } from "react";
 
 const TIP_ACCOUNTS = [
@@ -50,6 +57,7 @@ function PayButton({ recipient, amountSol }: { recipient: string; amountSol: num
     setStatus("paying");
     try {
       const wallet = await solana.getPublicKey();
+      const payer = address(wallet);
 
       // Get blockhash + priority fee via backend proxy
       // See references/frontend-security.md for proxy setup
@@ -78,30 +86,29 @@ function PayButton({ recipient, amountSol }: { recipient: string; amountSol: num
 
       const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
 
-      const message = new TransactionMessage({
-        payerKey: new PublicKey(wallet),
-        recentBlockhash: bhResult.value.blockhash,
-        instructions: [
-          ComputeBudgetProgram.setComputeUnitLimit({ units: 50_000 }),
-          ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
-          SystemProgram.transfer({
-            fromPubkey: new PublicKey(wallet),
-            toPubkey: new PublicKey(recipient),
-            lamports: Math.floor(amountSol * LAMPORTS_PER_SOL),
-          }),
-          SystemProgram.transfer({
-            fromPubkey: new PublicKey(wallet),
-            toPubkey: new PublicKey(tipAccount),
-            lamports: 200_000, // Jito tip
-          }),
-        ],
-      }).compileToV0Message();
+      const txMessage = pipe(
+        createTransactionMessage({ version: 0 }),
+        (m) => setTransactionMessageFeePayer(payer, m),
+        (m) => setTransactionMessageLifetimeUsingBlockhash(bhResult.value, m),
+        (m) => appendTransactionMessageInstruction(getSetComputeUnitLimitInstruction({ units: 50_000 }), m),
+        (m) => appendTransactionMessageInstruction(getSetComputeUnitPriceInstruction({ microLamports: priorityFee }), m),
+        (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+          source: payer,
+          destination: address(recipient),
+          amount: lamports(BigInt(Math.floor(amountSol * 1_000_000_000))),
+        }), m),
+        (m) => appendTransactionMessageInstruction(getTransferSolInstruction({
+          source: payer,
+          destination: address(tipAccount),
+          amount: lamports(200_000n), // Jito tip
+        }), m),
+      );
 
-      const tx = new VersionedTransaction(message);
+      const tx = compileTransaction(txMessage);
 
       // Sign with Phantom, submit to Helius Sender
       const signedTx = await solana.signTransaction(tx);
-      const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+      const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
       const senderRes = await fetch("https://sender.helius-rpc.com/fast", {
         method: "POST",
@@ -134,16 +141,30 @@ function PayButton({ recipient, amountSol }: { recipient: string; amountSol: num
 
 ```tsx
 import {
-  getAssociatedTokenAddress,
-  createTransferInstruction,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-} from "@solana/spl-token";
+  pipe,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
+  appendTransactionMessageInstruction,
+  compileTransaction,
+  address,
+} from "@solana/kit";
+import { getTransferInstruction } from "@solana-program/token";
+import {
+  findAssociatedTokenPda,
+  getCreateAssociatedTokenIdempotentInstruction,
+} from "@solana-program/associated-token";
 
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 async function payWithUSDC(solana: any, recipient: string, amount: number) {
   const wallet = await solana.getPublicKey();
+  const payer = address(wallet);
+  const mintAddress = address(USDC_MINT);
+  const recipientAddress = address(recipient);
+
+  const [fromAta] = await findAssociatedTokenPda({ mint: mintAddress, owner: payer });
+  const [toAta] = await findAssociatedTokenPda({ mint: mintAddress, owner: recipientAddress });
 
   // Get blockhash via proxy
   const bhRes = await fetch("/api/rpc", {
@@ -157,43 +178,30 @@ async function payWithUSDC(solana: any, recipient: string, amount: number) {
   });
   const { result: bhResult } = await bhRes.json();
 
-  const mint = new PublicKey(USDC_MINT);
-  const from = new PublicKey(wallet);
-  const to = new PublicKey(recipient);
-
-  const fromAta = await getAssociatedTokenAddress(mint, from);
-  const toAta = await getAssociatedTokenAddress(mint, to);
-
-  const instructions: any[] = [];
-
-  // Check if recipient's token account exists (via proxy)
-  const ataRes = await fetch("/api/rpc", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0", id: "1",
-      method: "getAccountInfo",
-      params: [toAta.toBase58(), { encoding: "jsonParsed" }],
-    }),
-  });
-  const ataData = await ataRes.json();
-  if (!ataData.result?.value) {
-    instructions.push(createAssociatedTokenAccountInstruction(from, toAta, to, mint));
-  }
-
-  // Transfer (USDC has 6 decimals)
-  instructions.push(createTransferInstruction(fromAta, toAta, from, amount * 1e6));
-
-  const message = new TransactionMessage({
-    payerKey: from,
-    recentBlockhash: bhResult.value.blockhash,
-    instructions,
-  }).compileToV0Message();
+  const txMessage = pipe(
+    createTransactionMessage({ version: 0 }),
+    (m) => setTransactionMessageFeePayer(payer, m),
+    (m) => setTransactionMessageLifetimeUsingBlockhash(bhResult.value, m),
+    // Ensure recipient ATA exists — creates if missing, skips if it exists
+    (m) => appendTransactionMessageInstruction(getCreateAssociatedTokenIdempotentInstruction({
+      payer,
+      owner: recipientAddress,
+      mint: mintAddress,
+      ata: toAta,
+    }), m),
+    // Transfer (USDC has 6 decimals)
+    (m) => appendTransactionMessageInstruction(getTransferInstruction({
+      source: fromAta,
+      destination: toAta,
+      authority: payer,
+      amount: BigInt(Math.floor(amount * 1e6)),
+    }), m),
+  );
 
   // Sign with Phantom, submit to Sender
-  const tx = new VersionedTransaction(message);
+  const tx = compileTransaction(txMessage);
   const signedTx = await solana.signTransaction(tx);
-  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+  const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
 
   const response = await fetch("https://sender.helius-rpc.com/fast", {
     method: "POST",
@@ -225,13 +233,11 @@ async function checkout(orderId: string, solana: any) {
     body: JSON.stringify({ orderId }),
   }).then(r => r.json());
 
-  // 2. Deserialize, sign with Phantom, submit to Sender
+  // 2. Decode, sign with Phantom, submit to Sender
   const txBytes = Uint8Array.from(atob(transaction), (c) => c.charCodeAt(0));
-  const { VersionedTransaction } = await import("@/lib/solana-kit-compat");
-  const tx = VersionedTransaction.deserialize(txBytes);
-  const signedTx = await solana.signTransaction(tx);
+  const signedTx = await solana.signTransaction(txBytes);
 
-  const base64Tx = btoa(String.fromCharCode(...signedTx.serialize()));
+  const base64Tx = btoa(String.fromCharCode(...new Uint8Array(signedTx)));
   const senderRes = await fetch("https://sender.helius-rpc.com/fast", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

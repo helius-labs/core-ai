@@ -124,95 +124,7 @@ https://sender.helius-rpc.com/fast?api-key=YOUR_SENDER_API_KEY
 }
 ```
 
-## Implementation Pattern — Basic Send (Kit Compat Wrapper)
-
-When building a basic Sender transaction with a local Kit compatibility wrapper (implemented on top of `@solana/kit`), follow this pattern:
-
-```typescript
-import {
-  Connection,
-  TransactionMessage,
-  VersionedTransaction,
-  SystemProgram,
-  PublicKey,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  ComputeBudgetProgram,
-  TransactionInstruction
-} from '@/lib/solana-kit-compat';
-
-const TIP_ACCOUNTS = [
-  "4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE",
-  "D2L6yPZ2FmmmTKPgzaMKdhu6EWZcTpLy1Vhx8uvZe7NZ",
-  "9bnz4RShgq1hAnLnZbP8kbgBg1kEmcJBYQq3gQbmnSta",
-  "5VY91ws6B2hMmBFRsXkoAAdsPHBJwRfBht4DXox3xkwn",
-  "2nyhqdwKcJZR2vcqCyrYsaPVdAnFoJjiksCXJ7hfEYgD",
-  "2q5pghRs6arqVjRvT5gfgWfWcHWmw1ZuCzphgd5KfWGJ",
-  "wyvPkWjVZz1M8fHQnMMCDTQDbkManefNNhweYk5WkcF",
-  "3KCKozbAaF75qEU33jtzozcJ29yJuaLJTy2jFdzUY8bT",
-  "4vieeGHPYPG2MmyPRcYjdiDmmhN3ww7hsFNap8pVN3Ey",
-  "4TQLFNWK8AovT1gFvda5jfw2oJeRMKEmw7aH6MGBJ3or"
-];
-
-async function sendViaSender(
-  keypair: Keypair,
-  instructions: TransactionInstruction[],
-  connection: Connection
-): Promise<string> {
-  // 1. Get blockhash
-  const { value: { blockhash, lastValidBlockHeight } } =
-    await connection.getLatestBlockhashAndContext('confirmed');
-
-  // 2. Get dynamic tip
-  const tipAmountSOL = await getDynamicTipAmount();
-  const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
-
-  // 3. Build all instructions: compute budget + user instructions + tip
-  const allInstructions = [
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }), // placeholder, refine via simulation
-    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 200_000 }), // use getPriorityFeeEstimate for production
-    ...instructions,
-    SystemProgram.transfer({
-      fromPubkey: keypair.publicKey,
-      toPubkey: new PublicKey(tipAccount),
-      lamports: Math.floor(tipAmountSOL * LAMPORTS_PER_SOL),
-    }),
-  ];
-
-  // 4. Build and sign
-  const transaction = new VersionedTransaction(
-    new TransactionMessage({
-      instructions: allInstructions,
-      payerKey: keypair.publicKey,
-      recentBlockhash: blockhash,
-    }).compileToV0Message()
-  );
-  transaction.sign([keypair]);
-
-  // 5. Submit to Sender
-  const response = await fetch('https://sender.helius-rpc.com/fast', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now().toString(),
-      method: 'sendTransaction',
-      params: [
-        Buffer.from(transaction.serialize()).toString('base64'),
-        { encoding: 'base64', skipPreflight: true, maxRetries: 0 }
-      ]
-    })
-  });
-
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.message);
-  return json.result;
-}
-```
-
-## Implementation Pattern — Basic Send (@solana/kit)
-
-When building with the newer, and recommended, `@solana/kit`:
+## Implementation Pattern — Basic Send
 
 ```typescript
 import { pipe } from "@solana/kit";
@@ -295,17 +207,25 @@ For production use, add these optimizations on top of the basic pattern:
 
 ```typescript
 // Build a test transaction with max CU limit for simulation
-const testTx = buildTransaction([
-  ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-  ...userInstructions,
-  tipInstruction,
-]);
-testTx.sign([keypair]);
+let testMsg = pipe(
+  createTransactionMessage({ version: 0 }),
+  (m) => setTransactionMessageFeePayerSigner(signer, m),
+  (m) => setTransactionMessageLifetimeUsingBlockhash(blockhash, m),
+  (m) => appendTransactionMessageInstruction(getSetComputeUnitLimitInstruction({ units: 1_400_000 }), m),
+);
+for (const ix of userInstructions) {
+  testMsg = appendTransactionMessageInstruction(ix, testMsg);
+}
+testMsg = appendTransactionMessageInstruction(tipInstruction, testMsg);
 
-const simulation = await connection.simulateTransaction(testTx, {
+const testTx = await signTransactionMessageWithSigners(testMsg);
+const testBase64 = getBase64EncodedWireTransaction(testTx);
+
+const simulation = await rpc.simulateTransaction(testBase64, {
   replaceRecentBlockhash: true,
   sigVerify: false,
-});
+  encoding: "base64",
+}).send();
 
 // Set CU limit to actual usage + 10% margin (minimum 1000)
 const units = simulation.value.unitsConsumed;
@@ -325,8 +245,8 @@ const response = await fetch(heliusRpcUrl, {
     id: "1",
     method: "getPriorityFeeEstimate",
     params: [{
-      transaction: bs58.encode(tempTx.serialize()),
-      options: { recommended: true },
+      transaction: getBase64EncodedWireTransaction(tempTx),
+      options: { transactionEncoding: "Base64", recommended: true },
     }],
   }),
 });
@@ -340,13 +260,13 @@ const priorityFee = Math.ceil(data.result.priorityFeeEstimate * 1.2);
 
 ```typescript
 async function sendWithRetry(
-  transaction: VersionedTransaction,
-  connection: Connection,
-  lastValidBlockHeight: number,
+  base64Tx: string,
+  rpc: Rpc,
+  lastValidBlockHeight: bigint,
   maxRetries = 3
 ): Promise<string> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const currentHeight = await connection.getBlockHeight('confirmed');
+    const { value: currentHeight } = await rpc.getBlockHeight({ commitment: "confirmed" }).send();
     if (currentHeight > lastValidBlockHeight) {
       throw new Error('Blockhash expired — rebuild transaction with fresh blockhash');
     }
@@ -359,10 +279,7 @@ async function sendWithRetry(
           jsonrpc: '2.0',
           id: Date.now().toString(),
           method: 'sendTransaction',
-          params: [
-            Buffer.from(transaction.serialize()).toString('base64'),
-            { encoding: 'base64', skipPreflight: true, maxRetries: 0 }
-          ]
+          params: [base64Tx, { encoding: 'base64', skipPreflight: true, maxRetries: 0 }]
         })
       });
 
@@ -370,7 +287,7 @@ async function sendWithRetry(
       if (result.error) throw new Error(result.error.message);
 
       // Poll for confirmation
-      return await confirmTransaction(result.result, connection);
+      return await confirmTransaction(result.result, rpc);
     } catch (error) {
       if (attempt === maxRetries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -379,10 +296,10 @@ async function sendWithRetry(
   throw new Error('All retry attempts failed');
 }
 
-async function confirmTransaction(signature: string, connection: Connection): Promise<string> {
+async function confirmTransaction(signature: string, rpc: Rpc): Promise<string> {
   for (let i = 0; i < 30; i++) {
-    const status = await connection.getSignatureStatuses([signature]);
-    if (status?.value[0]?.confirmationStatus === "confirmed") {
+    const { value } = await rpc.getSignatureStatuses([signature]).send();
+    if (value[0]?.confirmationStatus === "confirmed") {
       return signature;
     }
     await new Promise(resolve => setTimeout(resolve, 500));
