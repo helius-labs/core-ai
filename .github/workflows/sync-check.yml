@@ -109,3 +109,51 @@ jobs:
           fi
 
           echo "All DFlow reference files are in sync."
+
+      - name: Compare SVM reference files
+        run: |
+          SKILLS_DIR="helius-skills/svm/references"
+          PLUGIN_DIR="helius-plugin/skills/svm/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$PLUGIN_DIR" ]; then
+            echo "One or both SVM reference directories are missing."
+            echo "  helius-skills/svm: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-plugin/skills/svm: $([ -d "$PLUGIN_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          # Check for files only in one directory
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          PLUGIN_FILES=$(cd "$PLUGIN_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$PLUGIN_FILES" ]; then
+            echo "File lists differ between SVM reference directories:"
+            echo ""
+            echo "Only in helius-skills/svm/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$PLUGIN_FILES") | sed 's/^/  /'
+            echo ""
+            echo "Only in helius-plugin/skills/svm/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$PLUGIN_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          # Compare file contents
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$PLUGIN_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills/svm and helius-plugin/skills/svm"
+              diff --unified=3 "$SKILLS_DIR/$file" "$PLUGIN_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo ""
+            echo "SVM reference files are out of sync!"
+            echo "The canonical source is helius-skills/svm/references/."
+            echo "Copy changes to helius-plugin/skills/svm/references/ to fix."
+            exit 1
+          fi
+
+          echo "All SVM reference files are in sync."

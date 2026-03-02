@@ -26,11 +26,20 @@ The DFlow skill (`helius-skills/helius-dflow/` and `helius-plugin/skills/dflow/`
 - The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside DFlow files in the same directory.
 - When updating DFlow reference files, update in `helius-skills/helius-dflow/references/` first, then copy to `helius-plugin/skills/dflow/references/`.
 
+### SVM Skill References
+
+The SVM skill (`helius-skills/svm/` and `helius-plugin/skills/svm/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/svm/references/`
+- **Copy**: `helius-plugin/skills/svm/references/`
+- The SVM skill contains 10 reference files: compilation, programs, execution, accounts, transactions, consensus, validators, data, development, tokens.
+- When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to `helius-plugin/skills/svm/references/`.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
 
-- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`)
+- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `svm` vs `svm`)
 - Metadata/frontmatter
 - MCP prerequisite messaging (manual install vs plugin auto-start)
 
