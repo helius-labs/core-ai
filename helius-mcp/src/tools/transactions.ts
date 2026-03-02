@@ -263,7 +263,7 @@ export function registerTransactionTools(server: McpServer) {
     'parseTransactions',
     'BEST FOR: decoding specific transaction(s) by signature. Parse one or more Solana transactions into human-readable format. Returns type, source, transfers, fees, timestamp, and description. Use showRaw=true for full instruction data. Credit cost: 100 credits/call.',
     {
-      signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded). Can be 1 or more.'),
+      signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded, 86-88 characters). Can be 1 or more.'),
       showRaw: z.boolean().optional().default(false).describe('Include raw instruction data: program IDs, accounts, inner instructions. Useful for debugging or tracing fund flows.')
     },
     async ({ signatures, showRaw }) => {
@@ -508,8 +508,8 @@ export function registerTransactionTools(server: McpServer) {
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
       limit: z.number().optional().default(10).describe('Number of results (1-1000 for signatures, 1-100 for full/parsed)'),
       sortOrder: z.string().optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first (great for finding funding sources)'),
-      before: z.string().optional().describe('[signatures mode, desc only] Cursor: start searching backwards from this signature'),
-      until: z.string().optional().describe('[signatures mode, desc only] Cursor: search until this signature'),
+      before: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to start searching backwards from'),
+      until: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to search until'),
       paginationToken: z.string().optional().describe('Pagination token from previous response for fetching next page'),
       transactionDetails: z.string().optional().default('signatures').describe('[raw mode] "signatures" for basic info (up to 1000), "full" for complete transaction data (up to 100)'),
       status: z.string().optional().default('succeeded').describe('Filter by transaction status. Defaults to "succeeded" — set to "failed" or "any" to include failed transactions.'),

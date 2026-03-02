@@ -11,7 +11,7 @@ export function registerBalanceTools(server: McpServer) {
     'getBalance',
     'BEST FOR: SOL-only balance checks. PREFER getTokenBalances for SPL tokens, getWalletBalances for full portfolio with USD. Get native SOL balance for a wallet. Returns balance in SOL and lamports. Credit cost: 1 credit.',
     {
-      address: z.string().describe('Solana wallet address (base58 encoded, e.g. Gh4tdJhLP1s55xGfghHHvPNPPrNtaDjc6dzZJ374DGHJ)')
+      address: z.string().describe('Solana wallet address (base58 encoded)')
     },
     async ({ address }) => {
       if (!hasApiKey()) return noApiKeyResponse();
