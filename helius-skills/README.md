@@ -9,7 +9,7 @@ Standalone [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/s
 | [`helius`](./helius) | `/helius` | Build Solana apps with Helius infrastructure — Sender, DAS API, WebSockets, Laserstream, webhooks, priority fees, and Wallet API |
 | [`helius-dflow`](./helius-dflow) | `/helius-dflow` | Build Solana trading apps with DFlow (spot swaps, prediction markets, Proof KYC) + Helius infrastructure |
 | [`svm`](./svm) | `/svm` | Explore Solana's architecture and protocol internals — SVM, account model, consensus, validators, and token extensions |
-| `helius-phantom` *(coming soon)* | `/helius-phantom` | Build browser-based Solana apps with Phantom wallet + Helius |
+| `helius-phantom` | `/helius-phantom` | Build browser-based Solana apps with Phantom wallet + Helius |
 
 ## Installation
 
