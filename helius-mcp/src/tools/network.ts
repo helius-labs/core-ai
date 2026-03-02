@@ -16,10 +16,11 @@ export function registerNetworkTools(server: McpServer) {
         const helius = getHeliusClient();
 
         // Fire all requests in parallel — Kit returns bigint for numeric fields
+        // wrapAutoSend in the SDK already calls .send() on pending RPC requests
         const [epochInfo, supplyResult, version] = await Promise.all([
-          (helius as any).getEpochInfo().send(),
-          (helius as any).getSupply().send(),
-          (helius as any).getVersion().send(),
+          (helius as any).getEpochInfo(),
+          (helius as any).getSupply(),
+          (helius as any).getVersion(),
         ]);
 
         const lines = ['**Solana Network Status**', ''];

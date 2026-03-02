@@ -567,7 +567,7 @@ export function registerTransactionTools(server: McpServer) {
             if (until) rpcParams.until = until;
 
             // Kit returns bigint for slot/blockTime fields
-            const sigs = await (helius as any).getSignaturesForAddress(address, rpcParams).send();
+            const sigs = await (helius as any).getSignaturesForAddress(address, rpcParams);
 
             if (!sigs || sigs.length === 0) {
               return mcpText(`**Signatures for ${formatAddress(address)}**\n\nNo signatures found.`);
