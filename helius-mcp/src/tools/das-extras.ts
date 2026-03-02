@@ -10,7 +10,7 @@ export function registerDasExtraTools(server: McpServer) {
     'getAssetProof',
     'BEST FOR: getting Merkle proof required for transferring or burning a cNFT. PREFER getAssetProofBatch when you need proofs for multiple cNFTs. Get Merkle proof for a compressed NFT. Required for transferring or burning cNFTs. DAS API (10 credits/call).',
     {
-      id: z.string().describe('Compressed NFT mint address')
+      id: z.string().describe('Compressed NFT mint address (base58 encoded)')
     },
     async ({ id }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -57,7 +57,7 @@ export function registerDasExtraTools(server: McpServer) {
     'getSignaturesForAsset',
     'BEST FOR: transaction history for a specific asset by mint address. PREFER getTransactionHistory for wallet-level transaction history. Get transaction history for any DAS asset. DAS API (10 credits/call).',
     {
-      id: z.string().describe('Asset mint address (any DAS asset)'),
+      id: z.string().describe('Asset mint address (base58 encoded)'),
       page: z.number().optional().default(1),
       limit: z.number().optional().default(20)
     },
@@ -90,7 +90,7 @@ export function registerDasExtraTools(server: McpServer) {
     'getNftEditions',
     'BEST FOR: finding numbered edition prints of a master NFT. Get all edition NFTs for a master NFT. DAS API (10 credits/call).',
     {
-      mint: z.string().describe('Master NFT mint address'),
+      mint: z.string().describe('Master NFT mint address (base58 encoded)'),
       page: z.number().optional().default(1),
       limit: z.number().optional().default(20)
     },

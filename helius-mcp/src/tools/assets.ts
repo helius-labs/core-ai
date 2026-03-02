@@ -89,8 +89,8 @@ export function registerAssetTools(server: McpServer) {
     'getAsset',
     'Get detailed information about one or more NFTs/tokens by mint address. For a single asset: returns name, symbol, description, image, owner, creators, authorities, supply, decimals, royalties, mutability. For batch: pass an array of up to 1000 mint addresses in "ids" for fast bulk lookups. Use this to find who created/deployed a token, verify token details, or get full NFT metadata. DAS API (10 credits/call).',
     {
-      id: z.string().optional().describe('Single asset mint address (base58 encoded). Use this OR ids, not both.'),
-      ids: z.array(z.string()).optional().describe('Array of asset mint addresses for batch lookup (up to 1000). Use this OR id, not both.')
+      id: z.string().optional().describe('Token mint address (base58 encoded). Use this OR ids, not both.'),
+      ids: z.array(z.string()).optional().describe('Array of asset mint addresses (base58 encoded, up to 1000). Use this OR id, not both.')
     },
     async ({ id, ids }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -271,9 +271,9 @@ export function registerAssetTools(server: McpServer) {
     'searchAssets',
     'BEST FOR: filtered multi-criteria asset search (creator, authority, name, compression). PREFER getAssetsByOwner for simple wallet NFT listing. PREFER getAssetsByGroup for collection browsing. Advanced search for digital assets (NFTs, tokens) with multiple filters. Search by owner, creator, authority, name, compression status, burnt status, or frozen status. Also replaces getAssetsByCreator and getAssetsByAuthority — pass creatorAddress (with optional onlyVerified) to find assets by creator, or authorityAddress to find assets controlled by an authority. DAS API (10 credits/call).',
     {
-      ownerAddress: z.string().optional().describe('Filter by owner wallet address'),
-      creatorAddress: z.string().optional().describe('Filter by creator address'),
-      authorityAddress: z.string().optional().describe('Filter by authority address (finds assets this address has update/freeze control over)'),
+      ownerAddress: z.string().optional().describe('Filter by owner wallet address (base58 encoded)'),
+      creatorAddress: z.string().optional().describe('Filter by creator address (base58 encoded)'),
+      authorityAddress: z.string().optional().describe('Filter by authority address (base58 encoded, finds assets this address has update/freeze control over)'),
       onlyVerified: z.boolean().optional().default(false).describe('Only return assets where the creator is verified (used with creatorAddress)'),
       name: z.string().optional().describe('Search by asset name (partial match). Requires ownerAddress to be provided.'),
       compressed: z.boolean().optional().describe('Filter for compressed NFTs (cNFTs) only'),
@@ -409,7 +409,7 @@ export function registerAssetTools(server: McpServer) {
     'Get all NFTs in a collection by group key/value. The groupKey is usually "collection" and groupValue is the collection mint address. Use this to browse all NFTs in a specific collection. DAS API (10 credits/call).',
     {
       groupKey: z.string().describe('Group key - usually "collection"'),
-      groupValue: z.string().describe('Group value - usually the collection mint address'),
+      groupValue: z.string().describe('Group value - usually the collection mint address (base58 encoded)'),
       page: z.number().optional().default(1).describe('Page number (starts at 1)'),
       limit: z.number().optional().default(20).describe('Results per page (max 1000)')
     },

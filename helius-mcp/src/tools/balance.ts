@@ -11,7 +11,7 @@ export function registerBalanceTools(server: McpServer) {
     'getBalance',
     'BEST FOR: SOL-only balance checks (cheapest option). PREFER getTokenBalances for SPL tokens or getWalletBalances for a full portfolio with USD values. Get native SOL balance for a Solana wallet address. Returns balance in both SOL and lamports (1 SOL = 1 billion lamports). Use this for checking how much SOL a wallet has. For token balances, use getTokenBalances instead. Credit cost: 1 credit (standard RPC).',
     {
-      address: z.string().describe('Solana wallet address (base58 encoded, e.g. Gh4tdJhLP1s55xGfghHHvPNPPrNtaDjc6dzZJ374DGHJ)')
+      address: z.string().describe('Solana wallet address (base58 encoded)')
     },
     async ({ address }) => {
       if (!hasApiKey()) return noApiKeyResponse();

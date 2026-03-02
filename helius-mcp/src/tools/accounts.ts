@@ -41,8 +41,8 @@ export function registerAccountTools(server: McpServer) {
     'getAccountInfo',
     'BEST FOR: raw on-chain account inspection (owner program, data size, executable status, Token-2022 extensions). PREFER getAsset for token/NFT metadata. PREFER getBalance for SOL balance. Get detailed Solana account information for one or more accounts. For a single account: returns owner program, lamport balance, data size, executable status, and rent epoch. For batch: pass up to 100 addresses in "addresses" for fast bulk lookups. Use jsonParsed encoding (default) on token mint addresses to see Token-2022 extensions, authorities, and supply data. Use this to inspect any on-chain account. Credit cost: 1 credit (standard RPC).',
     {
-      address: z.string().optional().describe('Single account address (base58 encoded). Use this OR addresses, not both.'),
-      addresses: z.array(z.string()).optional().describe('Array of account addresses for batch lookup (up to 100). Use this OR address, not both.'),
+      address: z.string().optional().describe('Account address (base58 encoded). Use this OR addresses, not both.'),
+      addresses: z.array(z.string()).optional().describe('Array of account addresses (base58 encoded, up to 100). Use this OR address, not both.'),
       encoding: z.string().optional().default('jsonParsed').describe('Data encoding format')
     },
     async ({ address, addresses, encoding }) => {
@@ -135,8 +135,8 @@ export function registerAccountTools(server: McpServer) {
     'getTokenAccounts',
     'BEST FOR: advanced token account queries with flexible filters (by mint, owner, or both). PREFER getTokenHolders for a quick top-holders list. PREFER getTokenBalances for a wallet\'s token holdings with prices. Query token accounts with advanced filters. Can filter by mint address, owner address, or both. Returns token account addresses and balances. Credit cost: 10 credits/call (DAS API).',
     {
-      owner: z.string().optional().describe('Filter by owner wallet address'),
-      mint: z.string().optional().describe('Filter by token mint address'),
+      owner: z.string().optional().describe('Filter by owner wallet address (base58 encoded)'),
+      mint: z.string().optional().describe('Filter by token mint address (base58 encoded)'),
       page: z.number().optional().default(1).describe('Page number (starts at 1)'),
       limit: z.number().optional().default(20).describe('Results per page (max 1000)')
     },

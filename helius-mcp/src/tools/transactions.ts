@@ -263,7 +263,7 @@ export function registerTransactionTools(server: McpServer) {
     'parseTransactions',
     'BEST FOR: decoding specific transaction(s) by signature into human-readable format. Parse one or more Solana transactions into human-readable format. Returns transaction type (SWAP, TRANSFER, NFT_SALE, etc.), source program (Jupiter, Raydium, Magic Eden, etc.), SOL and token transfers with token names and proper decimal formatting, fees (in both SOL and lamports), timestamp, program IDs involved, and a plain-English description. Use showRaw=true to see all program IDs, instruction accounts, instruction data bytes, inner instructions, and auto-decoded ComputeBudget instructions (CU limit, priority fee, heap frame). Credit cost: 100 credits/call (Enhanced Transactions API). To fetch and parse wallet transaction history, use getTransactionHistory instead.',
     {
-      signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded). Can be 1 or more.'),
+      signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded, 86-88 characters). Can be 1 or more.'),
       showRaw: z.boolean().optional().default(false).describe('Include raw instruction data: program IDs, accounts, inner instructions. Useful for debugging or tracing fund flows.')
     },
     async ({ signatures, showRaw }) => {
@@ -500,7 +500,7 @@ export function registerTransactionTools(server: McpServer) {
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
       limit: z.number().optional().default(10).describe('Number of results (1-1000 for signatures, 1-100 for full/parsed)'),
       sortOrder: z.string().optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first (great for finding funding sources)'),
-      before: z.string().optional().describe('[signatures mode, desc only] Cursor: start searching backwards from this signature'),
+      before: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to start searching backwards from'),
       until: z.string().optional().describe('[signatures mode, desc only] Cursor: search until this signature'),
       paginationToken: z.string().optional().describe('Pagination token from previous response for fetching next page'),
       transactionDetails: z.string().optional().default('signatures').describe('[raw mode] "signatures" for basic info (up to 1000), "full" for complete transaction data (up to 100)'),

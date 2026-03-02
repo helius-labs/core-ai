@@ -42,7 +42,7 @@ export function registerWalletTools(server: McpServer) {
     'batchWalletIdentity',
     'BEST FOR: identifying multiple wallets at once (up to 100). PREFER getWalletIdentity for a single address. Look up identities for up to 100 Solana addresses in one request. Returns known names, types, and categories for recognized wallets (exchanges, protocols, institutions). Credit cost: 100 credits/call (Wallet API).',
     {
-      addresses: z.array(z.string()).describe('Array of Solana wallet addresses (max 100)')
+      addresses: z.array(z.string()).describe('Array of Solana wallet addresses (base58 encoded, max 100)')
     },
     async ({ addresses }) => {
       if (!hasApiKey()) return noApiKeyResponse();
