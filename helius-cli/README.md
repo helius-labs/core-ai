@@ -225,17 +225,27 @@ Keypair commands (`signup`, `login`, `upgrade`, `pay`, `stake`) also accept:
 
 ## Exit Codes
 
-| Code | Meaning |
-|---|---|
-| 0 | Success |
-| 1 | General error |
-| 10 | Not logged in |
-| 11 | Keypair not found |
-| 20 | Insufficient SOL |
-| 21 | Insufficient USDC |
-| 30 | No projects found |
-| 31 | Project not found |
-| 40 | API error |
+| Code | Meaning | Retryable |
+|---|---|---|
+| 0 | Success | — |
+| 1 | General error | — |
+| 10 | Not logged in | No |
+| 11 | Keypair not found | No |
+| 20 | Insufficient SOL | No |
+| 21 | Insufficient USDC | No |
+| 30 | No projects found | No |
+| 31 | Project not found | No |
+| 40 | API error | No |
+| 50 | No API key configured | No |
+| 52 | Invalid address | No |
+| 53 | Invalid input (HTTP 400) | No |
+| 54 | Invalid API key (HTTP 401/403) | No |
+| 55 | Not found (HTTP 404) | No |
+| 56 | Rate limited (HTTP 429) | **Yes** |
+| 57 | Server error (HTTP 5xx) | **Yes** |
+| 58 | Network error (connection failed) | **Yes** |
+
+All `--json` error output includes a `retryable` field.
 
 ## Development
 
