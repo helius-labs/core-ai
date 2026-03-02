@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getEnhancedWebSocketUrl } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
-import { fetchDoc } from '../utils/docs.js';
+import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 
 export function registerEnhancedWebSocketTools(server: McpServer) {
 
@@ -219,12 +219,18 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
         );
       }
 
+      const capabilities = extractSections(content, ['capabilities', 'features'], { includeLooseMatches: false });
+      const subscriptions = extractSections(content, ['subscriptions', 'endpoints'], { includeLooseMatches: false });
+      const plans = extractSections(content, ['plan requirements', 'plans'], { includeLooseMatches: false });
+      const sections = [capabilities, subscriptions, plans].filter(Boolean).join('\n\n');
+      const body = sections || truncateDoc(content);
+
       const result = [
         '# Helius Enhanced WebSockets (Official)',
         '',
         `**Endpoint:** \`${wsUrl}\``,
         '',
-        content,
+        body,
         '',
         '---',
         'Source: https://www.helius.dev/docs/enhanced-websockets (fetched live)',

@@ -218,6 +218,21 @@ export function extractSections(
 }
 
 /**
+ * Truncate a doc response to avoid blowing up the context window.
+ * Tries to cut at a section boundary for cleaner output.
+ */
+export const MAX_DOC_RESPONSE_CHARS = 15_000;
+
+export function truncateDoc(text: string, limit = MAX_DOC_RESPONSE_CHARS): string {
+  if (text.length <= limit) return text;
+  const truncated = text.slice(0, limit);
+  const lastSection = truncated.lastIndexOf('\n## ');
+  const cutPoint = lastSection > limit * 0.5 ? lastSection : limit;
+  return truncated.slice(0, cutPoint) +
+    '\n\n---\n*Truncated. Use `lookupHeliusDocs` with a `section` filter for specific details.*';
+}
+
+/**
  * Search docs content for a specific term (searches cached docs only)
  */
 export function searchCachedDocs(searchTerm: string): Array<{ docKey: string; matches: string[] }> {

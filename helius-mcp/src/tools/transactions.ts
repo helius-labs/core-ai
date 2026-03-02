@@ -261,7 +261,7 @@ export function registerTransactionTools(server: McpServer) {
   // Parse Transactions (Enhanced API)
   server.tool(
     'parseTransactions',
-    'BEST FOR: decoding specific transaction(s) by signature into human-readable format. Parse one or more Solana transactions into human-readable format. Returns transaction type (SWAP, TRANSFER, NFT_SALE, etc.), source program (Jupiter, Raydium, Magic Eden, etc.), SOL and token transfers with token names and proper decimal formatting, fees (in both SOL and lamports), timestamp, program IDs involved, and a plain-English description. Use showRaw=true to see all program IDs, instruction accounts, instruction data bytes, inner instructions, and auto-decoded ComputeBudget instructions (CU limit, priority fee, heap frame). Credit cost: 100 credits/call (Enhanced Transactions API). To fetch and parse wallet transaction history, use getTransactionHistory instead.',
+    'BEST FOR: decoding specific transaction(s) by signature. Parse one or more Solana transactions into human-readable format. Returns type, source, transfers, fees, timestamp, and description. Use showRaw=true for full instruction data. Credit cost: 100 credits/call.',
     {
       signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded). Can be 1 or more.'),
       showRaw: z.boolean().optional().default(false).describe('Include raw instruction data: program IDs, accounts, inner instructions. Useful for debugging or tracing fund flows.')
@@ -351,7 +351,7 @@ export function registerTransactionTools(server: McpServer) {
           outputLines.push('', `**Description:** ${tx.description}`);
         }
 
-        // Extract unique program IDs from instructions
+        // Extract unique program IDs from instructions (only show when ≤5 to reduce noise)
         if (tx.instructions && tx.instructions.length > 0) {
           const programIds = new Set<string>();
           const collectProgramIds = (instructions: RawInstruction[]) => {
@@ -363,9 +363,14 @@ export function registerTransactionTools(server: McpServer) {
           collectProgramIds(tx.instructions);
 
           outputLines.push('', '**Programs Involved:**');
-          programIds.forEach(pid => {
+          const pidArray = Array.from(programIds);
+          const shown = pidArray.slice(0, 5);
+          shown.forEach(pid => {
             outputLines.push(`- ${pid}`);
           });
+          if (programIds.size > 5) {
+            outputLines.push(`_(Showing 5 of ${programIds.size} programs)_`);
+          }
         }
 
         // Swap summary from events.swap
@@ -395,13 +400,16 @@ export function registerTransactionTools(server: McpServer) {
           });
         }
 
+        // Skip SOL transfers when there's only 1 and a description already covers it
         if (tx.nativeTransfers && tx.nativeTransfers.length > 0) {
-          outputLines.push('', '**SOL Transfers:**');
-          tx.nativeTransfers.forEach((t) => {
-            const from = t.fromUserAccount || 'unknown';
-            const to = t.toUserAccount || 'unknown';
-            outputLines.push(`- ${from} → ${to}: ${formatSol(t.amount)} (${t.amount.toLocaleString()} lamports)`);
-          });
+          if (!(tx.nativeTransfers.length === 1 && tx.description)) {
+            outputLines.push('', '**SOL Transfers:**');
+            tx.nativeTransfers.forEach((t) => {
+              const from = t.fromUserAccount || 'unknown';
+              const to = t.toUserAccount || 'unknown';
+              outputLines.push(`- ${from} → ${to}: ${formatSol(t.amount)} (${t.amount.toLocaleString()} lamports)`);
+            });
+          }
         }
 
         // Show raw instruction data if requested
@@ -459,7 +467,7 @@ export function registerTransactionTools(server: McpServer) {
           const significantChanges = tx.accountData
             .filter(a => a.nativeBalanceChange !== 0)
             .sort((a, b) => Math.abs(b.nativeBalanceChange) - Math.abs(a.nativeBalanceChange))
-            .slice(0, 10);
+            .slice(0, 5);
 
           if (significantChanges.length > 0) {
             outputLines.push('', '**Account Balance Changes:**');
@@ -494,7 +502,7 @@ export function registerTransactionTools(server: McpServer) {
   // Get Transaction History (unified: parsed, signatures, or raw mode)
   server.tool(
     'getTransactionHistory',
-    'BEST FOR: general-purpose transaction history (default choice for "show transactions"). PREFER getWalletTransfers for sends/receives specifically. PREFER getWalletHistory for balance changes per transaction. Get transaction history for a Solana wallet. Supports three modes: "parsed" (default) returns human-readable decoded data with types, descriptions, actions, and fees. "signatures" returns a lightweight list of transaction signatures with slot/time/status. "raw" returns full raw data with advanced Helius filters (time/slot ranges, status, token accounts). All modes support sortOrder="asc" for finding wallet funding sources — no pagination needed. By default only successful transactions are shown; set status="any" or status="failed" to include failed ones. Credit cost varies by mode: "parsed" ~110 credits/call (signatures fetch + Enhanced API enrichment); "signatures" and "raw" ~10 credits/call.',
+    'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~110 credits), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
