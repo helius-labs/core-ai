@@ -439,9 +439,9 @@ export function registerAuthTools(server: McpServer) {
           );
         }
 
-        let signerResult: { secretKey: Uint8Array; walletAddress: string };
+        let signerData: { secretKey: Uint8Array; walletAddress: string };
         try {
-          signerResult = await loadSignerOrFail();
+          signerData = await loadSignerOrFail();
         } catch {
           return mcpError('No keypair found. Call `generateKeypair` first.');
         }
@@ -457,7 +457,7 @@ export function registerAuthTools(server: McpServer) {
         }
 
         const projectId = projects[0].id;
-        const result = await executeCheckout(signerResult.secretKey, jwt, {
+        const result = await executeCheckout(signerData.secretKey, jwt, {
           plan,
           period,
           refId: projectId,
@@ -628,9 +628,9 @@ export function registerAuthTools(server: McpServer) {
     },
     async ({ paymentIntentId }) => {
       try {
-        let renewalSigner: { secretKey: Uint8Array; walletAddress: string };
+        let signerData: { secretKey: Uint8Array; walletAddress: string };
         try {
-          renewalSigner = await loadSignerOrFail();
+          signerData = await loadSignerOrFail();
         } catch {
           return mcpError('No keypair found. Call `generateKeypair` first.');
         }
@@ -640,7 +640,7 @@ export function registerAuthTools(server: McpServer) {
           return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
         }
 
-        const result = await executeRenewal(renewalSigner.secretKey, jwt, paymentIntentId, MCP_USER_AGENT);
+        const result = await executeRenewal(signerData.secretKey, jwt, paymentIntentId, MCP_USER_AGENT);
 
         if (result.status !== 'completed') {
           return mcpError(

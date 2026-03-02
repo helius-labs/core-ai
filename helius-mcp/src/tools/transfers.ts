@@ -56,6 +56,20 @@ export function registerTransferTools(server: McpServer) {
         // Convert SOL to lamports
         const lamports = BigInt(Math.round(amount * 1_000_000_000));
 
+        // Pre-flight balance check
+        const helius = getHeliusClient();
+        const balanceResult = await helius.getBalance(signerData.walletAddress);
+        const balanceLamports = BigInt(balanceResult.value);
+        // Reserve ~0.005 SOL for tx fees (priority fee + rent if needed)
+        const reserveLamports = 5_000_000n;
+        if (balanceLamports < lamports + reserveLamports) {
+          const available = Number(balanceLamports) / 1_000_000_000;
+          return mcpError(
+            `Insufficient SOL balance. You have ${available} SOL but need ${amount} SOL plus ~0.005 SOL for transaction fees.\n\n` +
+            `Wallet: \`${signerData.walletAddress}\``
+          );
+        }
+
         // Create signer from keypair bytes
         const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
 
@@ -67,7 +81,6 @@ export function registerTransferTools(server: McpServer) {
         });
 
         // Send via Helius Sender
-        const helius = getHeliusClient();
         const signature = await helius.tx.sendTransactionWithSender({
           signers: [signer],
           instructions: [ix],
@@ -178,6 +191,22 @@ export function registerTransferTools(server: McpServer) {
           mint,
           tokenProgram: TOKEN_PROGRAM_ADDRESS,
         });
+
+        // Pre-flight token balance check
+        try {
+          const tokenBalance = await helius.getTokenAccountBalance(senderAta);
+          const currentRaw = BigInt(tokenBalance.value.amount);
+          if (currentRaw < rawAmount) {
+            const currentHuman = Number(currentRaw) / 10 ** decimals;
+            return mcpError(
+              `Insufficient ${tokenSymbol || tokenName} balance. You have ${currentHuman} but are trying to send ${amount}.\n\n` +
+              `Wallet: \`${signerData.walletAddress}\`\n` +
+              `Mint: \`${mintAddress}\``
+            );
+          }
+        } catch {
+          // Token account may not exist yet — let the on-chain error handle it
+        }
 
         // Build instructions: idempotent ATA creation + transfer
         const createAtaIx = getCreateAssociatedTokenIdempotentInstruction({
