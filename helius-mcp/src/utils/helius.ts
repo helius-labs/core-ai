@@ -82,6 +82,33 @@ export function getLaserstreamUrl(region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon
   return `https://laserstream-mainnet-${selectedRegion}.helius-rpc.com`;
 }
 
+/**
+ * Load the signer keypair from session or disk.
+ * Returns the raw secret key bytes and the wallet address string.
+ * Throws with message 'NO_KEYPAIR' if no keypair is available.
+ */
+export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walletAddress: string }> {
+  // Lazy-import to avoid circular deps (config → helius → config)
+  const { loadKeypairFromDisk } = await import('./config.js');
+  const { loadKeypair } = await import('helius-sdk/auth/loadKeypair');
+  const { getAddress } = await import('helius-sdk/auth/getAddress');
+
+  let secretKey = getSessionSecretKey();
+  if (!secretKey) {
+    secretKey = loadKeypairFromDisk();
+    if (secretKey) {
+      const walletKeypair = loadKeypair(secretKey);
+      const addr = await getAddress(walletKeypair);
+      setSessionSecretKey(secretKey);
+      setSessionWalletAddress(addr);
+    }
+  }
+  if (!secretKey) {
+    throw new Error('NO_KEYPAIR');
+  }
+  return { secretKey, walletAddress: getSessionWalletAddress()! };
+}
+
 export async function restRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
   const apiKey = getApiKey();
   const separator = endpoint.includes('?') ? '&' : '?';

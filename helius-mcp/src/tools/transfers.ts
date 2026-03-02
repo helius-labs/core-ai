@@ -8,33 +8,11 @@ import {
   getTransferCheckedInstruction,
   TOKEN_PROGRAM_ADDRESS,
 } from '@solana-program/token';
-import { getHeliusClient, hasApiKey, getSessionSecretKey, setSessionSecretKey, getSessionWalletAddress, setSessionWalletAddress } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey, loadSignerOrFail } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError, isValidAddressFormat } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
-import { loadKeypairFromDisk } from '../utils/config.js';
-import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
-import { getAddress } from 'helius-sdk/auth/getAddress';
 
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
-
-// ── Helper: load signer keypair from session or disk ──
-
-async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walletAddress: string }> {
-  let secretKey = getSessionSecretKey();
-  if (!secretKey) {
-    secretKey = loadKeypairFromDisk();
-    if (secretKey) {
-      const walletKeypair = loadKeypair(secretKey);
-      const addr = await getAddress(walletKeypair);
-      setSessionSecretKey(secretKey);
-      setSessionWalletAddress(addr);
-    }
-  }
-  if (!secretKey) {
-    throw new Error('NO_KEYPAIR');
-  }
-  return { secretKey, walletAddress: getSessionWalletAddress()! };
-}
 
 // ── Tool Registration ──
 
