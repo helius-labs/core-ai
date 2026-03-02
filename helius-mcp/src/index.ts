@@ -7,11 +7,12 @@ import { setApiKey, setSessionSecretKey, setSessionWalletAddress } from './utils
 import { getSharedApiKey, loadKeypairFromDisk } from './utils/config.js';
 import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
+import { version } from './version.js';
 
 const server = new McpServer(
   {
     name: 'helius-mcp',
-    version: '0.3.0'
+    version
   },
   {
     instructions: `These instructions provide fallback tool selection guidance. If you have more specific routing instructions from a Helius skill or system prompt, prefer those.
@@ -21,24 +22,28 @@ const server = new McpServer(
 | Intent | Tool | Credits |
 |--------|------|---------|
 | SOL balance | getBalance | 1 |
-| token balances | getTokenBalances | 10/pg |
+| token balances by wallet | getTokenBalances | 10/pg |
 | full portfolio + USD | getWalletBalances | 100 |
 | parse tx by signature | parseTransactions | 100 |
-| transaction history | getTransactionHistory | ~110 |
+| wallet transaction history | getTransactionHistory | ~110 |
 | balance deltas/tx | getWalletHistory | 100 |
 | sends/receives | getWalletTransfers | 100 |
-| asset by mint | getAsset | 10 |
+| asset by mint (single or batch) | getAsset | 10 |
 | wallet NFTs | getAssetsByOwner | 10 |
-| filtered asset search | searchAssets | 10 |
+| filtered asset search / by creator or authority | searchAssets | 10 |
 | collection NFTs | getAssetsByGroup | 10 |
 | asset tx history (by mint) | getSignaturesForAsset | 10 |
 | edition prints of master NFT | getNftEditions | 10 |
-| raw account inspection | getAccountInfo | 1 |
+| cNFT Merkle proof (single or batch) | getAssetProof, getAssetProofBatch | 10 |
+| raw account inspection (single or batch) | getAccountInfo | 1 |
 | token holders by mint | getTokenHolders | ~20 |
-| token account queries | getTokenAccounts | 10 |
+| token accounts by mint or owner | getTokenAccounts | 10 |
 | program accounts / protocol state | getProgramAccounts | 10 |
+| network status / epoch / block height | getNetworkStatus | 3 |
+| block data by slot | getBlock | 1 |
 | plans/pricing | getHeliusPlanInfo | 0 |
 | plan comparison | compareHeliusPlans | 0 |
+| plan upgrade / billing | previewUpgrade, upgradePlan, payRenewal | 0 |
 | rate limits/credits | getRateLimitInfo | 0 |
 | API docs by topic | lookupHeliusDocs | 0 |
 | error diagnosis | troubleshootError | 0 |
@@ -46,8 +51,12 @@ const server = new McpServer(
 | webhook setup guide | getWebhookGuide | 0 |
 | streaming latency | getLatencyComparison | 0 |
 | pump.fun tokens | getPumpFunGuide | 0 |
-| project architecture | recommendStack | 0 |
+| project architecture / stack selection | recommendStack | 0 |
+| Solana SIMDs / protocol proposals | getSIMD, listSIMDs | 0 |
+| Solana source / docs search | searchSolanaDocs, readSolanaSourceFile | 0 |
+| Helius blog posts | fetchHeliusBlog | 0 |
 | wallet identity | getWalletIdentity | 100 |
+| batch wallet identity | batchWalletIdentity | 100 |
 | funding source | getWalletFundedBy | 100 |
 | event notifications (any plan) | createWebhook | 100 |
 | live streaming (WS, Business+) | transactionSubscribe, accountSubscribe | — |
