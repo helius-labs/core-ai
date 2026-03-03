@@ -13,7 +13,8 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "validate": "node dist/scripts/validate-catalog.js",
-    "test": "pnpm build && pnpm validate",
+    "test": "pnpm build && pnpm validate && vitest run",
+    "changelog": "auto-changelog --tag-prefix helius-mcp@",
     "prepublishOnly": "pnpm build"
   },
   "keywords": [
@@ -49,11 +50,14 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.4.0"
+    "auto-changelog": "^2.5.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
   },
   "files": [
     "dist",
     "system-prompts",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ]

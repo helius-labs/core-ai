@@ -2,6 +2,10 @@
 
 MCP server for Helius — Solana blockchain data access for AI assistants, provided by Solana's fastest, most reliable infrastructure provider
 
+See the [CHANGELOG](https://github.com/helius-labs/core-ai/blob/main/helius-mcp/CHANGELOG.md) for version history and release notes.
+
+Interested in contributing? Read the [contribution guide](https://github.com/helius-labs/core-ai/blob/main/helius-mcp/CONTRIBUTING.md) before opening a PR.
+
 ## Quick Start
 
 ### 1. Add the MCP server
