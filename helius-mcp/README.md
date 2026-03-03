@@ -97,6 +97,25 @@ Ask questions in plain English — the right tool is selected automatically:
 
 **Solana Knowledge (5):** getSIMD, listSIMDs, searchSolanaDocs, readSolanaSourceFile, fetchHeliusBlog
 
+## System Prompts
+
+This package ships with pre-built system prompts that teach AI models how to use Helius tools effectively. Find them in `system-prompts/`:
+
+```
+system-prompts/
+├── helius/              # Core Helius skill
+├── helius-dflow/        # DFlow trading skill
+├── helius-phantom/      # Phantom frontend skill
+└── svm/                 # SVM architecture skill
+```
+
+Each contains three variants:
+- `openai.developer.md` — for OpenAI Responses/Chat Completions API (`developer` message)
+- `claude.system.md` — for Claude API (system prompt)
+- `full.md` — self-contained with all references inlined (Cursor Rules, ChatGPT, etc.)
+
+See [`helius-skills/SYSTEM-PROMPTS.md`](https://github.com/helius-labs/core-ai/blob/main/helius-skills/SYSTEM-PROMPTS.md) for integration guides and code examples.
+
 ## Networks
 
 Mainnet Beta (default) and Devnet. Set via `HELIUS_NETWORK` env var or `setNetwork` in the session

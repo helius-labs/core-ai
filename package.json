@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "scripts": {
+    "compile-skills": "npx tsx scripts/compile-skills.ts"
+  }
+}

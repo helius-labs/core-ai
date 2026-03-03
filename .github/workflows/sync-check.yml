@@ -205,3 +205,34 @@ jobs:
           fi
 
           echo "All SVM reference files are in sync."
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify generated skills and prompts are fresh
+        run: |
+          npx tsx scripts/compile-skills.ts
+
+          if ! git diff --quiet .agents/ helius-mcp/system-prompts/; then
+            echo ""
+            echo "Generated skill output is stale!"
+            echo ""
+            git diff --stat .agents/ helius-mcp/system-prompts/
+            echo ""
+            echo "Run 'npx tsx scripts/compile-skills.ts' and commit the output."
+            exit 1
+          fi
+
+          STALE=$(git status --porcelain .agents/ helius-mcp/system-prompts/)
+          if [ -n "$STALE" ]; then
+            echo ""
+            echo "Stale or untracked files detected in generated output:"
+            echo "$STALE"
+            echo ""
+            echo "Run 'npx tsx scripts/compile-skills.ts', review the changes, and commit."
+            exit 1
+          fi
+
+          echo "All generated skill output is up to date."
