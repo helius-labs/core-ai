@@ -1,0 +1,6 @@
+{
+  "template": "keepachangelog",
+  "commitLimit": 0,
+  "tagPrefix": "helius-mcp@",
+  "ignoreCommitPattern": "^(Bump|Version|build\\(deps|chore\\(release\\)|release:|\\d+\\.\\d+\\.\\d+\\s|Tag Version)"
+}
