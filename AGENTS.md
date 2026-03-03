@@ -24,7 +24,15 @@ npx helius-mcp@latest
 
 This works with any MCP-compatible client. The server exposes tools like `getBalance`, `getAssetsByOwner`, `parseTransactions`, `createWebhook`, `transferSol`, and many more.
 
-Add this to your project's `.mcp.json` (or equivalent MCP client config):
+For Codex, run `codex mcp add helius -- npx helius-mcp@latest` or add to `.codex/config.toml` (or `~/.codex/config.toml` for global):
+
+```toml
+[mcp_servers.helius]
+command = "npx"
+args = ["helius-mcp@latest"]
+```
+
+For other MCP clients, add to your project's `.mcp.json`:
 
 ```json
 {
