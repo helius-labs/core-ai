@@ -24,6 +24,19 @@ npx helius-mcp@latest
 
 This works with any MCP-compatible client. The server exposes tools like `getBalance`, `getAssetsByOwner`, `parseTransactions`, `createWebhook`, `transferSol`, and many more.
 
+Add this to your project's `.mcp.json` (or equivalent MCP client config):
+
+```json
+{
+  "mcpServers": {
+    "helius": {
+      "command": "npx",
+      "args": ["helius-mcp@latest"]
+    }
+  }
+}
+```
+
 ## API Key Setup
 
 Most tools require a Helius API key. Three paths:
@@ -86,6 +99,7 @@ Each skill has:
 ### Transaction Sending
 - Always use Helius Sender endpoints — never raw `sendTransaction` to standard RPC
 - Always include `skipPreflight: true` when using Sender
+- Always include `maxRetries: 0` when using Sender
 - Always include a Jito tip (minimum 0.0002 SOL) and priority fee
 - Use `getPriorityFeeEstimate` to get fee levels — never hardcode fees
 

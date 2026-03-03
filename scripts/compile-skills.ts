@@ -77,7 +77,7 @@ const SKILLS: SkillConfig[] = [
 
 /** Parse YAML frontmatter from SKILL.md. Returns { frontmatter, body }. */
 function parseFrontmatter(content: string): { frontmatter: string; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { frontmatter: "", body: content };
   return { frontmatter: match[1], body: match[2] };
 }
@@ -127,8 +127,8 @@ function stripClaudeSpecific(body: string): string {
 
   // Replace "claude mcp add" instructions for DFlow
   result = result.replace(
-    /`claude mcp add --transport http DFlow https:\/\/pond\.dflow\.net\/mcp`/g,
-    "configure the DFlow MCP server at `https://pond.dflow.net/mcp` in your MCP client"
+    /It can also be installed by running the command `claude mcp add --transport http DFlow https:\/\/pond\.dflow\.net\/mcp`, or by being directly added to your project's `\.mcp\.json`:/g,
+    "It can also be configured in your MCP client at `https://pond.dflow.net/mcp`, or by being directly added to your project's `.mcp.json`:"
   );
 
   // Replace /helius, /svm, /helius-dflow, /helius-phantom slash commands
@@ -262,6 +262,7 @@ function compileSkill(config: SkillConfig): void {
   const raw = readFileSync(skillMdPath, "utf-8");
   const { frontmatter, body } = parseFrontmatter(raw);
   const name = extractName(frontmatter);
+  const generationHeader = `<!-- Generated from helius-skills/${config.dir}/SKILL.md — do not edit -->\n\n`;
 
   // --- Apply transforms ---
   let transformed = stripClaudeSpecific(body);
@@ -286,7 +287,6 @@ function compileSkill(config: SkillConfig): void {
 
   // full.md (all references inlined, no frontmatter — targets Cursor Rules / ChatGPT)
   const fullBody = inlineReferences(transformed, refsDir);
-  const generationHeader = `<!-- Generated from helius-skills/${config.dir}/SKILL.md — do not edit -->\n\n`;
   const fullContent = generationHeader + fullBody;
 
   // --- Write outputs ---
@@ -298,8 +298,7 @@ function compileSkill(config: SkillConfig): void {
   mkdirSync(mcpSkillDir, { recursive: true });
 
   // Codex SKILL.md
-  const generatedHeader = `<!-- Generated from helius-skills/${config.dir}/SKILL.md — do not edit -->\n\n`;
-  writeFileSync(join(agentsSkillDir, "SKILL.md"), generatedHeader + codexSkillMd);
+  writeFileSync(join(agentsSkillDir, "SKILL.md"), generationHeader + codexSkillMd);
 
   // Copy reference files (with Claude-isms stripped)
   if (existsSync(refsDir)) {

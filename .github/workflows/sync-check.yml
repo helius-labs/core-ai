@@ -225,4 +225,14 @@ jobs:
             exit 1
           fi
 
+          STALE=$(git status --porcelain .agents/ helius-mcp/system-prompts/)
+          if [ -n "$STALE" ]; then
+            echo ""
+            echo "Stale or untracked files detected in generated output:"
+            echo "$STALE"
+            echo ""
+            echo "Run 'npx tsx scripts/compile-skills.ts', review the changes, and commit."
+            exit 1
+          fi
+
           echo "All generated skill output is up to date."

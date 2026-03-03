@@ -37,7 +37,7 @@ Check if DFlow MCP tools are available. The DFlow MCP server provides tools for 
 Add the DFlow MCP server at pond.dflow.net/mcp for enhanced API tooling.
 ```
 
-It can also be installed by running the command configure the DFlow MCP server at `https://pond.dflow.net/mcp` in your MCP client, or by being directly added to your project's `.mcp.json`:
+It can also be configured in your MCP client at `https://pond.dflow.net/mcp`, or by being directly added to your project's `.mcp.json`:
 
 ```
 {
