@@ -14,6 +14,8 @@ import {
   addressError,
   paginationError,
   notFoundError,
+  http404Error,
+  http400Error,
   isValidAddressFormat,
   warnInvalidAddresses,
   warnInvalidAddress,
@@ -216,6 +218,24 @@ describe('notFoundError factory', () => {
     const handler = notFoundError('My Tool');
     expect(handler.match('Asset Not Found')).toBe(true);
     const response = handler.respond('Asset Not Found');
+    expect(response.content[0].text).toContain('My Tool');
+  });
+});
+
+describe('http404Error factory', () => {
+  it('matches 404 errors', () => {
+    const handler = http404Error('My Tool', 'Not found detail');
+    expect(handler.match('404 Not Found')).toBe(true);
+    const response = handler.respond('404 Not Found');
+    expect(response.content[0].text).toContain('My Tool');
+  });
+});
+
+describe('http400Error factory', () => {
+  it('matches 400 errors', () => {
+    const handler = http400Error('My Tool');
+    expect(handler.match('HTTP 400: bad request')).toBe(true);
+    const response = handler.respond('HTTP 400: {"message":"bad input"}');
     expect(response.content[0].text).toContain('My Tool');
   });
 });
