@@ -5,6 +5,7 @@ Monorepo containing Helius developer tools distributed as independent packages:
 - `helius-mcp/` — MCP server (npm: `helius-mcp`) — AI-assistant agnostic
 - `helius-skills/` — Standalone Claude Code skill (installed via `install.sh`)
 - `helius-plugin/` — Claude Code plugin (all-in-one: bundles skill + auto-starts MCP)
+- `helius-cursor/` — Cursor plugin (all-in-one: bundles skill + auto-starts MCP)
 - `helius-cli/` — CLI for account setup (npm: `helius-cli`)
 
 ## Shared Content: Reference Files
@@ -12,38 +13,38 @@ Monorepo containing Helius developer tools distributed as independent packages:
 The reference files in `helius-skills/helius/references/` and `helius-plugin/skills/build/references/` **must be kept in sync**. These are the canonical Helius API reference docs used by Claude to route and compose tool calls.
 
 - **Canonical source**: `helius-skills/helius/references/`
-- **Copy**: `helius-plugin/skills/build/references/`
-- When updating any reference file, update it in `helius-skills/` first, then copy the change to `helius-plugin/`.
+- **Copies**: `helius-plugin/skills/build/references/`, `helius-cursor/skills/build/references/`
+- When updating any reference file, update it in `helius-skills/` first, then copy the change to both `helius-plugin/` and `helius-cursor/`.
 - CI will fail if these directories diverge.
 
 ### DFlow Skill References
 
-The DFlow skill (`helius-skills/helius-dflow/` and `helius-plugin/skills/dflow/`) has its own reference files that **must also be kept in sync**.
+The DFlow skill (`helius-skills/helius-dflow/`, `helius-plugin/skills/dflow/`, and `helius-cursor/skills/dflow/`) has its own reference files that **must also be kept in sync**.
 
 - **Canonical source**: `helius-skills/helius-dflow/references/`
-- **Copy**: `helius-plugin/skills/dflow/references/`
+- **Copies**: `helius-plugin/skills/dflow/references/`, `helius-cursor/skills/dflow/references/`
 - The DFlow skill contains 12 reference files: 7 Helius copies (prefixed with `helius-`), 4 DFlow-specific files, and 1 integration-patterns file.
 - The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside DFlow files in the same directory.
-- When updating DFlow reference files, update in `helius-skills/helius-dflow/references/` first, then copy to `helius-plugin/skills/dflow/references/`.
+- When updating DFlow reference files, update in `helius-skills/helius-dflow/references/` first, then copy to both `helius-plugin/skills/dflow/references/` and `helius-cursor/skills/dflow/references/`.
 
 ### Phantom Skill References
 
-The Phantom skill (`helius-skills/helius-phantom/` and `helius-plugin/skills/phantom/`) has its own reference files that **must also be kept in sync**.
+The Phantom skill (`helius-skills/helius-phantom/`, `helius-plugin/skills/phantom/`, and `helius-cursor/skills/phantom/`) has its own reference files that **must also be kept in sync**.
 
 - **Canonical source**: `helius-skills/helius-phantom/references/`
-- **Copy**: `helius-plugin/skills/phantom/references/`
+- **Copies**: `helius-plugin/skills/phantom/references/`, `helius-cursor/skills/phantom/references/`
 - The Phantom skill contains 16 reference files: 7 Helius copies (prefixed with `helius-`), 8 Phantom-specific files (react-sdk, browser-sdk, react-native-sdk, transactions, token-gating, nft-minting, payments, frontend-security), and 1 integration-patterns file.
 - The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
-- When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to `helius-plugin/skills/phantom/references/`.
+- When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to both `helius-plugin/skills/phantom/references/` and `helius-cursor/skills/phantom/references/`.
 
 ### SVM Skill References
 
-The SVM skill (`helius-skills/svm/` and `helius-plugin/skills/svm/`) has its own reference files that **must also be kept in sync**.
+The SVM skill (`helius-skills/svm/`, `helius-plugin/skills/svm/`, and `helius-cursor/skills/svm/`) has its own reference files that **must also be kept in sync**.
 
 - **Canonical source**: `helius-skills/svm/references/`
-- **Copy**: `helius-plugin/skills/svm/references/`
+- **Copies**: `helius-plugin/skills/svm/references/`, `helius-cursor/skills/svm/references/`
 - The SVM skill contains 10 reference files: compilation, programs, execution, accounts, transactions, consensus, validators, data, development, tokens.
-- When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to `helius-plugin/skills/svm/references/`.
+- When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to both `helius-plugin/skills/svm/references/` and `helius-cursor/skills/svm/references/`.
 
 ## Generated Output
 
@@ -54,13 +55,14 @@ The following directories are **generated** by `npx tsx scripts/compile-skills.t
 
 ### Sync Paths from Canonical Source
 
-All skill content flows from `helius-skills/` to three destinations:
+All skill content flows from `helius-skills/` to four destinations:
 
-1. `helius-skills/` → `helius-plugin/skills/` (existing manual copy)
-2. `helius-skills/` → `.agents/skills/` (compiler-generated)
-3. `helius-skills/` → `helius-mcp/system-prompts/` (compiler-generated)
+1. `helius-skills/` → `helius-plugin/skills/` (manual copy — Claude Code plugin)
+2. `helius-skills/` → `helius-cursor/skills/` (manual copy — Cursor plugin)
+3. `helius-skills/` → `.agents/skills/` (compiler-generated)
+4. `helius-skills/` → `helius-mcp/system-prompts/` (compiler-generated)
 
-CI validates all three sync paths. After modifying any `SKILL.md` or reference file in `helius-skills/`, run `npx tsx scripts/compile-skills.ts` to regenerate output.
+CI validates all sync paths. After modifying any `SKILL.md` or reference file in `helius-skills/`, run `npx tsx scripts/compile-skills.ts` to regenerate output.
 
 ## SKILL.md Files
 
@@ -68,6 +70,6 @@ The SKILL.md files in each package are intentionally **not identical** — they 
 
 - Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
 - Metadata/frontmatter
-- MCP prerequisite messaging (manual install vs plugin auto-start)
+- MCP prerequisite messaging (manual install vs plugin auto-start, Cursor vs Claude Code restart instructions)
 
-When making content changes to SKILL.md (e.g., adding rules, updating routing logic, new pitfalls), apply the change to both files manually.
+When making content changes to SKILL.md (e.g., adding rules, updating routing logic, new pitfalls), apply the change to `helius-plugin/`, `helius-cursor/`, and `helius-skills/` manually.
