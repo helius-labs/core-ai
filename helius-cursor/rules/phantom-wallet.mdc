@@ -1,0 +1,32 @@
+---
+description: Phantom Connect SDK integration rules for frontend Solana apps (React, React Native, browser)
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+## SDK Selection
+
+- ALWAYS use `@phantom/react-sdk` for React apps — never `window.phantom.solana` directly or `@solana/wallet-adapter-react`
+- ALWAYS use `@phantom/browser-sdk` for vanilla JS / Vue / Svelte / non-React frameworks
+- ALWAYS use `@phantom/react-native-sdk` for React Native / Expo apps
+- `window.phantom.solana` (the legacy injected provider) requires `@solana/web3.js` v1 types and does NOT work with `@solana/kit` — use Phantom Connect SDK instead
+
+## Portal App ID
+
+- Google and Apple OAuth providers require a Phantom Portal App ID from `phantom.com/portal` — extension-only (`"injected"`) does not
+- The exact redirect URL (including protocol and path) must be allowlisted in Phantom Portal settings or OAuth login will fail
+
+## React Native
+
+- `react-native-get-random-values` MUST be the very first import in the app entry file — if it comes after anything else, the app will crash on startup
+
+## Connection Flow
+
+- Use `useModal` and `open()` to trigger the connection flow — never auto-connect without user action
+- ALWAYS handle connection errors gracefully — users can reject the prompt at any time
+
+## Security
+
+- Never expose Helius API keys in client-side code — always proxy through a backend
+- Client-side token gating is bypassable — always verify token ownership server-side with Helius DAS for valuable content
+- Never expose mint authority in frontend code — build NFT mint transactions on the server; the client only signs as the payer

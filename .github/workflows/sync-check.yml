@@ -206,6 +206,178 @@ jobs:
 
           echo "All SVM reference files are in sync."
 
+      - name: Compare build reference files (helius-cursor)
+        run: |
+          SKILLS_DIR="helius-skills/helius/references"
+          CURSOR_DIR="helius-cursor/skills/build/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$CURSOR_DIR" ]; then
+            echo "One or both reference directories are missing."
+            echo "  helius-skills: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-cursor: $([ -d "$CURSOR_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          CURSOR_FILES=$(cd "$CURSOR_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$CURSOR_FILES" ]; then
+            echo "File lists differ between build reference directories:"
+            echo "Only in helius-skills/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            echo "Only in helius-cursor/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills and helius-cursor"
+              diff --unified=3 "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo "Build reference files are out of sync!"
+            echo "The canonical source is helius-skills/helius/references/."
+            echo "Copy changes to helius-cursor/skills/build/references/ to fix."
+            exit 1
+          fi
+
+          echo "All build reference files (helius-cursor) are in sync."
+
+      - name: Compare DFlow reference files (helius-cursor)
+        run: |
+          SKILLS_DIR="helius-skills/helius-dflow/references"
+          CURSOR_DIR="helius-cursor/skills/dflow/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$CURSOR_DIR" ]; then
+            echo "One or both DFlow reference directories are missing."
+            echo "  helius-skills/helius-dflow: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-cursor/skills/dflow: $([ -d "$CURSOR_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          CURSOR_FILES=$(cd "$CURSOR_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$CURSOR_FILES" ]; then
+            echo "File lists differ between DFlow reference directories:"
+            echo "Only in helius-skills/helius-dflow/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            echo "Only in helius-cursor/skills/dflow/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills/helius-dflow and helius-cursor/skills/dflow"
+              diff --unified=3 "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo "DFlow reference files are out of sync!"
+            echo "The canonical source is helius-skills/helius-dflow/references/."
+            echo "Copy changes to helius-cursor/skills/dflow/references/ to fix."
+            exit 1
+          fi
+
+          echo "All DFlow reference files (helius-cursor) are in sync."
+
+      - name: Compare Phantom reference files (helius-cursor)
+        run: |
+          SKILLS_DIR="helius-skills/helius-phantom/references"
+          CURSOR_DIR="helius-cursor/skills/phantom/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$CURSOR_DIR" ]; then
+            echo "One or both Phantom reference directories are missing."
+            echo "  helius-skills/helius-phantom: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-cursor/skills/phantom: $([ -d "$CURSOR_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          CURSOR_FILES=$(cd "$CURSOR_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$CURSOR_FILES" ]; then
+            echo "File lists differ between Phantom reference directories:"
+            echo "Only in helius-skills/helius-phantom/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            echo "Only in helius-cursor/skills/phantom/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills/helius-phantom and helius-cursor/skills/phantom"
+              diff --unified=3 "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo "Phantom reference files are out of sync!"
+            echo "The canonical source is helius-skills/helius-phantom/references/."
+            echo "Copy changes to helius-cursor/skills/phantom/references/ to fix."
+            exit 1
+          fi
+
+          echo "All Phantom reference files (helius-cursor) are in sync."
+
+      - name: Compare SVM reference files (helius-cursor)
+        run: |
+          SKILLS_DIR="helius-skills/svm/references"
+          CURSOR_DIR="helius-cursor/skills/svm/references"
+
+          if [ ! -d "$SKILLS_DIR" ] || [ ! -d "$CURSOR_DIR" ]; then
+            echo "One or both SVM reference directories are missing."
+            echo "  helius-skills/svm: $([ -d "$SKILLS_DIR" ] && echo 'exists' || echo 'MISSING')"
+            echo "  helius-cursor/skills/svm: $([ -d "$CURSOR_DIR" ] && echo 'exists' || echo 'MISSING')"
+            exit 1
+          fi
+
+          SKILLS_FILES=$(cd "$SKILLS_DIR" && find . -type f -name '*.md' | sort)
+          CURSOR_FILES=$(cd "$CURSOR_DIR" && find . -type f -name '*.md' | sort)
+
+          if [ "$SKILLS_FILES" != "$CURSOR_FILES" ]; then
+            echo "File lists differ between SVM reference directories:"
+            echo "Only in helius-skills/svm/:"
+            comm -23 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            echo "Only in helius-cursor/skills/svm/:"
+            comm -13 <(echo "$SKILLS_FILES") <(echo "$CURSOR_FILES") | sed 's/^/  /'
+            exit 1
+          fi
+
+          DIFF_FOUND=0
+          for file in $SKILLS_FILES; do
+            if ! diff -q "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" > /dev/null 2>&1; then
+              echo "DIFF: $file differs between helius-skills/svm and helius-cursor/skills/svm"
+              diff --unified=3 "$SKILLS_DIR/$file" "$CURSOR_DIR/$file" | head -20
+              echo "..."
+              DIFF_FOUND=1
+            fi
+          done
+
+          if [ "$DIFF_FOUND" -eq 1 ]; then
+            echo "SVM reference files are out of sync!"
+            echo "The canonical source is helius-skills/svm/references/."
+            echo "Copy changes to helius-cursor/skills/svm/references/ to fix."
+            exit 1
+          fi
+
+          echo "All SVM reference files (helius-cursor) are in sync."
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
