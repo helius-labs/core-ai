@@ -1,0 +1,28 @@
+---
+description: Efficient data query patterns for Helius APIs
+globs: "**/*.{ts,tsx,js,jsx,rs}"
+alwaysApply: false
+---
+
+## DAS API
+
+- Use `getAssetsByOwner` with `showFungible: true` to get both NFTs and fungible tokens in one call
+- Use `searchAssets` for multi-criteria queries instead of client-side filtering
+- Use batch endpoints (`getAsset` with `ids` array, `getAssetProofBatch`) instead of sequential single calls
+
+## Transaction History
+
+- Prefer `parseTransactions` over raw RPC for transaction history — it returns human-readable data
+- Use `getTransactionHistory` in `signatures` mode for lightweight listing, then `parseTransactions` only on transactions of interest
+- SDK parameter names differ from API names — the REST API uses kebab-case (`before-signature`), the Enhanced SDK uses camelCase (`beforeSignature`), and the RPC SDK uses different names entirely (`paginationToken`). Always check the enhanced-transactions reference before writing pagination or filtering code
+- Never use `any` for SDK request params — import the proper request types (`GetEnhancedTransactionsByAddressRequest`, `GetTransactionsForAddressConfigFull`, etc.) so TypeScript catches name mismatches at compile time; a wrong param name like `before` instead of `beforeSignature` silently does nothing
+- `helius.enhanced.getTransactionsByAddress()` and `helius.getTransactionsForAddress()` have completely different parameter shapes and pagination mechanisms — do not mix them
+
+## Token & Balance Queries
+
+- Prefer `getBalance` (returns ~2 lines) over `getWalletBalances` (returns 50+ lines) when only SOL balance is needed
+- Prefer `getTokenBalances` (compact) over `getWalletBalances` (full portfolio with metadata) when you don't need USD values
+
+## Documentation Lookups
+
+- Use `lookupHeliusDocs` with the `section` parameter for targeted lookups — full docs can be 10,000+ tokens; a targeted section is typically 500-2,000 tokens

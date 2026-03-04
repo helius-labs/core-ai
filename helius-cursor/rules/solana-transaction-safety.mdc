@@ -1,0 +1,33 @@
+---
+description: Safe Solana transaction submission patterns using Helius Sender
+globs: "**/*.{ts,tsx,js,jsx,rs}"
+alwaysApply: true
+---
+
+## Transaction Submission
+
+- ALWAYS submit transactions via Helius Sender endpoints — never raw `sendTransaction` to standard RPC
+- ALWAYS include `skipPreflight: true` and `maxRetries: 0` when using Sender
+- ALWAYS include a Jito tip instruction (minimum 0.0002 SOL) for dual routing
+- ALWAYS include `ComputeBudgetProgram.setComputeUnitPrice` — use `getPriorityFeeEstimate` MCP tool, never hardcode fees
+- ALWAYS include `ComputeBudgetProgram.setComputeUnitLimit` — simulate first to get actual CU usage, add 10% margin; never leave the default 200,000 CU limit
+- Instruction ordering: CU limit first, CU price second, your instructions, Jito tip last
+
+## Browser Safety
+
+- From the browser, use the HTTPS Sender endpoint: `https://sender.helius-rpc.com/fast`
+- NEVER use regional HTTP Sender endpoints from the browser — CORS preflight will fail
+- For WebSocket data, use a server relay — never open Helius WebSockets directly from the browser (API key exposed in URL)
+
+## Commitment Levels
+
+- Use `confirmed` by default
+- Use `finalized` for critical operations that can wait seconds for confirmation
+- Never rely on `processed` for anything important
+
+## Phantom Wallet Signing
+
+- For extension wallets (`"injected"` provider): use `signTransaction` then submit via Helius Sender
+- For embedded wallets (`"google"`, `"apple"` providers): use `signAndSendTransaction` — `signTransaction` is NOT supported
+- NEVER auto-approve transactions — each must be explicitly approved by the user
+- ALWAYS handle user rejection gracefully — this is not an error to retry

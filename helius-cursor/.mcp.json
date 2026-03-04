@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "helius": {
+      "command": "npx",
+      "args": ["helius-mcp@latest"]
+    },
+    "DFlow": {
+      "type": "http",
+      "url": "https://pond.dflow.net/mcp"
+    }
+  }
+}

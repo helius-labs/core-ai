@@ -1,0 +1,30 @@
+---
+description: DFlow trading API rules for Solana swap and prediction market integrations
+globs: "**/*.{ts,tsx,js,jsx}"
+alwaysApply: false
+---
+
+## CORS & Backend Proxy
+
+- ALWAYS proxy DFlow Trade API calls through a backend for web apps — DFlow does not set CORS headers, so direct browser calls will silently fail
+- Dev endpoints are for testing only — do not ship to production without a DFlow API key from `pond.dflow.net/build/api-key`
+
+## Amounts
+
+- ALWAYS use atomic units for `amount` — `1_000_000_000` for 1 SOL, `1_000_000` for 1 USDC; passing decimal values will produce incorrect trades
+
+## Async Order Handling
+
+- ALWAYS poll `/order-status` for async trades — prediction markets and imperative trades with `executionMode: "async"` do not return a transaction synchronously
+- ALWAYS check market `status === 'active'` before submitting prediction market orders
+- Handle the Thursday 3–5 AM ET maintenance window for prediction markets
+
+## KYC
+
+- ALWAYS check Proof KYC status before prediction market trades — gate at trade time, not at browsing time
+
+## Transaction Submission
+
+- ALWAYS submit DFlow transactions via Helius Sender — never raw `sendTransaction` to standard RPC
+- DFlow `/order` with `priorityLevel` handles priority fees and Jito tips automatically — do not add duplicate compute budget instructions
+- For custom (non-DFlow) transactions, follow the standard Sender rules: `setComputeUnitPrice` + `setComputeUnitLimit` + Jito tip
