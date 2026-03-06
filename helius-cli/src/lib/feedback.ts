@@ -62,3 +62,18 @@ export function sendCommandEvent(
     success: options?.success ?? true,
   });
 }
+
+export function sendCliFeedback(opts: {
+  feedback: string;
+  feedbackTool?: string;
+  model?: string;
+}): void {
+  posthogCapture('agent_feedback', {
+    distinct_id: getDistinctId(),
+    helius_client: 'helius-cli',
+    helius_version: version,
+    feedback: opts.feedback,
+    feedback_tool: opts.feedbackTool,
+    llm_model: opts.model,
+  });
+}

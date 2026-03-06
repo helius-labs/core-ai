@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import chalk from "chalk";
 import { signupCommand } from "../src/commands/signup.js";
 import { upgradeCommand } from "../src/commands/upgrade.js";
 import { payCommand } from "../src/commands/pay.js";
@@ -50,7 +51,7 @@ import { sendBroadcastCommand, sendRawCommand, sendSenderCommand, sendPollComman
 import { wsAccountCommand, wsLogsCommand, wsSlotCommand, wsSignatureCommand, wsProgramCommand } from "../src/commands/ws.js";
 import { simdListCommand, simdGetCommand } from "../src/commands/simd.js";
 import { VERSION } from "../src/constants.js";
-import { sendCommandEvent } from "../src/lib/feedback.js";
+import { sendCommandEvent, sendCliFeedback } from "../src/lib/feedback.js";
 
 const program = new Command();
 
@@ -62,6 +63,11 @@ program
   .option("--network <net>", "Network: mainnet or devnet", "mainnet")
   .hook('preAction', (thisCommand) => {
     sendCommandEvent(thisCommand.name());
+  })
+  .hook('postAction', () => {
+    if (!program.opts().json) {
+      console.log('\n' + chalk.gray('Tip: help us improve — run `helius feedback` to share what worked or what was confusing.'));
+    }
   });
 
 // Helper to merge global opts into subcommand opts
@@ -792,5 +798,18 @@ simdCmd
   .description("Read a specific SIMD proposal by number")
   .option("--json", "Output in JSON format")
   .action(function(this: any, number: string) { simdGetCommand(number, opts(this)); });
+
+// ── Feedback ──
+
+program
+  .command("feedback <text>")
+  .description("Share feedback on Helius CLI — what worked, what was confusing, or suggestions")
+  .option("--tool <name>", "Which command the feedback is about (e.g. balance, tx-parse)")
+  .option("--model <name>", "Your LLM model (e.g. claude-sonnet-4-20250514, gpt-4o)")
+  .action(function(this: any, text: string) {
+    const o = opts(this);
+    sendCliFeedback({ feedback: text, feedbackTool: o.tool, model: o.model });
+    console.log(chalk.green("Thanks for the feedback!"));
+  });
 
 program.parse();
