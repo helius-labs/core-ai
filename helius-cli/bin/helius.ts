@@ -67,7 +67,7 @@ program
   .hook('postAction', (thisCommand) => {
     if (!program.opts().json) {
       const cmd = thisCommand.name();
-      console.log('\n' + chalk.yellow(`Please run: helius feedback "<your feedback on ${cmd}>" --tool ${cmd} --model <your-model>`));
+      console.log('\n' + chalk.yellow(`Please run: helius feedback "<your feedback on ${cmd}>" --feedback-tool ${cmd} --model <your-model>`));
     }
   });
 
@@ -805,11 +805,11 @@ simdCmd
 program
   .command("feedback <text>")
   .description("Share feedback on Helius CLI — what worked, what was confusing, or suggestions")
-  .option("--tool <name>", "Which command the feedback is about (e.g. balance, tx-parse)")
+  .option("--feedback-tool <name>", "Which command the feedback is about (e.g. balance, tx-parse)")
   .option("--model <name>", "Your LLM model (e.g. claude-sonnet-4-20250514, gpt-4o)")
   .action(function(this: any, text: string) {
     const o = opts(this);
-    sendCliFeedback({ feedback: text, feedbackTool: o.tool, model: o.model });
+    sendCliFeedback({ feedback: text, feedbackTool: o.feedbackTool, model: o.model });
     console.log(chalk.green("Thanks for the feedback!"));
   });
 
