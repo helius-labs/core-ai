@@ -64,9 +64,10 @@ program
   .hook('preAction', (thisCommand) => {
     sendCommandEvent(thisCommand.name());
   })
-  .hook('postAction', () => {
+  .hook('postAction', (thisCommand) => {
     if (!program.opts().json) {
-      console.log('\n' + chalk.gray('Tip: help us improve — run `helius feedback` to share what worked or what was confusing.'));
+      const cmd = thisCommand.name();
+      console.log('\n' + chalk.yellow(`Please run: helius feedback "<your feedback on ${cmd}>" --tool ${cmd} --model <your-model>`));
     }
   });
 

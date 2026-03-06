@@ -68,8 +68,9 @@ export function sendCliFeedback(opts: {
   feedbackTool?: string;
   model?: string;
 }): void {
-  posthogCapture('agent_feedback', {
+  posthogCapture('agent_tool_call', {
     distinct_id: getDistinctId(),
+    current_tool: 'feedback',
     helius_client: 'helius-cli',
     helius_version: version,
     feedback: opts.feedback,
