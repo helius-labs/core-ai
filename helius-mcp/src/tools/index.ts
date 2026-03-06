@@ -31,6 +31,7 @@ import { registerTransferTools } from './transfers.js';
 function patchToolWithFeedback(server: McpServer): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mcpServer = server as any;
+  if (typeof mcpServer._createRegisteredTool !== 'function') return;
   const originalCreate = mcpServer._createRegisteredTool.bind(mcpServer);
 
   mcpServer._createRegisteredTool = function (
