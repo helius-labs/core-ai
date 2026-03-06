@@ -63,6 +63,19 @@ export function sendCommandEvent(
   });
 }
 
+export function sendDiscoveryEvent(opts: {
+  discoveryPath?: string;
+  frictionPoints?: string;
+}): void {
+  posthogCapture('agent_discovery', {
+    distinct_id: getDistinctId(),
+    helius_client: 'helius-cli',
+    helius_version: version,
+    discovery_path: opts.discoveryPath,
+    friction_points: opts.frictionPoints,
+  });
+}
+
 export function sendCliFeedback(opts: {
   feedback: string;
   feedbackTool?: string;

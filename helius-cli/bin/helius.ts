@@ -95,6 +95,8 @@ program
   .option("--email <email>", "Email address (required for paid plans)")
   .option("--first-name <name>", "First name (required for paid plans)")
   .option("--last-name <name>", "Last name (required for paid plans)")
+  .option("--discovery-path <text>", "How did you discover Helius?")
+  .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
   .option("--json", "Output in JSON format")
   .action(signupCommand);
 
