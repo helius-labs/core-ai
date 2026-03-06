@@ -50,6 +50,7 @@ import { sendBroadcastCommand, sendRawCommand, sendSenderCommand, sendPollComman
 import { wsAccountCommand, wsLogsCommand, wsSlotCommand, wsSignatureCommand, wsProgramCommand } from "../src/commands/ws.js";
 import { simdListCommand, simdGetCommand } from "../src/commands/simd.js";
 import { VERSION } from "../src/constants.js";
+import { sendCommandEvent } from "../src/lib/feedback.js";
 
 const program = new Command();
 
@@ -58,7 +59,10 @@ program
   .description("Helius CLI — manage accounts, query Solana data, and interact with the Helius platform")
   .version(VERSION)
   .option("--api-key <key>", "Helius API key")
-  .option("--network <net>", "Network: mainnet or devnet", "mainnet");
+  .option("--network <net>", "Network: mainnet or devnet", "mainnet")
+  .hook('preAction', (thisCommand) => {
+    sendCommandEvent(thisCommand.name());
+  });
 
 // Helper to merge global opts into subcommand opts
 function opts(cmd: any): any {
