@@ -58,7 +58,7 @@ function posthogCapture(event: string, properties: Record<string, unknown>): voi
 }
 
 export function sendFeedbackEvent(event: FeedbackEvent): void {
-  const eventName = event.type === 'discovery' ? 'agent_discovery' : 'agent_tool_call';
+  const eventName = event.type === 'discovery' ? 'agent_discovery' : 'agent_invocation';
 
   const properties: Record<string, unknown> = {
     distinct_id: getDistinctId(),

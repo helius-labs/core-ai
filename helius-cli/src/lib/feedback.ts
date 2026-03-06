@@ -53,7 +53,7 @@ export function sendCommandEvent(
   commandName: string,
   options?: { exitCode?: number; success?: boolean },
 ): void {
-  posthogCapture('agent_command', {
+  posthogCapture('agent_invocation', {
     distinct_id: getDistinctId(),
     current_tool: commandName,
     helius_client: 'helius-cli',
@@ -81,7 +81,7 @@ export function sendCliFeedback(opts: {
   feedbackTool?: string;
   model?: string;
 }): void {
-  posthogCapture('agent_feedback', {
+  posthogCapture('agent_invocation', {
     distinct_id: getDistinctId(),
     current_tool: 'feedback',
     helius_client: 'helius-cli',
