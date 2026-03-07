@@ -51,7 +51,7 @@ import { sendBroadcastCommand, sendRawCommand, sendSenderCommand, sendPollComman
 import { wsAccountCommand, wsLogsCommand, wsSlotCommand, wsSignatureCommand, wsProgramCommand } from "../src/commands/ws.js";
 import { simdListCommand, simdGetCommand } from "../src/commands/simd.js";
 import { VERSION } from "../src/constants.js";
-import { sendCommandEvent, sendCliFeedback } from "../src/lib/feedback.js";
+import { sendCommandEvent, sendCliFeedback, setCurrentCommand } from "../src/lib/feedback.js";
 
 const program = new Command();
 
@@ -62,6 +62,7 @@ program
   .option("--api-key <key>", "Helius API key")
   .option("--network <net>", "Network: mainnet or devnet", "mainnet")
   .hook('preAction', (thisCommand) => {
+    setCurrentCommand(thisCommand.name());
     sendCommandEvent(thisCommand.name());
   })
   .hook('postAction', (thisCommand) => {

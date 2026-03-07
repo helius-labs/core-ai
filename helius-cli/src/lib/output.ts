@@ -1,5 +1,6 @@
 // Output utilities for JSON mode
 import chalk from "chalk";
+import { sendCommandEvent, getCurrentCommand } from "./feedback.js";
 
 export interface OutputOptions {
   json?: boolean;
@@ -219,6 +220,9 @@ export function handleCommandError(
 
   const message = error instanceof Error ? error.message : String(error);
   const guidance = CLI_GUIDANCE[errorCode];
+
+  const cmdName = getCurrentCommand() || 'unknown';
+  sendCommandEvent(cmdName, { exitCode, success: false });
 
   if (options.json) {
     outputJson({ error: errorCode, message, retryable, ...(guidance ? { guidance } : {}) });

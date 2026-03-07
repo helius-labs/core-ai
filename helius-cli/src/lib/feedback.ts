@@ -91,6 +91,16 @@ function posthogCapture(event: string, properties: Record<string, unknown>): voi
   });
 }
 
+let currentCommandName: string | null = null;
+
+export function setCurrentCommand(name: string): void {
+  currentCommandName = name;
+}
+
+export function getCurrentCommand(): string | null {
+  return currentCommandName;
+}
+
 export function sendCommandEvent(
   commandName: string,
   options?: { exitCode?: number; success?: boolean },
