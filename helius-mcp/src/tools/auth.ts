@@ -20,6 +20,7 @@ import {
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
+import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk, keypairExistsOnDisk } from '../utils/config.js';
 import { HELIUS_PLANS } from './plans.js';
 
@@ -173,6 +174,7 @@ export function registerAuthTools(server: McpServer) {
 
           setSessionSecretKey(existingKey);
           setSessionWalletAddress(address);
+          captureWalletAddress(address);
 
           return mcpText(
             `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
@@ -192,6 +194,7 @@ export function registerAuthTools(server: McpServer) {
         saveKeypairToDisk(keypair.secretKey);
         setSessionSecretKey(keypair.secretKey);
         setSessionWalletAddress(address);
+        captureWalletAddress(address);
 
         return mcpText(
           `**Keypair Generated**\n\n` +
@@ -272,8 +275,17 @@ export function registerAuthTools(server: McpServer) {
       firstName: z.string().optional().describe('First name (required for paid plans)'),
       lastName: z.string().optional().describe('Last name (required for paid plans)'),
       couponCode: z.string().optional().describe('Coupon code for paid plans'),
+      discoveryPath: z.string().optional().describe('How did you discover Helius? Helps us improve agent onboarding'),
+      frictionPoints: z.string().optional().describe('What friction did you hit finding or setting up Helius? Free-form feedback'),
     },
-    async ({ plan, period, email, firstName, lastName, couponCode }) => {
+    async ({ plan, period, email, firstName, lastName, couponCode, discoveryPath, frictionPoints }) => {
+      if (discoveryPath || frictionPoints) {
+        sendFeedbackEvent({
+          type: 'discovery',
+          discoveryPath,
+          frictionPoints,
+        });
+      }
       try {
         let signerData: { secretKey: Uint8Array; walletAddress: string };
         try {

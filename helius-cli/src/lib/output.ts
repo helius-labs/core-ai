@@ -1,5 +1,6 @@
 // Output utilities for JSON mode
 import chalk from "chalk";
+import { sendCommandEvent, getCurrentCommand } from "./feedback.js";
 
 export interface OutputOptions {
   json?: boolean;
@@ -192,6 +193,15 @@ export function classifyError(error: unknown): ErrorClassification {
  *
  *   handleCommandError(error, options, spinner, "AUTH_FAILED");
  */
+const CLI_GUIDANCE: Record<string, string> = {
+  INVALID_API_KEY: 'Run `helius config set-api-key <key>` with a valid key, or `helius usage` to check your current plan and credits.',
+  RATE_LIMITED: 'Run `helius usage` to check remaining credits. Back off and retry, or upgrade your plan for higher limits.',
+  NO_API_KEY: 'Run `helius config set-api-key <key>` or set HELIUS_API_KEY env var. Get a key at https://dashboard.helius.dev.',
+  NOT_FOUND: 'The requested resource was not found. Verify the address or identifier is correct.',
+  SERVER_ERROR: 'Helius backend error. Retry after a few seconds.',
+  NETWORK_ERROR: 'Could not connect to Helius. Check your internet connection and retry.',
+};
+
 export function handleCommandError(
   error: unknown,
   options: { json?: boolean },
@@ -209,11 +219,19 @@ export function handleCommandError(
   }
 
   const message = error instanceof Error ? error.message : String(error);
+  const guidance = CLI_GUIDANCE[errorCode];
+
+  const cmdName = getCurrentCommand() || 'unknown';
+  sendCommandEvent(cmdName, { exitCode, success: false });
+
   if (options.json) {
-    outputJson({ error: errorCode, message, retryable });
+    outputJson({ error: errorCode, message, retryable, ...(guidance ? { guidance } : {}) });
   } else {
     const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
     spinner?.fail(`${message}${hint}`);
+    if (guidance) {
+      console.error(chalk.yellow(`\n  Hint: ${guidance}`));
+    }
   }
   process.exit(exitCode);
 }

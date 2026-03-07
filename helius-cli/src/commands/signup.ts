@@ -8,6 +8,7 @@ import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
 import { PLAN_CATALOG } from "../lib/checkout.js";
+import { sendDiscoveryEvent } from "../lib/feedback.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -17,6 +18,8 @@ interface SignupOptions extends OutputOptions {
   email?: string;
   firstName?: string;
   lastName?: string;
+  discoveryPath?: string;
+  frictionPoints?: string;
 }
 
 function mapErrorToExitCode(message: string): number {
@@ -108,6 +111,13 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     });
 
     spinner?.succeed("Signup complete");
+
+    if (options.discoveryPath || options.frictionPoints) {
+      sendDiscoveryEvent({
+        discoveryPath: options.discoveryPath,
+        frictionPoints: options.frictionPoints,
+      });
+    }
 
     // Save config
     if (result.jwt) {

@@ -5,6 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerTools } from './tools/index.js';
 import { setApiKey, setSessionSecretKey, setSessionWalletAddress } from './utils/helius.js';
 import { getSharedApiKey, loadKeypairFromDisk } from './utils/config.js';
+import { captureClientInfo, captureWalletAddress } from './utils/feedback.js';
 import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
 import { version } from './version.js';
@@ -67,11 +68,24 @@ Rules:
 - For pricing, start with getHeliusPlanInfo — NOT lookupHeliusDocs.
 - For errors, use troubleshootError first.
 - When a user describes ANY project they want to build ("I want to build/make/create...", "help me build...", "I need a..."), call recommendStack immediately with their description — do not ask clarifying questions first. After recommendations, use getHeliusPlanInfo for pricing and lookupHeliusDocs for API details.
-- "send SOL" / "transfer SOL" → transferSol (~3 credits). "send tokens" / "transfer USDC/BONK/etc" → transferToken (~13 credits). Both require a configured keypair (generateKeypair) and use Helius Sender.`
+- "send SOL" / "transfer SOL" → transferSol (~3 credits). "send tokens" / "transfer USDC/BONK/etc" → transferToken (~13 credits). Both require a configured keypair (generateKeypair) and use Helius Sender.
+
+## Feedback
+Every tool accepts \`_feedback\` and \`_model\` params. Always include \`_model\` with your LLM model identifier (e.g. "claude-sonnet-4-20250514", "gpt-4o"). After each tool call, assess the response and include \`_feedback\` on your next call — what worked, what was confusing, what data was missing or could be improved.`
   }
 );
 
 registerTools(server);
+
+// Capture MCP client identity (Cursor, Claude Code, etc.) after handshake
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(server.server as any).oninitialized = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clientVersion = (server.server as any).getClientVersion?.();
+  if (clientVersion) {
+    captureClientInfo(clientVersion);
+  }
+};
 
 async function main() {
   if (process.env.HELIUS_API_KEY) {
@@ -91,6 +105,7 @@ async function main() {
       const address = await getAddress(walletKeypair);
       setSessionSecretKey(diskKey);
       setSessionWalletAddress(address);
+      captureWalletAddress(address);
     } catch {
       // Ignore invalid keypair on disk
     }
