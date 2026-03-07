@@ -6,28 +6,70 @@ import os from 'os';
 
 const POSTHOG_ENDPOINT = 'https://www.helius.dev/relay-RMqE/capture/';
 const POSTHOG_API_KEY = 'phc_aLmID5mMwUZi3pVhG4HomDeZaWZ1PqAEkWTempDogzi';
-const KEYPAIR_PATH = path.join(os.homedir(), '.helius', 'keypair.json');
+const HELIUS_DIR = path.join(os.homedir(), '.helius');
+const KEYPAIR_PATH = path.join(HELIUS_DIR, 'keypair.json');
+const WALLET_CACHE_PATH = path.join(HELIUS_DIR, 'wallet-address');
 
 let feedbackEnabled = true;
 let walletAddress: string | null = null;
-const sessionId = crypto.randomUUID();
+let identifySent = false;
 
-// Eagerly resolve wallet address in the background so it's ready
-// by the time the first command event fires.
-(async () => {
-  try {
-    if (!fs.existsSync(KEYPAIR_PATH)) return;
-    const data = fs.readFileSync(KEYPAIR_PATH, 'utf-8');
-    const arr = JSON.parse(data);
-    if (!Array.isArray(arr) || arr.length !== 64) return;
-    const { loadKeypair } = await import('helius-sdk/auth/loadKeypair');
-    const { getAddress } = await import('helius-sdk/auth/getAddress');
-    const keypair = loadKeypair(Uint8Array.from(arr));
-    walletAddress = await getAddress(keypair);
-  } catch {
-    // Fall through to session ID
+// Persistent anonymous ID so API-key-only users stay the same person across runs.
+const ANON_ID_PATH = path.join(HELIUS_DIR, 'anon-id');
+let sessionId: string;
+try {
+  if (fs.existsSync(ANON_ID_PATH)) {
+    sessionId = fs.readFileSync(ANON_ID_PATH, 'utf-8').trim();
+  } else {
+    sessionId = crypto.randomUUID();
+    try {
+      fs.mkdirSync(HELIUS_DIR, { recursive: true });
+      fs.writeFileSync(ANON_ID_PATH, sessionId, 'utf-8');
+    } catch {}
   }
-})();
+} catch {
+  sessionId = crypto.randomUUID();
+}
+
+// Try cached wallet address first (synchronous, no race condition).
+try {
+  if (fs.existsSync(WALLET_CACHE_PATH)) {
+    const cached = fs.readFileSync(WALLET_CACHE_PATH, 'utf-8').trim();
+    if (cached.length >= 32 && cached.length <= 44) {
+      walletAddress = cached;
+    }
+  }
+} catch {
+  // Fall through to async resolution
+}
+
+// If no cache, resolve from keypair and write cache for next run.
+if (!walletAddress) {
+  (async () => {
+    try {
+      if (!fs.existsSync(KEYPAIR_PATH)) return;
+      const data = fs.readFileSync(KEYPAIR_PATH, 'utf-8');
+      const arr = JSON.parse(data);
+      if (!Array.isArray(arr) || arr.length !== 64) return;
+      const { loadKeypair } = await import('helius-sdk/auth/loadKeypair');
+      const { getAddress } = await import('helius-sdk/auth/getAddress');
+      const keypair = loadKeypair(Uint8Array.from(arr));
+      walletAddress = await getAddress(keypair);
+
+      try { fs.writeFileSync(WALLET_CACHE_PATH, walletAddress, 'utf-8'); } catch {}
+
+      if (!identifySent) {
+        identifySent = true;
+        posthogCapture('$identify', {
+          distinct_id: walletAddress,
+          $anon_distinct_id: sessionId,
+        });
+      }
+    } catch {
+      // Fall through to session ID
+    }
+  })();
+}
 
 function getDistinctId(): string {
   return walletAddress || sessionId;

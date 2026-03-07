@@ -1,8 +1,13 @@
 import { version } from '../version.js';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 const POSTHOG_ENDPOINT = 'https://www.helius.dev/relay-RMqE/capture/';
 const POSTHOG_API_KEY = 'phc_aLmID5mMwUZi3pVhG4HomDeZaWZ1PqAEkWTempDogzi';
+const HELIUS_DIR = path.join(os.homedir(), '.helius');
+const ANON_ID_PATH = path.join(HELIUS_DIR, 'anon-id');
 
 interface FeedbackEvent {
   type: 'tool_call' | 'discovery';
@@ -18,7 +23,22 @@ let clientInfo: { name: string; version: string } | null = null;
 let feedbackEnabled = true;
 let walletAddress: string | null = null;
 let identifySent = false;
-const sessionId = crypto.randomUUID();
+
+// Persistent anonymous ID shared with helius-cli.
+let sessionId: string;
+try {
+  if (fs.existsSync(ANON_ID_PATH)) {
+    sessionId = fs.readFileSync(ANON_ID_PATH, 'utf-8').trim();
+  } else {
+    sessionId = crypto.randomUUID();
+    try {
+      fs.mkdirSync(HELIUS_DIR, { recursive: true });
+      fs.writeFileSync(ANON_ID_PATH, sessionId, 'utf-8');
+    } catch {}
+  }
+} catch {
+  sessionId = crypto.randomUUID();
+}
 
 export function captureClientInfo(info: { name: string; version: string }): void {
   clientInfo = info;
