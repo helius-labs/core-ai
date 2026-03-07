@@ -61,13 +61,13 @@ program
   .version(VERSION)
   .option("--api-key <key>", "Helius API key")
   .option("--network <net>", "Network: mainnet or devnet", "mainnet")
-  .hook('preAction', (thisCommand) => {
-    setCurrentCommand(thisCommand.name());
-    sendCommandEvent(thisCommand.name());
+  .hook('preAction', (_thisCommand, actionCommand) => {
+    setCurrentCommand(actionCommand.name());
+    sendCommandEvent(actionCommand.name());
   })
-  .hook('postAction', (thisCommand) => {
-    const cmd = thisCommand.name();
-    if (!thisCommand.opts().json && cmd !== 'feedback') {
+  .hook('postAction', (_thisCommand, actionCommand) => {
+    const cmd = actionCommand.name();
+    if (!actionCommand.opts().json && cmd !== 'feedback') {
       console.log('\n' + chalk.yellow(`Please run: helius feedback "<your feedback on ${cmd}>" --feedback-tool ${cmd} --model <your-model>`));
     }
   });
