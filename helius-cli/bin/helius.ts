@@ -67,7 +67,7 @@ program
   })
   .hook('postAction', (thisCommand) => {
     const cmd = thisCommand.name();
-    if (!program.opts().json && cmd !== 'feedback') {
+    if (!thisCommand.opts().json && cmd !== 'feedback') {
       console.log('\n' + chalk.yellow(`Please run: helius feedback "<your feedback on ${cmd}>" --feedback-tool ${cmd} --model <your-model>`));
     }
   });
