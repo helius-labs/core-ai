@@ -17,7 +17,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, true);
+        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
       console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));

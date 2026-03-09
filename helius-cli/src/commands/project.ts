@@ -12,7 +12,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
     const jwt = getJwt();
     if (!jwt) {
       if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, true);
+        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
       }
       console.log(
         chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
@@ -30,7 +30,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
 
       if (projects.length === 0) {
         if (options.json) {
-          exitWithError("NO_PROJECTS", "No projects found", undefined, true);
+          exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
         }
         console.log(chalk.yellow("No projects found."));
         console.log(chalk.gray("Run `helius signup` to create your first project."));
@@ -41,7 +41,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
         if (options.json) {
           exitWithError("MULTIPLE_PROJECTS", "Multiple projects found, specify project ID", {
             projects: projects.map(p => ({ id: p.id, name: p.name })),
-          }, true);
+          }, options.json);
         }
         console.log(
           chalk.yellow(

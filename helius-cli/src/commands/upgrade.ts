@@ -38,7 +38,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     if (!PLAN_CATALOG[planKey]) {
       const available = Object.keys(PLAN_CATALOG).join(", ");
       if (options.json) {
-        exitWithError("API_ERROR", `Unknown plan: ${options.plan}. Available: ${available}`, undefined, true);
+        exitWithError("API_ERROR", `Unknown plan: ${options.plan}. Available: ${available}`, undefined, options.json);
       }
       console.error(chalk.red(`Unknown plan: ${options.plan}`));
       console.error(chalk.gray(`Available plans: ${available}`));
@@ -55,7 +55,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       ].filter(Boolean);
       const msg = `Partial customer info provided. If any of --email/--first-name/--last-name is given, all three are required. Missing: ${missing.join(", ")}`;
       if (options.json) {
-        exitWithError("VALIDATION_ERROR", msg, undefined, true);
+        exitWithError("VALIDATION_ERROR", msg, undefined, options.json);
       }
       console.error(chalk.red(msg));
       process.exit(ExitCode.GENERAL_ERROR);
@@ -65,7 +65,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     if (options.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(options.email)) {
       const msg = `Invalid email format: ${options.email}`;
       if (options.json) {
-        exitWithError("VALIDATION_ERROR", msg, undefined, true);
+        exitWithError("VALIDATION_ERROR", msg, undefined, options.json);
       }
       console.error(chalk.red(msg));
       process.exit(ExitCode.GENERAL_ERROR);
@@ -74,7 +74,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, true);
+        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
       console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
@@ -98,7 +98,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     const projects = await listProjects(authResult.token);
     if (projects.length === 0) {
       if (options.json) {
-        exitWithError("NO_PROJECTS", "No projects found. Run `helius signup` first.", undefined, true);
+        exitWithError("NO_PROJECTS", "No projects found. Run `helius signup` first.", undefined, options.json);
       }
       spinner?.fail("No projects found");
       console.error(chalk.gray("Run `helius signup` to create an account first."));

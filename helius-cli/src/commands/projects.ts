@@ -11,7 +11,7 @@ export async function projectsCommand(options: OutputOptions): Promise<void> {
     const jwt = getJwt();
     if (!jwt) {
       if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, true);
+        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
       }
       console.log(
         chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")

@@ -281,13 +281,19 @@ export function exitWithError(
   errorCode: string,
   message: string,
   details?: Record<string, unknown>,
-  json?: boolean
+  json = true,
 ): never {
   const exitCode = getExitCode(errorCode);
 
   if (json) {
     const retryable = RETRYABLE_CODES.has(exitCode);
     outputJson({ error: errorCode, message, retryable, ...details });
+  } else {
+    console.error(chalk.red(message));
+    const guidance = CLI_GUIDANCE[errorCode];
+    if (guidance) {
+      console.error(chalk.yellow(`\n  Hint: ${guidance}`));
+    }
   }
 
   process.exit(exitCode);

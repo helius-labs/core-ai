@@ -13,7 +13,7 @@ async function resolveProjectId(jwt: string, projectId?: string, json?: boolean)
 
   if (projects.length === 0) {
     if (json) {
-      exitWithError("NO_PROJECTS", "No projects found", undefined, true);
+      exitWithError("NO_PROJECTS", "No projects found", undefined, json);
     }
     throw new Error("No projects found. Run `helius signup` to create your first project.");
   }
@@ -22,7 +22,7 @@ async function resolveProjectId(jwt: string, projectId?: string, json?: boolean)
     if (json) {
       exitWithError("MULTIPLE_PROJECTS", "Multiple projects found, specify project ID", {
         projects: projects.map(p => ({ id: p.id, name: p.name })),
-      }, true);
+      }, json);
     }
     console.log(
       chalk.yellow("Multiple projects found. Please specify a project ID.")
@@ -47,7 +47,7 @@ export async function apikeysCommand(projectId?: string, options: ApikeysOptions
     const jwt = getJwt();
     if (!jwt) {
       if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, true);
+        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
       }
       console.log(
         chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
@@ -114,7 +114,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     const jwt = getJwt();
     if (!jwt) {
       if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, true);
+        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
       }
       console.log(
         chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
@@ -128,7 +128,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
 
     if (projects.length === 0) {
       if (options.json) {
-        exitWithError("NO_PROJECTS", "No projects found", undefined, true);
+        exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
       }
       spinner?.fail("No projects found.");
       process.exit(ExitCode.NO_PROJECTS);
@@ -139,7 +139,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
 
     if (!project) {
       if (options.json) {
-        exitWithError("PROJECT_NOT_FOUND", `Project ${id} not found`, undefined, true);
+        exitWithError("PROJECT_NOT_FOUND", `Project ${id} not found`, undefined, options.json);
       }
       spinner?.fail(`Project ${id} not found.`);
       process.exit(ExitCode.PROJECT_NOT_FOUND);
@@ -151,7 +151,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
 
     if (!walletAddress) {
       if (options.json) {
-        exitWithError("API_ERROR", "Could not determine wallet address from project", undefined, true);
+        exitWithError("API_ERROR", "Could not determine wallet address from project", undefined, options.json);
       }
       spinner?.fail("Could not determine wallet address from project.");
       process.exit(ExitCode.API_ERROR);
