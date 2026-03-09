@@ -98,6 +98,7 @@ program
   .option("--last-name <name>", "Last name (required for paid plans)")
   .option("--discovery-path <text>", "How did you discover Helius?")
   .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
+  .option("--wait", "Poll for funds if balance is insufficient, then continue signup automatically")
   .option("--json", "Output in JSON format")
   .action(signupCommand);
 

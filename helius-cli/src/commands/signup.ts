@@ -20,6 +20,64 @@ interface SignupOptions extends OutputOptions {
   lastName?: string;
   discoveryPath?: string;
   frictionPoints?: string;
+  wait?: boolean;
+}
+
+const POLL_INTERVAL_MS = 5_000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1_000; // 5 minutes
+
+interface FundingResult {
+  funded: boolean;
+  solFunded: boolean;
+  usdcFunded: boolean;
+}
+
+/**
+ * Polls SOL and USDC balances until both meet the required thresholds.
+ * Returns which assets were funded so the caller can report accurate timeout status.
+ */
+async function waitForFunding(
+  walletAddress: string,
+  requiredUsdcRaw: bigint,
+  spinner?: { start(text: string): void; succeed(text: string): void } | null,
+): Promise<FundingResult> {
+  const start = Date.now();
+  let solFunded = false;
+  let usdcFunded = false;
+
+  while (Date.now() - start < POLL_TIMEOUT_MS) {
+    const waiting = [!solFunded && "SOL", !usdcFunded && "USDC"].filter(Boolean).join(" + ");
+    spinner?.start(`Waiting for ${waiting}...`);
+
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+    try {
+      if (!solFunded) {
+        const solBalance = await checkSolBalance(walletAddress);
+        if (solBalance >= 1_000_000n) {
+          solFunded = true;
+          spinner?.succeed(`SOL received (${(Number(solBalance) / 1_000_000_000).toFixed(4)} SOL)`);
+        }
+      }
+
+      if (!usdcFunded) {
+        const usdcBalance = await checkUsdcBalance(walletAddress);
+        if (usdcBalance >= requiredUsdcRaw) {
+          usdcFunded = true;
+          spinner?.succeed(`USDC received (${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC)`);
+        }
+      }
+    } catch {
+      // Network blip — keep polling, don't abort the wait
+    }
+
+    if (solFunded && usdcFunded) {
+      return { funded: true, solFunded, usdcFunded };
+    }
+  }
+
+  console.error(chalk.red("\nTimed out waiting for funds (5 minutes). Please fund and run `helius signup --wait` again."));
+  return { funded: false, solFunded, usdcFunded };
 }
 
 function mapErrorToExitCode(message: string): number {
@@ -84,17 +142,35 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
       if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmount.toFixed(2)})`);
 
-      if (options.json) {
-        exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, undefined, true);
+      if (!options.wait) {
+        // No polling — exit immediately
+        if (options.json) {
+          exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, {
+            wallet: walletAddress,
+            required: { sol: solOk ? undefined : "~0.001 SOL", usdc: usdcOk ? undefined : requiredUsdcLabel },
+          }, true);
+        }
+        console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
+        for (const m of missing) {
+          console.error(`  • ${m}`);
+        }
+        console.error(chalk.gray("\nThen run `helius signup` again, or use `helius signup --wait` to poll until funded."));
+        process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
       }
+
+      // --wait: poll until wallet is funded
       console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
       for (const m of missing) {
         console.error(`  • ${m}`);
       }
-      console.error(chalk.gray("\nThen run `helius signup` again."));
-      process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
+      console.log(chalk.gray("\nWaiting for funds... (Ctrl+C to cancel)\n"));
+      const result = await waitForFunding(walletAddress, requiredUsdcRaw, spinner);
+      if (!result.funded) {
+        process.exit(!result.solFunded ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
+      }
+    } else {
+      spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
     }
-    spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
 
     // Run agenticSignup (handles all plan paths)
     const planLabel = options.plan || "basic";
