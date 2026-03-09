@@ -288,6 +288,12 @@ export function exitWithError(
   if (json) {
     const retryable = RETRYABLE_CODES.has(exitCode);
     outputJson({ error: errorCode, message, retryable, ...details });
+  } else {
+    console.error(chalk.red(message));
+    const guidance = CLI_GUIDANCE[errorCode];
+    if (guidance) {
+      console.error(chalk.yellow(`\n  Hint: ${guidance}`));
+    }
   }
 
   process.exit(exitCode);
