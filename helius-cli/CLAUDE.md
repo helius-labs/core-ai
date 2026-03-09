@@ -47,16 +47,16 @@ All data commands follow this pattern:
 5. Output: formatted terminal (chalk) or `outputJson()` for `--json`
 6. Error: use `handleCommandError(error, options, spinner)` — classifies the error, emits JSON or spinner output, and exits with the classified exit code
 
-Standard catch block template (all commands except `ws.ts` and `signup.ts`):
+Standard catch block template (all commands except `ws.ts`):
 ```ts
 } catch (error) {
   handleCommandError(error, options, spinner);
 }
 ```
 
-`handleCommandError()` in `src/lib/output.ts` calls `classifyError()` internally, formats JSON or spinner output (with retryable hint), and exits with the classified exit code. All error output logic lives in this single function — do not duplicate it inline.
+`handleCommandError()` in `src/lib/output.ts` calls `classifyError()` internally, formats JSON or spinner output (with retryable hint), and exits with the classified exit code. All error output logic lives in this single function — do not duplicate it inline. Payment-specific errors (Insufficient SOL/USDC, Checkout failed/expired/timeout) are classified via keyword matching in `classifyError()`.
 
-WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-return and uses `console.error` instead of spinner. `signup.ts` uses a custom catch block with `mapErrorToExitCode()` for domain-specific payment errors (Insufficient SOL/USDC, Checkout failed).
+WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-return and uses `console.error` instead of spinner.
 
 ## API Key Resolution Chain
 
@@ -92,7 +92,7 @@ The `retryable` field in `--json` error output reflects this directly.
 
 1. **`HeliusHttpError`** (from `restRequest()` — wallet.ts REST path): exact `status` property → precise code
 2. **Status in message** (enhanced TX: `"Helius HTTP 429: ..."`, webhooks: `"HTTP error! status: 429 - ..."`): regex extracts status → same mapping
-3. **Keyword matching** (RPC caller path — DAS, ZK, staking, raw): matches phrases like `"invalid api key"`, `"rate limit"`, `"not found"`, `"ECONNREFUSED"`, `SyntaxError`, etc.
+3. **Keyword matching** (RPC caller path — DAS, ZK, staking, raw, payment): matches phrases like `"insufficient sol"`, `"insufficient usdc"`, `"checkout failed"`, `"invalid api key"`, `"rate limit"`, `"not found"`, `"ECONNREFUSED"`, `SyntaxError`, etc.
 
 `restRequest()` throws `HeliusHttpError` (defined in `src/lib/helius.ts`) so the REST path always hits Tier 1. The SDK paths hit Tier 2 or 3 depending on the client.
 
