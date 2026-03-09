@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
-import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } from "../lib/config.js";
+import { setJwt, setApiKey, setSharedApiKey, setProjectId, getSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
@@ -161,6 +161,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
     }
 
+    // Snapshot local config state before signup — used to detect recovery vs. duplicate
+    const hadLocalApiKey = !!getSharedApiKey();
+
     // Run agenticSignup (handles all plan paths)
     const planLabel = options.plan || "basic";
     spinner?.start(`Signing up (${planLabel} plan)...`);
@@ -198,12 +201,13 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // Handle result statuses
     if (result.status === "existing_project") {
-      // Show all projects for existing users
+      // No prior local key = interrupted signup being recovered; otherwise a genuine re-run
+      const isRecovery = !hadLocalApiKey;
       const allProjects = await listProjects(result.jwt);
 
       if (options.json) {
         outputJson({
-          status: "EXISTING_PROJECT",
+          status: isRecovery ? "RECOVERED" : "EXISTING_PROJECT",
           wallet: result.walletAddress,
           projectId: result.projectId,
           apiKey: result.apiKey,
@@ -215,7 +219,11 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         return;
       }
 
-      console.log("\n" + chalk.yellow("You already have project(s):"));
+      if (isRecovery) {
+        console.log("\n" + chalk.green("Resuming previous signup — your account was already created."));
+      } else {
+        console.log("\n" + chalk.yellow("You already have project(s):"));
+      }
       for (const p of allProjects) {
         console.log(`  ${chalk.cyan(p.id)} - ${p.name}`);
         if (p.subscription) {
@@ -231,7 +239,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
         console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
       }
-      console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
+      if (!isRecovery) {
+        console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
+      }
       return;
     }
 
