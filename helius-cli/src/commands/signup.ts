@@ -26,15 +26,21 @@ interface SignupOptions extends OutputOptions {
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1_000; // 5 minutes
 
+interface FundingResult {
+  funded: boolean;
+  solFunded: boolean;
+  usdcFunded: boolean;
+}
+
 /**
  * Polls SOL and USDC balances until both meet the required thresholds.
- * Returns true when funded, or false if the timeout is reached.
+ * Returns which assets were funded so the caller can report accurate timeout status.
  */
 async function waitForFunding(
   walletAddress: string,
   requiredUsdcRaw: bigint,
   spinner?: { start(text: string): void; succeed(text: string): void } | null,
-): Promise<boolean> {
+): Promise<FundingResult> {
   const start = Date.now();
   let solFunded = false;
   let usdcFunded = false;
@@ -45,29 +51,33 @@ async function waitForFunding(
 
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
 
-    if (!solFunded) {
-      const solBalance = await checkSolBalance(walletAddress);
-      if (solBalance >= 1_000_000n) {
-        solFunded = true;
-        spinner?.succeed(`SOL received (${(Number(solBalance) / 1_000_000_000).toFixed(4)} SOL)`);
+    try {
+      if (!solFunded) {
+        const solBalance = await checkSolBalance(walletAddress);
+        if (solBalance >= 1_000_000n) {
+          solFunded = true;
+          spinner?.succeed(`SOL received (${(Number(solBalance) / 1_000_000_000).toFixed(4)} SOL)`);
+        }
       }
-    }
 
-    if (!usdcFunded) {
-      const usdcBalance = await checkUsdcBalance(walletAddress);
-      if (usdcBalance >= requiredUsdcRaw) {
-        usdcFunded = true;
-        spinner?.succeed(`USDC received (${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC)`);
+      if (!usdcFunded) {
+        const usdcBalance = await checkUsdcBalance(walletAddress);
+        if (usdcBalance >= requiredUsdcRaw) {
+          usdcFunded = true;
+          spinner?.succeed(`USDC received (${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC)`);
+        }
       }
+    } catch {
+      // Network blip — keep polling, don't abort the wait
     }
 
     if (solFunded && usdcFunded) {
-      return true;
+      return { funded: true, solFunded, usdcFunded };
     }
   }
 
   console.error(chalk.red("\nTimed out waiting for funds (5 minutes). Please fund and run `helius signup --wait` again."));
-  return false;
+  return { funded: false, solFunded, usdcFunded };
 }
 
 function mapErrorToExitCode(message: string): number {
@@ -132,29 +142,31 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
       if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmount.toFixed(2)})`);
 
-      if (options.json) {
-        exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, {
-          wallet: walletAddress,
-          required: { sol: solOk ? undefined : "~0.001 SOL", usdc: usdcOk ? undefined : requiredUsdcLabel },
-        }, true);
-      }
-
-      console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
-      for (const m of missing) {
-        console.error(`  • ${m}`);
-      }
-
       if (!options.wait) {
+        // No polling — exit immediately
+        if (options.json) {
+          exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, {
+            wallet: walletAddress,
+            required: { sol: solOk ? undefined : "~0.001 SOL", usdc: usdcOk ? undefined : requiredUsdcLabel },
+          }, true);
+        }
+        console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
+        for (const m of missing) {
+          console.error(`  • ${m}`);
+        }
         console.error(chalk.gray("\nThen run `helius signup` again, or use `helius signup --wait` to poll until funded."));
         process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
       }
 
-      // Poll until wallet is funded
+      // --wait: poll until wallet is funded
+      console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
+      for (const m of missing) {
+        console.error(`  • ${m}`);
+      }
       console.log(chalk.gray("\nWaiting for funds... (Ctrl+C to cancel)\n"));
-      const funded = await waitForFunding(walletAddress, requiredUsdcRaw, spinner);
-      if (!funded) {
-        // User cancelled or timeout — should not reach here normally (Ctrl+C exits process)
-        process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
+      const result = await waitForFunding(walletAddress, requiredUsdcRaw, spinner);
+      if (!result.funded) {
+        process.exit(!result.solFunded ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
       }
     } else {
       spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
