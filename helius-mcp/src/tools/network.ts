@@ -7,7 +7,7 @@ import { mcpText, handleToolError } from '../utils/errors.js';
 export function registerNetworkTools(server: McpServer) {
   server.tool(
     'getNetworkStatus',
-    'BEST FOR: quick Solana network health check — epoch, slot, supply, version. Get current Solana network status including epoch info (current epoch, slot, progress), total SOL supply, cluster version, and current block height. No parameters needed — gives a quick overview of blockchain health and state. Credit cost: 3 credits (3 standard RPC calls).',
+    'BEST FOR: quick Solana network health check — epoch, slot, TPS, supply, version. Get current Solana network status including epoch info (current epoch, slot, progress), current TPS (transactions per second), total SOL supply, cluster version, and current block height. No parameters needed — gives a quick overview of blockchain health and state. Credit cost: 4 credits (4 standard RPC calls).',
     {},
     async () => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -17,10 +17,11 @@ export function registerNetworkTools(server: McpServer) {
 
         // Fire all requests in parallel — Kit returns bigint for numeric fields
         // wrapAutoSend in the SDK already calls .send() on pending RPC requests
-        const [epochInfo, supplyResult, version] = await Promise.all([
+        const [epochInfo, supplyResult, version, perfSamples] = await Promise.all([
           (helius as any).getEpochInfo(),
           (helius as any).getSupply(),
           (helius as any).getVersion(),
+          (helius as any).getRecentPerformanceSamples(4),
         ]);
 
         const lines = ['**Solana Network Status**', ''];
@@ -44,6 +45,38 @@ export function registerNetworkTools(server: McpServer) {
             lines.push(`- Transaction Count: ${transactionCount.toLocaleString()}`);
           }
           lines.push('');
+        }
+
+        // TPS — averaged from 4 recent performance samples (~60s each, ~4 min window)
+        // numTransactions includes vote + non-vote; numNonVoteTransactions is real user TPS
+        if (Array.isArray(perfSamples) && perfSamples.length > 0) {
+          let totalTx = 0;
+          let totalNonVoteTx = 0;
+          let totalSeconds = 0;
+          let hasNonVoteData = false;
+          for (const sample of perfSamples) {
+            const samplePeriod = Number(sample.samplePeriodSecs);
+            if (samplePeriod > 0) {
+              totalTx += Number(sample.numTransactions);
+              totalSeconds += samplePeriod;
+              if (sample.numNonVoteTransactions != null) {
+                totalNonVoteTx += Number(sample.numNonVoteTransactions);
+                hasNonVoteData = true;
+              }
+            }
+          }
+          if (totalSeconds > 0) {
+            const totalTps = Math.round(totalTx / totalSeconds);
+            lines.push('**TPS (avg. last ~4 min):**');
+            if (hasNonVoteData) {
+              const nonVoteTps = Math.round(totalNonVoteTx / totalSeconds);
+              lines.push(`- Real (non-vote): ~${nonVoteTps.toLocaleString()} tx/sec`);
+              lines.push(`- Total (incl. vote): ~${totalTps.toLocaleString()} tx/sec`);
+            } else {
+              lines.push(`- Total: ~${totalTps.toLocaleString()} tx/sec (includes vote transactions)`);
+            }
+            lines.push('');
+          }
         }
 
         // Supply — value fields are bigint from Kit
