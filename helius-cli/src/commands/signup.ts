@@ -5,7 +5,7 @@ import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
 import { PLAN_CATALOG } from "../lib/checkout.js";
 import { sendDiscoveryEvent } from "../lib/feedback.js";
@@ -78,17 +78,6 @@ async function waitForFunding(
 
   console.error(chalk.red("\nTimed out waiting for funds (5 minutes). Please fund and run `helius signup --wait` again."));
   return { funded: false, solFunded, usdcFunded };
-}
-
-function mapErrorToExitCode(message: string): number {
-  if (message.includes("Insufficient SOL")) return ExitCode.INSUFFICIENT_SOL;
-  if (message.includes("Insufficient USDC")) return ExitCode.INSUFFICIENT_USDC;
-  if (
-    message.includes("Checkout failed") ||
-    message.includes("Checkout expired") ||
-    message.includes("Checkout timeout")
-  ) return ExitCode.PAYMENT_FAILED;
-  return ExitCode.GENERAL_ERROR;
 }
 
 export async function signupCommand(options: SignupOptions): Promise<void> {
@@ -301,13 +290,6 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       );
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const exitCode = mapErrorToExitCode(message);
-
-    if (options.json) {
-      exitWithError("SIGNUP_FAILED", message, undefined, true);
-    }
-    spinner?.fail(`Error: ${message}`);
-    process.exit(exitCode);
+    handleCommandError(error, options, spinner);
   }
 }
