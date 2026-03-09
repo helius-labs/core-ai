@@ -88,7 +88,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     if (!keypairExists(options.keypair)) {
       if (options.json) {
         // In JSON mode, don't do interactive keygen — just error
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, true);
+        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
       await keygenCommand({ output: options.keypair });
@@ -137,7 +137,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
           exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, {
             wallet: walletAddress,
             required: { sol: solOk ? undefined : "~0.001 SOL", usdc: usdcOk ? undefined : requiredUsdcLabel },
-          }, true);
+          }, options.json);
         }
         console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
         for (const m of missing) {

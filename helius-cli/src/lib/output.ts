@@ -281,7 +281,7 @@ export function exitWithError(
   errorCode: string,
   message: string,
   details?: Record<string, unknown>,
-  json?: boolean
+  json = true,
 ): never {
   const exitCode = getExitCode(errorCode);
 

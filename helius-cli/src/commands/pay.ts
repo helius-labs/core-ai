@@ -31,7 +31,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, true);
+        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
       console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
@@ -69,7 +69,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
 
     if (intent.status !== "pending") {
       if (options.json) {
-        exitWithError("PAYMENT_FAILED", `Payment intent is ${intent.status}, cannot pay`, { intentId: intent.id }, true);
+        exitWithError("PAYMENT_FAILED", `Payment intent is ${intent.status}, cannot pay`, { intentId: intent.id }, options.json);
       }
       spinner?.fail(`Payment intent is ${intent.status} — cannot pay`);
       process.exit(ExitCode.PAYMENT_FAILED);

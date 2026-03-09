@@ -109,7 +109,7 @@ export async function simdGetCommand(number: string, options: SimdGetOptions = {
   try {
     if (!/^\d+$/.test(number)) {
       if (options.json) {
-        exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, true);
+        exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, options.json);
       }
       console.error(chalk.red(`Invalid SIMD number: "${number}". Must be a numeric value (e.g. 96, 0228).`));
       process.exit(ExitCode.INVALID_INPUT);
@@ -136,7 +136,7 @@ export async function simdGetCommand(number: string, options: SimdGetOptions = {
         .join("\n");
 
       if (options.json) {
-        exitWithError("NOT_FOUND", `SIMD-${paddedNumber} not found`, undefined, true);
+        exitWithError("NOT_FOUND", `SIMD-${paddedNumber} not found`, undefined, options.json);
       }
 
       console.log(chalk.yellow(`\nSIMD-${paddedNumber} not found.`));
