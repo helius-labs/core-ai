@@ -132,7 +132,18 @@ export function classifyError(error: unknown): ErrorClassification {
     return classifyByStatus(embeddedStatus);
   }
 
-  // Tier 3 — Keyword matching (RPC caller path, resolveApiKey, network errors)
+  // Tier 3 — Keyword matching (RPC caller path, resolveApiKey, payment, network errors)
+
+  // Payment / balance errors (signup, upgrade, pay)
+  if (/insufficient sol/i.test(msg)) {
+    return { exitCode: ExitCode.INSUFFICIENT_SOL, errorCode: "INSUFFICIENT_SOL", retryable: false };
+  }
+  if (/insufficient usdc/i.test(msg)) {
+    return { exitCode: ExitCode.INSUFFICIENT_USDC, errorCode: "INSUFFICIENT_USDC", retryable: false };
+  }
+  if (/checkout (failed|expired|timeout)/i.test(msg)) {
+    return { exitCode: ExitCode.PAYMENT_FAILED, errorCode: "PAYMENT_FAILED", retryable: false };
+  }
 
   // resolveApiKey() failure
   if (msg.includes("No API key found")) {
@@ -200,6 +211,9 @@ const CLI_GUIDANCE: Record<string, string> = {
   NOT_FOUND: 'The requested resource was not found. Verify the address or identifier is correct.',
   SERVER_ERROR: 'Helius backend error. Retry after a few seconds.',
   NETWORK_ERROR: 'Could not connect to Helius. Check your internet connection and retry.',
+  INSUFFICIENT_SOL: 'Fund your wallet with ~0.001 SOL for transaction fees, then retry.',
+  INSUFFICIENT_USDC: 'Fund your wallet with the required USDC amount, then retry.',
+  PAYMENT_FAILED: 'The on-chain payment did not complete. Check your wallet balance and retry.',
 };
 
 export function handleCommandError(
