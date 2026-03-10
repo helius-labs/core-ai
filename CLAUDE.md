@@ -37,6 +37,16 @@ The Phantom skill (`helius-skills/helius-phantom/`, `helius-plugin/skills/phanto
 - The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
 - When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to both `helius-plugin/skills/phantom/references/` and `helius-cursor/skills/phantom/references/`.
 
+### Jupiter Skill References
+
+The Jupiter skill (`helius-skills/helius-jupiter/`, `helius-plugin/skills/jupiter/`, and `helius-cursor/skills/jupiter/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/helius-jupiter/references/`
+- **Copies**: `helius-plugin/skills/jupiter/references/`, `helius-cursor/skills/jupiter/references/`
+- The Jupiter skill contains 16 reference files: 7 Helius copies (prefixed with `helius-`), 8 Jupiter-specific files (swap, lend, trigger, recurring, tokens-price, perps-predictions, plugin, portal), and 1 integration-patterns file.
+- The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside Jupiter files in the same directory.
+- When updating Jupiter reference files, update in `helius-skills/helius-jupiter/references/` first, then copy to both `helius-plugin/skills/jupiter/references/` and `helius-cursor/skills/jupiter/references/`.
+
 ### SVM Skill References
 
 The SVM skill (`helius-skills/svm/`, `helius-plugin/skills/svm/`, and `helius-cursor/skills/svm/`) has its own reference files that **must also be kept in sync**.
@@ -68,7 +78,7 @@ CI validates all sync paths. After modifying any `SKILL.md` or reference file in
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
 
-- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
+- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-jupiter` vs `jupiter`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
 - Metadata/frontmatter
 - MCP prerequisite messaging (manual install vs plugin auto-start, Cursor vs Claude Code restart instructions)
 
