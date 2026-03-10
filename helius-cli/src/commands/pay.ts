@@ -6,7 +6,7 @@ import { getPaymentIntent, executeRenewal } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 
 interface PayOptions extends OutputOptions {
@@ -30,12 +30,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
   try {
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
-      if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
-      }
-      console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
-      console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
-      process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+      exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
     }
 
     // 1. Load keypair and authenticate
@@ -68,11 +63,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
     }
 
     if (intent.status !== "pending") {
-      if (options.json) {
-        exitWithError("PAYMENT_FAILED", `Payment intent is ${intent.status}, cannot pay`, { intentId: intent.id }, options.json);
-      }
-      spinner?.fail(`Payment intent is ${intent.status} — cannot pay`);
-      process.exit(ExitCode.PAYMENT_FAILED);
+      exitWithError("PAYMENT_FAILED", `Payment intent is ${intent.status}, cannot pay`, { intentId: intent.id }, options.json);
     }
 
     if (!options.yes) {

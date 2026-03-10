@@ -46,13 +46,7 @@ export async function apikeysCommand(projectId?: string, options: ApikeysOptions
   try {
     const jwt = getJwt();
     if (!jwt) {
-      if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
-      }
-      console.log(
-        chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
-      );
-      process.exit(ExitCode.NOT_LOGGED_IN);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
     }
 
     spinner?.start("Fetching API keys...");
@@ -113,13 +107,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
   try {
     const jwt = getJwt();
     if (!jwt) {
-      if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
-      }
-      console.log(
-        chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
-      );
-      process.exit(ExitCode.NOT_LOGGED_IN);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
     }
 
     // Get wallet address from the first project's users (the owner)
@@ -127,22 +115,14 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     const projects = await listProjects(jwt);
 
     if (projects.length === 0) {
-      if (options.json) {
-        exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
-      }
-      spinner?.fail("No projects found.");
-      process.exit(ExitCode.NO_PROJECTS);
+      exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
     }
 
     const id = projectId || projects[0].id;
     const project = projects.find(p => p.id === id);
 
     if (!project) {
-      if (options.json) {
-        exitWithError("PROJECT_NOT_FOUND", `Project ${id} not found`, undefined, options.json);
-      }
-      spinner?.fail(`Project ${id} not found.`);
-      process.exit(ExitCode.PROJECT_NOT_FOUND);
+      exitWithError("PROJECT_NOT_FOUND", `Project ${id} not found`, undefined, options.json);
     }
 
     // Get wallet address from the project users (the owner)
@@ -150,11 +130,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     const walletAddress = owner?.id;
 
     if (!walletAddress) {
-      if (options.json) {
-        exitWithError("API_ERROR", "Could not determine wallet address from project", undefined, options.json);
-      }
-      spinner?.fail("Could not determine wallet address from project.");
-      process.exit(ExitCode.API_ERROR);
+      exitWithError("API_ERROR", "Could not determine wallet address from project", undefined, options.json);
     }
 
     if (spinner) spinner.text = "Creating API key...";

@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
-import { outputJson, handleCommandError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface StakeOptions extends OutputOptions, ResolveOptions {}
 
@@ -122,8 +122,7 @@ export async function stakeWithdrawInstructionCommand(stakeAccount: string, opti
 export async function stakeCreateCommand(amount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
   const spinner = options.json ? null : ora();
   if (!options.keypair) {
-    spinner?.fail("Missing --keypair flag");
-    process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+    exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, options.json);
   }
   try {
     spinner?.start("Resolving API key...");
@@ -149,8 +148,7 @@ export async function stakeCreateCommand(amount: string, options: StakeOptions &
 export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
   const spinner = options.json ? null : ora();
   if (!options.keypair) {
-    spinner?.fail("Missing --keypair flag");
-    process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+    exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, options.json);
   }
   try {
     spinner?.start("Resolving API key...");
@@ -174,8 +172,7 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
 export async function stakeWithdrawCommand(stakeAccount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
   const spinner = options.json ? null : ora();
   if (!options.keypair) {
-    spinner?.fail("Missing --keypair flag");
-    process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+    exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, options.json);
   }
   try {
     spinner?.start("Resolving API key...");

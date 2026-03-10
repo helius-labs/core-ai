@@ -2,7 +2,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { listProjects } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 export async function projectsCommand(options: OutputOptions): Promise<void> {
   const spinner = options.json ? null : ora();
@@ -10,13 +10,7 @@ export async function projectsCommand(options: OutputOptions): Promise<void> {
   try {
     const jwt = getJwt();
     if (!jwt) {
-      if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
-      }
-      console.log(
-        chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
-      );
-      process.exit(ExitCode.NOT_LOGGED_IN);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
     }
 
     spinner?.start("Fetching projects...");

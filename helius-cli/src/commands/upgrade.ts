@@ -5,7 +5,7 @@ import { signup, listProjects, getProject } from "../lib/api.js";
 import { getCheckoutPreview, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 import { validateUpgradePlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
@@ -60,12 +60,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
-      if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
-      }
-      console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
-      console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
-      process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+      exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
     }
 
     // 1. Load keypair and authenticate
@@ -84,12 +79,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     spinner?.start("Fetching project...");
     const projects = await listProjects(authResult.token);
     if (projects.length === 0) {
-      if (options.json) {
-        exitWithError("NO_PROJECTS", "No projects found. Run `helius signup` first.", undefined, options.json);
-      }
-      spinner?.fail("No projects found");
-      console.error(chalk.gray("Run `helius signup` to create an account first."));
-      process.exit(ExitCode.NO_PROJECTS);
+      exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
     }
     const project = projects[0];
     const projectDetails = await getProject(authResult.token, project.id);

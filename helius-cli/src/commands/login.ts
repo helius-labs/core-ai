@@ -4,7 +4,7 @@ import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.
 import { signup } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface LoginOptions extends OutputOptions {
   keypair: string;
@@ -16,12 +16,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   try {
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
-      if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
-      }
-      console.error(chalk.red(`Error: Keypair not found at ${options.keypair}`));
-      console.error(chalk.gray("Run `helius keygen` to generate a keypair first."));
-      process.exit(ExitCode.KEYPAIR_NOT_FOUND);
+      exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
     }
 
     // Load keypair
