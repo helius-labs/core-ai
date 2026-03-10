@@ -2,7 +2,8 @@ import chalk from "chalk";
 import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { validateSolanaAddresses } from "../lib/validation.js";
 
 interface WebhookOptions extends OutputOptions, ResolveOptions {}
 
@@ -77,8 +78,12 @@ export async function webhookCreateCommand(options: WebhookOptions & {
     const apiKey = await resolveApiKey(options);
     const helius = getClient(apiKey, resolveNetwork(options));
 
-    const accountAddresses = options.accounts.split(",").map((s: string) => s.trim());
-    const transactionTypes = options.types.split(",").map((s: string) => s.trim());
+    // Validate addresses before sending to API
+    const addrErr = validateSolanaAddresses(options.accounts);
+    if (addrErr) exitWithError("INVALID_INPUT", addrErr, undefined, options.json);
+
+    const accountAddresses = options.accounts.split(",").map((s: string) => s.trim()).filter(Boolean);
+    const transactionTypes = options.types.split(",").map((s: string) => s.trim()).filter(Boolean);
     const webhookType = (options.webhookType || "enhanced") as any;
 
     spinner?.start("Creating webhook...");
@@ -111,9 +116,14 @@ export async function webhookUpdateCommand(webhookId: string, options: WebhookOp
     const helius = getClient(apiKey, resolveNetwork(options));
 
     const params: any = {};
+    // Validate addresses if provided
+    if (options.accounts) {
+      const addrErr = validateSolanaAddresses(options.accounts);
+      if (addrErr) exitWithError("INVALID_INPUT", addrErr, undefined, options.json);
+    }
     if (options.url) params.webhookURL = options.url;
-    if (options.accounts) params.accountAddresses = options.accounts.split(",").map((s: string) => s.trim());
-    if (options.types) params.transactionTypes = options.types.split(",").map((s: string) => s.trim());
+    if (options.accounts) params.accountAddresses = options.accounts.split(",").map((s: string) => s.trim()).filter(Boolean);
+    if (options.types) params.transactionTypes = options.types.split(",").map((s: string) => s.trim()).filter(Boolean);
 
     spinner?.start("Updating webhook...");
     const result = await helius.webhooks.update(webhookId, params);
