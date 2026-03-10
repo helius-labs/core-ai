@@ -10,6 +10,7 @@ import { projectCommand } from "../src/commands/project.js";
 import { apikeysCommand, createApiKeyCommand } from "../src/commands/apikeys.js";
 import { usageCommand } from "../src/commands/usage.js";
 import { statusCommand } from "../src/commands/status.js";
+import { plansCommand } from "../src/commands/plans.js";
 import { rpcCommand } from "../src/commands/rpc.js";
 import { keygenCommand, getDefaultKeypairPath } from "../src/commands/keygen.js";
 import { configShowCommand, configSetApiKeyCommand, configSetNetworkCommand, configSetProjectCommand, configClearCommand } from "../src/commands/config-cmd.js";
@@ -170,6 +171,12 @@ program
   .description("Show account status: plan, credits, billing cycle")
   .option("--json", "Output in JSON format")
   .action(statusCommand);
+
+program
+  .command("plans")
+  .description("List available Helius plans and pricing")
+  .option("--json", "Output in JSON format")
+  .action(plansCommand);
 
 program
   .command("rpc [project-id]")
