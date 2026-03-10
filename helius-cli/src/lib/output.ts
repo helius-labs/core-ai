@@ -214,6 +214,13 @@ const CLI_GUIDANCE: Record<string, string> = {
   INSUFFICIENT_SOL: 'Fund your wallet with ~0.001 SOL for transaction fees, then retry.',
   INSUFFICIENT_USDC: 'Fund your wallet with the required USDC amount, then retry.',
   PAYMENT_FAILED: 'The on-chain payment did not complete. Check your wallet balance and retry.',
+  NOT_LOGGED_IN: 'Run `helius login` to authenticate, or `helius signup` to create a new account.',
+  KEYPAIR_NOT_FOUND: 'Run `helius keygen` to generate a keypair first.',
+  NO_PROJECTS: 'Run `helius signup` to create your first project.',
+  MULTIPLE_PROJECTS: 'Specify a project ID. Run `helius projects` to list them.',
+  PROJECT_NOT_FOUND: 'Run `helius projects` to list available projects.',
+  NO_API_KEYS: 'Run `helius apikeys create` to create an API key.',
+  INVALID_INPUT: 'Check command usage with --help.',
 };
 
 export function handleCommandError(

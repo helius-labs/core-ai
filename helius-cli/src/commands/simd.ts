@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import ora from "ora";
 import { CLI_USER_AGENT } from "../http.js";
-import { outputJson, handleCommandError, exitWithError, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, exitWithError, type OutputOptions } from "../lib/output.js";
 
 // ---------------------------------------------------------------------------
 // GitHub constants
@@ -108,11 +108,7 @@ export async function simdGetCommand(number: string, options: SimdGetOptions = {
   const spinner = options.json ? null : ora();
   try {
     if (!/^\d+$/.test(number)) {
-      if (options.json) {
-        exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, options.json);
-      }
-      console.error(chalk.red(`Invalid SIMD number: "${number}". Must be a numeric value (e.g. 96, 0228).`));
-      process.exit(ExitCode.INVALID_INPUT);
+      exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, options.json);
     }
 
     const paddedNumber = number.replace(/^0+/, "").padStart(4, "0");

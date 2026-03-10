@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { load, setApiKey, setNetwork, setProjectId, clearConfig } from "../lib/config.js";
-import { outputJson, ExitCode, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, type OutputOptions } from "../lib/output.js";
 
 interface ConfigShowOptions extends OutputOptions {
   reveal?: boolean;
@@ -45,8 +45,7 @@ export function configSetApiKeyCommand(key: string, options: OutputOptions = {})
 
 export function configSetNetworkCommand(network: string, options: OutputOptions = {}): void {
   if (network !== "mainnet" && network !== "devnet") {
-    console.error(chalk.red(`Invalid network: ${network}. Use "mainnet" or "devnet".`));
-    process.exit(ExitCode.GENERAL_ERROR);
+    exitWithError("INVALID_INPUT", `Invalid network: ${network}. Use "mainnet" or "devnet".`, undefined, options.json);
   }
   const resolved = network as "mainnet" | "devnet";
   setNetwork(resolved);

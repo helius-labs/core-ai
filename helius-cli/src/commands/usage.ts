@@ -10,13 +10,7 @@ export async function usageCommand(projectId?: string, options: OutputOptions = 
   try {
     const jwt = getJwt();
     if (!jwt) {
-      if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
-      }
-      console.log(
-        chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
-      );
-      process.exit(ExitCode.NOT_LOGGED_IN);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
     }
 
     // If no project ID provided, try to get the only project
@@ -27,12 +21,7 @@ export async function usageCommand(projectId?: string, options: OutputOptions = 
       spinner?.stop();
 
       if (projects.length === 0) {
-        if (options.json) {
-          exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
-        }
-        console.log(chalk.yellow("No projects found."));
-        console.log(chalk.gray("Run `helius signup` to create your first project."));
-        process.exit(ExitCode.NO_PROJECTS);
+        exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
       }
 
       if (projects.length > 1) {

@@ -11,13 +11,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
   try {
     const jwt = getJwt();
     if (!jwt) {
-      if (options.json) {
-        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
-      }
-      console.log(
-        chalk.red("Not logged in. Run `helius login` to authenticate, or `helius signup` to create a new account.")
-      );
-      process.exit(ExitCode.NOT_LOGGED_IN);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
     }
 
     spinner?.start("Fetching projects...");
@@ -25,12 +19,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
     spinner?.stop();
 
     if (projects.length === 0) {
-      if (options.json) {
-        exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
-      }
-      console.log(chalk.yellow("No projects found."));
-      console.log(chalk.gray("Run `helius signup` to create your first project."));
-      process.exit(ExitCode.NO_PROJECTS);
+      exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
     }
 
     // If no project ID provided, try to get the only project
@@ -57,11 +46,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
     } else {
       project = projects.find(p => p.id === projectId);
       if (!project) {
-        if (options.json) {
-          exitWithError("PROJECT_NOT_FOUND", `Project ${projectId} not found`, undefined, options.json);
-        }
-        console.log(chalk.red(`Project ${projectId} not found.`));
-        process.exit(ExitCode.PROJECT_NOT_FOUND);
+        exitWithError("PROJECT_NOT_FOUND", `Project ${projectId} not found`, undefined, options.json);
       }
     }
 
@@ -75,11 +60,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
       spinner?.stop();
 
       if (!fullProject.apiKeys || fullProject.apiKeys.length === 0) {
-        if (options.json) {
-          exitWithError("NO_API_KEYS", "No API keys found", undefined, options.json);
-        }
-        console.log(chalk.yellow("No API keys found. Create one with `helius apikeys create`."));
-        return;
+        exitWithError("NO_API_KEYS", "No API keys found", undefined, options.json);
       }
 
       const apiKey = fullProject.apiKeys[0].keyId;
