@@ -33,50 +33,62 @@ Jupiter Recurring creates on-chain DCA orders that automatically execute at regu
 
 ## Endpoints
 
-### POST /order — Create DCA Order
+### POST /createOrder — Create DCA Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/recurring/v1/order', {
+const response = await fetch('https://api.jup.ag/recurring/v1/createOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
+    user: walletPublicKey,
     inputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
     outputMint: 'So11111111111111111111111111111111111111112', // SOL
-    totalInputAmount: '500000000', // 500 USDC total
-    frequency: 'weekly', // or 'daily', 'monthly'
-    numberOfOrders: 10, // Split into 10 executions (50 USDC each)
+    params: {
+      time: {
+        inAmount: '50000000', // 50 USDC per execution (atomic units)
+        numberOfOrders: 10, // 10 executions total
+        interval: 604800, // Interval in seconds: 86400=daily, 604800=weekly
+        // Optional:
+        // startAt: 1700000000, // Unix timestamp for first execution
+        // minPrice: '100', // Min acceptable price
+        // maxPrice: '200', // Max acceptable price
+      },
+    },
   }),
 });
 
-const order = await response.json();
-// Returns: { transaction, ... }
+const result = await response.json();
+// Returns: { requestId, transaction }
 ```
 
 **Parameters**:
-- `maker` — Wallet public key
+- `user` — Wallet public key
 - `inputMint` — Token you're spending (e.g., USDC)
 - `outputMint` — Token you're buying (e.g., SOL)
-- `totalInputAmount` — Total amount to spend across all executions (atomic units)
-- `frequency` — Execution interval: `daily`, `weekly`, or `monthly`
-- `numberOfOrders` — Number of individual executions to split the total into
+- `params.time.inAmount` — Amount per execution in atomic units
+- `params.time.numberOfOrders` — Number of individual executions
+- `params.time.interval` — Interval between executions in **seconds** (86400 = daily, 604800 = weekly, 2592000 = ~monthly)
+- `params.time.startAt` — (Optional) Unix timestamp for first execution
+- `params.time.minPrice` — (Optional) Minimum price threshold — skip execution if price is below
+- `params.time.maxPrice` — (Optional) Maximum price threshold — skip execution if price is above
 
-### Calculating Per-Execution Amount
+### Calculating Total Spend
 
 ```typescript
-const totalUsdc = 500_000_000; // 500 USDC
+const perExecution = 50_000_000; // 50 USDC
 const numberOfOrders = 10;
-const perExecution = totalUsdc / numberOfOrders; // 50 USDC per execution
+const totalSpend = perExecution * numberOfOrders; // 500 USDC total
+// Total must be >= $100 USD equivalent
 ```
 
-### GET /orders — List Active DCA Orders
+### GET /getRecurringOrders — List Active DCA Orders
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/recurring/v1/orders?wallet=${walletPublicKey}`,
+  `https://api.jup.ag/recurring/v1/getRecurringOrders?user=${walletPublicKey}&orderStatus=active&recurringType=time`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -84,42 +96,68 @@ const orders = await response.json();
 // Returns array of active DCA orders with progress, next execution time, etc.
 ```
 
-### POST /cancel — Cancel DCA Order
+**Parameters**:
+- `user` — Wallet public key
+- `orderStatus` — Required: `active` or `history`
+- `recurringType` — Required: `time`
+
+### POST /cancelOrder — Cancel DCA Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/recurring/v1/cancel', {
+const response = await fetch('https://api.jup.ag/recurring/v1/cancelOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
-    orderId: orderIdToCancel,
+    user: walletPublicKey,
+    order: orderAddressToCancel,
+    recurringType: 'time',
   }),
 });
 
 const cancelResult = await response.json();
-// Returns: { transaction, ... }
+// Returns: { requestId, transaction }
 ```
 
-Canceling a DCA order returns any unspent input tokens to the maker's wallet.
+Canceling a DCA order returns any unspent input tokens to the user's wallet.
+
+### POST /execute — Submit Signed Transaction
+
+After signing a transaction from `/createOrder` or `/cancelOrder`, submit it back to Jupiter:
+
+```typescript
+const executeResponse = await fetch('https://api.jup.ag/recurring/v1/execute', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    signedTransaction: base64SignedTx,
+    requestId: result.requestId,
+  }),
+});
+```
 
 ---
 
 ## Transaction Flow
 
-Same as Trigger API — all state-modifying responses return a `transaction` to sign and submit via Helius Sender. See `references/jupiter-trigger.md` for the signing/submission pattern.
+All Recurring API responses that modify state return `transaction` and `requestId`. Sign the transaction and submit via `/execute` or Helius Sender. See `references/jupiter-trigger.md` for the full signing/submission pattern.
 
 ---
 
 ## Common Pitfalls
 
-1. **Minimum $100 total** — Orders below this are rejected
+1. **Minimum $100 total** — Total spend (`inAmount * numberOfOrders`) must be >= $100 USD equivalent
 2. **Amounts are in atomic units** — 500 USDC = 500_000_000
-3. **Unspent funds returned on cancel** — Remaining input tokens go back to the wallet
-4. **Each execution is a separate swap** — Price varies per execution (that's the point of DCA)
-5. **Frequency determines the schedule** — The keeper network handles timing; you don't need to trigger executions manually
+3. **Interval is in seconds** — Not a string like `'weekly'`. Use 86400 for daily, 604800 for weekly.
+4. **Unspent funds returned on cancel** — Remaining input tokens go back to the wallet
+5. **Each execution is a separate swap** — Price varies per execution (that's the point of DCA)
+6. **Frequency determines the schedule** — The keeper network handles timing; you don't need to trigger executions manually
+7. **Use `user` not `maker`** — The field is `user` for all Recurring endpoints
 
 ---
 

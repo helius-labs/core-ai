@@ -2,7 +2,7 @@
 
 ## What This Covers
 
-Jupiter Plugin (also called Jupiter Terminal) — a drop-in swap UI component that can be embedded in any web application. No backend required, powered by Jupiter Ultra.
+Jupiter Plugin — a drop-in swap UI component that can be embedded in any web application. No backend required, powered by Jupiter Ultra.
 
 ---
 
@@ -26,38 +26,43 @@ Three display modes:
 The simplest integration — add a script tag:
 
 ```html
-<script src="https://terminal.jup.ag/main-v4.js"></script>
+<script src="https://plugin.jup.ag/plugin-v1.js"></script>
 <script>
   window.Jupiter.init({
     displayMode: 'widget', // 'integrated' | 'widget' | 'modal'
-    integratedTargetId: 'jupiter-terminal', // for 'integrated' mode
+    integratedTargetId: 'jupiter-plugin', // for 'integrated' mode
     endpoint: 'YOUR_HELIUS_RPC_URL', // Use Helius RPC for reliability
-    defaultExplorer: 'Orb',
+    defaultExplorer: 'Solana Explorer', // Valid: 'Solana Explorer', 'Solscan', 'Solana Beach', 'SolanaFM'
   });
 </script>
 
 <!-- For integrated mode -->
-<div id="jupiter-terminal" style="width: 400px; height: 600px;"></div>
+<div id="jupiter-plugin" style="width: 400px; height: 600px;"></div>
 ```
 
 ## React Integration
 
 ```bash
-npm install @jup-ag/terminal
+npm install @jup-ag/plugin
 ```
 
 ```tsx
-import { JupiterTerminal } from '@jup-ag/terminal';
-import '@jup-ag/terminal/css';
+import '@jup-ag/plugin/css';
+import { useEffect } from 'react';
 
 function SwapWidget() {
-  return (
-    <JupiterTerminal
-      displayMode="integrated"
-      endpoint={process.env.NEXT_PUBLIC_HELIUS_RPC_URL}
-      defaultExplorer="Orb"
-    />
-  );
+  useEffect(() => {
+    import('@jup-ag/plugin').then(({ init }) => {
+      init({
+        displayMode: 'integrated',
+        integratedTargetId: 'jupiter-plugin',
+        endpoint: process.env.NEXT_PUBLIC_HELIUS_RPC_URL!,
+        defaultExplorer: 'Solana Explorer',
+      });
+    });
+  }, []);
+
+  return <div id="jupiter-plugin" style={{ width: 400, height: 600 }} />;
 }
 ```
 
@@ -68,13 +73,12 @@ function SwapWidget() {
 | Option | Type | Description |
 |---|---|---|
 | `displayMode` | `'integrated' \| 'widget' \| 'modal'` | How the swap UI is displayed |
-| `integratedTargetId` | `string` | DOM element ID for integrated mode |
+| `integratedTargetId` | `string` | DOM element ID for integrated mode (default: `'jupiter-plugin'`) |
 | `endpoint` | `string` | Solana RPC URL (**use Helius RPC**) |
-| `defaultExplorer` | `string` | Explorer for tx links (use `'Orb'`) |
-| `formProps` | `object` | Pre-fill input/output mints and amounts |
-| `passThroughWallet` | `WalletAdapter` | Pass your app's connected wallet |
-| `platformFeeAndAccounts` | `object` | Referral fee configuration |
-| `theme` | `object` | Color customization |
+| `defaultExplorer` | `string` | Explorer for tx links: `'Solana Explorer'`, `'Solscan'`, `'Solana Beach'`, `'SolanaFM'` |
+| `formProps` | `object` | Pre-fill input/output mints, amounts, referral config |
+| `enableWalletPassthrough` | `boolean` | Enable wallet passthrough from your app |
+| `passthroughWalletContextState` | `WalletContextState` | Your app's wallet state (when passthrough is enabled) |
 
 ### Pre-filling Swap Parameters
 
@@ -102,7 +106,8 @@ const wallet = useWallet();
 window.Jupiter.init({
   displayMode: 'integrated',
   endpoint: HELIUS_RPC_URL,
-  passThroughWallet: wallet,
+  enableWalletPassthrough: true,
+  passthroughWalletContextState: wallet,
 });
 ```
 
@@ -160,11 +165,25 @@ Earn fees on swaps through the plugin using Jupiter's Referral Program:
 
 ```typescript
 window.Jupiter.init({
-  platformFeeAndAccounts: {
-    feeBps: 50, // 0.5% (range: 50-255 bps)
-    feeAccounts: referralFeeAccounts, // From Jupiter Referral Program
+  formProps: {
+    referralAccount: 'YOUR_REFERRAL_ACCOUNT_ADDRESS',
+    referralFee: 50, // 0.5% (range: 50-255 bps)
   },
 });
+```
+
+---
+
+## Theming
+
+Customize the plugin appearance using CSS variables:
+
+```css
+:root {
+  --jupiter-plugin-primary: #6366f1;
+  --jupiter-plugin-bg: #1a1a2e;
+  /* See Jupiter Plugin docs for all available CSS variables */
+}
 ```
 
 ---
@@ -172,13 +191,14 @@ window.Jupiter.init({
 ## Common Pitfalls
 
 1. **Always provide an RPC endpoint** — Without one, the plugin uses public RPCs which are unreliable. Use Helius RPC.
-2. **Use wallet passthrough** if your app already handles wallet connection — avoids double-connect UX.
-3. **Set `defaultExplorer` to `'Orb'`** — Consistent with Helius explorer links.
+2. **Use wallet passthrough** if your app already handles wallet connection — avoids double-connect UX. Use `enableWalletPassthrough: true` + `passthroughWalletContextState`.
+3. **Valid explorers**: `'Solana Explorer'`, `'Solscan'`, `'Solana Beach'`, `'SolanaFM'`. Do NOT use `'Orb'` — it's not supported by the Plugin.
 4. **The plugin is client-side only** — It runs in the browser, not in Node.js.
+5. **Use `init()` not JSX** — There is no `<JupiterTerminal>` React component. Use the `init()` function from `@jup-ag/plugin`.
 
 ---
 
 ## Resources
 
 - Jupiter Plugin Docs: [dev.jup.ag/docs/plugin](https://dev.jup.ag/docs/plugin)
-- Jupiter Terminal npm: [@jup-ag/terminal](https://www.npmjs.com/package/@jup-ag/terminal)
+- Jupiter Plugin npm: [@jup-ag/plugin](https://www.npmjs.com/package/@jup-ag/plugin)

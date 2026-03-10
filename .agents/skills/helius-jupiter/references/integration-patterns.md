@@ -93,7 +93,7 @@ Build a swap UI token selector combining user holdings from Helius with Jupiter 
 
 1. Fetch user's token holdings via Helius DAS (`getAssetsByOwner`)
 2. Enrich with Jupiter token metadata (verification, logos)
-3. Get live prices from Jupiter Price API
+3. Get live prices from Jupiter Price API v3
 4. Display sorted by value with verification badges
 
 ### TypeScript Example
@@ -115,12 +115,12 @@ for (let i = 0; i < mintAddresses.length; i += 50) {
 const allPrices: Record<string, number> = {};
 for (const chunk of chunks) {
   const res = await fetch(
-    `https://api.jup.ag/price/v2?ids=${chunk.join(',')}`,
+    `https://api.jup.ag/price/v3?ids=${chunk.join(',')}`,
     { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
   );
   const data = await res.json();
   for (const [mint, info] of Object.entries(data.data)) {
-    allPrices[mint] = (info as any).price;
+    allPrices[mint] = (info as any).usdPrice;
   }
 }
 
@@ -163,7 +163,7 @@ if (depositAmount > vaultData.limitsAndAvailability.supplyLimit) {
 }
 
 // 2. Build deposit transaction
-const { ixs, addressLookupTableAccounts, positionId } = await getOperateIx({
+const { ixs, addressLookupTableAccounts, nftId } = await getOperateIx({
   vaultId: targetVaultId,
   positionId: 0, // new position
   colAmount: new BN(depositAmount),
@@ -195,21 +195,26 @@ Set up limit orders and DCA orders, then track their execution status.
 
 ```typescript
 // 1. Create a limit order
-const orderRes = await fetch('https://api.jup.ag/trigger/v1/order', {
+const orderRes = await fetch('https://api.jup.ag/trigger/v1/createOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
-    inputMint: SOL_MINT,
-    outputMint: USDC_MINT,
-    makingAmount: '1000000000', // 1 SOL
-    takingAmount: '200000000',  // Min 200 USDC (limit price)
-    expiredAt: null,
+    payer: walletPublicKey,
+    params: {
+      inputMint: SOL_MINT,
+      outputMint: USDC_MINT,
+      makingAmount: '1000000000', // 1 SOL
+      takingAmount: '200000000',  // Min 200 USDC (limit price)
+      expiredAt: null,
+    },
   }),
 });
+
+const result = await orderRes.json();
+// result: { order, transaction, requestId }
 
 // 2. Sign and submit via Helius Sender
 // ...
@@ -244,13 +249,13 @@ const [walletBalances, lendPositions, limitOrders, dcaOrders] = await Promise.al
   // Helius: wallet holdings
   heliusWalletBalances(walletAddress),
   // Jupiter Lend: vault positions
-  lendClient.vault.positionsByUser(walletPublicKey),
+  lendClient.vault.getAllUserPositions(walletPublicKey),
   // Jupiter Trigger: open limit orders
-  fetch(`https://api.jup.ag/trigger/v1/orders?wallet=${walletAddress}`, {
+  fetch(`https://api.jup.ag/trigger/v1/getTriggerOrders?user=${walletAddress}&orderStatus=active`, {
     headers: { 'x-api-key': JUPITER_API_KEY },
   }).then(r => r.json()),
   // Jupiter Recurring: active DCA orders
-  fetch(`https://api.jup.ag/recurring/v1/orders?wallet=${walletAddress}`, {
+  fetch(`https://api.jup.ag/recurring/v1/getRecurringOrders?user=${walletAddress}&orderStatus=active&recurringType=time`, {
     headers: { 'x-api-key': JUPITER_API_KEY },
   }).then(r => r.json()),
 ]);
@@ -282,28 +287,38 @@ Helius Sender       →  Transaction submission with Jito bundles
 import { subscribe } from 'helius-laserstream';
 
 // 1. Subscribe to pool accounts for price monitoring
-const stream = subscribe({
+const config = {
   apiKey: process.env.HELIUS_API_KEY!,
   endpoint: 'mainnet', // or regional endpoint for lower latency
-  commitment: 'confirmed',
+};
+
+const request = {
   accounts: [POOL_ACCOUNT_ADDRESS],
-});
+  commitment: 'confirmed',
+};
 
-stream.on('data', async (update) => {
-  // 2. Detect opportunity
-  const opportunity = analyzeUpdate(update);
-  if (!opportunity) return;
+subscribe(config, request,
+  // Data callback
+  async (update) => {
+    // 2. Detect opportunity
+    const opportunity = analyzeUpdate(update);
+    if (!opportunity) return;
 
-  // 3. Execute swap via Jupiter
-  const signature = await swapViaJupiterAndSender(
-    keypair,
-    opportunity.inputMint,
-    opportunity.outputMint,
-    opportunity.amount,
-  );
+    // 3. Execute swap via Jupiter
+    const signature = await swapViaJupiterAndSender(
+      keypair,
+      opportunity.inputMint,
+      opportunity.outputMint,
+      opportunity.amount,
+    );
 
-  console.log(`Trade executed: ${signature}`);
-});
+    console.log(`Trade executed: ${signature}`);
+  },
+  // Error callback
+  (error) => {
+    console.error('LaserStream error:', error);
+  }
+);
 ```
 
 ### Latency Considerations
@@ -330,8 +345,8 @@ The fastest path to adding swap functionality — use Jupiter's drop-in widget w
 ### TypeScript Example (React)
 
 ```typescript
-import { JupiterTerminal } from '@jup-ag/terminal';
-import '@jup-ag/terminal/css';
+import '@jup-ag/plugin/css';
+import { useEffect, useState } from 'react';
 
 function SwapPage({ walletAddress }: { walletAddress: string }) {
   const [selectedMint, setSelectedMint] = useState<string | null>(null);
@@ -341,6 +356,18 @@ function SwapPage({ walletAddress }: { walletAddress: string }) {
     // Fetch holdings via Helius (getAssetsByOwner MCP tool)
     fetchHoldings(walletAddress).then(setHoldings);
   }, [walletAddress]);
+
+  useEffect(() => {
+    import('@jup-ag/plugin').then(({ init }) => {
+      init({
+        displayMode: 'integrated',
+        integratedTargetId: 'jupiter-plugin',
+        endpoint: `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+        defaultExplorer: 'Solana Explorer',
+        formProps: selectedMint ? { initialInputMint: selectedMint } : undefined,
+      });
+    });
+  }, [selectedMint]);
 
   return (
     <div>
@@ -354,12 +381,7 @@ function SwapPage({ walletAddress }: { walletAddress: string }) {
       </div>
 
       {/* Jupiter swap widget */}
-      <JupiterTerminal
-        displayMode="integrated"
-        endpoint={`https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`}
-        defaultExplorer="Orb"
-        formProps={selectedMint ? { initialInputMint: selectedMint } : undefined}
-      />
+      <div id="jupiter-plugin" style={{ width: 400, height: 600 }} />
     </div>
   );
 }

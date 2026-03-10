@@ -21,14 +21,14 @@ Rate limits are dynamic — see `references/jupiter-portal.md` for details.
 
 ### GET /order — Get Quote
 
-Returns a swap quote with routing information.
+Returns a swap quote with routing information. Omit `taker` to get a quote-only response (no `transaction` field).
 
 ```typescript
 const params = new URLSearchParams({
   inputMint: 'So11111111111111111111111111111111111111112', // SOL
   outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
   amount: '1000000000', // 1 SOL in lamports
-  taker: walletPublicKey,
+  taker: walletPublicKey, // Optional — omit for quote-only
 });
 
 const response = await fetch(`https://api.jup.ag/ultra/v1/order?${params}`, {
@@ -37,14 +37,20 @@ const response = await fetch(`https://api.jup.ag/ultra/v1/order?${params}`, {
 
 const quote = await response.json();
 // Returns: { transaction, requestId, inputMint, outputMint, inAmount, outAmount, ... }
+// If taker is omitted: no transaction or requestId, just quote data
 ```
 
 **Key parameters**:
 - `inputMint` — Source token mint address
 - `outputMint` — Destination token mint address
 - `amount` — Amount in atomic units (lamports for SOL, raw units for SPL tokens)
-- `taker` — Wallet public key that will sign the transaction
+- `taker` — (Optional) Wallet public key that will sign the transaction. Omit for quote-only.
 - `slippageBps` — Slippage tolerance in basis points (optional, default is auto)
+- `receiver` — (Optional) Destination wallet for output tokens (defaults to `taker`)
+- `referralAccount` — (Optional) Referral account for integrator fees
+- `referralFee` — (Optional) Referral fee in basis points (50-255 bps). Replaces the default 5-10 bps Jupiter fee. Jupiter takes 20% of integrator fees.
+- `excludeRouters` — (Optional) Comma-separated routers to exclude: `iris`, `jupiterz`, `dflow`, `okx`
+- `excludeDexes` — (Optional) Comma-separated DEXes to exclude from routing
 
 ### POST /execute — Execute Swap
 
@@ -64,24 +70,18 @@ const executeResponse = await fetch('https://api.jup.ag/ultra/v1/execute', {
 });
 
 const result = await executeResponse.json();
-// Returns: { status, signature, ... }
+// Success: { status: "Success", signature, inputAmountResult, outputAmountResult, swapEvents }
+// Failure: { status: "Failed", code, error }
+// code < 0 = Jupiter-internal error; code > 0 = on-chain program error
 ```
 
-**CRITICAL**: Always include `requestId` from the `/order` response. This enables idempotent retries within a 2-minute window — if the request fails mid-flight, you can safely retry with the same `requestId`.
+**CRITICAL**: Always include `requestId` from the `/order` response. This enables idempotent retries — if the request fails mid-flight, you can safely re-call `POST /execute` with the same `requestId` and `signedTransaction` to check status or retry.
 
-### GET /execute-status — Check Status
-
-Poll for execution status after submitting.
-
-```typescript
-const statusResponse = await fetch(
-  `https://api.jup.ag/ultra/v1/execute-status?requestId=${requestId}`,
-  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
-);
-
-const status = await statusResponse.json();
-// status.status: "Success" | "Failed" | "Pending"
-```
+**Response fields**:
+- `inputAmountResult` — Actual input amount consumed
+- `outputAmountResult` — Actual output amount received
+- `swapEvents` — Array of individual swap legs executed
+- On failure: `code` (negative = Jupiter error, positive = on-chain error) + `error` message
 
 ---
 
@@ -137,7 +137,7 @@ async function swapWithUltra(
 
   const result = await execRes.json();
   if (result.status === 'Failed') {
-    throw new Error(`Swap failed: ${result.error || 'unknown error'}`);
+    throw new Error(`Swap failed (code ${result.code}): ${result.error || 'unknown error'}`);
   }
 
   return result.signature;
@@ -152,15 +152,42 @@ For more control over transaction submission, you can use Jupiter for the quote/
 
 ## Fees
 
+### Default Fees
+
 Jupiter Ultra charges 5-10 basis points (0.05-0.10%) on swaps. This is included in the quoted output amount — no separate fee calculation needed.
+
+### Integrator Fees (Referral Program)
+
+Use the `referralAccount` and `referralFee` parameters to earn fees on swaps:
+- `referralFee` range: 50-255 basis points
+- When set, integrator fees **replace** the default 5-10 bps Jupiter fee
+- Jupiter takes 20% of the integrator fee; you receive 80%
+
+---
+
+## Routers
+
+Ultra routes swaps through multiple routers for optimal pricing:
+- **Iris** — Jupiter's primary router
+- **JupiterZ** — Zero-fee routing engine
+- **DFlow** — Order flow auction router
+- **OKX** — OKX DEX aggregator integration
+
+Use `excludeRouters` to exclude specific routers from routing (e.g., for compliance reasons).
 
 ---
 
 ## Gasless Swaps
 
-Ultra supports gasless swaps for wallets with less than 0.01 SOL. Jupiter covers the transaction fee in these cases.
+Ultra supports gasless swaps for wallets with insufficient SOL for transaction fees. Jupiter covers the gas fee within the swap transaction.
 
-This is automatic — no extra parameters needed. When the taker's SOL balance is below the threshold, Jupiter handles gas fees within the swap transaction.
+### Requirements & Constraints
+
+- **Minimum trade size**: ~$10 USD equivalent
+- **Router**: Only works via the Iris router
+- **Incompatible with**: `slippageBps` and `referralFee` parameters (these are ignored for gasless swaps)
+- **Fee impact**: Slightly increases the swap fee (gas cost absorbed into the spread)
+- **Automatic**: No extra parameters needed — when the taker's SOL balance is below the threshold, Jupiter automatically enables gasless mode
 
 ### Helius Synergy
 
@@ -170,6 +197,7 @@ Combine gasless swaps with Helius Wallet API to detect low-SOL wallets and proac
 // Check if wallet qualifies for gasless
 // Use getBalance MCP tool
 // If balance < 0.01 SOL, inform user that gasless swap is available
+// Note: trade must be >= ~$10 USD for gasless to work
 ```
 
 ---
@@ -204,6 +232,7 @@ Most integrations should use Ultra. Only use Metis if you have a specific need f
 - Default: auto-calculated by Jupiter
 - Custom: pass `slippageBps` parameter (e.g., `50` = 0.5%)
 - Recommended: use auto unless the user has a specific requirement
+- Note: `slippageBps` is incompatible with gasless swaps
 
 ---
 
@@ -233,7 +262,7 @@ Positive error codes indicate on-chain program failures. Inspect the error messa
 
 - Set 5-second timeout for `/order` (quote) requests
 - Set 30-second timeout for `/execute` requests
-- If `/execute` times out, use `/execute-status` with the `requestId` to check — do NOT re-execute without checking status first
+- If `/execute` times out, re-call `POST /execute` with the same `requestId` and `signedTransaction` to check status — do NOT get a new quote and re-execute without checking first
 
 ---
 
@@ -245,7 +274,7 @@ Positive error codes indicate on-chain program failures. Inspect the error messa
 4. Implement exponential backoff for 429 responses
 5. Validate mint addresses before calling the API
 6. Enforce slippage guardrails for user protection
-7. Check `/execute-status` before retrying failed executions
+7. On timeout, re-call `/execute` with same requestId to check status
 8. Log all API interactions with latency metrics
 
 ---

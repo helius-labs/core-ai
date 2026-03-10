@@ -2,7 +2,7 @@
 
 ## What This Covers
 
-Jupiter Lend (powered by Fluid Protocol) — a lending and borrowing protocol on Solana. Covers liquidity pools, lending markets (jlTokens), vaults for leveraged positions, and both the read and write SDKs.
+Jupiter Lend (powered by Fluid Protocol) — a lending and borrowing protocol on Solana. Covers the REST API, liquidity pools, lending markets (jlTokens), vaults for leveraged positions, and both the read and write SDKs.
 
 ---
 
@@ -11,16 +11,76 @@ Jupiter Lend (powered by Fluid Protocol) — a lending and borrowing protocol on
 ### Two-Layer Model
 
 - **Liquidity Layer**: Foundational layer managing token limits, rate curves, and unified liquidity. Users never interact with this directly.
-- **Protocol Layer**: User-facing modules (Lending and Vaults) that sit on top of the Liquidity Layer via Cross-Program Invocations (CPIs).
+- **Protocol Layer**: User-facing modules (Earn and Borrow) that sit on top of the Liquidity Layer via Cross-Program Invocations (CPIs).
 
 ### Key Concepts
 
-- **jlToken**: Yield-bearing token received when supplying to Lending (e.g., `jlUSDC`). Exchange rate increases as interest accrues.
+- **jlToken**: Yield-bearing token received when supplying to Earn (e.g., `jlUSDC`). Exchange rate increases as interest accrues.
 - **Exchange Price**: Conversion rate between raw stored amounts and actual token amounts. Continuously increases.
 - **Collateral Factor (CF)**: Maximum LTV ratio allowed when opening/managing positions.
 - **Liquidation Threshold (LT)**: LTV at which a position becomes eligible for liquidation.
 - **Liquidation Max Limit (LML)**: Absolute maximum LTV — positions exceeding this are absorbed by the protocol.
 - **Sentinel Values**: `MAX_WITHDRAW_AMOUNT` and `MAX_REPAY_AMOUNT` — tell the protocol to calculate and use the maximum possible amount. Always use these for full withdrawals/repayments instead of trying to calculate exact amounts.
+
+---
+
+## REST API
+
+All REST endpoints require the `x-api-key` header.
+
+```
+Base: https://api.jup.ag/lend/v1
+Auth: x-api-key header (required)
+```
+
+### Earn Endpoints
+
+```typescript
+// Deposit tokens
+const depositRes = await fetch('https://api.jup.ag/lend/v1/earn/deposit', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    asset: mintAddress,
+    amount: '1000000', // atomic units
+    signer: walletPublicKey,
+  }),
+});
+
+// Withdraw tokens
+const withdrawRes = await fetch('https://api.jup.ag/lend/v1/earn/withdraw', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    asset: mintAddress,
+    amount: '1000000',
+    signer: walletPublicKey,
+  }),
+});
+
+// Get available earn tokens
+const tokensRes = await fetch('https://api.jup.ag/lend/v1/earn/tokens', {
+  headers: { 'x-api-key': process.env.JUPITER_API_KEY! },
+});
+
+// Get user positions
+const positionsRes = await fetch(
+  `https://api.jup.ag/lend/v1/earn/positions?user=${walletPublicKey}`,
+  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
+);
+
+// Get earnings history
+const earningsRes = await fetch(
+  `https://api.jup.ag/lend/v1/earn/earnings?user=${walletPublicKey}`,
+  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
+);
+```
 
 ---
 
@@ -64,21 +124,21 @@ const supplyApr = Number(data.supplyRate) / 100;
 const borrowApr = Number(data.borrowRate) / 100;
 ```
 
-### Lending Module — jlToken Markets
+### Earn Module — jlToken Markets
 
 ```typescript
-// Get all jlToken details
-const allDetails = await client.lending.getAllJlTokenDetails();
+// Get all fToken (jlToken) details
+const allDetails = await client.lending.getFTokensEntireData();
 
 // Get user's jlToken balance
 const position = await client.lending.getUserPosition(USDC, userPublicKey);
 ```
 
-### Vault Module — Discovery and Positions
+### Borrow Module — Discovery and Positions
 
 ```typescript
 // Discover all available vaults
-const allVaults = await client.vault.getAllVaultsAddresses();
+const allVaults = await client.vault.getAllVaults();
 const totalVaults = await client.vault.getTotalVaults();
 
 // Get vault data (config + state + rates + limits)
@@ -92,13 +152,13 @@ const borrowable = vaultData.limitsAndAvailability.borrowable;
 ### Finding User Vault Positions
 
 ```typescript
-const { userPositions_, vaultsData_ } = await client.vault.positionsByUser(userPublicKey);
+const positions = await client.vault.getAllUserPositions(userPublicKey);
+// Returns NftPosition[] directly
 
-for (let i = 0; i < userPositions_.length; i++) {
-  console.log(`Position NFT ID: ${userPositions_[i].nftId}`);
-  console.log(`Vault ID: ${vaultsData_[i].constantVariables.vaultId}`);
-  console.log(`Collateral: ${userPositions_[i].supply}`);
-  console.log(`Debt: ${userPositions_[i].borrow}`);
+for (const pos of positions) {
+  console.log(`Position NFT ID: ${pos.nftId}`);
+  console.log(`Collateral: ${pos.supply}`);
+  console.log(`Debt: ${pos.borrow}`);
 }
 ```
 
@@ -108,7 +168,7 @@ for (let i = 0; i < userPositions_.length; i++) {
 
 All write operations return `ixs` (instructions) and `addressLookupTableAccounts` (ALTs). You must wrap these in a **versioned (v0) transaction**.
 
-### Lending — Earn (Deposit / Withdraw)
+### Earn — Deposit / Withdraw
 
 ```typescript
 import { getDepositIxs, getWithdrawIxs } from "@jup-ag/lend/earn";
@@ -131,7 +191,7 @@ const { ixs: withdrawIxs } = await getWithdrawIxs({
 });
 ```
 
-### Vaults — Borrow (Deposit Collateral / Borrow / Repay / Withdraw)
+### Borrow — Deposit Collateral / Borrow / Repay / Withdraw
 
 All vault operations use the single `getOperateIx` function. The direction is determined by the sign of `colAmount` and `debtAmount`:
 
@@ -151,7 +211,7 @@ import { getOperateIx, MAX_WITHDRAW_AMOUNT, MAX_REPAY_AMOUNT } from "@jup-ag/len
 import BN from "bn.js";
 
 // Deposit collateral (new position)
-const { ixs, addressLookupTableAccounts, positionId } = await getOperateIx({
+const { ixs, addressLookupTableAccounts, nftId } = await getOperateIx({
   vaultId: 1,
   positionId: 0, // 0 = create new position
   colAmount: new BN(1_000_000),
@@ -239,9 +299,9 @@ const mergedAlts = allAlts.filter((alt) => {
 | Program | Address |
 |---|---|
 | Liquidity | `jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC` |
-| Lending | `jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9` |
-| Lending Reward Rate Model | `jup7TthsMgcR9Y3L277b8Eo9uboVSmu1utkuXHNUKar` |
-| Vaults | `jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi` |
+| Earn | `jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9` |
+| Earn Rewards | `jup7TthsMgcR9Y3L277b8Eo9uboVSmu1utkuXHNUKar` |
+| Borrow | `jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi` |
 | Oracle | `jupnw4B6Eqs7ft6rxpzYLJZYSnrpRgPcr589n5Kv4oc` |
 | Flashloan | `jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS` |
 
@@ -254,6 +314,7 @@ const mergedAlts = allAlts.filter((alt) => {
 3. **Always use versioned (v0) transactions** — Legacy transactions don't support Address Lookup Tables.
 4. **Check borrowable limits before prompting users** — Use the read SDK to verify vault capacity.
 5. **Use Helius RPC** — The Lend SDKs need an RPC connection. Helius provides reliable, high-performance endpoints.
+6. **`getOperateIx` returns `nftId`** — Not `positionId`. Use the returned `nftId` for subsequent operations on the same position.
 
 ---
 
@@ -262,5 +323,4 @@ const mergedAlts = allAlts.filter((alt) => {
 - Jupiter Lend Docs: [dev.jup.ag/docs/lend](https://dev.jup.ag/docs/lend)
 - Read SDK: [@jup-ag/lend-read](https://www.npmjs.com/package/@jup-ag/lend-read)
 - Write SDK: [@jup-ag/lend](https://www.npmjs.com/package/@jup-ag/lend)
-- Lend Build Kit: [instadapp.mintlify.app](https://instadapp.mintlify.app)
 - Smart Contracts: [github.com/Instadapp/fluid-solana-programs](https://github.com/Instadapp/fluid-solana-programs/)

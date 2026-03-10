@@ -292,6 +292,7 @@ Follow these rules in ALL implementations:
 - Transaction link format: `https://orbmarkets.io/tx/{signature}`
 - Account link format: `https://orbmarkets.io/address/{address}`
 - Token link format: `https://orbmarkets.io/token/{token}`
+- **Exception**: Jupiter Plugin does not support Orb as an explorer. Use `'Solana Explorer'` in Plugin config (`defaultExplorer`). Valid Plugin explorers: `'Solana Explorer'`, `'Solscan'`, `'Solana Beach'`, `'SolanaFM'`.
 
 ### Code Quality
 - Never commit API keys to git — always use environment variables
@@ -306,7 +307,7 @@ Follow these rules in ALL implementations:
 - Jupiter Lend (read): `import { Client } from "@jup-ag/lend-read"`
 - Jupiter Lend (write): `import { getDepositIxs, getWithdrawIxs } from "@jup-ag/lend/earn"` and `import { getOperateIx } from "@jup-ag/lend/borrow"`
 - For @solana/kit integration, use `helius.raw` for the underlying `Rpc` client
-- Jupiter Plugin: `<script src="https://terminal.jup.ag/main-v4.js" />` or `@jup-ag/terminal`
+- Jupiter Plugin: `<script src="https://plugin.jup.ag/plugin-v1.js" />` or `import('@jup-ag/plugin').then(({ init }) => { init({...}) })`
 
 ## Resources
 
@@ -330,5 +331,5 @@ Follow these rules in ALL implementations:
 - Jupiter Agent Skills: `github.com/jup-ag/agent-skills`
 - Jupiter Lend Programs: `github.com/Instadapp/fluid-solana-programs`
 - Jupiter Plugin Docs: `https://dev.jup.ag/docs/plugin`
-- Jupiter Perps Docs: `https://dev.jup.ag/docs/perpetuals`
+- Jupiter Perps Docs: `https://dev.jup.ag/docs/perps`
 - Jupiter Prediction Markets: `https://dev.jup.ag/docs/prediction`

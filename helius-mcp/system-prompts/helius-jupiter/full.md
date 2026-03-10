@@ -275,6 +275,7 @@ Follow these rules in ALL implementations:
 - Transaction link format: `https://orbmarkets.io/tx/{signature}`
 - Account link format: `https://orbmarkets.io/address/{address}`
 - Token link format: `https://orbmarkets.io/token/{token}`
+- **Exception**: Jupiter Plugin does not support Orb as an explorer. Use `'Solana Explorer'` in Plugin config (`defaultExplorer`). Valid Plugin explorers: `'Solana Explorer'`, `'Solscan'`, `'Solana Beach'`, `'SolanaFM'`.
 
 ### Code Quality
 - Never commit API keys to git — always use environment variables
@@ -289,7 +290,7 @@ Follow these rules in ALL implementations:
 - Jupiter Lend (read): `import { Client } from "@jup-ag/lend-read"`
 - Jupiter Lend (write): `import { getDepositIxs, getWithdrawIxs } from "@jup-ag/lend/earn"` and `import { getOperateIx } from "@jup-ag/lend/borrow"`
 - For @solana/kit integration, use `helius.raw` for the underlying `Rpc` client
-- Jupiter Plugin: `<script src="https://terminal.jup.ag/main-v4.js" />` or `@jup-ag/terminal`
+- Jupiter Plugin: `<script src="https://plugin.jup.ag/plugin-v1.js" />` or `import('@jup-ag/plugin').then(({ init }) => { init({...}) })`
 
 ## Resources
 
@@ -313,7 +314,7 @@ Follow these rules in ALL implementations:
 - Jupiter Agent Skills: `github.com/jup-ag/agent-skills`
 - Jupiter Lend Programs: `github.com/Instadapp/fluid-solana-programs`
 - Jupiter Plugin Docs: `https://dev.jup.ag/docs/plugin`
-- Jupiter Perps Docs: `https://dev.jup.ag/docs/perpetuals`
+- Jupiter Perps Docs: `https://dev.jup.ag/docs/perps`
 - Jupiter Prediction Markets: `https://dev.jup.ag/docs/prediction`
 
 
@@ -2527,7 +2528,7 @@ Build a swap UI token selector combining user holdings from Helius with Jupiter 
 
 1. Fetch user's token holdings via Helius DAS (`getAssetsByOwner`)
 2. Enrich with Jupiter token metadata (verification, logos)
-3. Get live prices from Jupiter Price API
+3. Get live prices from Jupiter Price API v3
 4. Display sorted by value with verification badges
 
 ### TypeScript Example
@@ -2549,12 +2550,12 @@ for (let i = 0; i < mintAddresses.length; i += 50) {
 const allPrices: Record<string, number> = {};
 for (const chunk of chunks) {
   const res = await fetch(
-    `https://api.jup.ag/price/v2?ids=${chunk.join(',')}`,
+    `https://api.jup.ag/price/v3?ids=${chunk.join(',')}`,
     { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
   );
   const data = await res.json();
   for (const [mint, info] of Object.entries(data.data)) {
-    allPrices[mint] = (info as any).price;
+    allPrices[mint] = (info as any).usdPrice;
   }
 }
 
@@ -2597,7 +2598,7 @@ if (depositAmount > vaultData.limitsAndAvailability.supplyLimit) {
 }
 
 // 2. Build deposit transaction
-const { ixs, addressLookupTableAccounts, positionId } = await getOperateIx({
+const { ixs, addressLookupTableAccounts, nftId } = await getOperateIx({
   vaultId: targetVaultId,
   positionId: 0, // new position
   colAmount: new BN(depositAmount),
@@ -2629,21 +2630,26 @@ Set up limit orders and DCA orders, then track their execution status.
 
 ```typescript
 // 1. Create a limit order
-const orderRes = await fetch('https://api.jup.ag/trigger/v1/order', {
+const orderRes = await fetch('https://api.jup.ag/trigger/v1/createOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
-    inputMint: SOL_MINT,
-    outputMint: USDC_MINT,
-    makingAmount: '1000000000', // 1 SOL
-    takingAmount: '200000000',  // Min 200 USDC (limit price)
-    expiredAt: null,
+    payer: walletPublicKey,
+    params: {
+      inputMint: SOL_MINT,
+      outputMint: USDC_MINT,
+      makingAmount: '1000000000', // 1 SOL
+      takingAmount: '200000000',  // Min 200 USDC (limit price)
+      expiredAt: null,
+    },
   }),
 });
+
+const result = await orderRes.json();
+// result: { order, transaction, requestId }
 
 // 2. Sign and submit via Helius Sender
 // ...
@@ -2678,13 +2684,13 @@ const [walletBalances, lendPositions, limitOrders, dcaOrders] = await Promise.al
   // Helius: wallet holdings
   heliusWalletBalances(walletAddress),
   // Jupiter Lend: vault positions
-  lendClient.vault.positionsByUser(walletPublicKey),
+  lendClient.vault.getAllUserPositions(walletPublicKey),
   // Jupiter Trigger: open limit orders
-  fetch(`https://api.jup.ag/trigger/v1/orders?wallet=${walletAddress}`, {
+  fetch(`https://api.jup.ag/trigger/v1/getTriggerOrders?user=${walletAddress}&orderStatus=active`, {
     headers: { 'x-api-key': JUPITER_API_KEY },
   }).then(r => r.json()),
   // Jupiter Recurring: active DCA orders
-  fetch(`https://api.jup.ag/recurring/v1/orders?wallet=${walletAddress}`, {
+  fetch(`https://api.jup.ag/recurring/v1/getRecurringOrders?user=${walletAddress}&orderStatus=active&recurringType=time`, {
     headers: { 'x-api-key': JUPITER_API_KEY },
   }).then(r => r.json()),
 ]);
@@ -2716,28 +2722,38 @@ Helius Sender       →  Transaction submission with Jito bundles
 import { subscribe } from 'helius-laserstream';
 
 // 1. Subscribe to pool accounts for price monitoring
-const stream = subscribe({
+const config = {
   apiKey: process.env.HELIUS_API_KEY!,
   endpoint: 'mainnet', // or regional endpoint for lower latency
-  commitment: 'confirmed',
+};
+
+const request = {
   accounts: [POOL_ACCOUNT_ADDRESS],
-});
+  commitment: 'confirmed',
+};
 
-stream.on('data', async (update) => {
-  // 2. Detect opportunity
-  const opportunity = analyzeUpdate(update);
-  if (!opportunity) return;
+subscribe(config, request,
+  // Data callback
+  async (update) => {
+    // 2. Detect opportunity
+    const opportunity = analyzeUpdate(update);
+    if (!opportunity) return;
 
-  // 3. Execute swap via Jupiter
-  const signature = await swapViaJupiterAndSender(
-    keypair,
-    opportunity.inputMint,
-    opportunity.outputMint,
-    opportunity.amount,
-  );
+    // 3. Execute swap via Jupiter
+    const signature = await swapViaJupiterAndSender(
+      keypair,
+      opportunity.inputMint,
+      opportunity.outputMint,
+      opportunity.amount,
+    );
 
-  console.log(`Trade executed: ${signature}`);
-});
+    console.log(`Trade executed: ${signature}`);
+  },
+  // Error callback
+  (error) => {
+    console.error('LaserStream error:', error);
+  }
+);
 ```
 
 ### Latency Considerations
@@ -2764,8 +2780,8 @@ The fastest path to adding swap functionality — use Jupiter's drop-in widget w
 ### TypeScript Example (React)
 
 ```typescript
-import { JupiterTerminal } from '@jup-ag/terminal';
-import '@jup-ag/terminal/css';
+import '@jup-ag/plugin/css';
+import { useEffect, useState } from 'react';
 
 function SwapPage({ walletAddress }: { walletAddress: string }) {
   const [selectedMint, setSelectedMint] = useState<string | null>(null);
@@ -2775,6 +2791,18 @@ function SwapPage({ walletAddress }: { walletAddress: string }) {
     // Fetch holdings via Helius (getAssetsByOwner MCP tool)
     fetchHoldings(walletAddress).then(setHoldings);
   }, [walletAddress]);
+
+  useEffect(() => {
+    import('@jup-ag/plugin').then(({ init }) => {
+      init({
+        displayMode: 'integrated',
+        integratedTargetId: 'jupiter-plugin',
+        endpoint: `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+        defaultExplorer: 'Solana Explorer',
+        formProps: selectedMint ? { initialInputMint: selectedMint } : undefined,
+      });
+    });
+  }, [selectedMint]);
 
   return (
     <div>
@@ -2788,12 +2816,7 @@ function SwapPage({ walletAddress }: { walletAddress: string }) {
       </div>
 
       {/* Jupiter swap widget */}
-      <JupiterTerminal
-        displayMode="integrated"
-        endpoint={`https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`}
-        defaultExplorer="Orb"
-        formProps={selectedMint ? { initialInputMint: selectedMint } : undefined}
-      />
+      <div id="jupiter-plugin" style={{ width: 400, height: 600 }} />
     </div>
   );
 }
@@ -2829,7 +2852,7 @@ function SwapPage({ walletAddress }: { walletAddress: string }) {
 
 ## What This Covers
 
-Jupiter Lend (powered by Fluid Protocol) — a lending and borrowing protocol on Solana. Covers liquidity pools, lending markets (jlTokens), vaults for leveraged positions, and both the read and write SDKs.
+Jupiter Lend (powered by Fluid Protocol) — a lending and borrowing protocol on Solana. Covers the REST API, liquidity pools, lending markets (jlTokens), vaults for leveraged positions, and both the read and write SDKs.
 
 ---
 
@@ -2838,16 +2861,76 @@ Jupiter Lend (powered by Fluid Protocol) — a lending and borrowing protocol on
 ### Two-Layer Model
 
 - **Liquidity Layer**: Foundational layer managing token limits, rate curves, and unified liquidity. Users never interact with this directly.
-- **Protocol Layer**: User-facing modules (Lending and Vaults) that sit on top of the Liquidity Layer via Cross-Program Invocations (CPIs).
+- **Protocol Layer**: User-facing modules (Earn and Borrow) that sit on top of the Liquidity Layer via Cross-Program Invocations (CPIs).
 
 ### Key Concepts
 
-- **jlToken**: Yield-bearing token received when supplying to Lending (e.g., `jlUSDC`). Exchange rate increases as interest accrues.
+- **jlToken**: Yield-bearing token received when supplying to Earn (e.g., `jlUSDC`). Exchange rate increases as interest accrues.
 - **Exchange Price**: Conversion rate between raw stored amounts and actual token amounts. Continuously increases.
 - **Collateral Factor (CF)**: Maximum LTV ratio allowed when opening/managing positions.
 - **Liquidation Threshold (LT)**: LTV at which a position becomes eligible for liquidation.
 - **Liquidation Max Limit (LML)**: Absolute maximum LTV — positions exceeding this are absorbed by the protocol.
 - **Sentinel Values**: `MAX_WITHDRAW_AMOUNT` and `MAX_REPAY_AMOUNT` — tell the protocol to calculate and use the maximum possible amount. Always use these for full withdrawals/repayments instead of trying to calculate exact amounts.
+
+---
+
+## REST API
+
+All REST endpoints require the `x-api-key` header.
+
+```
+Base: https://api.jup.ag/lend/v1
+Auth: x-api-key header (required)
+```
+
+### Earn Endpoints
+
+```typescript
+// Deposit tokens
+const depositRes = await fetch('https://api.jup.ag/lend/v1/earn/deposit', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    asset: mintAddress,
+    amount: '1000000', // atomic units
+    signer: walletPublicKey,
+  }),
+});
+
+// Withdraw tokens
+const withdrawRes = await fetch('https://api.jup.ag/lend/v1/earn/withdraw', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    asset: mintAddress,
+    amount: '1000000',
+    signer: walletPublicKey,
+  }),
+});
+
+// Get available earn tokens
+const tokensRes = await fetch('https://api.jup.ag/lend/v1/earn/tokens', {
+  headers: { 'x-api-key': process.env.JUPITER_API_KEY! },
+});
+
+// Get user positions
+const positionsRes = await fetch(
+  `https://api.jup.ag/lend/v1/earn/positions?user=${walletPublicKey}`,
+  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
+);
+
+// Get earnings history
+const earningsRes = await fetch(
+  `https://api.jup.ag/lend/v1/earn/earnings?user=${walletPublicKey}`,
+  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
+);
+```
 
 ---
 
@@ -2891,21 +2974,21 @@ const supplyApr = Number(data.supplyRate) / 100;
 const borrowApr = Number(data.borrowRate) / 100;
 ```
 
-### Lending Module — jlToken Markets
+### Earn Module — jlToken Markets
 
 ```typescript
-// Get all jlToken details
-const allDetails = await client.lending.getAllJlTokenDetails();
+// Get all fToken (jlToken) details
+const allDetails = await client.lending.getFTokensEntireData();
 
 // Get user's jlToken balance
 const position = await client.lending.getUserPosition(USDC, userPublicKey);
 ```
 
-### Vault Module — Discovery and Positions
+### Borrow Module — Discovery and Positions
 
 ```typescript
 // Discover all available vaults
-const allVaults = await client.vault.getAllVaultsAddresses();
+const allVaults = await client.vault.getAllVaults();
 const totalVaults = await client.vault.getTotalVaults();
 
 // Get vault data (config + state + rates + limits)
@@ -2919,13 +3002,13 @@ const borrowable = vaultData.limitsAndAvailability.borrowable;
 ### Finding User Vault Positions
 
 ```typescript
-const { userPositions_, vaultsData_ } = await client.vault.positionsByUser(userPublicKey);
+const positions = await client.vault.getAllUserPositions(userPublicKey);
+// Returns NftPosition[] directly
 
-for (let i = 0; i < userPositions_.length; i++) {
-  console.log(`Position NFT ID: ${userPositions_[i].nftId}`);
-  console.log(`Vault ID: ${vaultsData_[i].constantVariables.vaultId}`);
-  console.log(`Collateral: ${userPositions_[i].supply}`);
-  console.log(`Debt: ${userPositions_[i].borrow}`);
+for (const pos of positions) {
+  console.log(`Position NFT ID: ${pos.nftId}`);
+  console.log(`Collateral: ${pos.supply}`);
+  console.log(`Debt: ${pos.borrow}`);
 }
 ```
 
@@ -2935,7 +3018,7 @@ for (let i = 0; i < userPositions_.length; i++) {
 
 All write operations return `ixs` (instructions) and `addressLookupTableAccounts` (ALTs). You must wrap these in a **versioned (v0) transaction**.
 
-### Lending — Earn (Deposit / Withdraw)
+### Earn — Deposit / Withdraw
 
 ```typescript
 import { getDepositIxs, getWithdrawIxs } from "@jup-ag/lend/earn";
@@ -2958,7 +3041,7 @@ const { ixs: withdrawIxs } = await getWithdrawIxs({
 });
 ```
 
-### Vaults — Borrow (Deposit Collateral / Borrow / Repay / Withdraw)
+### Borrow — Deposit Collateral / Borrow / Repay / Withdraw
 
 All vault operations use the single `getOperateIx` function. The direction is determined by the sign of `colAmount` and `debtAmount`:
 
@@ -2978,7 +3061,7 @@ import { getOperateIx, MAX_WITHDRAW_AMOUNT, MAX_REPAY_AMOUNT } from "@jup-ag/len
 import BN from "bn.js";
 
 // Deposit collateral (new position)
-const { ixs, addressLookupTableAccounts, positionId } = await getOperateIx({
+const { ixs, addressLookupTableAccounts, nftId } = await getOperateIx({
   vaultId: 1,
   positionId: 0, // 0 = create new position
   colAmount: new BN(1_000_000),
@@ -3066,9 +3149,9 @@ const mergedAlts = allAlts.filter((alt) => {
 | Program | Address |
 |---|---|
 | Liquidity | `jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC` |
-| Lending | `jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9` |
-| Lending Reward Rate Model | `jup7TthsMgcR9Y3L277b8Eo9uboVSmu1utkuXHNUKar` |
-| Vaults | `jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi` |
+| Earn | `jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9` |
+| Earn Rewards | `jup7TthsMgcR9Y3L277b8Eo9uboVSmu1utkuXHNUKar` |
+| Borrow | `jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi` |
 | Oracle | `jupnw4B6Eqs7ft6rxpzYLJZYSnrpRgPcr589n5Kv4oc` |
 | Flashloan | `jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS` |
 
@@ -3081,6 +3164,7 @@ const mergedAlts = allAlts.filter((alt) => {
 3. **Always use versioned (v0) transactions** — Legacy transactions don't support Address Lookup Tables.
 4. **Check borrowable limits before prompting users** — Use the read SDK to verify vault capacity.
 5. **Use Helius RPC** — The Lend SDKs need an RPC connection. Helius provides reliable, high-performance endpoints.
+6. **`getOperateIx` returns `nftId`** — Not `positionId`. Use the returned `nftId` for subsequent operations on the same position.
 
 ---
 
@@ -3089,7 +3173,6 @@ const mergedAlts = allAlts.filter((alt) => {
 - Jupiter Lend Docs: [dev.jup.ag/docs/lend](https://dev.jup.ag/docs/lend)
 - Read SDK: [@jup-ag/lend-read](https://www.npmjs.com/package/@jup-ag/lend-read)
 - Write SDK: [@jup-ag/lend](https://www.npmjs.com/package/@jup-ag/lend)
-- Lend Build Kit: [instadapp.mintlify.app](https://instadapp.mintlify.app)
 - Smart Contracts: [github.com/Instadapp/fluid-solana-programs](https://github.com/Instadapp/fluid-solana-programs/)
 
 
@@ -3164,7 +3247,7 @@ Jupiter aggregates prediction markets from Polymarket and Kalshi, allowing users
 ### Base URL & Auth
 
 ```
-Base: https://api.jup.ag/markets/v1
+Base: https://api.jup.ag/prediction/v1
 Auth: x-api-key header (required)
 ```
 
@@ -3173,7 +3256,7 @@ Auth: x-api-key header (required)
 #### GET /events — List Events
 
 ```typescript
-const response = await fetch('https://api.jup.ag/markets/v1/events', {
+const response = await fetch('https://api.jup.ag/prediction/v1/events', {
   headers: { 'x-api-key': process.env.JUPITER_API_KEY! },
 });
 
@@ -3185,7 +3268,7 @@ const events = await response.json();
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/markets/${marketId}`,
+  `https://api.jup.ag/prediction/v1/markets/${marketId}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -3197,7 +3280,7 @@ const market = await response.json();
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/orderbook/${marketId}`,
+  `https://api.jup.ag/prediction/v1/orderbook/${marketId}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -3208,7 +3291,7 @@ const orderbook = await response.json();
 #### POST /orders — Place Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/markets/v1/orders', {
+const response = await fetch('https://api.jup.ag/prediction/v1/orders', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
@@ -3216,9 +3299,11 @@ const response = await fetch('https://api.jup.ag/markets/v1/orders', {
   },
   body: JSON.stringify({
     marketId,
-    side: 'YES', // or 'NO'
-    amount: '1000000', // USDC atomic units
-    wallet: walletPublicKey,
+    isYes: true, // true for YES, false for NO
+    isBuy: true, // true for buy, false for sell
+    depositAmount: '1000000', // USDC atomic units
+    depositMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    ownerPubkey: walletPublicKey,
   }),
 });
 
@@ -3230,7 +3315,7 @@ const order = await response.json();
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/positions?wallet=${walletPublicKey}`,
+  `https://api.jup.ag/prediction/v1/positions?ownerPubkey=${walletPublicKey}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -3244,10 +3329,16 @@ After an event resolves, claim winnings:
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/positions/${positionPubkey}/claim`,
+  `https://api.jup.ag/prediction/v1/positions/${positionPubkey}/claim`,
   {
     method: 'POST',
-    headers: { 'x-api-key': process.env.JUPITER_API_KEY! },
+    headers: {
+      'x-api-key': process.env.JUPITER_API_KEY!,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ownerPubkey: walletPublicKey,
+    }),
   }
 );
 
@@ -3275,7 +3366,7 @@ const claim = await response.json();
 
 ## Resources
 
-- Jupiter Perps Docs: [dev.jup.ag/docs/perpetuals](https://dev.jup.ag/docs/perpetuals)
+- Jupiter Perps Docs: [dev.jup.ag/docs/perps](https://dev.jup.ag/docs/perps)
 - Jupiter Prediction Markets: [dev.jup.ag/docs/prediction](https://dev.jup.ag/docs/prediction)
 - Perps Program: `PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu`
 
@@ -3288,7 +3379,7 @@ const claim = await response.json();
 
 ## What This Covers
 
-Jupiter Plugin (also called Jupiter Terminal) — a drop-in swap UI component that can be embedded in any web application. No backend required, powered by Jupiter Ultra.
+Jupiter Plugin — a drop-in swap UI component that can be embedded in any web application. No backend required, powered by Jupiter Ultra.
 
 ---
 
@@ -3312,38 +3403,43 @@ Three display modes:
 The simplest integration — add a script tag:
 
 ```html
-<script src="https://terminal.jup.ag/main-v4.js"></script>
+<script src="https://plugin.jup.ag/plugin-v1.js"></script>
 <script>
   window.Jupiter.init({
     displayMode: 'widget', // 'integrated' | 'widget' | 'modal'
-    integratedTargetId: 'jupiter-terminal', // for 'integrated' mode
+    integratedTargetId: 'jupiter-plugin', // for 'integrated' mode
     endpoint: 'YOUR_HELIUS_RPC_URL', // Use Helius RPC for reliability
-    defaultExplorer: 'Orb',
+    defaultExplorer: 'Solana Explorer', // Valid: 'Solana Explorer', 'Solscan', 'Solana Beach', 'SolanaFM'
   });
 </script>
 
 <!-- For integrated mode -->
-<div id="jupiter-terminal" style="width: 400px; height: 600px;"></div>
+<div id="jupiter-plugin" style="width: 400px; height: 600px;"></div>
 ```
 
 ## React Integration
 
 ```bash
-npm install @jup-ag/terminal
+npm install @jup-ag/plugin
 ```
 
 ```tsx
-import { JupiterTerminal } from '@jup-ag/terminal';
-import '@jup-ag/terminal/css';
+import '@jup-ag/plugin/css';
+import { useEffect } from 'react';
 
 function SwapWidget() {
-  return (
-    <JupiterTerminal
-      displayMode="integrated"
-      endpoint={process.env.NEXT_PUBLIC_HELIUS_RPC_URL}
-      defaultExplorer="Orb"
-    />
-  );
+  useEffect(() => {
+    import('@jup-ag/plugin').then(({ init }) => {
+      init({
+        displayMode: 'integrated',
+        integratedTargetId: 'jupiter-plugin',
+        endpoint: process.env.NEXT_PUBLIC_HELIUS_RPC_URL!,
+        defaultExplorer: 'Solana Explorer',
+      });
+    });
+  }, []);
+
+  return <div id="jupiter-plugin" style={{ width: 400, height: 600 }} />;
 }
 ```
 
@@ -3354,13 +3450,12 @@ function SwapWidget() {
 | Option | Type | Description |
 |---|---|---|
 | `displayMode` | `'integrated' \| 'widget' \| 'modal'` | How the swap UI is displayed |
-| `integratedTargetId` | `string` | DOM element ID for integrated mode |
+| `integratedTargetId` | `string` | DOM element ID for integrated mode (default: `'jupiter-plugin'`) |
 | `endpoint` | `string` | Solana RPC URL (**use Helius RPC**) |
-| `defaultExplorer` | `string` | Explorer for tx links (use `'Orb'`) |
-| `formProps` | `object` | Pre-fill input/output mints and amounts |
-| `passThroughWallet` | `WalletAdapter` | Pass your app's connected wallet |
-| `platformFeeAndAccounts` | `object` | Referral fee configuration |
-| `theme` | `object` | Color customization |
+| `defaultExplorer` | `string` | Explorer for tx links: `'Solana Explorer'`, `'Solscan'`, `'Solana Beach'`, `'SolanaFM'` |
+| `formProps` | `object` | Pre-fill input/output mints, amounts, referral config |
+| `enableWalletPassthrough` | `boolean` | Enable wallet passthrough from your app |
+| `passthroughWalletContextState` | `WalletContextState` | Your app's wallet state (when passthrough is enabled) |
 
 ### Pre-filling Swap Parameters
 
@@ -3388,7 +3483,8 @@ const wallet = useWallet();
 window.Jupiter.init({
   displayMode: 'integrated',
   endpoint: HELIUS_RPC_URL,
-  passThroughWallet: wallet,
+  enableWalletPassthrough: true,
+  passthroughWalletContextState: wallet,
 });
 ```
 
@@ -3446,11 +3542,25 @@ Earn fees on swaps through the plugin using Jupiter's Referral Program:
 
 ```typescript
 window.Jupiter.init({
-  platformFeeAndAccounts: {
-    feeBps: 50, // 0.5% (range: 50-255 bps)
-    feeAccounts: referralFeeAccounts, // From Jupiter Referral Program
+  formProps: {
+    referralAccount: 'YOUR_REFERRAL_ACCOUNT_ADDRESS',
+    referralFee: 50, // 0.5% (range: 50-255 bps)
   },
 });
+```
+
+---
+
+## Theming
+
+Customize the plugin appearance using CSS variables:
+
+```css
+:root {
+  --jupiter-plugin-primary: #6366f1;
+  --jupiter-plugin-bg: #1a1a2e;
+  /* See Jupiter Plugin docs for all available CSS variables */
+}
 ```
 
 ---
@@ -3458,16 +3568,17 @@ window.Jupiter.init({
 ## Common Pitfalls
 
 1. **Always provide an RPC endpoint** — Without one, the plugin uses public RPCs which are unreliable. Use Helius RPC.
-2. **Use wallet passthrough** if your app already handles wallet connection — avoids double-connect UX.
-3. **Set `defaultExplorer` to `'Orb'`** — Consistent with Helius explorer links.
+2. **Use wallet passthrough** if your app already handles wallet connection — avoids double-connect UX. Use `enableWalletPassthrough: true` + `passthroughWalletContextState`.
+3. **Valid explorers**: `'Solana Explorer'`, `'Solscan'`, `'Solana Beach'`, `'SolanaFM'`. Do NOT use `'Orb'` — it's not supported by the Plugin.
 4. **The plugin is client-side only** — It runs in the browser, not in Node.js.
+5. **Use `init()` not JSX** — There is no `<JupiterTerminal>` React component. Use the `init()` function from `@jup-ag/plugin`.
 
 ---
 
 ## Resources
 
 - Jupiter Plugin Docs: [dev.jup.ag/docs/plugin](https://dev.jup.ag/docs/plugin)
-- Jupiter Terminal npm: [@jup-ag/terminal](https://www.npmjs.com/package/@jup-ag/terminal)
+- Jupiter Plugin npm: [@jup-ag/plugin](https://www.npmjs.com/package/@jup-ag/plugin)
 
 
 ---
@@ -3487,7 +3598,7 @@ Jupiter API key setup, authentication requirements, and rate limiting behavior f
 All Jupiter REST endpoints require authentication via the `x-api-key` header.
 
 1. Go to [portal.jup.ag](https://portal.jup.ag/)
-2. Connect your wallet
+2. Sign in with your email
 3. Generate an API key
 4. Store it securely — never commit to git
 
@@ -3586,10 +3697,10 @@ Jupiter provides these API families, all under `https://api.jup.ag`:
 | Ultra Swap | `/ultra/v1` | Token swaps with optimized routing |
 | Trigger | `/trigger/v1` | Limit orders |
 | Recurring | `/recurring/v1` | DCA orders |
-| Tokens | `/tokens/v1` | Token search and metadata |
-| Price | `/price/v2` | Token prices |
+| Tokens | `/tokens/v2` | Token search and metadata |
+| Price | `/price/v3` | Token prices |
 | Portfolio | `/portfolio/v1` | Position tracking (beta) |
-| Prediction Markets | `/markets/v1` | Event markets (beta, geo-restricted) |
+| Prediction Markets | `/prediction/v1` | Event markets (beta, geo-restricted) |
 | Send | `/send/v1` | Token transfers (beta) |
 | Studio | `/studio/v1` | Token creation (beta) |
 | Lend (REST) | `/lend/v1` | Lending operations |
@@ -3651,50 +3762,62 @@ Jupiter Recurring creates on-chain DCA orders that automatically execute at regu
 
 ## Endpoints
 
-### POST /order — Create DCA Order
+### POST /createOrder — Create DCA Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/recurring/v1/order', {
+const response = await fetch('https://api.jup.ag/recurring/v1/createOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
+    user: walletPublicKey,
     inputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
     outputMint: 'So11111111111111111111111111111111111111112', // SOL
-    totalInputAmount: '500000000', // 500 USDC total
-    frequency: 'weekly', // or 'daily', 'monthly'
-    numberOfOrders: 10, // Split into 10 executions (50 USDC each)
+    params: {
+      time: {
+        inAmount: '50000000', // 50 USDC per execution (atomic units)
+        numberOfOrders: 10, // 10 executions total
+        interval: 604800, // Interval in seconds: 86400=daily, 604800=weekly
+        // Optional:
+        // startAt: 1700000000, // Unix timestamp for first execution
+        // minPrice: '100', // Min acceptable price
+        // maxPrice: '200', // Max acceptable price
+      },
+    },
   }),
 });
 
-const order = await response.json();
-// Returns: { transaction, ... }
+const result = await response.json();
+// Returns: { requestId, transaction }
 ```
 
 **Parameters**:
-- `maker` — Wallet public key
+- `user` — Wallet public key
 - `inputMint` — Token you're spending (e.g., USDC)
 - `outputMint` — Token you're buying (e.g., SOL)
-- `totalInputAmount` — Total amount to spend across all executions (atomic units)
-- `frequency` — Execution interval: `daily`, `weekly`, or `monthly`
-- `numberOfOrders` — Number of individual executions to split the total into
+- `params.time.inAmount` — Amount per execution in atomic units
+- `params.time.numberOfOrders` — Number of individual executions
+- `params.time.interval` — Interval between executions in **seconds** (86400 = daily, 604800 = weekly, 2592000 = ~monthly)
+- `params.time.startAt` — (Optional) Unix timestamp for first execution
+- `params.time.minPrice` — (Optional) Minimum price threshold — skip execution if price is below
+- `params.time.maxPrice` — (Optional) Maximum price threshold — skip execution if price is above
 
-### Calculating Per-Execution Amount
+### Calculating Total Spend
 
 ```typescript
-const totalUsdc = 500_000_000; // 500 USDC
+const perExecution = 50_000_000; // 50 USDC
 const numberOfOrders = 10;
-const perExecution = totalUsdc / numberOfOrders; // 50 USDC per execution
+const totalSpend = perExecution * numberOfOrders; // 500 USDC total
+// Total must be >= $100 USD equivalent
 ```
 
-### GET /orders — List Active DCA Orders
+### GET /getRecurringOrders — List Active DCA Orders
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/recurring/v1/orders?wallet=${walletPublicKey}`,
+  `https://api.jup.ag/recurring/v1/getRecurringOrders?user=${walletPublicKey}&orderStatus=active&recurringType=time`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -3702,42 +3825,68 @@ const orders = await response.json();
 // Returns array of active DCA orders with progress, next execution time, etc.
 ```
 
-### POST /cancel — Cancel DCA Order
+**Parameters**:
+- `user` — Wallet public key
+- `orderStatus` — Required: `active` or `history`
+- `recurringType` — Required: `time`
+
+### POST /cancelOrder — Cancel DCA Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/recurring/v1/cancel', {
+const response = await fetch('https://api.jup.ag/recurring/v1/cancelOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
-    orderId: orderIdToCancel,
+    user: walletPublicKey,
+    order: orderAddressToCancel,
+    recurringType: 'time',
   }),
 });
 
 const cancelResult = await response.json();
-// Returns: { transaction, ... }
+// Returns: { requestId, transaction }
 ```
 
-Canceling a DCA order returns any unspent input tokens to the maker's wallet.
+Canceling a DCA order returns any unspent input tokens to the user's wallet.
+
+### POST /execute — Submit Signed Transaction
+
+After signing a transaction from `/createOrder` or `/cancelOrder`, submit it back to Jupiter:
+
+```typescript
+const executeResponse = await fetch('https://api.jup.ag/recurring/v1/execute', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    signedTransaction: base64SignedTx,
+    requestId: result.requestId,
+  }),
+});
+```
 
 ---
 
 ## Transaction Flow
 
-Same as Trigger API — all state-modifying responses return a `transaction` to sign and submit via Helius Sender. See `references/jupiter-trigger.md` for the signing/submission pattern.
+All Recurring API responses that modify state return `transaction` and `requestId`. Sign the transaction and submit via `/execute` or Helius Sender. See `references/jupiter-trigger.md` for the full signing/submission pattern.
 
 ---
 
 ## Common Pitfalls
 
-1. **Minimum $100 total** — Orders below this are rejected
+1. **Minimum $100 total** — Total spend (`inAmount * numberOfOrders`) must be >= $100 USD equivalent
 2. **Amounts are in atomic units** — 500 USDC = 500_000_000
-3. **Unspent funds returned on cancel** — Remaining input tokens go back to the wallet
-4. **Each execution is a separate swap** — Price varies per execution (that's the point of DCA)
-5. **Frequency determines the schedule** — The keeper network handles timing; you don't need to trigger executions manually
+3. **Interval is in seconds** — Not a string like `'weekly'`. Use 86400 for daily, 604800 for weekly.
+4. **Unspent funds returned on cancel** — Remaining input tokens go back to the wallet
+5. **Each execution is a separate swap** — Price varies per execution (that's the point of DCA)
+6. **Frequency determines the schedule** — The keeper network handles timing; you don't need to trigger executions manually
+7. **Use `user` not `maker`** — The field is `user` for all Recurring endpoints
 
 ---
 
@@ -3773,14 +3922,14 @@ Rate limits are dynamic — see `references/jupiter-portal.md` for details.
 
 ### GET /order — Get Quote
 
-Returns a swap quote with routing information.
+Returns a swap quote with routing information. Omit `taker` to get a quote-only response (no `transaction` field).
 
 ```typescript
 const params = new URLSearchParams({
   inputMint: 'So11111111111111111111111111111111111111112', // SOL
   outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
   amount: '1000000000', // 1 SOL in lamports
-  taker: walletPublicKey,
+  taker: walletPublicKey, // Optional — omit for quote-only
 });
 
 const response = await fetch(`https://api.jup.ag/ultra/v1/order?${params}`, {
@@ -3789,14 +3938,20 @@ const response = await fetch(`https://api.jup.ag/ultra/v1/order?${params}`, {
 
 const quote = await response.json();
 // Returns: { transaction, requestId, inputMint, outputMint, inAmount, outAmount, ... }
+// If taker is omitted: no transaction or requestId, just quote data
 ```
 
 **Key parameters**:
 - `inputMint` — Source token mint address
 - `outputMint` — Destination token mint address
 - `amount` — Amount in atomic units (lamports for SOL, raw units for SPL tokens)
-- `taker` — Wallet public key that will sign the transaction
+- `taker` — (Optional) Wallet public key that will sign the transaction. Omit for quote-only.
 - `slippageBps` — Slippage tolerance in basis points (optional, default is auto)
+- `receiver` — (Optional) Destination wallet for output tokens (defaults to `taker`)
+- `referralAccount` — (Optional) Referral account for integrator fees
+- `referralFee` — (Optional) Referral fee in basis points (50-255 bps). Replaces the default 5-10 bps Jupiter fee. Jupiter takes 20% of integrator fees.
+- `excludeRouters` — (Optional) Comma-separated routers to exclude: `iris`, `jupiterz`, `dflow`, `okx`
+- `excludeDexes` — (Optional) Comma-separated DEXes to exclude from routing
 
 ### POST /execute — Execute Swap
 
@@ -3816,24 +3971,18 @@ const executeResponse = await fetch('https://api.jup.ag/ultra/v1/execute', {
 });
 
 const result = await executeResponse.json();
-// Returns: { status, signature, ... }
+// Success: { status: "Success", signature, inputAmountResult, outputAmountResult, swapEvents }
+// Failure: { status: "Failed", code, error }
+// code < 0 = Jupiter-internal error; code > 0 = on-chain program error
 ```
 
-**CRITICAL**: Always include `requestId` from the `/order` response. This enables idempotent retries within a 2-minute window — if the request fails mid-flight, you can safely retry with the same `requestId`.
+**CRITICAL**: Always include `requestId` from the `/order` response. This enables idempotent retries — if the request fails mid-flight, you can safely re-call `POST /execute` with the same `requestId` and `signedTransaction` to check status or retry.
 
-### GET /execute-status — Check Status
-
-Poll for execution status after submitting.
-
-```typescript
-const statusResponse = await fetch(
-  `https://api.jup.ag/ultra/v1/execute-status?requestId=${requestId}`,
-  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
-);
-
-const status = await statusResponse.json();
-// status.status: "Success" | "Failed" | "Pending"
-```
+**Response fields**:
+- `inputAmountResult` — Actual input amount consumed
+- `outputAmountResult` — Actual output amount received
+- `swapEvents` — Array of individual swap legs executed
+- On failure: `code` (negative = Jupiter error, positive = on-chain error) + `error` message
 
 ---
 
@@ -3889,7 +4038,7 @@ async function swapWithUltra(
 
   const result = await execRes.json();
   if (result.status === 'Failed') {
-    throw new Error(`Swap failed: ${result.error || 'unknown error'}`);
+    throw new Error(`Swap failed (code ${result.code}): ${result.error || 'unknown error'}`);
   }
 
   return result.signature;
@@ -3904,15 +4053,42 @@ For more control over transaction submission, you can use Jupiter for the quote/
 
 ## Fees
 
+### Default Fees
+
 Jupiter Ultra charges 5-10 basis points (0.05-0.10%) on swaps. This is included in the quoted output amount — no separate fee calculation needed.
+
+### Integrator Fees (Referral Program)
+
+Use the `referralAccount` and `referralFee` parameters to earn fees on swaps:
+- `referralFee` range: 50-255 basis points
+- When set, integrator fees **replace** the default 5-10 bps Jupiter fee
+- Jupiter takes 20% of the integrator fee; you receive 80%
+
+---
+
+## Routers
+
+Ultra routes swaps through multiple routers for optimal pricing:
+- **Iris** — Jupiter's primary router
+- **JupiterZ** — Zero-fee routing engine
+- **DFlow** — Order flow auction router
+- **OKX** — OKX DEX aggregator integration
+
+Use `excludeRouters` to exclude specific routers from routing (e.g., for compliance reasons).
 
 ---
 
 ## Gasless Swaps
 
-Ultra supports gasless swaps for wallets with less than 0.01 SOL. Jupiter covers the transaction fee in these cases.
+Ultra supports gasless swaps for wallets with insufficient SOL for transaction fees. Jupiter covers the gas fee within the swap transaction.
 
-This is automatic — no extra parameters needed. When the taker's SOL balance is below the threshold, Jupiter handles gas fees within the swap transaction.
+### Requirements & Constraints
+
+- **Minimum trade size**: ~$10 USD equivalent
+- **Router**: Only works via the Iris router
+- **Incompatible with**: `slippageBps` and `referralFee` parameters (these are ignored for gasless swaps)
+- **Fee impact**: Slightly increases the swap fee (gas cost absorbed into the spread)
+- **Automatic**: No extra parameters needed — when the taker's SOL balance is below the threshold, Jupiter automatically enables gasless mode
 
 ### Helius Synergy
 
@@ -3922,6 +4098,7 @@ Combine gasless swaps with Helius Wallet API to detect low-SOL wallets and proac
 // Check if wallet qualifies for gasless
 // Use getBalance MCP tool
 // If balance < 0.01 SOL, inform user that gasless swap is available
+// Note: trade must be >= ~$10 USD for gasless to work
 ```
 
 ---
@@ -3956,6 +4133,7 @@ Most integrations should use Ultra. Only use Metis if you have a specific need f
 - Default: auto-calculated by Jupiter
 - Custom: pass `slippageBps` parameter (e.g., `50` = 0.5%)
 - Recommended: use auto unless the user has a specific requirement
+- Note: `slippageBps` is incompatible with gasless swaps
 
 ---
 
@@ -3985,7 +4163,7 @@ Positive error codes indicate on-chain program failures. Inspect the error messa
 
 - Set 5-second timeout for `/order` (quote) requests
 - Set 30-second timeout for `/execute` requests
-- If `/execute` times out, use `/execute-status` with the `requestId` to check — do NOT re-execute without checking status first
+- If `/execute` times out, re-call `POST /execute` with the same `requestId` and `signedTransaction` to check status — do NOT get a new quote and re-execute without checking first
 
 ---
 
@@ -3997,7 +4175,7 @@ Positive error codes indicate on-chain program failures. Inspect the error messa
 4. Implement exponential backoff for 429 responses
 5. Validate mint addresses before calling the API
 6. Enforce slippage guardrails for user protection
-7. Check `/execute-status` before retrying failed executions
+7. On timeout, re-call `/execute` with same requestId to check status
 8. Log all API interactions with latency metrics
 
 ---
@@ -4020,12 +4198,12 @@ Token discovery, metadata, and pricing via Jupiter's Tokens and Price APIs — s
 
 ---
 
-## Tokens API
+## Tokens API (v2)
 
 ### Base URL & Auth
 
 ```
-Base: https://api.jup.ag/tokens/v1
+Base: https://api.jup.ag/tokens/v2
 Auth: x-api-key header (required)
 ```
 
@@ -4035,7 +4213,7 @@ Search for tokens by name, symbol, or mint address:
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/tokens/v1/search?query=bonk`,
+  `https://api.jup.ag/tokens/v2/search?query=bonk`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -4044,13 +4222,28 @@ const tokens = await response.json();
 ```
 
 Each token result includes:
-- `address` — Mint address
+- `id` — Mint address
 - `name` — Token name
 - `symbol` — Token symbol
 - `decimals` — Decimal places
-- `logoURI` — Token logo URL
-- `tags` — Verification tags (e.g., `verified`, `community`)
-- `daily_volume` — 24h trading volume
+- `icon` — Token logo URL
+- `isVerified` — Whether the token is verified
+- `organicScore` — Trading activity and community validation score
+- `mcap` — Market capitalization
+- `usdPrice` — Current USD price
+- `liquidity` — Available liquidity
+
+### Looking Up Tokens by Mint
+
+To look up specific tokens, use search with comma-separated mint addresses (up to 100):
+
+```typescript
+const mints = 'So11111111111111111111111111111111111111112,EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+const response = await fetch(
+  `https://api.jup.ag/tokens/v2/search?query=${mints}`,
+  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
+);
+```
 
 ### Token Verification & Organic Score
 
@@ -4058,32 +4251,19 @@ Jupiter assigns tokens an **organic score** based on trading activity and commun
 
 ```typescript
 // Filter for verified tokens only
-const verifiedTokens = tokens.filter(
-  t => t.tags?.includes('verified') || t.tags?.includes('community')
-);
+const verifiedTokens = tokens.filter(t => t.isVerified);
 ```
 
 **Best practice**: Always verify tokens before displaying them in a UI. Show verification status to users.
 
-### GET /token/{mint} — Get Token by Mint
-
-```typescript
-const response = await fetch(
-  `https://api.jup.ag/tokens/v1/token/${mintAddress}`,
-  { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
-);
-
-const token = await response.json();
-```
-
 ---
 
-## Price API
+## Price API (v3)
 
 ### Base URL & Auth
 
 ```
-Base: https://api.jup.ag/price/v2
+Base: https://api.jup.ag/price/v3
 Auth: x-api-key header (required)
 ```
 
@@ -4096,26 +4276,26 @@ const mints = [
 ].join(',');
 
 const response = await fetch(
-  `https://api.jup.ag/price/v2?ids=${mints}`,
+  `https://api.jup.ag/price/v3?ids=${mints}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
 const prices = await response.json();
-// Returns: { data: { [mintAddress]: { id, price, ... } } }
+// Returns: { data: { [mintAddress]: { id, usdPrice, blockId, decimals, priceChange24h, ... } } }
 ```
 
 **Constraints**:
 - Maximum **50 mint IDs** per request
 - Prices are in USD
 
-### Price Confidence Levels
-
-The Price API returns confidence metadata. Use this to determine data quality:
+### Response Fields
 
 ```typescript
 const solPrice = prices.data['So11111111111111111111111111111111111111112'];
-console.log(`SOL: $${solPrice.price}`);
-// Check confidence before displaying
+console.log(`SOL: $${solPrice.usdPrice}`);
+console.log(`24h change: ${solPrice.priceChange24h}%`);
+console.log(`Block: ${solPrice.blockId}`);
+console.log(`Decimals: ${solPrice.decimals}`);
 ```
 
 ---
@@ -4128,13 +4308,15 @@ Jupiter provides a security check endpoint to detect potentially dangerous token
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/ultra/v1/shield?inputMint=${mintAddress}`,
+  `https://api.jup.ag/ultra/v1/shield?mints=${mintAddress}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
 const shield = await response.json();
 // Returns warnings about: freeze authority, mint authority, low organic activity, etc.
 ```
+
+The `mints` parameter accepts comma-separated mint addresses (up to 100).
 
 ### Helius Synergy
 
@@ -4163,10 +4345,10 @@ Combine Jupiter Tokens API with Helius DAS for a complete token selector:
 // Use getAssetsByOwner MCP tool with showFungible: true
 
 // 2. Enrich with Jupiter metadata
-// For each holding, fetch token info from Jupiter Tokens API
+// For each holding, fetch token info from Jupiter Tokens API v2
 
 // 3. Get live prices
-// Batch mint addresses into Price API calls (max 50 per request)
+// Batch mint addresses into Price API v3 calls (max 50 per request)
 
 // 4. Display with verification status
 // Show verified badge, price, and balance
@@ -4179,9 +4361,11 @@ See `references/integration-patterns.md` Pattern 2 for the complete implementati
 ## Common Pitfalls
 
 1. **Max 50 mints per price request** — Batch larger lists into multiple calls
-2. **Verify tokens before displaying** — Check tags and organic score to filter scam tokens
-3. **Prices are in USD** — No need to convert
-4. **Use Helius DAS for ownership data** — Jupiter Tokens API provides metadata, not wallet-specific data
+2. **Max 100 mints per Token Shield / token lookup** — Use comma-separated values
+3. **Verify tokens before displaying** — Check `isVerified` and `organicScore` to filter scam tokens
+4. **Prices are in USD** — The field is `usdPrice`, not `price`
+5. **Use Helius DAS for ownership data** — Jupiter Tokens API provides metadata, not wallet-specific data
+6. **Tokens API is v2, Price API is v3** — Don't use the old v1/v2 endpoints
 
 ---
 
@@ -4199,7 +4383,7 @@ See `references/integration-patterns.md` Pattern 2 for the complete implementati
 
 ## What This Covers
 
-Limit orders via Jupiter's Trigger API — placing buy/sell orders at specific prices, viewing open orders, and canceling orders.
+Limit orders via Jupiter's Trigger API — placing buy/sell orders at specific prices, viewing open orders, canceling orders, and executing signed transactions.
 
 ---
 
@@ -4223,40 +4407,60 @@ Jupiter Trigger creates on-chain limit orders that execute automatically when th
 
 Fees are deducted from the output amount at execution time.
 
+### Minimums
+
+- **Minimum order value**: $5 USD equivalent
+
 ---
 
 ## Endpoints
 
-### POST /order — Create Limit Order
+### POST /createOrder — Create Limit Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/trigger/v1/order', {
+const response = await fetch('https://api.jup.ag/trigger/v1/createOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
-    inputMint: 'So11111111111111111111111111111111111111112', // SOL
-    outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-    makingAmount: '1000000000', // 1 SOL in lamports
-    takingAmount: '150000000', // 150 USDC (min output, sets the limit price)
-    expiredAt: null, // null = no expiration (Good Till Cancelled)
+    payer: walletPublicKey,
+    params: {
+      inputMint: 'So11111111111111111111111111111111111111112', // SOL
+      outputMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+      makingAmount: '1000000000', // 1 SOL in lamports
+      takingAmount: '150000000', // 150 USDC (min output, sets the limit price)
+      expiredAt: null, // null = no expiration (Good Till Cancelled)
+      // Optional:
+      // slippageBps: 50,
+      // feeBps: 100,
+    },
+    // Optional:
+    // feeAccount: referralFeeAccount,
+    // computeUnitPrice: '50000',
   }),
 });
 
-const order = await response.json();
-// Returns: { transaction, ... }
+const result = await response.json();
+// Returns: { order, transaction, requestId }
 ```
 
-**Parameters**:
-- `maker` — Wallet public key placing the order
+**Top-level parameters**:
+- `payer` — Wallet public key placing the order
+
+**Params (nested inside `params`)**:
 - `inputMint` — Token you're selling
 - `outputMint` — Token you're buying
 - `makingAmount` — Amount of input token (atomic units)
 - `takingAmount` — Minimum amount of output token (atomic units) — this sets the limit price
 - `expiredAt` — Unix timestamp for expiration, or `null` for GTC (Good Till Cancelled)
+- `slippageBps` — (Optional) Slippage tolerance in basis points
+- `feeBps` — (Optional) Referral fee in basis points
+
+**Optional top-level**:
+- `feeAccount` — Referral fee account
+- `computeUnitPrice` — Priority fee in micro-lamports
 
 ### Calculating Limit Price
 
@@ -4270,55 +4474,112 @@ const outputAmount = 1_000_000_000; // 1 SOL (9 decimals)
 // Implied price: 150 USDC per SOL
 ```
 
-### GET /orders — List Open Orders
+### GET /getTriggerOrders — List Orders
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/trigger/v1/orders?wallet=${walletPublicKey}`,
+  `https://api.jup.ag/trigger/v1/getTriggerOrders?user=${walletPublicKey}&orderStatus=active`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
 const orders = await response.json();
-// Returns array of open orders with status, amounts, mints, etc.
+// Returns array of orders with status, amounts, mints, etc.
 ```
 
-### POST /cancel — Cancel Order
+**Parameters**:
+- `user` — Wallet public key
+- `orderStatus` — Required: `active` or `history`
+
+### POST /cancelOrder — Cancel Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/trigger/v1/cancel', {
+const response = await fetch('https://api.jup.ag/trigger/v1/cancelOrder', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    maker: walletPublicKey,
-    orderId: orderIdToCancel,
+    payer: walletPublicKey,
+    order: orderAddressToCancel,
   }),
 });
 
 const cancelResult = await response.json();
-// Returns: { transaction, ... }
+// Returns: { transaction, requestId }
+```
+
+### POST /cancelOrders — Batch Cancel
+
+Cancel multiple orders in a single transaction:
+
+```typescript
+const response = await fetch('https://api.jup.ag/trigger/v1/cancelOrders', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    payer: walletPublicKey,
+    orders: [orderAddress1, orderAddress2],
+  }),
+});
+
+const cancelResult = await response.json();
+// Returns: { transaction, requestId }
+```
+
+### POST /execute — Submit Signed Transaction
+
+After signing a transaction from `/createOrder` or `/cancelOrder`, submit it back to Jupiter:
+
+```typescript
+const executeResponse = await fetch('https://api.jup.ag/trigger/v1/execute', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    signedTransaction: base64SignedTx,
+    requestId: result.requestId, // From /createOrder or /cancelOrder
+  }),
+});
 ```
 
 ---
 
 ## Transaction Flow
 
-All Trigger API responses that modify state return a `transaction` field (base64-encoded). You must:
+All Trigger API responses that modify state return `transaction` (base64-encoded) and `requestId`. You must:
 
 1. Deserialize the transaction
-2. Sign with the maker's keypair
-3. Submit via Helius Sender (see `references/helius-sender.md`)
+2. Sign with the payer's keypair
+3. Submit via `/execute` or Helius Sender (see `references/helius-sender.md`)
 
 ```typescript
 import { VersionedTransaction, Keypair } from '@solana/web3.js';
 
-const txBuffer = Buffer.from(order.transaction, 'base64');
+const txBuffer = Buffer.from(result.transaction, 'base64');
 const transaction = VersionedTransaction.deserialize(txBuffer);
 transaction.sign([keypair]);
 
-// Submit via Helius Sender
+// Option A: Submit via Jupiter /execute
+const signedTx = Buffer.from(transaction.serialize()).toString('base64');
+await fetch('https://api.jup.ag/trigger/v1/execute', {
+  method: 'POST',
+  headers: {
+    'x-api-key': process.env.JUPITER_API_KEY!,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    signedTransaction: signedTx,
+    requestId: result.requestId,
+  }),
+});
+
+// Option B: Submit via Helius Sender
 const SENDER_URL = `https://sender.helius-rpc.com/fast?api-key=${HELIUS_API_KEY}`;
 const sendRes = await fetch(SENDER_URL, {
   method: 'POST',
@@ -4339,10 +4600,13 @@ const sendRes = await fetch(SENDER_URL, {
 
 ## Common Pitfalls
 
-1. **Amounts are in atomic units** — 1 SOL = 1_000_000_000 lamports, 1 USDC = 1_000_000
-2. **takingAmount sets the limit price** — It's the minimum output, not the exact output
-3. **Orders may partially fill** — Check order status for partial fills
-4. **GTC orders persist indefinitely** — Set `expiredAt` if the user wants time-limited orders
+1. **Minimum $5 order value** — Orders below this are rejected
+2. **Amounts are in atomic units** — 1 SOL = 1_000_000_000 lamports, 1 USDC = 1_000_000
+3. **takingAmount sets the limit price** — It's the minimum output, not the exact output
+4. **Orders may partially fill** — Check order status for partial fills
+5. **GTC orders persist indefinitely** — Set `expiredAt` if the user wants time-limited orders
+6. **Params are nested** — `inputMint`, `outputMint`, etc. go inside `params`, not at the top level
+7. **Use `payer` not `maker`** — The top-level field is `payer`
 
 ---
 

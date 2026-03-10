@@ -11,7 +11,7 @@ Jupiter API key setup, authentication requirements, and rate limiting behavior f
 All Jupiter REST endpoints require authentication via the `x-api-key` header.
 
 1. Go to [portal.jup.ag](https://portal.jup.ag/)
-2. Connect your wallet
+2. Sign in with your email
 3. Generate an API key
 4. Store it securely — never commit to git
 
@@ -110,10 +110,10 @@ Jupiter provides these API families, all under `https://api.jup.ag`:
 | Ultra Swap | `/ultra/v1` | Token swaps with optimized routing |
 | Trigger | `/trigger/v1` | Limit orders |
 | Recurring | `/recurring/v1` | DCA orders |
-| Tokens | `/tokens/v1` | Token search and metadata |
-| Price | `/price/v2` | Token prices |
+| Tokens | `/tokens/v2` | Token search and metadata |
+| Price | `/price/v3` | Token prices |
 | Portfolio | `/portfolio/v1` | Position tracking (beta) |
-| Prediction Markets | `/markets/v1` | Event markets (beta, geo-restricted) |
+| Prediction Markets | `/prediction/v1` | Event markets (beta, geo-restricted) |
 | Send | `/send/v1` | Token transfers (beta) |
 | Studio | `/studio/v1` | Token creation (beta) |
 | Lend (REST) | `/lend/v1` | Lending operations |

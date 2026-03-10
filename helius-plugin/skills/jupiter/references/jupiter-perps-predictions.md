@@ -65,7 +65,7 @@ Jupiter aggregates prediction markets from Polymarket and Kalshi, allowing users
 ### Base URL & Auth
 
 ```
-Base: https://api.jup.ag/markets/v1
+Base: https://api.jup.ag/prediction/v1
 Auth: x-api-key header (required)
 ```
 
@@ -74,7 +74,7 @@ Auth: x-api-key header (required)
 #### GET /events — List Events
 
 ```typescript
-const response = await fetch('https://api.jup.ag/markets/v1/events', {
+const response = await fetch('https://api.jup.ag/prediction/v1/events', {
   headers: { 'x-api-key': process.env.JUPITER_API_KEY! },
 });
 
@@ -86,7 +86,7 @@ const events = await response.json();
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/markets/${marketId}`,
+  `https://api.jup.ag/prediction/v1/markets/${marketId}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -98,7 +98,7 @@ const market = await response.json();
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/orderbook/${marketId}`,
+  `https://api.jup.ag/prediction/v1/orderbook/${marketId}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -109,7 +109,7 @@ const orderbook = await response.json();
 #### POST /orders — Place Order
 
 ```typescript
-const response = await fetch('https://api.jup.ag/markets/v1/orders', {
+const response = await fetch('https://api.jup.ag/prediction/v1/orders', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.JUPITER_API_KEY!,
@@ -117,9 +117,11 @@ const response = await fetch('https://api.jup.ag/markets/v1/orders', {
   },
   body: JSON.stringify({
     marketId,
-    side: 'YES', // or 'NO'
-    amount: '1000000', // USDC atomic units
-    wallet: walletPublicKey,
+    isYes: true, // true for YES, false for NO
+    isBuy: true, // true for buy, false for sell
+    depositAmount: '1000000', // USDC atomic units
+    depositMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    ownerPubkey: walletPublicKey,
   }),
 });
 
@@ -131,7 +133,7 @@ const order = await response.json();
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/positions?wallet=${walletPublicKey}`,
+  `https://api.jup.ag/prediction/v1/positions?ownerPubkey=${walletPublicKey}`,
   { headers: { 'x-api-key': process.env.JUPITER_API_KEY! } }
 );
 
@@ -145,10 +147,16 @@ After an event resolves, claim winnings:
 
 ```typescript
 const response = await fetch(
-  `https://api.jup.ag/markets/v1/positions/${positionPubkey}/claim`,
+  `https://api.jup.ag/prediction/v1/positions/${positionPubkey}/claim`,
   {
     method: 'POST',
-    headers: { 'x-api-key': process.env.JUPITER_API_KEY! },
+    headers: {
+      'x-api-key': process.env.JUPITER_API_KEY!,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ownerPubkey: walletPublicKey,
+    }),
   }
 );
 
@@ -176,6 +184,6 @@ const claim = await response.json();
 
 ## Resources
 
-- Jupiter Perps Docs: [dev.jup.ag/docs/perpetuals](https://dev.jup.ag/docs/perpetuals)
+- Jupiter Perps Docs: [dev.jup.ag/docs/perps](https://dev.jup.ag/docs/perps)
 - Jupiter Prediction Markets: [dev.jup.ag/docs/prediction](https://dev.jup.ag/docs/prediction)
 - Perps Program: `PERPHjGBqRHArX4DySjwM6UJHiR3sWAatqfdBS2qQJu`
