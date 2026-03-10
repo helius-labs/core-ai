@@ -9,6 +9,7 @@ import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOpt
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
 import { PLAN_CATALOG } from "../lib/checkout.js";
 import { sendDiscoveryEvent } from "../lib/feedback.js";
+import { validateSignupPlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -84,6 +85,20 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = options.json ? null : ora();
 
   try {
+    // Validate plan and period upfront
+    if (options.plan) {
+      const planErr = validateSignupPlan(options.plan);
+      if (planErr) exitWithError("INVALID_INPUT", planErr, undefined, options.json);
+    }
+    if (options.period) {
+      const periodErr = validatePeriod(options.period);
+      if (periodErr) exitWithError("INVALID_INPUT", periodErr, undefined, options.json);
+    }
+    if (options.email) {
+      const emailErr = validateEmail(options.email);
+      if (emailErr) exitWithError("INVALID_INPUT", emailErr, undefined, options.json);
+    }
+
     // Auto-generate keypair if none exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
