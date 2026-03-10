@@ -7,6 +7,7 @@ import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
 import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
+import { validateUpgradePlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
 interface UpgradeOptions extends OutputOptions {
   keypair: string;
@@ -33,17 +34,13 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
   const spinner = options.json ? null : ora();
 
   try {
-    // Validate plan name
+    // Validate plan, period, and email upfront
     const planKey = options.plan.toLowerCase();
-    if (!PLAN_CATALOG[planKey]) {
-      const available = Object.keys(PLAN_CATALOG).join(", ");
-      if (options.json) {
-        exitWithError("API_ERROR", `Unknown plan: ${options.plan}. Available: ${available}`, undefined, options.json);
-      }
-      console.error(chalk.red(`Unknown plan: ${options.plan}`));
-      console.error(chalk.gray(`Available plans: ${available}`));
-      process.exit(ExitCode.GENERAL_ERROR);
-    }
+    const planErr = validateUpgradePlan(options.plan);
+    if (planErr) exitWithError("INVALID_INPUT", planErr, undefined, options.json);
+
+    const periodErr = validatePeriod(options.period);
+    if (periodErr) exitWithError("INVALID_INPUT", periodErr, undefined, options.json);
 
     // All-or-none customer info validation
     const hasAnyCustomerInfo = options.email || options.firstName || options.lastName;
@@ -53,22 +50,12 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
         !options.firstName && "firstName",
         !options.lastName && "lastName",
       ].filter(Boolean);
-      const msg = `Partial customer info provided. If any of --email/--first-name/--last-name is given, all three are required. Missing: ${missing.join(", ")}`;
-      if (options.json) {
-        exitWithError("VALIDATION_ERROR", msg, undefined, options.json);
-      }
-      console.error(chalk.red(msg));
-      process.exit(ExitCode.GENERAL_ERROR);
+      exitWithError("INVALID_INPUT", `Partial customer info. If any of --email/--first-name/--last-name is given, all three are required. Missing: ${missing.join(", ")}`, undefined, options.json);
     }
 
-    // Basic email format validation
-    if (options.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(options.email)) {
-      const msg = `Invalid email format: ${options.email}`;
-      if (options.json) {
-        exitWithError("VALIDATION_ERROR", msg, undefined, options.json);
-      }
-      console.error(chalk.red(msg));
-      process.exit(ExitCode.GENERAL_ERROR);
+    if (options.email) {
+      const emailErr = validateEmail(options.email);
+      if (emailErr) exitWithError("INVALID_INPUT", emailErr, undefined, options.json);
     }
 
     // Check keypair exists
