@@ -11,13 +11,23 @@ export async function statusCommand(options: OutputOptions = {}): Promise<void> 
   try {
     const jwt = getJwt();
     if (!jwt) {
-      exitWithError("NOT_LOGGED_IN", "Not logged in. Run `helius login` or `helius signup` first.", undefined, options.json);
+      if (options.json) {
+        exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, true);
+      }
+      console.log(chalk.red("Not logged in. Run `helius login` or `helius signup` first."));
+      process.exit(ExitCode.NOT_LOGGED_IN);
     }
 
     spinner?.start("Fetching account status...");
     const projects = await listProjects(jwt);
     if (projects.length === 0) {
-      exitWithError("NO_PROJECTS", "No projects found. Run `helius signup` to create an account.", undefined, options.json);
+      spinner?.stop();
+      if (options.json) {
+        exitWithError("NO_PROJECTS", "No projects found", undefined, true);
+      }
+      console.log(chalk.yellow("No projects found."));
+      console.log(chalk.gray("Run `helius signup` to create your first project."));
+      process.exit(ExitCode.NO_PROJECTS);
     }
 
     const project = projects[0];
