@@ -2,9 +2,7 @@ import chalk from "chalk";
 import { PLAN_CATALOG } from "../lib/checkout.js";
 import { outputJson, type OutputOptions } from "../lib/output.js";
 
-interface PlansOptions extends OutputOptions {}
-
-export function plansCommand(options: PlansOptions = {}): void {
+export function plansCommand(options: OutputOptions = {}): void {
   // The "basic" plan in signup is the Agent tier ($1 one-time signup fee)
   const plans = [
     {
