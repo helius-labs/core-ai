@@ -25,6 +25,8 @@ src/
     signup.ts          # account signup (existing)
     login.ts           # wallet auth (existing)
     projects.ts        # list projects (existing)
+    plans.ts           # list available plans and pricing
+    status.ts          # account status: plan, credits, billing cycle
     ...
   lib/
     helius.ts          # SDK client wrapper — resolveApiKey(), getClient(), restRequest(), HeliusHttpError
