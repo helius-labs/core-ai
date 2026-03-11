@@ -273,8 +273,8 @@ export function registerAuthTools(server: McpServer) {
 
         let balanceBlock =
           `**Signup Wallet Balance** (\`${address}\`)\n\n` +
-          `- **SOL:** ${solAmount.toFixed(6)} (insufficient)\n` +
-          `- **USDC:** ${usdcAmount.toFixed(2)} (insufficient)\n\n` +
+          `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient)'}\n` +
+          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient for basic)' : '(insufficient)'}\n\n` +
           `**Status:** Need more funds: ${missing.join(', ')}`;
 
         if (insufficientBalanceChecks === 1) {
