@@ -28,13 +28,24 @@ const MCP_OUT = join(ROOT, "helius-mcp", "system-prompts");
 interface SkillConfig {
   /** Directory name under helius-skills/ */
   dir: string;
+  /** Directory name under helius-plugin/skills/ and helius-cursor/skills/ */
+  pluginDir: string;
   /** Enhanced multi-line description for Codex implicit invocation */
   enhancedDescription: string;
 }
 
+const PLUGIN_DIR = join(ROOT, "helius-plugin", "skills");
+const CURSOR_DIR = join(ROOT, "helius-cursor", "skills");
+
+/** Load skill versions from versions.json (single source of truth). */
+const VERSIONS: Record<string, string> = JSON.parse(
+  readFileSync(join(ROOT, "versions.json"), "utf-8")
+);
+
 const SKILLS: SkillConfig[] = [
   {
     dir: "helius",
+    pluginDir: "build",
     enhancedDescription: `Build Solana applications with Helius infrastructure. Use this skill when:
   sending transactions (SOL, SPL tokens, swaps), querying assets/NFTs (DAS API),
   streaming real-time data (WebSockets, Laserstream), setting up webhooks for
@@ -43,6 +54,7 @@ const SKILLS: SkillConfig[] = [
   },
   {
     dir: "helius-dflow",
+    pluginDir: "dflow",
     enhancedDescription: `Build Solana trading applications combining DFlow trading APIs with Helius
   infrastructure. Use this skill when: building swap UIs or trading terminals,
   integrating spot crypto swaps (imperative and declarative), trading on
@@ -52,6 +64,7 @@ const SKILLS: SkillConfig[] = [
   },
   {
     dir: "helius-phantom",
+    pluginDir: "phantom",
     enhancedDescription: `Build frontend Solana applications with Phantom Connect SDK and Helius
   infrastructure. Use this skill when: connecting Phantom wallet in React,
   React Native, or vanilla JS apps, signing and submitting transactions via
@@ -61,6 +74,7 @@ const SKILLS: SkillConfig[] = [
   },
   {
     dir: "svm",
+    pluginDir: "svm",
     enhancedDescription: `Explore Solana's architecture and protocol internals. Use this skill when:
   understanding the SVM execution engine, learning about the account model and
   PDAs, exploring consensus (Proof of History, Tower BFT), researching
@@ -88,10 +102,31 @@ function extractName(frontmatter: string): string {
   return match ? match[1].trim() : "unknown";
 }
 
-/** Build Codex-compatible frontmatter (name + enhanced description only). */
-function buildCodexFrontmatter(name: string, enhancedDesc: string): string {
+/** Inject or update the version field in YAML frontmatter. */
+function injectVersion(frontmatter: string, version: string): string {
+  // If metadata.version exists, replace it
+  if (/^\s+version:\s*.+$/m.test(frontmatter)) {
+    return frontmatter.replace(
+      /^(\s+version:\s*).+$/m,
+      `$1"${version}"`
+    );
+  }
+  // If metadata block exists, append version to it
+  if (/^metadata:\s*$/m.test(frontmatter)) {
+    return frontmatter.replace(
+      /^(metadata:\s*)$/m,
+      `$1\n  version: "${version}"`
+    );
+  }
+  // Otherwise append a metadata block
+  return `${frontmatter}\nmetadata:\n  version: "${version}"`;
+}
+
+/** Build Codex-compatible frontmatter (name + enhanced description + version). */
+function buildCodexFrontmatter(name: string, enhancedDesc: string, version: string): string {
   return `---
 name: ${name}
+version: "${version}"
 description: >
   ${enhancedDesc}
 ---`;
@@ -169,9 +204,10 @@ function renameHeadings(body: string): string {
 }
 
 /** Build the OpenAI API preamble (Layer A harness for openai.developer.md). */
-function buildOpenAIPreamble(skillName: string): string {
+function buildOpenAIPreamble(skillName: string, version: string): string {
   return `<!-- Generated from helius-skills/${skillName}/SKILL.md — do not edit -->
 <!-- OpenAI Responses / Chat Completions API — use as a \`developer\` message -->
+<!-- Version: ${version} -->
 
 ## Runtime Notes
 
@@ -184,9 +220,10 @@ function buildOpenAIPreamble(skillName: string): string {
 }
 
 /** Build the Claude API preamble (Layer A harness for claude.system.md). */
-function buildClaudePreamble(skillName: string): string {
+function buildClaudePreamble(skillName: string, version: string): string {
   return `<!-- Generated from helius-skills/${skillName}/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
+<!-- Version: ${version} -->
 
 ## Runtime Notes
 
@@ -262,14 +299,27 @@ function compileSkill(config: SkillConfig): void {
   const raw = readFileSync(skillMdPath, "utf-8");
   const { frontmatter, body } = parseFrontmatter(raw);
   const name = extractName(frontmatter);
+  const version = VERSIONS[config.dir];
+  if (!version) {
+    console.error(`  SKIP: no version in versions.json for "${config.dir}"`);
+    return;
+  }
   const generationHeader = `<!-- Generated from helius-skills/${config.dir}/SKILL.md — do not edit -->\n\n`;
+
+  // --- Update canonical SKILL.md version from versions.json ---
+  const updatedFrontmatter = injectVersion(frontmatter, version);
+  const updatedCanonical = `---\n${updatedFrontmatter}\n---\n${body}`;
+  if (updatedCanonical !== raw) {
+    writeFileSync(skillMdPath, updatedCanonical);
+    console.log(`  ↻ ${config.dir}/SKILL.md version → ${version}`);
+  }
 
   // --- Apply transforms ---
   let transformed = stripClaudeSpecific(body);
   transformed = renameHeadings(transformed);
 
   // --- Codex SKILL.md ---
-  const codexFrontmatter = buildCodexFrontmatter(name, config.enhancedDescription);
+  const codexFrontmatter = buildCodexFrontmatter(name, config.enhancedDescription, version);
   const codexSkillMd = `${codexFrontmatter}\n${transformed}`;
 
   // --- Prompt variants ---
@@ -277,17 +327,18 @@ function compileSkill(config: SkillConfig): void {
 
   // openai.developer.md
   const openaiContent =
-    buildOpenAIPreamble(config.dir) +
+    buildOpenAIPreamble(config.dir, version) +
     wrapWithDelimiters(name, compactBody);
 
   // claude.system.md
   const claudeContent =
-    buildClaudePreamble(config.dir) +
+    buildClaudePreamble(config.dir, version) +
     wrapWithDelimiters(name, compactBody);
 
   // full.md (all references inlined, no frontmatter — targets Cursor Rules / ChatGPT)
   const fullBody = inlineReferences(transformed, refsDir);
-  const fullContent = generationHeader + fullBody;
+  const fullVersionHeader = `<!-- Generated from helius-skills/${config.dir}/SKILL.md — do not edit -->\n<!-- Version: ${version} -->\n\n`;
+  const fullContent = fullVersionHeader + fullBody;
 
   // --- Write outputs ---
   const agentsSkillDir = join(AGENTS_OUT, config.dir);
@@ -325,12 +376,26 @@ function compileSkill(config: SkillConfig): void {
   writeFileSync(join(mcpSkillDir, "claude.system.md"), claudeContent);
   writeFileSync(join(mcpSkillDir, "full.md"), fullContent);
 
+  // --- Sync version into plugin/cursor SKILL.md copies ---
+  for (const destRoot of [PLUGIN_DIR, CURSOR_DIR]) {
+    const destSkillMd = join(destRoot, config.pluginDir, "SKILL.md");
+    if (!existsSync(destSkillMd)) continue;
+    const destRaw = readFileSync(destSkillMd, "utf-8");
+    const destParsed = parseFrontmatter(destRaw);
+    const destUpdatedFm = injectVersion(destParsed.frontmatter, version);
+    const destUpdated = `---\n${destUpdatedFm}\n---\n${destParsed.body}`;
+    if (destUpdated !== destRaw) {
+      writeFileSync(destSkillMd, destUpdated);
+      console.log(`  ↻ ${relative(ROOT, destSkillMd)} version → ${version}`);
+    }
+  }
+
   // Count refs for summary
   const refCount = existsSync(refsDir)
     ? readdirSync(refsDir).filter((f) => f.endsWith(".md")).length
     : 0;
 
-  console.log(`  ✓ ${config.dir} (${refCount} refs, 3 prompts)`);
+  console.log(`  ✓ ${config.dir} v${version} (${refCount} refs, 3 prompts)`);
 }
 
 function main(): void {

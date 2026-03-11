@@ -1,6 +1,8 @@
 ---
 name: phantom
 description: Build frontend Solana applications with Phantom Connect SDK and Helius infrastructure. Covers React, React Native, and browser SDK integration, transaction signing via Helius Sender, API key proxying, token gating, NFT minting, crypto payments, real-time updates, and secure frontend architecture.
+metadata:
+  version: "1.0.0"
 ---
 
 # Helius x Phantom — Build Frontend Solana Apps

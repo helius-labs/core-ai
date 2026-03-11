@@ -1,4 +1,5 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
+<!-- Version: 1.0.0 -->
 
 
 # Helius — Build on Solana
