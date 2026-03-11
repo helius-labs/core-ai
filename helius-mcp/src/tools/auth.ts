@@ -26,6 +26,10 @@ import { HELIUS_PLANS } from './plans.js';
 
 const PAID_PLAN_ORDER = ['developer', 'business', 'professional'] as const;
 
+/** Tracks consecutive insufficient-balance checks to prevent agent polling loops. */
+let insufficientBalanceChecks = 0;
+const MAX_BALANCE_CHECKS_BEFORE_STOP = 3;
+
 export function registerAuthTools(server: McpServer) {
   // ── Getting Started Guide ──
 
@@ -166,6 +170,9 @@ export function registerAuthTools(server: McpServer) {
     {},
     async () => {
       try {
+        // Reset balance-check counter for fresh signup flow
+        insufficientBalanceChecks = 0;
+
         // Check disk first — reuse existing keypair if available
         const existingKey = loadKeypairFromDisk();
         if (existingKey) {
@@ -243,22 +250,53 @@ export function registerAuthTools(server: McpServer) {
         const solOk = solBalance >= 1_000_000n;
         const usdcOk = usdcBalance >= 1_000_000n; // 1 USDC for basic plan
 
-        let status: string;
-        if (solOk && usdcOk) {
-          status = 'Ready for signup (basic plan). For paid plans, ensure sufficient USDC for the plan price.';
-        } else {
-          const missing: string[] = [];
-          if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
-          if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
-          status = `Need more funds: ${missing.join(', ')}`;
+        const funded = solOk && usdcOk;
+
+        // Reset counter when balance is sufficient
+        if (funded) {
+          insufficientBalanceChecks = 0;
+          return mcpText(
+            `**Signup Wallet Balance** (\`${address}\`)\n\n` +
+            `- **SOL:** ${solAmount.toFixed(6)} (sufficient)\n` +
+            `- **USDC:** ${usdcAmount.toFixed(2)} (sufficient for basic)\n\n` +
+            `**Status:** Ready for signup (basic plan). For paid plans, ensure sufficient USDC for the plan price.\n\n` +
+            `Call \`agenticSignup\` to proceed.`
+          );
         }
 
-        return mcpText(
+        // Insufficient — increment counter and escalate guidance
+        insufficientBalanceChecks++;
+
+        const missing: string[] = [];
+        if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
+        if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
+
+        let balanceBlock =
           `**Signup Wallet Balance** (\`${address}\`)\n\n` +
           `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient)'}\n` +
           `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient for basic)' : '(insufficient)'}\n\n` +
-          `**Status:** ${status}`
-        );
+          `**Status:** Need more funds: ${missing.join(', ')}`;
+
+        if (insufficientBalanceChecks === 1) {
+          // First check — normal guidance
+          balanceBlock +=
+            `\n\n**Action required:** Ask the user to send the missing funds to \`${address}\`. ` +
+            `Do **not** call \`checkSignupBalance\` again until the user confirms they have sent the funds.`;
+        } else if (insufficientBalanceChecks < MAX_BALANCE_CHECKS_BEFORE_STOP) {
+          // Second check — firmer nudge
+          balanceBlock +=
+            `\n\n**⚠ Balance still insufficient (check ${insufficientBalanceChecks}/${MAX_BALANCE_CHECKS_BEFORE_STOP}).** ` +
+            `The wallet has not been funded yet. Ask the user to confirm they have sent funds to \`${address}\` before calling this tool again.`;
+        } else {
+          // Third+ check — hard stop
+          balanceBlock +=
+            `\n\n**🛑 Balance checked ${insufficientBalanceChecks} times — still insufficient. Stop polling.** ` +
+            `The wallet \`${address}\` has not received funds. ` +
+            `Tell the user the exact amounts needed and the wallet address, then **wait for the user to explicitly confirm** they have sent funds before calling \`checkSignupBalance\` again. ` +
+            `Do not retry automatically.`;
+        }
+
+        return mcpText(balanceBlock);
       } catch (err) {
         return handleToolError(err, 'Error checking balances');
       }
