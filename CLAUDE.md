@@ -46,6 +46,14 @@ The SVM skill (`helius-skills/svm/`, `helius-plugin/skills/svm/`, and `helius-cu
 - The SVM skill contains 10 reference files: compilation, programs, execution, accounts, transactions, consensus, validators, data, development, tokens.
 - When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to both `helius-plugin/skills/svm/references/` and `helius-cursor/skills/svm/references/`.
 
+## Skill Versioning
+
+Skill versions are managed via `versions.json` at the repo root (single source of truth). The compiler reads this file and injects versions into all SKILL.md copies and prompt variants.
+
+- **To bump a version**: edit `versions.json`, then run `npx tsx scripts/compile-skills.ts`
+- The compiler updates: canonical `helius-skills/*/SKILL.md`, plugin/cursor copies, Codex SKILL.md, and all prompt variants (openai/claude/full)
+- Versions follow semver (`major.minor.patch`)
+
 ## Generated Output
 
 The following directories are **generated** by `npx tsx scripts/compile-skills.ts` from canonical sources in `helius-skills/`. Do not edit them directly.

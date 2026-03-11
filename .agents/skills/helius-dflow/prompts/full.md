@@ -1,4 +1,5 @@
 <!-- Generated from helius-skills/helius-dflow/SKILL.md — do not edit -->
+<!-- Version: 1.0.0 -->
 
 
 # Helius x DFlow — Build Trading Apps on Solana

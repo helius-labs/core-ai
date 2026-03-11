@@ -1,4 +1,5 @@
 <!-- Generated from helius-skills/helius-phantom/SKILL.md — do not edit -->
+<!-- Version: 1.0.0 -->
 
 
 # Helius x Phantom — Build Frontend Solana Apps

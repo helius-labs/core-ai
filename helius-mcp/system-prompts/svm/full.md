@@ -1,4 +1,5 @@
 <!-- Generated from helius-skills/svm/SKILL.md — do not edit -->
+<!-- Version: 1.0.0 -->
 
 
 # SVM — Understand Solana's Architecture

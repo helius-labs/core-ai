@@ -2,6 +2,7 @@
 
 ---
 name: svm
+version: "1.0.0"
 description: >
   Explore Solana's architecture and protocol internals. Use this skill when:
   understanding the SVM execution engine, learning about the account model and

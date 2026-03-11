@@ -3,7 +3,7 @@ name: svm
 description: Explore Solana's architecture and protocol internals. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, development tooling, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
 metadata:
   author: Helius Labs
-  version: "0.1.0"
+  version: "1.0.0"
   mcp-server: helius-mcp
 ---
 

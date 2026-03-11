@@ -4,7 +4,7 @@ description: Build Solana trading applications combining DFlow trading APIs with
 license: MIT
 metadata:
   author: Helius Labs
-  version: "0.1.0"
+  version: "1.0.0"
   tags:
     - solana
     - trading

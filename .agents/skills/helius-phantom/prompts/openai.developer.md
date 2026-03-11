@@ -1,5 +1,6 @@
 <!-- Generated from helius-skills/helius-phantom/SKILL.md — do not edit -->
 <!-- OpenAI Responses / Chat Completions API — use as a `developer` message -->
+<!-- Version: 1.0.0 -->
 
 ## Runtime Notes
 
