@@ -258,7 +258,7 @@ function inlineReferences(body: string, refsDir: string): string {
   if (!existsSync(refsDir)) return body;
 
   const refFiles = readdirSync(refsDir)
-    .filter((f: any) => f.endsWith(".md"))
+    .filter((f: string) => f.endsWith(".md"))
     .sort();
 
   if (refFiles.length === 0) return body;
@@ -392,7 +392,7 @@ function compileSkill(config: SkillConfig): void {
 
   // Count refs for summary
   const refCount = existsSync(refsDir)
-    ? readdirSync(refsDir).filter((f: any) => f.endsWith(".md")).length
+    ? readdirSync(refsDir).filter((f: string) => f.endsWith(".md")).length
     : 0;
 
   console.log(`  ✓ ${config.dir} v${version} (${refCount} refs, 3 prompts)`);
