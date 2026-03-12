@@ -59,7 +59,7 @@ Identify what the user is building, then read the relevant reference files befor
 **Read**: `references/laserstream.md` OR `references/websockets.md`
 **MCP tools**: `transactionSubscribe`, `accountSubscribe`, `laserstreamSubscribe`
 **When**: real-time monitoring, live dashboards, alerting, trading apps, block/slot streaming, indexing, program/account tracking
-Enhanced WebSockets (Business+) for most needs; Laserstream gRPC (Professional) for lowest latency and replay.
+Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mainnet) for lowest latency and replay.
 
 ### Event Pipelines (Webhooks)
 **Read**: `references/webhooks.md`

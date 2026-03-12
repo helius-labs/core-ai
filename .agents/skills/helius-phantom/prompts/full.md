@@ -1798,9 +1798,9 @@ The agentic signup flow uses these plan tiers (all paid in USDC):
 | **RPC RPS** | 10 | 50 | 200 | 500 |
 | **sendTransaction** | 1/s | 5/s | 50/s | 100/s |
 | **DAS** | 2/s | 10/s | 50/s | 100/s |
-| **WS connections** | 5 | 150 | 250 | 250 |
-| **Enhanced WS** | No | No | 100 conn | 100 conn |
-| **LaserStream** | No | Devnet | Devnet | Full (mainnet + devnet) |
+| **WS connections** | 5 | 150 | 250 | 1,000 |
+| **Enhanced WS** | No | 150 conn | 250 conn | 1,000 conn |
+| **LaserStream** | No | Devnet | Devnet + Mainnet | Devnet + Mainnet |
 | **Support** | Discord | Chat (24hr) | Priority (12hr) | Slack + Telegram (8hr) |
 
 The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but agentic signup charges $1 USDC to create the account on-chain.
@@ -1809,7 +1809,7 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 
 - **0 credits**: Helius Sender (sendSmartTransaction, sendJitoBundle)
 - **1 credit**: Standard RPC calls, sendTransaction, Priority Fee API, webhook events
-- **3 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets)
+- **2 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets, Standard WebSockets)
 - **10 credits**: getProgramAccounts, DAS API, historical data
 - **100 credits**: Enhanced Transactions API, Wallet API, webhook management
 
@@ -1819,10 +1819,10 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 |---|---|
 | Standard RPC, DAS, Webhooks, Sender | Basic |
 | Standard WebSockets | Basic |
-| Enhanced WebSockets | Business |
+| Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
-| LaserStream (mainnet) | Professional |
-| LaserStream data add-ons | Professional ($500+/mo) |
+| LaserStream (mainnet) | Business |
+| LaserStream data add-ons | Professional ($400+/mo) |
 
 Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current details.
 
@@ -2695,12 +2695,12 @@ Helius provides two WebSocket tiers on the same endpoint:
 | | Standard WebSockets | Enhanced WebSockets |
 |---|---|---|
 | Methods | Solana native: `accountSubscribe`, `logsSubscribe`, `programSubscribe`, `signatureSubscribe`, `slotSubscribe`, `rootSubscribe` | `transactionSubscribe`, `accountSubscribe` with advanced filtering and auto-parsing |
-| Plan required | Free+ (all plans) | Business+ |
+| Plan required | Free+ (all plans) | Developer+ |
 | Filtering | Basic (single account or program) | Up to 50,000 addresses per filter, include/exclude/required logic |
 | Parsing | Raw Solana data | Automatic transaction parsing (type, description, tokenTransfers) |
 | Latency | Good | Faster (powered by LaserStream infrastructure) |
-| Credits | 3 credits per 0.1 MB streamed | 3 credits per 0.1 MB streamed |
-| Max connections | Plan-dependent | 250 concurrent (Business/Professional) |
+| Credits | 2 credits per 0.1 MB streamed | 2 credits per 0.1 MB streamed |
+| Max connections | Plan-dependent | Up to 1,000 concurrent (plan-dependent) |
 
 Both tiers use the same endpoints:
 - **Mainnet**: `wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY`
@@ -2726,13 +2726,13 @@ Standard WebSocket subscriptions do not have MCP tools — generate the code dir
 
 | You want to... | Use |
 |---|---|
-| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Business+) |
-| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Business+) |
+| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Developer+) |
+| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Developer+) |
 | Monitor program account changes | Standard `programSubscribe` (Free+) |
 | Watch for transaction confirmation | Standard `signatureSubscribe` (Free+) |
 | Track slot/root progression | Standard `slotSubscribe` / `rootSubscribe` (Free+) |
 | Monitor transaction logs | Standard `logsSubscribe` (Free+) |
-| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Business+) |
+| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Developer+) |
 | Need historical replay or 10M+ addresses | LaserStream (see Helius docs at `docs.helius.dev`) |
 | Need push notifications without persistent connection | Webhooks (see Helius docs at `docs.helius.dev`) |
 
@@ -3034,7 +3034,7 @@ For Standard WebSockets:
 
 | Feature | Standard WS | Enhanced WS | LaserStream | Webhooks |
 |---|---|---|---|---|
-| Plan | Free+ | Business+ | Professional+ | Free+ |
+| Plan | Free+ | Developer+ | Business+ (mainnet) | Free+ |
 | Protocol | WebSocket | WebSocket | gRPC | HTTP POST |
 | Latency | Good | Faster | Fastest (shred-level) | Variable |
 | Max addresses | 1 per subscription | 50K per filter | 10M | 100K per webhook |
@@ -3045,7 +3045,7 @@ For Standard WebSockets:
 
 **Use Standard WebSockets when**: you're on a Free/Developer plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
 
-**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Business+ plan.
+**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Developer+ plan.
 
 **Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See Helius docs at `docs.helius.dev`.
 
@@ -3068,7 +3068,7 @@ For Standard WebSockets:
 - Not implementing auto-reconnection — WebSocket disconnects are normal and expected
 - Confusing `accountInclude` (OR — any match) with `accountRequired` (AND — all must match)
 - Not setting `maxSupportedTransactionVersion: 0` — misses versioned transactions
-- Using Enhanced WebSocket features on Free/Developer plans — requires Business+
+- Using Enhanced WebSocket features on Free plan — requires Developer+
 - Subscribing without filters on `transactionSubscribe` — streams ALL network transactions, extreme volume
 - Using `blockSubscribe`, `slotsUpdatesSubscribe`, or `voteSubscribe` — these are unstable and not supported on Helius
 - Not handling the subscription confirmation message (first message has `result` field, not notification data)
