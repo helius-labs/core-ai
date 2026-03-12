@@ -407,7 +407,7 @@ await subscribe(
 | Data | Raw on-chain (transactions, accounts) | Market-level (prices, orderbook, trades) |
 | Latency | Shred-level (lowest possible) | Market-level |
 | Use case | Detecting on-chain events, HFT, bots | Price feeds, trading UIs |
-| Plan required | Professional ($999/mo) | DFlow API key |
+| Plan required | Business+ ($499+/mo) | DFlow API key |
 
 **Use both together** for the most competitive trading systems: LaserStream for on-chain signals and fill detection, DFlow WebSockets for market data and orderbook state.
 

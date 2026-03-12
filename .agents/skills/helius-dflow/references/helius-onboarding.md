@@ -114,9 +114,9 @@ The agentic signup flow uses these plan tiers (all paid in USDC):
 | **RPC RPS** | 10 | 50 | 200 | 500 |
 | **sendTransaction** | 1/s | 5/s | 50/s | 100/s |
 | **DAS** | 2/s | 10/s | 50/s | 100/s |
-| **WS connections** | 5 | 150 | 250 | 250 |
-| **Enhanced WS** | No | No | 100 conn | 100 conn |
-| **LaserStream** | No | Devnet | Devnet | Full (mainnet + devnet) |
+| **WS connections** | 5 | 150 | 250 | 1,000 |
+| **Enhanced WS** | No | 150 conn | 250 conn | 1,000 conn |
+| **LaserStream** | No | Devnet | Devnet + Mainnet | Devnet + Mainnet |
 | **Support** | Discord | Chat (24hr) | Priority (12hr) | Slack + Telegram (8hr) |
 
 The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but agentic signup charges $1 USDC to create the account on-chain.
@@ -125,7 +125,7 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 
 - **0 credits**: Helius Sender (sendSmartTransaction, sendJitoBundle)
 - **1 credit**: Standard RPC calls, sendTransaction, Priority Fee API, webhook events
-- **3 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets)
+- **2 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets, Standard WebSockets)
 - **10 credits**: getProgramAccounts, DAS API, historical data
 - **100 credits**: Enhanced Transactions API, Wallet API, webhook management
 
@@ -135,10 +135,10 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 |---|---|
 | Standard RPC, DAS, Webhooks, Sender | Basic |
 | Standard WebSockets | Basic |
-| Enhanced WebSockets | Business |
+| Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
-| LaserStream (mainnet) | Professional |
-| LaserStream data add-ons | Professional ($500+/mo) |
+| LaserStream (mainnet) | Business |
+| LaserStream data add-ons | Business+ ($400+/mo) |
 
 Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current details.
 

@@ -7,12 +7,12 @@ Helius provides two WebSocket tiers on the same endpoint:
 | | Standard WebSockets | Enhanced WebSockets |
 |---|---|---|
 | Methods | Solana native: `accountSubscribe`, `logsSubscribe`, `programSubscribe`, `signatureSubscribe`, `slotSubscribe`, `rootSubscribe` | `transactionSubscribe`, `accountSubscribe` with advanced filtering and auto-parsing |
-| Plan required | Free+ (all plans) | Business+ |
+| Plan required | Free+ (all plans) | Developer+ |
 | Filtering | Basic (single account or program) | Up to 50,000 addresses per filter, include/exclude/required logic |
 | Parsing | Raw Solana data | Automatic transaction parsing (type, description, tokenTransfers) |
 | Latency | Good | Faster (powered by LaserStream infrastructure) |
-| Credits | 3 credits per 0.1 MB streamed | 3 credits per 0.1 MB streamed |
-| Max connections | Plan-dependent | 250 concurrent (Business/Professional) |
+| Credits | 2 credits per 0.1 MB streamed | 2 credits per 0.1 MB streamed |
+| Max connections | Plan-dependent | Up to 1,000 concurrent (plan-dependent) |
 
 Both tiers use the same endpoints:
 - **Mainnet**: `wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY`
@@ -38,13 +38,13 @@ Standard WebSocket subscriptions do not have MCP tools — generate the code dir
 
 | You want to... | Use |
 |---|---|
-| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Business+) |
-| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Business+) |
+| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Developer+) |
+| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Developer+) |
 | Monitor program account changes | Standard `programSubscribe` (Free+) |
 | Watch for transaction confirmation | Standard `signatureSubscribe` (Free+) |
 | Track slot/root progression | Standard `slotSubscribe` / `rootSubscribe` (Free+) |
 | Monitor transaction logs | Standard `logsSubscribe` (Free+) |
-| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Business+) |
+| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Developer+) |
 | Need historical replay or 10M+ addresses | LaserStream (see `references/laserstream.md`) |
 | Need push notifications without persistent connection | Webhooks (see `references/webhooks.md`) |
 
@@ -346,7 +346,7 @@ For Standard WebSockets:
 
 | Feature | Standard WS | Enhanced WS | LaserStream | Webhooks |
 |---|---|---|---|---|
-| Plan | Free+ | Business+ | Professional+ | Free+ |
+| Plan | Free+ | Developer+ | Business+ (mainnet) | Free+ |
 | Protocol | WebSocket | WebSocket | gRPC | HTTP POST |
 | Latency | Good | Faster | Fastest (shred-level) | Variable |
 | Max addresses | 1 per subscription | 50K per filter | 10M | 100K per webhook |
@@ -355,9 +355,9 @@ For Standard WebSockets:
 | Transaction parsing | No | Yes (auto) | No (raw data) | Yes (enhanced type) |
 | Requires public endpoint | No | No | No | Yes |
 
-**Use Standard WebSockets when**: you're on a Free/Developer plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
+**Use Standard WebSockets when**: you're on a Free plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
 
-**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Business+ plan.
+**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Developer+ plan.
 
 **Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See `references/laserstream.md`.
 
@@ -380,7 +380,7 @@ For Standard WebSockets:
 - Not implementing auto-reconnection — WebSocket disconnects are normal and expected
 - Confusing `accountInclude` (OR — any match) with `accountRequired` (AND — all must match)
 - Not setting `maxSupportedTransactionVersion: 0` — misses versioned transactions
-- Using Enhanced WebSocket features on Free/Developer plans — requires Business+
+- Using Enhanced WebSocket features on Free plan — requires Developer+
 - Subscribing without filters on `transactionSubscribe` — streams ALL network transactions, extreme volume
 - Using `blockSubscribe`, `slotsUpdatesSubscribe`, or `voteSubscribe` — these are unstable and not supported on Helius
 - Not handling the subscription confirmation message (first message has `result` field, not notification data)

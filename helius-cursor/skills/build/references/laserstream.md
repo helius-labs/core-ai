@@ -10,8 +10,8 @@ LaserStream is a next-generation gRPC streaming service for Solana data. It is a
 - **Multi-node failover**: redundant node clusters with automatic load balancing
 - **40x faster** than JavaScript Yellowstone clients (Rust core with zero-copy NAPI bindings)
 - **9 global regions** for minimal latency
-- **Mainnet requires Professional plan** ($999/mo); Devnet available on Developer+ plans
-- 3 credits per 0.1 MB of streamed data (uncompressed)
+- **Mainnet requires Business+ plan** ($499+/mo); Devnet available on Developer+ plans
+- 2 credits per 0.1 MB of streamed data (uncompressed)
 
 ## MCP Tools and SDK Workflow
 
@@ -209,7 +209,7 @@ LaserStream also provides standard gRPC utility methods:
 | Latency | Lowest (shred-level) | Low (1.5-2x faster than standard WS) |
 | Historical replay | Yes (24 hours) | No |
 | Auto-reconnect | Built-in with replay | Manual |
-| Plan required | Professional (mainnet) | Business+ |
+| Plan required | Business+ (mainnet) | Developer+ |
 | Max pubkeys | 10M | 50K |
 | Best for | Indexers, bots, high-throughput pipelines | Real-time UIs, dashboards, monitoring |
 | SDK | `helius-laserstream` | Raw WebSocket |
@@ -298,6 +298,6 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 - Using LaserStream for simple real-time features that Enhanced WebSockets can handle (unnecessary complexity)
 - Not setting `from_slot` after reconnection (misses data during the disconnect gap)
 - Subscribing to all transactions without filters (massive data volume and credit burn)
-- Forgetting that mainnet requires the Professional plan
+- Forgetting that mainnet requires at least a Business plan
 - Using `PROCESSED` commitment for financial decisions (can be rolled back)
 - Not choosing the closest regional endpoint (adds unnecessary latency)
