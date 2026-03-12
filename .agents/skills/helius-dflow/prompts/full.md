@@ -3128,7 +3128,7 @@ For Standard WebSockets:
 | Transaction parsing | No | Yes (auto) | No (raw data) | Yes (enhanced type) |
 | Requires public endpoint | No | No | No | Yes |
 
-**Use Standard WebSockets when**: you're on a Free/Developer plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
+**Use Standard WebSockets when**: you're on a Free plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
 
 **Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Developer+ plan.
 
