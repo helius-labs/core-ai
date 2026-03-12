@@ -34,8 +34,8 @@ describe('Helius MCP Tools', () => {
     registerTools(mockServer);
   });
 
-  it('registers 63 tools', () => {
-    expect(tools.size).toBe(63);
+  it('registers 68 tools', () => {
+    expect(tools.size).toBe(68);
   });
 
   it('all tools have descriptions', () => {
