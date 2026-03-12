@@ -60,8 +60,8 @@ const server = new McpServer(
 | batch wallet identity | batchWalletIdentity | 100 |
 | funding source | getWalletFundedBy | 100 |
 | event notifications (any plan) | createWebhook | 100 |
-| live streaming (WS, Business+) | transactionSubscribe, accountSubscribe | — |
-| production streaming (gRPC, Pro) | laserstreamSubscribe | — |
+| live streaming (WS, Developer+) | transactionSubscribe, accountSubscribe | — |
+| production streaming (gRPC, Business+) | laserstreamSubscribe | — |
 | Account setup | getStarted → generateKeypair → agenticSignup | — |
 
 Rules:

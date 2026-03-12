@@ -62,8 +62,8 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'enhanced-websockets': {
     name: 'Enhanced WebSockets',
     mcpTools: ['transactionSubscribe', 'accountSubscribe', 'getEnhancedWebSocketInfo'],
-    creditCostPerCall: '3 credits per 0.1 MB streamed',
-    minimumPlan: 'business',
+    creditCostPerCall: '2 credits per 0.1 MB streamed',
+    minimumPlan: 'developer',
     docKey: 'enhanced-websockets',
     referenceFile: 'references/websockets.md',
     description: 'Real-time transaction and account streaming over persistent WebSocket connections. 1.5-2x faster than standard WebSockets with advanced filtering (up to 50k addresses per filter). Powers live dashboards and real-time UIs.',
@@ -89,7 +89,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'standard-websockets': {
     name: 'Standard WebSockets',
     mcpTools: ['transactionSubscribe'],
-    creditCostPerCall: '3 credits per 0.1 MB streamed',
+    creditCostPerCall: '2 credits per 0.1 MB streamed',
     minimumPlan: 'free',
     docKey: 'websocket',
     referenceFile: 'references/websockets.md',
@@ -98,7 +98,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'laserstream-devnet': {
     name: 'Laserstream (Devnet)',
     mcpTools: ['laserstreamSubscribe', 'getLaserstreamInfo'],
-    creditCostPerCall: '3 credits per 0.1 MB streamed',
+    creditCostPerCall: '2 credits per 0.1 MB streamed',
     minimumPlan: 'developer',
     docKey: 'laserstream',
     referenceFile: 'references/laserstream.md',
@@ -107,8 +107,8 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'laserstream-mainnet': {
     name: 'Laserstream (Mainnet)',
     mcpTools: ['laserstreamSubscribe', 'getLaserstreamInfo'],
-    creditCostPerCall: '3 credits per 0.1 MB streamed',
-    minimumPlan: 'professional',
+    creditCostPerCall: '2 credits per 0.1 MB streamed',
+    minimumPlan: 'business',
     docKey: 'laserstream',
     referenceFile: 'references/laserstream.md',
     description: 'Lowest-latency gRPC streaming with 24h historical replay for production indexers, trading infrastructure, and data pipelines. Subscribe to all transactions, accounts, blocks, or entries on mainnet.',
