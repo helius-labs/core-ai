@@ -11,7 +11,7 @@ export function registerFeeTools(server: McpServer) {
     'BEST FOR: determining optimal priority fees before sending a transaction. Get optimal priority fee estimates for Solana transactions. Returns recommended fees in microlamports for different priority levels (Min, Low, Medium, High, VeryHigh, UnsafeMax). Essential for ensuring transaction confirmation during network congestion. Credit cost: 1 credit (Priority Fee API).',
     {
       accountKeys: z.array(z.string()).optional().describe('Account addresses (base58 encoded) involved in transaction for more accurate estimates'),
-      priorityLevel: z.string().optional().describe('Desired priority level'),
+      priorityLevel: z.string().optional().describe('Desired priority level. Values: "Min", "Low", "Medium", "High", "VeryHigh", "UnsafeMax". Returns the estimated fee in microlamports/compute unit for that level. Used when includeAllLevels is false.'),
       includeAllLevels: z.boolean().optional().default(true).describe('Return fees for all priority levels')
     },
     async ({ accountKeys, priorityLevel, includeAllLevels }) => {
@@ -40,7 +40,7 @@ export function registerFeeTools(server: McpServer) {
 
         if (result.priorityFeeLevels) {
           const levels = result.priorityFeeLevels;
-          lines.push('| Level | Fee (microlamports) |');
+          lines.push('| Level | Fee (microlamports/CU) |');
           lines.push('|-------|-------------------|');
           lines.push(`| Min | ${levels.min.toLocaleString()} |`);
           lines.push(`| Low | ${levels.low.toLocaleString()} |`);
