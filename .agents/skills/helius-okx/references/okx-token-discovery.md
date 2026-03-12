@@ -75,8 +75,10 @@ The most filter-rich command. Returns up to 100 tokens.
 - `--bundle-hold-percent` range, `--suspicious-hold-percent` range
 - `--lp-burnt` flag, `--mintable` flag, `--freeze` flag
 - `--risk-filter`: Filter risky tokens
+- `--stable-token-filter`: Filter stable/wrapped tokens
+- `--project-id` (optional): Filter by protocol/project ID
 
-**Returns additional fields:** `inflowUsd`, `devHoldPercent`, `top10HoldPercent`, `insiderHoldPercent`, `bundleHoldPercent`, `vibeScore`, `mentionsCount`.
+**Returns additional fields:** `inflowUsd`, `devHoldPercent`, `top10HoldPercent`, `insiderHoldPercent`, `bundleHoldPercent`, `vibeScore`, `mentionsCount`, `riskLevelControl`.
 
 ### 6. Token Holders (Top 100)
 
@@ -107,7 +109,9 @@ Returns risk intelligence:
 - `riskControlLevel`: Overall risk rating
 - `totalFee`: Trading fee
 - `lpBurnedPercent`: Percentage of LP tokens burned
-- `bondingCurveProgress`: For pump.fun-style tokens
+- `progress`: Bonding curve progress for pump.fun-style tokens (0-100%)
+- `isInternal`: Whether the token is an internal/protocol token
+- `protocolId`: Protocol identifier (e.g., `pumpfun`, `believe`, `bags`)
 - **Token tags**: `honeypot`, `dexBoost`, `lowLiquidity`, `communityRecognized`, `devHoldingStatus` variants, `smartMoneyBuy`, `devAddLiquidity`, `devBurnToken`, `volumeChangeRate`, `holdersChangeRate`, dexScreener flags
 - Creator address and dev stats: `devRugPullCount`, `devTotalCreatedTokens`, `devLaunchedTokens`
 - Holding analysis: `top10HoldPercent`, `devHoldingPercent`, `bundleHoldingPercent`, `suspiciousHoldingPercent`, `sniperHoldingPercent`

@@ -52,7 +52,7 @@ onchainos market kline \
 
 **Parameters:**
 - `--address` (required): Token mint address (use wSOL address for SOL charts)
-- `--bar` (optional, default `1H`): Candle size — `1s`, `1m`, `5m`, `15m`, `30m`, `1H`, `4H`, `1D`, `1W`
+- `--bar` (optional, default `1H`): Candle size — `1s`, `1m`, `5m`, `15m`, `30m`, `1H`, `4H`, `6H`, `12H`, `1D`, `1W`, `1M`, `3M`
 - `--limit` (optional, default 100, max 299): Number of data points
 - `--chain` (optional, default `ethereum`)
 
@@ -63,7 +63,7 @@ onchainos market kline \
 ### Check Supported Chains
 
 ```bash
-onchainos market portfolio-supported-chains
+onchainos portfolio supported-chains
 ```
 
 Verify Solana is in the supported list before calling PnL endpoints.
@@ -71,7 +71,7 @@ Verify Solana is in the supported list before calling PnL endpoints.
 ### Portfolio Overview
 
 ```bash
-onchainos market portfolio-overview --address <WALLET_ADDRESS> --chain solana --time-frame 7d
+onchainos portfolio overview --address <WALLET_ADDRESS> --chain solana --time-frame 7d
 ```
 
 **Parameters:**
@@ -82,16 +82,18 @@ onchainos market portfolio-overview --address <WALLET_ADDRESS> --chain solana --
 **Returns:**
 - `realizedPnlUsd`, `unrealizedPnlUsd`, `totalPnlUsd`, `totalPnlPercent`
 - `winRate`: Percentage of profitable trades
-- `buyTxCount`, `sellTxCount`, `buyVolumeUsd`, `sellVolumeUsd`
-- `averageBuyValueUsd`
+- `buyTxCount`, `sellTxCount`, `buyTxVolume`, `sellTxVolume`
+- `avgBuyValueUsd`
 - `preferredMarketCap`: User's typical market cap range (bucket 1-5)
+- `top3PnlTokenSumUsd`, `top3PnlTokenPercent`: Combined PnL of top 3 tokens
 - `topPnlTokenList[]`: Top 3 tokens by PnL with amounts and percentages
+- `buysByMarketCap[]`: Distribution of buys across market cap buckets
 - Token counts grouped by PnL range (>500%, 0-500%, -50%-0%, <-50%)
 
 ### DEX Transaction History
 
 ```bash
-onchainos market portfolio-dex-history \
+onchainos portfolio dex-history \
   --address <WALLET_ADDRESS> \
   --chain solana \
   --limit 50
@@ -110,7 +112,7 @@ onchainos market portfolio-dex-history \
 ### Recent PnL by Token
 
 ```bash
-onchainos market portfolio-recent-pnl \
+onchainos portfolio recent-pnl \
   --address <WALLET_ADDRESS> \
   --chain solana \
   --limit 20
@@ -121,7 +123,7 @@ Returns paginated PnL per token: unrealized PnL (or `"SELL_ALL"` if fully sold),
 ### Per-Token PnL
 
 ```bash
-onchainos market portfolio-token-pnl \
+onchainos portfolio token-pnl \
   --address <WALLET_ADDRESS> \
   --chain solana \
   --token <MINT_ADDRESS>
@@ -149,9 +151,9 @@ Returns PnL snapshot for one token: total PnL, unrealized PnL, realized PnL (all
 3. Include volume data for context
 
 ### Wallet Performance Analysis
-1. `portfolio-overview` for high-level PnL and win rate
-2. `portfolio-recent-pnl` for per-token breakdown
-3. `portfolio-dex-history` for detailed transaction log
+1. `onchainos portfolio overview` for high-level PnL and win rate
+2. `onchainos portfolio recent-pnl` for per-token breakdown
+3. `onchainos portfolio dex-history` for detailed transaction log
 4. Combine with Helius `getWalletBalances` for current holdings with USD values
 
 ## Common Mistakes

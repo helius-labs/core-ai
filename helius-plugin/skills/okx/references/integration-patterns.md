@@ -29,7 +29,7 @@ The most critical integration. OKX's swap command returns transaction data. Sign
 
 ```typescript
 import { Connection, VersionedTransaction, Keypair } from '@solana/web3.js';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const SENDER_URL = 'https://sender.helius-rpc.com/fast';
 
@@ -41,10 +41,11 @@ async function swapViaOkxAndSender(
   slippage: string = '1'
 ): Promise<string> {
   // 1. Get quote first to check safety
-  const quoteOutput = execSync(
-    `onchainos swap quote --from ${fromMint} --to ${toMint} --amount ${amountLamports} --chain solana`,
-    { encoding: 'utf-8' }
-  );
+  const quoteOutput = execFileSync('onchainos', [
+    'swap', 'quote',
+    '--from', fromMint, '--to', toMint,
+    '--amount', amountLamports, '--chain', 'solana',
+  ], { encoding: 'utf-8' });
   const quote = JSON.parse(quoteOutput);
 
   // 2. Safety checks
@@ -57,10 +58,12 @@ async function swapViaOkxAndSender(
   }
 
   // 3. Execute swap to get transaction data
-  const swapOutput = execSync(
-    `onchainos swap swap --from ${fromMint} --to ${toMint} --amount ${amountLamports} --chain solana --wallet ${keypair.publicKey.toBase58()} --slippage ${slippage}`,
-    { encoding: 'utf-8' }
-  );
+  const swapOutput = execFileSync('onchainos', [
+    'swap', 'swap',
+    '--from', fromMint, '--to', toMint,
+    '--amount', amountLamports, '--chain', 'solana',
+    '--wallet', keypair.publicKey.toBase58(), '--slippage', slippage,
+  ], { encoding: 'utf-8' });
   const swapResult = JSON.parse(swapOutput);
 
   // 4. Deserialize and sign the transaction
@@ -113,14 +116,13 @@ Combine OKX's token intelligence with Helius DAS for comprehensive token analysi
 ### TypeScript Example
 
 ```typescript
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 async function enrichedTokenDiscovery(heliusApiKey: string) {
   // 1. Get trending tokens from OKX
-  const trendingOutput = execSync(
-    'onchainos token trending --chains solana --sort-by 5 --time-frame 4',
-    { encoding: 'utf-8' }
-  );
+  const trendingOutput = execFileSync('onchainos', [
+    'token', 'trending', '--chains', 'solana', '--sort-by', '5', '--time-frame', '4',
+  ], { encoding: 'utf-8' });
   const trending = JSON.parse(trendingOutput);
 
   // 2. Enrich top tokens with Helius DAS metadata
@@ -217,22 +219,19 @@ async function memeTokenDueDiligence(
   heliusApiKey: string
 ) {
   // 1. OKX: Dev reputation
-  const devInfo = JSON.parse(execSync(
-    `onchainos memepump token-dev-info --address ${mintAddress} --chain solana`,
-    { encoding: 'utf-8' }
-  ));
+  const devInfo = JSON.parse(execFileSync('onchainos', [
+    'memepump', 'token-dev-info', '--address', mintAddress, '--chain', 'solana',
+  ], { encoding: 'utf-8' }));
 
   // 2. OKX: Bundle/sniper analysis
-  const bundleInfo = JSON.parse(execSync(
-    `onchainos memepump token-bundle-info --address ${mintAddress} --chain solana`,
-    { encoding: 'utf-8' }
-  ));
+  const bundleInfo = JSON.parse(execFileSync('onchainos', [
+    'memepump', 'token-bundle-info', '--address', mintAddress, '--chain', 'solana',
+  ], { encoding: 'utf-8' }));
 
   // 3. OKX: Advanced risk tags
-  const riskInfo = JSON.parse(execSync(
-    `onchainos token advanced-info --address ${mintAddress} --chain solana`,
-    { encoding: 'utf-8' }
-  ));
+  const riskInfo = JSON.parse(execFileSync('onchainos', [
+    'token', 'advanced-info', '--address', mintAddress, '--chain', 'solana',
+  ], { encoding: 'utf-8' }));
 
   // 4. Helius: On-chain metadata verification
   const assetRes = await fetch(
@@ -337,7 +336,7 @@ LaserStream (gRPC) ──> Signal Detection ──> OKX Swap Quote ──> Heliu
 
 ```typescript
 import { subscribe, CommitmentLevel } from 'helius-laserstream';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const config = {
   apiKey: process.env.HELIUS_API_KEY,
@@ -363,10 +362,9 @@ await subscribe(
     if (!signal) return;
 
     // Risk check via OKX before trading
-    const riskInfo = JSON.parse(execSync(
-      `onchainos token advanced-info --address ${signal.tokenMint} --chain solana`,
-      { encoding: 'utf-8' }
-    ));
+    const riskInfo = JSON.parse(execFileSync('onchainos', [
+      'token', 'advanced-info', '--address', signal.tokenMint, '--chain', 'solana',
+    ], { encoding: 'utf-8' }));
 
     if (riskInfo.tags?.includes('honeypot')) return;
     if (parseFloat(riskInfo.devHoldingPercent) > 50) return;
@@ -387,7 +385,7 @@ await subscribe(
 | Data | Raw on-chain (transactions, accounts) | Market-level (prices, OHLC, PnL) |
 | Latency | Shred-level (lowest possible) | API polling |
 | Use case | On-chain event detection, HFT, bots | Price analysis, charting, portfolio |
-| Plan required | Professional ($999/mo) | OKX API key |
+| Plan required | Business+ ($499+/mo) | OKX API key |
 
 **Use both together**: LaserStream for on-chain signals and fill detection, OKX market data for price context and risk analysis.
 

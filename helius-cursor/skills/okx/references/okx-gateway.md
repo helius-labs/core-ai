@@ -45,6 +45,10 @@ onchainos gateway gas-limit \
   --chain solana
 ```
 
+**Optional parameters:**
+- `--amount` (optional): Transaction amount
+- `--data` (optional): Transaction data (hex-encoded)
+
 Estimates gas/compute units for a transaction.
 
 ### Transaction Simulation
@@ -98,9 +102,12 @@ onchainos gateway broadcast \
 onchainos gateway orders --address <SENDER_ADDRESS> --chain solana
 ```
 
-**Returns per order:**
-- `txStatus`: `1` = Pending, `2` = Success, `3` = Failed
-- `orderId`, `txHash`, timestamp, and other metadata
+**Optional parameters:**
+- `--order-id` (optional): Filter by specific order ID
+
+**Returns:**
+- `cursor`: Pagination cursor for subsequent requests
+- **Per order:** `txStatus` (`1` = Pending, `2` = Success, `3` = Failed), `orderId`, `txHash`, `failReason` (if failed), timestamp, and other metadata
 
 ---
 

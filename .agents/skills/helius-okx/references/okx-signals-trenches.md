@@ -38,9 +38,13 @@ onchainos signal list --chain solana
 **Returns per signal:**
 - `walletType`: `SMART_MONEY`, `WHALE`, or `INFLUENCER`
 - `triggerWalletCount`: Number of wallets that triggered this signal
+- `triggerWalletAddress`: Address of the triggering wallet
 - `amountUsd`: Total USD value of buys
 - `soldRatioPercent`: Percentage already sold — lower = still holding = stronger signal
-- Token data: `marketCapUsd`, `top10HolderPercent`, `holders`
+- `timestamp`: Signal timestamp
+- `chainIndex`: Chain identifier
+- `price`: Token price at signal time
+- Token data: `tokenAddress`, `symbol`, `name`, `logo`, `marketCapUsd`, `top10HolderPercent`, `holders`
 
 **Signal interpretation:**
 - High `triggerWalletCount` + low `soldRatioPercent` = strong conviction signal
@@ -89,12 +93,23 @@ onchainos memepump tokens --chain solana --stage NEW
 - **Social filters**: `--has-x`, `--has-telegram`, `--has-website`, `--has-at-least-one-social-link`, `--dex-screener-paid`, `--live-on-pump-fun`
 - **Dev status**: `--dev-sell-all`, `--dev-still-holding`
 - **Keywords**: `--keywords-include`, `--keywords-exclude`
+- **Wallet filter**: `--wallet-address` (filter by specific wallet)
+- **Protocol filter**: `--protocol-id-list` (comma-separated protocol IDs, e.g., `pumpfun,believe`)
+- **Quote token filter**: `--quote-token-address-list` (filter by quote token addresses)
+- **Transaction counts**: `--min/max-buy-tx-count`, `--min/max-sell-tx-count`
+- **Symbol length**: `--min/max-token-symbol-length`
+- **Website type**: `--website-type-list` (filter by website type)
+- **Community takeover**: `--community-takeover` flag
+- **Bags fee**: `--bags-fee-claimed` flag, `--min/max-fees-native`
 
 ### Token Details
 
 ```bash
 onchainos memepump token-details --address <MINT_ADDRESS> --chain solana
 ```
+
+**Optional parameters:**
+- `--wallet` (optional): Wallet address to include wallet-specific holding data in the response
 
 Returns full token detail with audit tags, market data, and social links.
 
@@ -112,6 +127,10 @@ onchainos memepump token-dev-info --address <MINT_ADDRESS> --chain solana
 - `devHoldingPercent`: Current holding percentage
 - `devAddress`: Developer wallet address
 - `fundingAddress`: Where the dev wallet was funded from
+- `devBalance`: Developer's current native token balance
+- `lastFundedTimestamp`: When the dev wallet was last funded
+
+**Note:** `devHoldingInfo` may be `null` if the developer no longer holds any tokens.
 
 **Red flags:**
 - `rugPullCount > 0` — dev has rugged before
@@ -147,6 +166,9 @@ onchainos memepump token-bundle-info --address <MINT_ADDRESS> --chain solana
 ```bash
 onchainos memepump aped-wallet --address <MINT_ADDRESS> --chain solana
 ```
+
+**Optional parameters:**
+- `--wallet` (optional): Wallet address to highlight in the results
 
 Returns wallets that invested in this token with their type (Smart Money, KOL, Whale), holding percentage, and PnL. Useful for validating signal quality.
 

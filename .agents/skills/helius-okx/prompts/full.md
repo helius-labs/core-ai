@@ -2451,7 +2451,7 @@ The most critical integration. OKX's swap command returns transaction data. Sign
 
 ```typescript
 import { Connection, VersionedTransaction, Keypair } from '@solana/web3.js';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const SENDER_URL = 'https://sender.helius-rpc.com/fast';
 
@@ -2463,10 +2463,11 @@ async function swapViaOkxAndSender(
   slippage: string = '1'
 ): Promise<string> {
   // 1. Get quote first to check safety
-  const quoteOutput = execSync(
-    `onchainos swap quote --from ${fromMint} --to ${toMint} --amount ${amountLamports} --chain solana`,
-    { encoding: 'utf-8' }
-  );
+  const quoteOutput = execFileSync('onchainos', [
+    'swap', 'quote',
+    '--from', fromMint, '--to', toMint,
+    '--amount', amountLamports, '--chain', 'solana',
+  ], { encoding: 'utf-8' });
   const quote = JSON.parse(quoteOutput);
 
   // 2. Safety checks
@@ -2479,10 +2480,12 @@ async function swapViaOkxAndSender(
   }
 
   // 3. Execute swap to get transaction data
-  const swapOutput = execSync(
-    `onchainos swap swap --from ${fromMint} --to ${toMint} --amount ${amountLamports} --chain solana --wallet ${keypair.publicKey.toBase58()} --slippage ${slippage}`,
-    { encoding: 'utf-8' }
-  );
+  const swapOutput = execFileSync('onchainos', [
+    'swap', 'swap',
+    '--from', fromMint, '--to', toMint,
+    '--amount', amountLamports, '--chain', 'solana',
+    '--wallet', keypair.publicKey.toBase58(), '--slippage', slippage,
+  ], { encoding: 'utf-8' });
   const swapResult = JSON.parse(swapOutput);
 
   // 4. Deserialize and sign the transaction
@@ -2535,14 +2538,13 @@ Combine OKX's token intelligence with Helius DAS for comprehensive token analysi
 ### TypeScript Example
 
 ```typescript
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 async function enrichedTokenDiscovery(heliusApiKey: string) {
   // 1. Get trending tokens from OKX
-  const trendingOutput = execSync(
-    'onchainos token trending --chains solana --sort-by 5 --time-frame 4',
-    { encoding: 'utf-8' }
-  );
+  const trendingOutput = execFileSync('onchainos', [
+    'token', 'trending', '--chains', 'solana', '--sort-by', '5', '--time-frame', '4',
+  ], { encoding: 'utf-8' });
   const trending = JSON.parse(trendingOutput);
 
   // 2. Enrich top tokens with Helius DAS metadata
@@ -2639,22 +2641,19 @@ async function memeTokenDueDiligence(
   heliusApiKey: string
 ) {
   // 1. OKX: Dev reputation
-  const devInfo = JSON.parse(execSync(
-    `onchainos memepump token-dev-info --address ${mintAddress} --chain solana`,
-    { encoding: 'utf-8' }
-  ));
+  const devInfo = JSON.parse(execFileSync('onchainos', [
+    'memepump', 'token-dev-info', '--address', mintAddress, '--chain', 'solana',
+  ], { encoding: 'utf-8' }));
 
   // 2. OKX: Bundle/sniper analysis
-  const bundleInfo = JSON.parse(execSync(
-    `onchainos memepump token-bundle-info --address ${mintAddress} --chain solana`,
-    { encoding: 'utf-8' }
-  ));
+  const bundleInfo = JSON.parse(execFileSync('onchainos', [
+    'memepump', 'token-bundle-info', '--address', mintAddress, '--chain', 'solana',
+  ], { encoding: 'utf-8' }));
 
   // 3. OKX: Advanced risk tags
-  const riskInfo = JSON.parse(execSync(
-    `onchainos token advanced-info --address ${mintAddress} --chain solana`,
-    { encoding: 'utf-8' }
-  ));
+  const riskInfo = JSON.parse(execFileSync('onchainos', [
+    'token', 'advanced-info', '--address', mintAddress, '--chain', 'solana',
+  ], { encoding: 'utf-8' }));
 
   // 4. Helius: On-chain metadata verification
   const assetRes = await fetch(
@@ -2759,7 +2758,7 @@ LaserStream (gRPC) ──> Signal Detection ──> OKX Swap Quote ──> Heliu
 
 ```typescript
 import { subscribe, CommitmentLevel } from 'helius-laserstream';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const config = {
   apiKey: process.env.HELIUS_API_KEY,
@@ -2785,10 +2784,9 @@ await subscribe(
     if (!signal) return;
 
     // Risk check via OKX before trading
-    const riskInfo = JSON.parse(execSync(
-      `onchainos token advanced-info --address ${signal.tokenMint} --chain solana`,
-      { encoding: 'utf-8' }
-    ));
+    const riskInfo = JSON.parse(execFileSync('onchainos', [
+      'token', 'advanced-info', '--address', signal.tokenMint, '--chain', 'solana',
+    ], { encoding: 'utf-8' }));
 
     if (riskInfo.tags?.includes('honeypot')) return;
     if (parseFloat(riskInfo.devHoldingPercent) > 50) return;
@@ -2809,7 +2807,7 @@ await subscribe(
 | Data | Raw on-chain (transactions, accounts) | Market-level (prices, OHLC, PnL) |
 | Latency | Shred-level (lowest possible) | API polling |
 | Use case | On-chain event detection, HFT, bots | Price analysis, charting, portfolio |
-| Plan required | Professional ($999/mo) | OKX API key |
+| Plan required | Business+ ($499+/mo) | OKX API key |
 
 **Use both together**: LaserStream for on-chain signals and fill detection, OKX market data for price context and risk analysis.
 
@@ -2878,6 +2876,10 @@ onchainos gateway gas-limit \
   --chain solana
 ```
 
+**Optional parameters:**
+- `--amount` (optional): Transaction amount
+- `--data` (optional): Transaction data (hex-encoded)
+
 Estimates gas/compute units for a transaction.
 
 ### Transaction Simulation
@@ -2931,9 +2933,12 @@ onchainos gateway broadcast \
 onchainos gateway orders --address <SENDER_ADDRESS> --chain solana
 ```
 
-**Returns per order:**
-- `txStatus`: `1` = Pending, `2` = Success, `3` = Failed
-- `orderId`, `txHash`, timestamp, and other metadata
+**Optional parameters:**
+- `--order-id` (optional): Filter by specific order ID
+
+**Returns:**
+- `cursor`: Pagination cursor for subsequent requests
+- **Per order:** `txStatus` (`1` = Pending, `2` = Success, `3` = Failed), `orderId`, `txHash`, `failReason` (if failed), timestamp, and other metadata
 
 ---
 
@@ -3105,7 +3110,7 @@ onchainos market kline \
 
 **Parameters:**
 - `--address` (required): Token mint address (use wSOL address for SOL charts)
-- `--bar` (optional, default `1H`): Candle size — `1s`, `1m`, `5m`, `15m`, `30m`, `1H`, `4H`, `1D`, `1W`
+- `--bar` (optional, default `1H`): Candle size — `1s`, `1m`, `5m`, `15m`, `30m`, `1H`, `4H`, `6H`, `12H`, `1D`, `1W`, `1M`, `3M`
 - `--limit` (optional, default 100, max 299): Number of data points
 - `--chain` (optional, default `ethereum`)
 
@@ -3116,7 +3121,7 @@ onchainos market kline \
 ### Check Supported Chains
 
 ```bash
-onchainos market portfolio-supported-chains
+onchainos portfolio supported-chains
 ```
 
 Verify Solana is in the supported list before calling PnL endpoints.
@@ -3124,7 +3129,7 @@ Verify Solana is in the supported list before calling PnL endpoints.
 ### Portfolio Overview
 
 ```bash
-onchainos market portfolio-overview --address <WALLET_ADDRESS> --chain solana --time-frame 7d
+onchainos portfolio overview --address <WALLET_ADDRESS> --chain solana --time-frame 7d
 ```
 
 **Parameters:**
@@ -3135,16 +3140,18 @@ onchainos market portfolio-overview --address <WALLET_ADDRESS> --chain solana --
 **Returns:**
 - `realizedPnlUsd`, `unrealizedPnlUsd`, `totalPnlUsd`, `totalPnlPercent`
 - `winRate`: Percentage of profitable trades
-- `buyTxCount`, `sellTxCount`, `buyVolumeUsd`, `sellVolumeUsd`
-- `averageBuyValueUsd`
+- `buyTxCount`, `sellTxCount`, `buyTxVolume`, `sellTxVolume`
+- `avgBuyValueUsd`
 - `preferredMarketCap`: User's typical market cap range (bucket 1-5)
+- `top3PnlTokenSumUsd`, `top3PnlTokenPercent`: Combined PnL of top 3 tokens
 - `topPnlTokenList[]`: Top 3 tokens by PnL with amounts and percentages
+- `buysByMarketCap[]`: Distribution of buys across market cap buckets
 - Token counts grouped by PnL range (>500%, 0-500%, -50%-0%, <-50%)
 
 ### DEX Transaction History
 
 ```bash
-onchainos market portfolio-dex-history \
+onchainos portfolio dex-history \
   --address <WALLET_ADDRESS> \
   --chain solana \
   --limit 50
@@ -3163,7 +3170,7 @@ onchainos market portfolio-dex-history \
 ### Recent PnL by Token
 
 ```bash
-onchainos market portfolio-recent-pnl \
+onchainos portfolio recent-pnl \
   --address <WALLET_ADDRESS> \
   --chain solana \
   --limit 20
@@ -3174,7 +3181,7 @@ Returns paginated PnL per token: unrealized PnL (or `"SELL_ALL"` if fully sold),
 ### Per-Token PnL
 
 ```bash
-onchainos market portfolio-token-pnl \
+onchainos portfolio token-pnl \
   --address <WALLET_ADDRESS> \
   --chain solana \
   --token <MINT_ADDRESS>
@@ -3202,9 +3209,9 @@ Returns PnL snapshot for one token: total PnL, unrealized PnL, realized PnL (all
 3. Include volume data for context
 
 ### Wallet Performance Analysis
-1. `portfolio-overview` for high-level PnL and win rate
-2. `portfolio-recent-pnl` for per-token breakdown
-3. `portfolio-dex-history` for detailed transaction log
+1. `onchainos portfolio overview` for high-level PnL and win rate
+2. `onchainos portfolio recent-pnl` for per-token breakdown
+3. `onchainos portfolio dex-history` for detailed transaction log
 4. Combine with Helius `getWalletBalances` for current holdings with USD values
 
 ## Common Mistakes
@@ -3259,9 +3266,13 @@ onchainos signal list --chain solana
 **Returns per signal:**
 - `walletType`: `SMART_MONEY`, `WHALE`, or `INFLUENCER`
 - `triggerWalletCount`: Number of wallets that triggered this signal
+- `triggerWalletAddress`: Address of the triggering wallet
 - `amountUsd`: Total USD value of buys
 - `soldRatioPercent`: Percentage already sold — lower = still holding = stronger signal
-- Token data: `marketCapUsd`, `top10HolderPercent`, `holders`
+- `timestamp`: Signal timestamp
+- `chainIndex`: Chain identifier
+- `price`: Token price at signal time
+- Token data: `tokenAddress`, `symbol`, `name`, `logo`, `marketCapUsd`, `top10HolderPercent`, `holders`
 
 **Signal interpretation:**
 - High `triggerWalletCount` + low `soldRatioPercent` = strong conviction signal
@@ -3310,12 +3321,23 @@ onchainos memepump tokens --chain solana --stage NEW
 - **Social filters**: `--has-x`, `--has-telegram`, `--has-website`, `--has-at-least-one-social-link`, `--dex-screener-paid`, `--live-on-pump-fun`
 - **Dev status**: `--dev-sell-all`, `--dev-still-holding`
 - **Keywords**: `--keywords-include`, `--keywords-exclude`
+- **Wallet filter**: `--wallet-address` (filter by specific wallet)
+- **Protocol filter**: `--protocol-id-list` (comma-separated protocol IDs, e.g., `pumpfun,believe`)
+- **Quote token filter**: `--quote-token-address-list` (filter by quote token addresses)
+- **Transaction counts**: `--min/max-buy-tx-count`, `--min/max-sell-tx-count`
+- **Symbol length**: `--min/max-token-symbol-length`
+- **Website type**: `--website-type-list` (filter by website type)
+- **Community takeover**: `--community-takeover` flag
+- **Bags fee**: `--bags-fee-claimed` flag, `--min/max-fees-native`
 
 ### Token Details
 
 ```bash
 onchainos memepump token-details --address <MINT_ADDRESS> --chain solana
 ```
+
+**Optional parameters:**
+- `--wallet` (optional): Wallet address to include wallet-specific holding data in the response
 
 Returns full token detail with audit tags, market data, and social links.
 
@@ -3333,6 +3355,10 @@ onchainos memepump token-dev-info --address <MINT_ADDRESS> --chain solana
 - `devHoldingPercent`: Current holding percentage
 - `devAddress`: Developer wallet address
 - `fundingAddress`: Where the dev wallet was funded from
+- `devBalance`: Developer's current native token balance
+- `lastFundedTimestamp`: When the dev wallet was last funded
+
+**Note:** `devHoldingInfo` may be `null` if the developer no longer holds any tokens.
 
 **Red flags:**
 - `rugPullCount > 0` — dev has rugged before
@@ -3368,6 +3394,9 @@ onchainos memepump token-bundle-info --address <MINT_ADDRESS> --chain solana
 ```bash
 onchainos memepump aped-wallet --address <MINT_ADDRESS> --chain solana
 ```
+
+**Optional parameters:**
+- `--wallet` (optional): Wallet address to highlight in the results
 
 Returns wallets that invested in this token with their type (Smart Money, KOL, Whale), holding percentage, and PnL. Useful for validating signal quality.
 
@@ -3702,8 +3731,10 @@ The most filter-rich command. Returns up to 100 tokens.
 - `--bundle-hold-percent` range, `--suspicious-hold-percent` range
 - `--lp-burnt` flag, `--mintable` flag, `--freeze` flag
 - `--risk-filter`: Filter risky tokens
+- `--stable-token-filter`: Filter stable/wrapped tokens
+- `--project-id` (optional): Filter by protocol/project ID
 
-**Returns additional fields:** `inflowUsd`, `devHoldPercent`, `top10HoldPercent`, `insiderHoldPercent`, `bundleHoldPercent`, `vibeScore`, `mentionsCount`.
+**Returns additional fields:** `inflowUsd`, `devHoldPercent`, `top10HoldPercent`, `insiderHoldPercent`, `bundleHoldPercent`, `vibeScore`, `mentionsCount`, `riskLevelControl`.
 
 ### 6. Token Holders (Top 100)
 
@@ -3734,7 +3765,9 @@ Returns risk intelligence:
 - `riskControlLevel`: Overall risk rating
 - `totalFee`: Trading fee
 - `lpBurnedPercent`: Percentage of LP tokens burned
-- `bondingCurveProgress`: For pump.fun-style tokens
+- `progress`: Bonding curve progress for pump.fun-style tokens (0-100%)
+- `isInternal`: Whether the token is an internal/protocol token
+- `protocolId`: Protocol identifier (e.g., `pumpfun`, `believe`, `bags`)
 - **Token tags**: `honeypot`, `dexBoost`, `lowLiquidity`, `communityRecognized`, `devHoldingStatus` variants, `smartMoneyBuy`, `devAddLiquidity`, `devBurnToken`, `volumeChangeRate`, `holdersChangeRate`, dexScreener flags
 - Creator address and dev stats: `devRugPullCount`, `devTotalCreatedTokens`, `devLaunchedTokens`
 - Holding analysis: `top10HoldPercent`, `devHoldingPercent`, `bundleHoldingPercent`, `suspiciousHoldingPercent`, `sniperHoldingPercent`
