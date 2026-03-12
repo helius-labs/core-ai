@@ -138,7 +138,7 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 | Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
 | LaserStream (mainnet) | Business |
-| LaserStream data add-ons | Professional ($400+/mo) |
+| LaserStream data add-ons | Business+ ($400+/mo) |
 
 Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current details.
 

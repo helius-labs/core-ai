@@ -1797,7 +1797,7 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 | Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
 | LaserStream (mainnet) | Business |
-| LaserStream data add-ons | Professional ($400+/mo) |
+| LaserStream data add-ons | Business+ ($400+/mo) |
 
 Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current details.
 
@@ -3572,7 +3572,7 @@ await subscribe(
 | Data | Raw on-chain (transactions, accounts) | Market-level (prices, orderbook, trades) |
 | Latency | Shred-level (lowest possible) | Market-level |
 | Use case | Detecting on-chain events, HFT, bots | Price feeds, trading UIs |
-| Plan required | Professional ($999/mo) | DFlow API key |
+| Plan required | Business+ ($499+/mo) | DFlow API key |
 
 **Use both together** for the most competitive trading systems: LaserStream for on-chain signals and fill detection, DFlow WebSockets for market data and orderbook state.
 
