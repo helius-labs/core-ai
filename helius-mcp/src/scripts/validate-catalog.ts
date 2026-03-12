@@ -8,7 +8,7 @@
  * 2. Every referenceFile exists on disk
  * 3. Every docKey exists in DOCS_INDEX
  * 4. Every minimumPlan is a valid key in PLAN_RANK and HELIUS_PLANS
- * 5. Plan-feature compatibility (Laserstream mainnet → professional, Enhanced WebSockets → business+)
+ * 5. Plan-feature compatibility (Laserstream mainnet → business+, Enhanced WebSockets → developer+)
  * 6. No empty mcpTools arrays
  */
 
@@ -60,11 +60,11 @@ for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
 
   // 5. Plan-feature compatibility
   const nameLower = product.name.toLowerCase();
-  if (nameLower.includes('laserstream') && nameLower.includes('mainnet') && product.minimumPlan !== 'professional') {
-    error(key, `Laserstream mainnet requires professional plan, but has "${product.minimumPlan}"`);
+  if (nameLower.includes('laserstream') && nameLower.includes('mainnet') && (PLAN_RANK[product.minimumPlan] ?? 0) < PLAN_RANK['business']) {
+    error(key, `Laserstream mainnet requires business+ plan, but has "${product.minimumPlan}"`);
   }
-  if (nameLower.includes('enhanced websocket') && (PLAN_RANK[product.minimumPlan] ?? 0) < PLAN_RANK['business']) {
-    error(key, `Enhanced WebSockets requires business+ plan, but has "${product.minimumPlan}"`);
+  if (nameLower.includes('enhanced websocket') && (PLAN_RANK[product.minimumPlan] ?? 0) < PLAN_RANK['developer']) {
+    error(key, `Enhanced WebSockets requires developer+ plan, but has "${product.minimumPlan}"`);
   }
 
   // 6. No empty mcpTools
