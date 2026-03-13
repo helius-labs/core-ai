@@ -87,7 +87,7 @@ Enhanced WebSockets (Business+) for most needs; Laserstream gRPC (Professional) 
 
 ### Getting Started / Onboarding
 **Reference**: See onboarding.md
-**MCP tools**: `setHeliusApiKey`, `generateKeypair`, `checkSignupBalance`, `agenticSignup`, `getAccountStatus`, `previewUpgrade`, `upgradePlan`, `payRenewal`
+**MCP tools**: `setHeliusApiKey`, `generateKeypair`, `checkSignupBalance`, `agenticSignup`, `getAccountStatus`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`
 **When**: account creation, API key management, plan/credits/usage checks, billing
 
 ### Documentation & Troubleshooting
@@ -95,7 +95,7 @@ Enhanced WebSockets (Business+) for most needs; Laserstream gRPC (Professional) 
 **When**: API details, pricing, rate limits, error troubleshooting, credit costs, pump.fun tokens. Prefer `lookupHeliusDocs` with `section` parameter for targeted lookups.
 
 ### Plans & Billing
-**MCP tools**: `getHeliusPlanInfo`, `compareHeliusPlans`, `getHeliusCreditsInfo`, `getRateLimitInfo`
+**MCP tools**: `getHeliusPlanInfo`, `compareHeliusPlans`, `getAccountPlan`, `getHeliusCreditsInfo`, `getRateLimitInfo`
 **When**: pricing, plans, or rate limit questions.
 
 ### Solana Knowledge & Research

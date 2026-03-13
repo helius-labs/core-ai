@@ -10,21 +10,21 @@ export function registerLaserstreamTools(server: McpServer) {
     'laserstreamSubscribe',
     'BEST FOR: lowest-latency production streaming via gRPC (slots, accounts, transactions, blocks). PREFER transactionSubscribe for simpler WebSocket-based streaming. PREFER createWebhook for fire-and-forget notifications. Get Laserstream gRPC config for high-performance Solana streaming. Subscribe to slots, accounts, transactions, blocks, or entries. 24h historical replay. Professional plan for mainnet. Returns connection config and code example.',
     {
-      region: z.string().optional().default('ewr'),
-      commitment: z.string().optional(),
-      subscribeSlots: z.boolean().optional(),
-      filterByCommitment: z.boolean().optional(),
+      region: z.string().optional().default('ewr').describe('Closest gRPC region for lowest latency. Values: "ewr" (default, Newark), "pitt" (Pittsburgh), "slc" (Salt Lake City), "lax" (Los Angeles), "lon" (London), "ams" (Amsterdam), "fra" (Frankfurt), "tyo" (Tokyo), "sgp" (Singapore)'),
+      commitment: z.string().optional().describe('Commitment level filter. Values: "processed", "confirmed", "finalized". Used with filterByCommitment to limit slot/block updates to a specific level.'),
+      subscribeSlots: z.boolean().optional().describe('Subscribe to slot updates (notifications on each new slot the validator processes)'),
+      filterByCommitment: z.boolean().optional().describe('When true, only emit slot updates matching the specified commitment level. Requires commitment to be set.'),
       subscribeAccounts: z.array(z.string()).optional().describe('Account public keys to watch (base58 encoded)'),
       accountOwners: z.array(z.string()).optional().describe('Filter by owner addresses (base58 encoded)'),
-      subscribeTransactions: z.boolean().optional(),
-      transactionAccountInclude: z.array(z.string()).optional().describe('Accounts to include (base58 encoded, OR logic)'),
-      transactionAccountExclude: z.array(z.string()).optional().describe('Accounts to exclude (base58 encoded)'),
-      transactionAccountRequired: z.array(z.string()).optional().describe('Accounts required (base58 encoded, AND logic)'),
-      subscribeBlocks: z.boolean().optional(),
-      subscribeBlocksMeta: z.boolean().optional(),
-      subscribeEntries: z.boolean().optional(),
+      subscribeTransactions: z.boolean().optional().describe('Subscribe to all transactions. Produces very high volume without account filters — prefer using transactionAccountInclude or transactionAccountRequired.'),
+      transactionAccountInclude: z.array(z.string()).optional().describe('Accounts to include in filter (base58 encoded). OR logic: tx matches if it involves ANY of these accounts. Use transactionAccountRequired for AND logic.'),
+      transactionAccountExclude: z.array(z.string()).optional().describe('Accounts to exclude from results (base58 encoded). Transactions involving ANY of these accounts are filtered out, even if they match transactionAccountInclude.'),
+      transactionAccountRequired: z.array(z.string()).optional().describe('Accounts required in every matched transaction (base58 encoded). AND logic: tx must involve ALL of these accounts. Use transactionAccountInclude for OR logic.'),
+      subscribeBlocks: z.boolean().optional().describe('Subscribe to full block data (includes all transactions in each block)'),
+      subscribeBlocksMeta: z.boolean().optional().describe('Subscribe to block metadata only (slot, blockhash, rewards — without full transaction data)'),
+      subscribeEntries: z.boolean().optional().describe('Subscribe to ledger entries (shred-level data — the lowest-level stream available)'),
       fromSlot: z.string().optional().describe('Starting slot for 24h historical replay'),
-      keepalive: z.boolean().optional().default(true)
+      keepalive: z.boolean().optional().default(true).describe('Send gRPC keepalive pings to maintain the connection (default: true). Set to false only if your client handles its own keepalive.')
     },
     async (params) => {
       let err;

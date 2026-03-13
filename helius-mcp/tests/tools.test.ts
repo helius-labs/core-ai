@@ -55,7 +55,7 @@ describe('Helius MCP Tools', () => {
       // Onboarding
       'getStarted', 'setHeliusApiKey', 'generateKeypair', 'checkSignupBalance', 'agenticSignup', 'getAccountStatus',
       // Plans & billing
-      'getHeliusPlanInfo', 'compareHeliusPlans', 'previewUpgrade', 'upgradePlan', 'payRenewal',
+      'getHeliusPlanInfo', 'compareHeliusPlans', 'getAccountPlan', 'previewUpgrade', 'upgradePlan', 'payRenewal',
       // Balance
       'getBalance', 'getTokenBalances',
       // DAS
