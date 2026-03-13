@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { noApiKeyResponse } from './shared.js';
-import { mcpText, handleToolError, addressError } from '../utils/errors.js';
+import { mcpText, handleToolError, addressError, missingParamError } from '../utils/errors.js';
 import { formatSol, formatAddress } from '../utils/formatters.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,7 +22,7 @@ export function registerZkCompressionTools(server: McpServer) {
     async ({ address, hash }) => {
       if (!hasApiKey()) return noApiKeyResponse();
       if (!address && !hash) {
-        return mcpText('**getCompressedAccount**\n\nProvide at least one of `address` or `hash`.');
+        return missingParamError('getCompressedAccount', 'Provide at least one of `address` or `hash`.');
       }
       try {
         const helius = getHeliusClient();
@@ -109,7 +109,7 @@ export function registerZkCompressionTools(server: McpServer) {
     async ({ addresses, hashes }) => {
       if (!hasApiKey()) return noApiKeyResponse();
       if (!addresses?.length && !hashes?.length) {
-        return mcpText('**getMultipleCompressedAccounts**\n\nProvide at least one of `addresses` or `hashes`.');
+        return missingParamError('getMultipleCompressedAccounts', 'Provide at least one of `addresses` or `hashes`.');
       }
       try {
         const helius = getHeliusClient();
@@ -152,7 +152,7 @@ export function registerZkCompressionTools(server: McpServer) {
     async ({ address, hash }) => {
       if (!hasApiKey()) return noApiKeyResponse();
       if (!address && !hash) {
-        return mcpText('**getCompressedBalance**\n\nProvide at least one of `address` or `hash`.');
+        return missingParamError('getCompressedBalance', 'Provide at least one of `address` or `hash`.');
       }
       try {
         const helius = getHeliusClient();
@@ -245,7 +245,7 @@ export function registerZkCompressionTools(server: McpServer) {
     async ({ address, hash }) => {
       if (!hasApiKey()) return noApiKeyResponse();
       if (!address && !hash) {
-        return mcpText('**getCompressedTokenAccountBalance**\n\nProvide at least one of `address` or `hash`.');
+        return missingParamError('getCompressedTokenAccountBalance', 'Provide at least one of `address` or `hash`.');
       }
       try {
         const helius = getHeliusClient();
@@ -804,7 +804,7 @@ export function registerZkCompressionTools(server: McpServer) {
     async ({ hashes, newAddressesWithTrees }) => {
       if (!hasApiKey()) return noApiKeyResponse();
       if (!hashes?.length && !newAddressesWithTrees?.length) {
-        return mcpText('**getValidityProof**\n\nProvide at least one of `hashes` or `newAddressesWithTrees`.');
+        return missingParamError('getValidityProof', 'Provide at least one of `hashes` or `newAddressesWithTrees`.');
       }
       try {
         const helius = getHeliusClient();
