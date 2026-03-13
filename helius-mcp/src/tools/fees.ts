@@ -41,7 +41,7 @@ export function registerFeeTools(server: McpServer) {
         if (result.priorityFeeLevels) {
           const levels = result.priorityFeeLevels;
           lines.push('| Level | Fee (microlamports/CU) |');
-          lines.push('|-------|-------------------|');
+          lines.push('|-------|------------------------|');
           lines.push(`| Min | ${levels.min.toLocaleString()} |`);
           lines.push(`| Low | ${levels.low.toLocaleString()} |`);
           lines.push(`| Medium | ${levels.medium.toLocaleString()} |`);
