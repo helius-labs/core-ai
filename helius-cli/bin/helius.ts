@@ -86,7 +86,8 @@ program
   .description("Generate a new Solana keypair")
   .option("-o, --output <path>", "Output path for keypair", getDefaultKeypairPath())
   .option("-f, --force", "Overwrite existing keypair")
-  .action(keygenCommand);
+  .option("--no-qr", "Suppress QR code display")
+  .action(function(this: any) { keygenCommand(opts(this)); });
 
 program
   .command("signup")
@@ -101,8 +102,9 @@ program
   .option("--discovery-path <text>", "How did you discover Helius?")
   .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
   .option("--wait", "Poll for funds if balance is insufficient, then continue signup automatically")
+  .option("--no-qr", "Suppress QR code display")
   .option("--json", "Output in JSON format")
-  .action(signupCommand);
+  .action(function(this: any) { signupCommand(opts(this)); });
 
 program
   .command("upgrade")

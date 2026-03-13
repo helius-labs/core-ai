@@ -4,6 +4,7 @@ import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, getSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
+import { printWalletQR } from "../lib/qr.js";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
@@ -22,6 +23,7 @@ interface SignupOptions extends OutputOptions {
   discoveryPath?: string;
   frictionPoints?: string;
   wait?: boolean;
+  noQr?: boolean;
 }
 
 const POLL_INTERVAL_MS = 5_000;
@@ -106,7 +108,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
-      await keygenCommand({ output: options.keypair });
+      await keygenCommand({ output: options.keypair, noQr: true });
       console.log();
     }
 
@@ -158,6 +160,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         for (const m of missing) {
           console.error(`  • ${m}`);
         }
+        if (!options.noQr) {
+          await printWalletQR(walletAddress);
+        }
         console.error(chalk.gray("\nThen run `helius signup` again, or use `helius signup --wait` to poll until funded."));
         process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
       }
@@ -166,6 +171,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
       for (const m of missing) {
         console.error(`  • ${m}`);
+      }
+      if (!options.noQr) {
+        await printWalletQR(walletAddress);
       }
       console.log(chalk.gray("\nWaiting for funds... (Ctrl+C to cancel)\n"));
       const result = await waitForFunding(walletAddress, requiredUsdcRaw, spinner);

@@ -6,12 +6,14 @@ import { generateKeypair } from "helius-sdk/auth/generateKeypair";
 import { getAddress } from "helius-sdk/auth/getAddress";
 import { loadKeypair } from "helius-sdk/auth/loadKeypair";
 import { PLAN_CATALOG } from "helius-sdk/auth/planCatalog";
+import { printWalletQR } from "../lib/qr.js";
 
 const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius", "keypair.json");
 
 interface KeygenOptions {
   output?: string;
   force?: boolean;
+  noQr?: boolean;
 }
 
 export async function keygenCommand(options: KeygenOptions): Promise<void> {
@@ -46,6 +48,11 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
   console.log(chalk.green("✓ Keypair generated"));
   console.log(`Path: ${chalk.cyan(resolvedPath)}`);
   console.log(`Address: ${chalk.cyan(address)}`);
+
+  if (!options.noQr) {
+    await printWalletQR(address);
+  }
+
   console.log("");
   console.log(chalk.yellow("To use this wallet, fund it with:"));
   console.log(`  • ${chalk.cyan("~0.001 SOL")} for transaction fees`);
