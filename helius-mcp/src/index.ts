@@ -63,6 +63,11 @@ const server = new McpServer(
 | event notifications (any plan) | createWebhook | 100 |
 | live streaming (WS, Business+) | transactionSubscribe, accountSubscribe | — |
 | production streaming (gRPC, Pro) | laserstreamSubscribe | — |
+| stake SOL to Helius validator | stakeSOL | ~3 |
+| deactivate stake account | unstakeSOL | ~3 |
+| withdraw from deactivated stake | withdrawStake | ~3 |
+| list Helius stake accounts | getStakeAccounts | ~10 |
+| check withdrawable stake amount | getWithdrawableAmount | ~3 |
 | Account setup | getStarted → generateKeypair → agenticSignup | — |
 
 Rules:
@@ -70,6 +75,7 @@ Rules:
 - For errors, use troubleshootError first.
 - When a user describes ANY project they want to build ("I want to build/make/create...", "help me build...", "I need a..."), call recommendStack immediately with their description — do not ask clarifying questions first. After recommendations, use getHeliusPlanInfo for pricing and lookupHeliusDocs for API details.
 - "send SOL" / "transfer SOL" → transferSol (~3 credits). "send tokens" / "transfer USDC/BONK/etc" → transferToken (~13 credits). Both require a configured keypair (generateKeypair) and use Helius Sender.
+- "stake SOL" / "delegate SOL" → stakeSOL (~3 credits). "unstake" / "deactivate" → unstakeSOL (~3 credits). "withdraw stake" → withdrawStake (~3 credits). All staking delegates to the Helius validator. Requires a configured keypair (generateKeypair).
 - Before calling gated tools (transactionSubscribe, accountSubscribe, laserstreamSubscribe), call getAccountPlan to verify eligibility.
 
 ## Feedback

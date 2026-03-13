@@ -29,6 +29,7 @@ export const KNOWN_TOOLS = new Set([
   'troubleshootError', 'getSenderInfo', 'getWebhookGuide', 'getLatencyComparison', 'getPumpFunGuide',
   'recommendStack',
   'transferSol', 'transferToken',
+  'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
 ]);
 
 // ─── Plan Ranking (re-exported from product-catalog.ts) ───

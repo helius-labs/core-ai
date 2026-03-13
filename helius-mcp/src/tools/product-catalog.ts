@@ -127,6 +127,15 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     referenceFile: 'references/sender.md',
     description: 'Send native SOL or SPL tokens from the MCP keypair to any Solana address. Uses Helius Sender for optimal landing rates. Requires a configured keypair.',
   },
+  'native-staking': {
+    name: 'Native Staking',
+    mcpTools: ['stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount'],
+    creditCostPerCall: '~3-10 credits + on-chain fees',
+    minimumPlan: 'free',
+    docKey: 'sender',
+    referenceFile: 'references/sender.md',
+    description: 'Stake, unstake, and withdraw native SOL via the Helius validator. Earn staking yield with one-click delegation. Query stake accounts and withdrawable amounts.',
+  },
   'token-holders': {
     name: 'Token Holders',
     mcpTools: ['getTokenHolders'],
