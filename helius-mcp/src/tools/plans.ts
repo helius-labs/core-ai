@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { mcpError } from '../utils/errors.js';
+import type { ErrorMeta } from '../utils/errors.js';
 import { getJwt } from '../utils/config.js';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
@@ -45,6 +46,13 @@ const BILLING_FETCH_ERROR =
   '- `lookupHeliusDocs({ topic: \'billing\' })` for full billing documentation\n' +
   '- Visit https://www.helius.dev/docs/billing directly';
 
+const BILLING_FETCH_META: ErrorMeta = {
+  type: 'API',
+  code: 'FETCH_FAILED',
+  retryable: true,
+  recovery: 'Try lookupHeliusDocs({ topic: "billing" }) or visit https://www.helius.dev/docs/billing directly',
+};
+
 /**
  * Detect the user's current Helius plan from their JWT session.
  * Returns the plan key (e.g. "developer") or undefined if unavailable.
@@ -78,13 +86,13 @@ export function registerPlanTools(server: McpServer) {
       try {
         billingDoc = await fetchDoc('billing');
       } catch {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       // Required: plans table
       const plansTable = extractSections(billingDoc, ['standard plans', 'standard pricing'], { includeLooseMatches: false });
       if (!plansTable) {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       // Optional sections
@@ -138,7 +146,7 @@ export function registerPlanTools(server: McpServer) {
       try {
         billingDoc = await fetchDoc('billing');
       } catch {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       const sectionMap: Record<string, string[]> = {
@@ -149,7 +157,7 @@ export function registerPlanTools(server: McpServer) {
 
       const extracted = extractSections(billingDoc, sectionMap[category], { includeLooseMatches: false });
       if (!extracted) {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       const lines: string[] = [];

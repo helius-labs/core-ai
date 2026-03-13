@@ -45,14 +45,16 @@ export function registerTransferTools(server: McpServer) {
           signerData = await loadSignerOrFail();
         } catch {
           return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before sending.'
+            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before sending.',
+            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
           );
         }
 
         // Validate recipient address
         if (!isValidAddressFormat(recipientAddress)) {
           return mcpError(
-            `Invalid recipient address "${recipientAddress}". Expected a valid Solana address (32-44 base58 characters).`
+            `Invalid recipient address "${recipientAddress}". Expected a valid Solana address (32-44 base58 characters).`,
+            { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address (32-44 characters).' }
           );
         }
 
@@ -80,13 +82,17 @@ export function registerTransferTools(server: McpServer) {
             const available = Number(balanceLamports) / 1_000_000_000;
             return mcpError(
               `Balance too low to cover the transaction fee. You have ${available} SOL.\n\n` +
-              `Wallet: \`${signerData.walletAddress}\``
+              `Wallet: \`${signerData.walletAddress}\``,
+              { type: 'INSUFFICIENT_FUNDS', code: 'LOW_SOL', retryable: false, recovery: `Fund the wallet with more SOL. Current balance: ${available} SOL.` }
             );
           }
           sendAmount = Number(lamports) / 1_000_000_000;
         } else {
           if (amount === undefined) {
-            return mcpError('Either `amount` must be specified or `sendMax` must be true.');
+            return mcpError(
+              'Either `amount` must be specified or `sendMax` must be true.',
+              { type: 'VALIDATION', code: 'MISSING_PARAM', retryable: false, recovery: 'Provide `amount` or set `sendMax` to true.' }
+            );
           }
           lamports = BigInt(Math.round(amount * 1_000_000_000));
           sendAmount = amount;
@@ -96,7 +102,8 @@ export function registerTransferTools(server: McpServer) {
             const available = Number(balanceLamports) / 1_000_000_000;
             return mcpError(
               `Insufficient SOL balance. You have ${available} SOL but need ${sendAmount} SOL plus ~0.005 SOL for transaction fees.\n\n` +
-              `Wallet: \`${signerData.walletAddress}\``
+              `Wallet: \`${signerData.walletAddress}\``,
+              { type: 'INSUFFICIENT_FUNDS', code: 'LOW_SOL', retryable: false, recovery: `Fund the wallet with at least ${sendAmount + 0.005} SOL.` }
             );
           }
         }
@@ -171,19 +178,22 @@ export function registerTransferTools(server: McpServer) {
           signerData = await loadSignerOrFail();
         } catch {
           return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before sending.'
+            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before sending.',
+            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
           );
         }
 
         // Validate addresses
         if (!isValidAddressFormat(recipientAddress)) {
           return mcpError(
-            `Invalid recipient address "${recipientAddress}". Expected a valid Solana address (32-44 base58 characters).`
+            `Invalid recipient address "${recipientAddress}". Expected a valid Solana address (32-44 base58 characters).`,
+            { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address (32-44 characters).' }
           );
         }
         if (!isValidAddressFormat(mintAddress)) {
           return mcpError(
-            `Invalid mint address "${mintAddress}". Expected a valid Solana address (32-44 base58 characters).`
+            `Invalid mint address "${mintAddress}". Expected a valid Solana address (32-44 base58 characters).`,
+            { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded token mint address (32-44 characters).' }
           );
         }
 
@@ -194,13 +204,15 @@ export function registerTransferTools(server: McpServer) {
           asset = await helius.getAsset({ id: mintAddress });
         } catch {
           return mcpError(
-            `Could not fetch token metadata for mint \`${mintAddress}\`. Verify the mint address is correct.`
+            `Could not fetch token metadata for mint \`${mintAddress}\`. Verify the mint address is correct.`,
+            { type: 'NOT_FOUND', code: 'RESOURCE_NOT_FOUND', retryable: false, recovery: 'Verify the mint address is correct. Use `getAsset` to check if the mint exists.' }
           );
         }
 
         if (!asset?.token_info?.decimals && asset?.token_info?.decimals !== 0) {
           return mcpError(
-            `Mint \`${mintAddress}\` does not appear to be a fungible token (no decimals info found). Use \`getAsset\` to inspect it.`
+            `Mint \`${mintAddress}\` does not appear to be a fungible token (no decimals info found). Use \`getAsset\` to inspect it.`,
+            { type: 'NOT_FOUND', code: 'RESOURCE_NOT_FOUND', retryable: false, recovery: 'This mint may not be a fungible token. Use `getAsset` to inspect it.' }
           );
         }
 
@@ -212,7 +224,8 @@ export function registerTransferTools(server: McpServer) {
         // Token-2022 check
         if (tokenProgram === TOKEN_2022_PROGRAM_ID) {
           return mcpError(
-            `Token-2022 transfers are not yet supported. This token (\`${tokenName}\`${tokenSymbol ? ` / ${tokenSymbol}` : ''}) uses the Token-2022 program. Standard SPL Token transfers are supported.`
+            `Token-2022 transfers are not yet supported. This token (\`${tokenName}\`${tokenSymbol ? ` / ${tokenSymbol}` : ''}) uses the Token-2022 program. Standard SPL Token transfers are supported.`,
+            { type: 'UNSUPPORTED', code: 'TOKEN_2022', retryable: false, recovery: 'Token-2022 transfers are not yet supported. Only standard SPL Token transfers are available.' }
           );
         }
 
@@ -245,7 +258,8 @@ export function registerTransferTools(server: McpServer) {
             return mcpError(
               `No token account found for ${tokenSymbol || tokenName}. You may not hold this token.\n\n` +
               `Wallet: \`${signerData.walletAddress}\`\n` +
-              `Mint: \`${mintAddress}\``
+              `Mint: \`${mintAddress}\``,
+              { type: 'INSUFFICIENT_FUNDS', code: 'LOW_TOKEN', retryable: false, recovery: `You may not hold ${tokenSymbol || tokenName}. Check your token balances with getTokenBalances.` }
             );
           }
           rawAmount = BigInt(tokenBalance.value.amount);
@@ -253,13 +267,17 @@ export function registerTransferTools(server: McpServer) {
             return mcpError(
               `${tokenSymbol || tokenName} balance is 0. Nothing to send.\n\n` +
               `Wallet: \`${signerData.walletAddress}\`\n` +
-              `Mint: \`${mintAddress}\``
+              `Mint: \`${mintAddress}\``,
+              { type: 'INSUFFICIENT_FUNDS', code: 'ZERO_BALANCE', retryable: false, recovery: `${tokenSymbol || tokenName} balance is zero. Fund the wallet with tokens before sending.` }
             );
           }
           sendAmount = Number(rawAmount) / 10 ** decimals;
         } else {
           if (amount === undefined) {
-            return mcpError('Either `amount` must be specified or `sendMax` must be true.');
+            return mcpError(
+              'Either `amount` must be specified or `sendMax` must be true.',
+              { type: 'VALIDATION', code: 'MISSING_PARAM', retryable: false, recovery: 'Provide `amount` or set `sendMax` to true.' }
+            );
           }
           rawAmount = BigInt(Math.round(amount * 10 ** decimals));
           sendAmount = amount;
@@ -273,7 +291,8 @@ export function registerTransferTools(server: McpServer) {
               return mcpError(
                 `Insufficient ${tokenSymbol || tokenName} balance. You have ${currentHuman} but are trying to send ${sendAmount}.\n\n` +
                 `Wallet: \`${signerData.walletAddress}\`\n` +
-                `Mint: \`${mintAddress}\``
+                `Mint: \`${mintAddress}\``,
+                { type: 'INSUFFICIENT_FUNDS', code: 'LOW_TOKEN', retryable: false, recovery: `You have ${currentHuman} ${tokenSymbol || tokenName} but need ${sendAmount}. Fund the wallet with more tokens.` }
               );
             }
           } catch {

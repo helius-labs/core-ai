@@ -1,3 +1,12 @@
+import type { ErrorMeta } from '../utils/errors.js';
+
+const NO_API_KEY_META: ErrorMeta = {
+  type: 'AUTH',
+  code: 'NO_API_KEY',
+  retryable: false,
+  recovery: 'Call generateKeypair + agenticSignup, or setHeliusApiKey',
+};
+
 const NO_API_KEY_MESSAGE = `**Helius API Key Required**
 
 I need a Helius API key to query the Solana blockchain.
@@ -13,7 +22,9 @@ I need a Helius API key to query the Solana blockchain.
 3. Call \`setHeliusApiKey\` with your key`;
 
 export function noApiKeyResponse() {
+  const body = '```json\n' + JSON.stringify(NO_API_KEY_META) + '\n```\n\n' + NO_API_KEY_MESSAGE;
   return {
-    content: [{ type: 'text' as const, text: NO_API_KEY_MESSAGE }]
+    content: [{ type: 'text' as const, text: body }],
+    isError: true,
   };
 }

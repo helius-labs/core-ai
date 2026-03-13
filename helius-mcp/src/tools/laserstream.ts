@@ -39,7 +39,10 @@ export function registerLaserstreamTools(server: McpServer) {
       if (params.fromSlot !== undefined) {
         const slotNum = Number(params.fromSlot);
         if (!Number.isInteger(slotNum) || slotNum < 0) {
-          return mcpText(`**Laserstream Error**\n\nInvalid fromSlot "${params.fromSlot}". Must be a non-negative integer slot number.`);
+          return mcpError(
+            `**Laserstream Error**\n\nInvalid fromSlot "${params.fromSlot}". Must be a non-negative integer slot number.`,
+            { type: 'VALIDATION', code: 'INVALID_PARAM', retryable: false, recovery: 'Provide a non-negative integer slot number for fromSlot.' }
+          );
         }
       }
 
@@ -178,7 +181,8 @@ export function registerLaserstreamTools(server: McpServer) {
         return mcpError(
           'Could not fetch live Laserstream documentation. Try:\n' +
           '- `lookupHeliusDocs({ topic: \'laserstream\' })` for full documentation\n' +
-          '- Visit https://www.helius.dev/docs/laserstream/grpc directly'
+          '- Visit https://www.helius.dev/docs/laserstream/grpc directly',
+          { type: 'API', code: 'FETCH_FAILED', retryable: true, recovery: 'Try lookupHeliusDocs({ topic: "laserstream" }) or visit https://www.helius.dev/docs/laserstream/grpc directly' }
         );
       }
 

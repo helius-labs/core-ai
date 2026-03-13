@@ -48,7 +48,10 @@ export function registerWalletTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
 
       if (addresses.length > 100) {
-        return mcpError('Error: Maximum 100 addresses per batch request.');
+        return mcpError(
+          'Maximum 100 addresses per batch request.',
+          { type: 'VALIDATION', code: 'TOO_MANY_ITEMS', retryable: false, recovery: 'Reduce batch to 100 or fewer addresses.' }
+        );
       }
 
       try {

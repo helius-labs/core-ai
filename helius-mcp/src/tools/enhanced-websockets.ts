@@ -215,7 +215,8 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
         return mcpError(
           'Could not fetch live Enhanced WebSocket documentation. Try:\n' +
           '- `lookupHeliusDocs({ topic: \'enhanced-websockets\' })` for full documentation\n' +
-          '- Visit https://www.helius.dev/docs/enhanced-websockets directly'
+          '- Visit https://www.helius.dev/docs/enhanced-websockets directly',
+          { type: 'API', code: 'FETCH_FAILED', retryable: true, recovery: 'Try lookupHeliusDocs({ topic: "enhanced-websockets" }) or visit https://www.helius.dev/docs/enhanced-websockets directly' }
         );
       }
 
