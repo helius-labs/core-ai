@@ -139,6 +139,6 @@ describe('noApiKey guard', () => {
     expect(tool, `tool not found: ${toolName}`).toBeDefined();
     const result = await tool!.handler({});
     expect(result.content[0].text).toContain('Helius API Key Required');
-    expect(result.isError).toBeUndefined(); // noApiKeyResponse is not an error, just a guide
+    expect(result.isError).toBe(true); // noApiKeyResponse is an auth error with structured metadata
   });
 });
