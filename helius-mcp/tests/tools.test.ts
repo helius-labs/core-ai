@@ -34,8 +34,8 @@ describe('Helius MCP Tools', () => {
     registerTools(mockServer);
   });
 
-  it('registers 86 tools', () => {
-    expect(tools.size).toBe(86);
+  it('registers 87 tools', () => {
+    expect(tools.size).toBe(87);
   });
 
   it('all tools have descriptions', () => {
@@ -55,7 +55,7 @@ describe('Helius MCP Tools', () => {
       // Onboarding
       'getStarted', 'setHeliusApiKey', 'generateKeypair', 'checkSignupBalance', 'agenticSignup', 'getAccountStatus',
       // Plans & billing
-      'getHeliusPlanInfo', 'compareHeliusPlans', 'previewUpgrade', 'upgradePlan', 'payRenewal',
+      'getHeliusPlanInfo', 'compareHeliusPlans', 'getAccountPlan', 'previewUpgrade', 'upgradePlan', 'payRenewal',
       // Balance
       'getBalance', 'getTokenBalances',
       // DAS

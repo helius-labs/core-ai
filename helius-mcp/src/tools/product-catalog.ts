@@ -14,6 +14,11 @@ export interface CatalogProduct {
   description: string;
 }
 
+// ─── Plan Ranking ───
+// Pure data constant — lives here (zero imports) to avoid circular dependencies.
+
+export const PLAN_RANK: Record<string, number> = { free: 0, developer: 1, business: 2, professional: 3 };
+
 export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'das-api': {
     name: 'DAS API',
