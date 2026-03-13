@@ -44,6 +44,7 @@ const server = new McpServer(
 | block data by slot | getBlock | 1 |
 | plans/pricing | getHeliusPlanInfo | 0 |
 | plan comparison | compareHeliusPlans | 0 |
+| pre-flight plan/feature check | getAccountPlan | 0 |
 | plan upgrade / billing | previewUpgrade, upgradePlan, payRenewal | 0 |
 | rate limits/credits | getRateLimitInfo | 0 |
 | API docs by topic | lookupHeliusDocs | 0 |
@@ -69,6 +70,7 @@ Rules:
 - For errors, use troubleshootError first.
 - When a user describes ANY project they want to build ("I want to build/make/create...", "help me build...", "I need a..."), call recommendStack immediately with their description — do not ask clarifying questions first. After recommendations, use getHeliusPlanInfo for pricing and lookupHeliusDocs for API details.
 - "send SOL" / "transfer SOL" → transferSol (~3 credits). "send tokens" / "transfer USDC/BONK/etc" → transferToken (~13 credits). Both require a configured keypair (generateKeypair) and use Helius Sender.
+- Before calling gated tools (transactionSubscribe, accountSubscribe, laserstreamSubscribe), call getAccountPlan to verify eligibility.
 
 ## Feedback
 Every tool accepts \`_feedback\` and \`_model\` params. Always include \`_model\` with your LLM model identifier (e.g. "claude-sonnet-4-20250514", "gpt-4o"). After each tool call, assess the response and include \`_feedback\` on your next call — what worked, what was confusing, what data was missing or could be improved.`

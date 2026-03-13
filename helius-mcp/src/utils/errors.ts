@@ -79,7 +79,7 @@ export function validateEnum(
 
 const HTTP_GUIDANCE: Record<string, string> = {
   '401': 'API key is invalid or expired. Call `setHeliusApiKey` with a valid key, or call `getAccountStatus` to check your current auth state.',
-  '403': 'This endpoint is restricted on your current plan. Call `getAccountStatus` to check your plan tier and remaining credits. Some endpoints (Enhanced Transactions, Token API) require Developer plan or higher. Call `getHeliusPlanInfo` to compare plans, or `previewUpgrade` to see upgrade pricing.',
+  '403': 'This endpoint is restricted on your current plan. Call `getAccountPlan` for a quick plan/feature check, or `getAccountStatus` for full details. Some endpoints require Developer plan or higher. Call `getHeliusPlanInfo` to compare plans, or `previewUpgrade` to see upgrade pricing.',
   '429': 'Rate limited. Call `getAccountStatus` to check your remaining credits and rate limits. Back off and retry, or call `previewUpgrade` to see upgrade options for higher limits.',
   '502': 'Backend temporarily unavailable. Retry after a few seconds.',
   '504': 'Gateway timeout — the request took too long. Try reducing the query scope (fewer addresses, smaller limit, narrower time range).',
