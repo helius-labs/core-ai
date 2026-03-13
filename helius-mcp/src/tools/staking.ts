@@ -2,11 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createKeyPairSignerFromBytes, address } from '@solana/kit';
 import { getHeliusClient, hasApiKey, loadSignerOrFail, getSessionWalletAddress } from '../utils/helius.js';
-<<<<<<< HEAD
-import { mcpText, mcpError, handleToolError, isValidAddressFormat } from '../utils/errors.js';
-=======
 import { mcpText, mcpError, handleToolError, isValidAddressFormat, missingParamError } from '../utils/errors.js';
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
 import { noApiKeyResponse } from './shared.js';
 
 // ── Tool Registration ──
@@ -39,12 +35,8 @@ export function registerStakingTools(server: McpServer) {
           signerData = await loadSignerOrFail();
         } catch {
           return mcpError(
-<<<<<<< HEAD
-            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before staking.'
-=======
             'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before staking.',
             { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call generateKeypair to create a wallet.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
@@ -59,12 +51,8 @@ export function registerStakingTools(server: McpServer) {
           const available = Number(balanceLamports) / 1_000_000_000;
           return mcpError(
             `Insufficient SOL balance. You have ${available} SOL but need ${amount} SOL plus ~0.01 SOL for rent-exempt reserve and transaction fees.\n\n` +
-<<<<<<< HEAD
-            `Wallet: \`${signerData.walletAddress}\``
-=======
             `Wallet: \`${signerData.walletAddress}\``,
             { type: 'INSUFFICIENT_FUNDS', code: 'LOW_SOL', retryable: false, recovery: 'Fund the wallet with more SOL.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
@@ -124,24 +112,16 @@ export function registerStakingTools(server: McpServer) {
           signerData = await loadSignerOrFail();
         } catch {
           return mcpError(
-<<<<<<< HEAD
-            'No keypair found. Call `generateKeypair` first to create a wallet.'
-=======
             'No keypair found. Call `generateKeypair` first to create a wallet.',
             { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call generateKeypair to create a wallet.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
         // Validate address
         if (!isValidAddressFormat(stakeAccountAddress)) {
           return mcpError(
-<<<<<<< HEAD
-            `Invalid stake account address "${stakeAccountAddress}". Expected a valid Solana address (32-44 base58 characters).`
-=======
             `Invalid stake account address "${stakeAccountAddress}". Expected a valid Solana address (32-44 base58 characters).`,
             { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
@@ -205,34 +185,22 @@ export function registerStakingTools(server: McpServer) {
           signerData = await loadSignerOrFail();
         } catch {
           return mcpError(
-<<<<<<< HEAD
-            'No keypair found. Call `generateKeypair` first to create a wallet.'
-=======
             'No keypair found. Call `generateKeypair` first to create a wallet.',
             { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call generateKeypair to create a wallet.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
         // Validate addresses
         if (!isValidAddressFormat(stakeAccountAddress)) {
           return mcpError(
-<<<<<<< HEAD
-            `Invalid stake account address "${stakeAccountAddress}". Expected a valid Solana address (32-44 base58 characters).`
-=======
             `Invalid stake account address "${stakeAccountAddress}". Expected a valid Solana address (32-44 base58 characters).`,
             { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
         if (destination && !isValidAddressFormat(destination)) {
           return mcpError(
-<<<<<<< HEAD
-            `Invalid destination address "${destination}". Expected a valid Solana address (32-44 base58 characters).`
-=======
             `Invalid destination address "${destination}". Expected a valid Solana address (32-44 base58 characters).`,
             { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
@@ -253,12 +221,8 @@ export function registerStakingTools(server: McpServer) {
           return mcpError(
             `No funds available to withdraw from stake account \`${stakeAccountAddress}\`. ` +
             `The stake may still be active or in cooldown (not yet fully deactivated). ` +
-<<<<<<< HEAD
-            `Use \`getStakeAccounts\` to check the status.`
-=======
             `Use \`getStakeAccounts\` to check the status.`,
             { type: 'INSUFFICIENT_FUNDS', code: 'ZERO_BALANCE', retryable: false, recovery: 'Stake may still be active or in cooldown. Use getStakeAccounts to check status.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
@@ -312,24 +276,14 @@ export function registerStakingTools(server: McpServer) {
         if (!walletAddress) {
           walletAddress = getSessionWalletAddress() ?? undefined;
           if (!walletAddress) {
-<<<<<<< HEAD
-            return mcpError(
-              'No wallet address provided and no keypair configured. Either pass a `wallet` address or call `generateKeypair` first.'
-            );
-=======
             return missingParamError('getStakeAccounts', 'Pass a wallet address or call generateKeypair first.');
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           }
         }
 
         if (!isValidAddressFormat(walletAddress)) {
           return mcpError(
-<<<<<<< HEAD
-            `Invalid wallet address "${walletAddress}". Expected a valid Solana address (32-44 base58 characters).`
-=======
             `Invalid wallet address "${walletAddress}". Expected a valid Solana address (32-44 base58 characters).`,
             { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
@@ -350,11 +304,7 @@ export function registerStakingTools(server: McpServer) {
         for (const account of accounts) {
           const pubkey = account.pubkey;
           const lamports = account.account.lamports;
-<<<<<<< HEAD
-          const solAmount = lamports / 1_000_000_000;
-=======
           const solAmount = Number(lamports) / 1_000_000_000;
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           const delegation = account.account.data?.parsed?.info?.stake?.delegation;
 
           let status = 'Unknown';
@@ -413,12 +363,8 @@ export function registerStakingTools(server: McpServer) {
       try {
         if (!isValidAddressFormat(stakeAccountAddress)) {
           return mcpError(
-<<<<<<< HEAD
-            `Invalid stake account address "${stakeAccountAddress}". Expected a valid Solana address (32-44 base58 characters).`
-=======
             `Invalid stake account address "${stakeAccountAddress}". Expected a valid Solana address (32-44 base58 characters).`,
             { type: 'VALIDATION', code: 'INVALID_ADDRESS', retryable: false, recovery: 'Provide a valid base58-encoded Solana address.' }
->>>>>>> 8f5d5cb6119beaa591d0038bbc58185f2d23f0a2
           );
         }
 
