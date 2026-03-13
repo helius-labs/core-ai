@@ -22,6 +22,7 @@ import { registerGuideTools } from './guides.js';
 import { registerRecommendTools } from './recommend.js';
 import { registerSolanaKnowledgeTools } from './solana-knowledge.js';
 import { registerTransferTools } from './transfers.js';
+import { registerZkCompressionTools } from './zk-compression.js';
 
 /**
  * Patches McpServer to inject optional _feedback and _model params into every
@@ -102,4 +103,5 @@ export function registerTools(server: McpServer) {
   registerRecommendTools(server);
   registerSolanaKnowledgeTools(server);
   registerTransferTools(server);
+  registerZkCompressionTools(server);
 }
