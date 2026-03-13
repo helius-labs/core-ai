@@ -40,6 +40,7 @@ export const KNOWN_TOOLS = new Set([
   'getLatestCompressionSignatures', 'getLatestNonVotingSignatures',
   'getTransactionWithCompressionInfo', 'getValidityProof',
   'getIndexerHealth', 'getIndexerSlot',
+  'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
 ]);
 
 // ─── Plan Ranking (re-exported from product-catalog.ts) ───

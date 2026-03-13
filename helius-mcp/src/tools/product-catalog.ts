@@ -148,6 +148,15 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     referenceFile: 'references/zk-compression.md',
     description: 'Query compressed accounts, token balances, Merkle proofs, validity proofs, and compression transaction history via the ZK Compression / Light Protocol indexer. Powers state compression for cost-efficient on-chain data storage.',
   },
+  'native-staking': {
+    name: 'Native Staking',
+    mcpTools: ['stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount'],
+    creditCostPerCall: '~3-10 credits + on-chain fees',
+    minimumPlan: 'free',
+    docKey: 'sender',
+    referenceFile: 'references/sender.md',
+    description: 'Stake, unstake, and withdraw native SOL via the Helius validator. Earn staking yield with one-click delegation. Query stake accounts and withdrawable amounts.',
+  },
   'token-holders': {
     name: 'Token Holders',
     mcpTools: ['getTokenHolders'],
