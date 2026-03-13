@@ -19,6 +19,7 @@ import {
   loadSignerOrFail,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
+import { generateWalletQR } from '../utils/qr.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk, keypairExistsOnDisk } from '../utils/config.js';
@@ -183,12 +184,15 @@ export function registerAuthTools(server: McpServer) {
           setSessionWalletAddress(address);
           captureWalletAddress(address);
 
+          const existingQR = await generateWalletQR(address);
           return mcpText(
             `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
             `**Wallet Address:** \`${address}\`\n\n` +
             `To create a Helius account, fund this wallet with:\n` +
             `- **~0.001 SOL** for transaction fees\n` +
             `- **1 USDC** for basic plan (or more for paid plans)\n\n` +
+            `**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n` +
+            `\`\`\`\n${existingQR}\`\`\`\n` +
             `Then call \`agenticSignup\` to complete account creation.`
           );
         }
@@ -203,6 +207,7 @@ export function registerAuthTools(server: McpServer) {
         setSessionWalletAddress(address);
         captureWalletAddress(address);
 
+        const newQR = await generateWalletQR(address);
         return mcpText(
           `**Keypair Generated**\n\n` +
           `**Wallet Address:** \`${address}\`\n` +
@@ -210,6 +215,8 @@ export function registerAuthTools(server: McpServer) {
           `To create a Helius account, fund this wallet with:\n` +
           `- **~0.001 SOL** for transaction fees\n` +
           `- **1 USDC** for basic plan (or more for paid plans)\n\n` +
+          `**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n` +
+          `\`\`\`\n${newQR}\`\`\`\n` +
           `Then call \`agenticSignup\` to complete account creation.`
         );
       } catch (err) {
@@ -281,10 +288,16 @@ export function registerAuthTools(server: McpServer) {
           `**Status:** Need more funds: ${missing.join(', ')}`;
 
         if (insufficientBalanceChecks === 1) {
-          // First check — normal guidance
+          // First check — normal guidance with QR code
           balanceBlock +=
             `\n\n**Action required:** Ask the user to send the missing funds to \`${address}\`. ` +
             `Do **not** call \`checkSignupBalance\` again until the user confirms they have sent the funds.`;
+          try {
+            const qrText = await generateWalletQR(address);
+            balanceBlock += `\n\n**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n\`\`\`\n${qrText}\`\`\``;
+          } catch {
+            // QR generation failed — skip
+          }
         } else if (insufficientBalanceChecks < MAX_BALANCE_CHECKS_BEFORE_STOP) {
           // Second check — firmer nudge
           balanceBlock +=
