@@ -29,6 +29,17 @@ export const KNOWN_TOOLS = new Set([
   'troubleshootError', 'getSenderInfo', 'getWebhookGuide', 'getLatencyComparison', 'getPumpFunGuide',
   'recommendStack',
   'transferSol', 'transferToken',
+  'getCompressedAccount', 'getCompressedAccountsByOwner', 'getMultipleCompressedAccounts',
+  'getCompressedBalance', 'getCompressedBalanceByOwner',
+  'getCompressedMintTokenHolders', 'getCompressedTokenAccountBalance',
+  'getCompressedTokenAccountsByOwner', 'getCompressedTokenAccountsByDelegate',
+  'getCompressedTokenBalancesByOwner',
+  'getCompressedAccountProof', 'getMultipleCompressedAccountProofs', 'getMultipleNewAddressProofs',
+  'getCompressionSignaturesForAccount', 'getCompressionSignaturesForAddress',
+  'getCompressionSignaturesForOwner', 'getCompressionSignaturesForTokenOwner',
+  'getLatestCompressionSignatures', 'getLatestNonVotingSignatures',
+  'getTransactionWithCompressionInfo', 'getValidityProof',
+  'getIndexerHealth', 'getIndexerSlot',
 ]);
 
 // ─── Plan Ranking ───
