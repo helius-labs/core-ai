@@ -5,7 +5,6 @@ import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct, PLAN_RANK } from './product-catalog.js';
-export { PLAN_RANK };
 // fetchDoc/extractSections no longer needed — live billing fetch removed
 
 

@@ -169,7 +169,7 @@ describe('handleToolError', () => {
   it('dispatches to the first matching handler', () => {
     const handler = addressError('My Tool');
     const result = handleToolError(new Error('Invalid pubkey format'), 'Fallback', [handler]);
-    expect(result.isError).toBeUndefined();
+    expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('My Tool');
   });
 

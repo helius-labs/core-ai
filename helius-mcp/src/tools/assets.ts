@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
-import { mcpText, handleToolError, addressError, paginationError, notFoundError } from '../utils/errors.js';
+import { mcpText, mcpError, handleToolError, addressError, paginationError, notFoundError, missingParamError, exclusiveParamError, batchLimitError } from '../utils/errors.js';
 
 export function registerAssetTools(server: McpServer) {
   // Get Assets by Owner (NFTs and tokens via DAS)
@@ -98,11 +98,11 @@ export function registerAssetTools(server: McpServer) {
 
       // Validate: must provide exactly one of id or ids
       if (!id && (!ids || ids.length === 0)) {
-        return mcpText(`**Error:** Provide either "id" (single asset) or "ids" (batch of up to 1000).`);
+        return missingParamError('getAsset', 'Provide either `id` (single asset) or `ids` (batch of up to 1000).');
       }
 
       if (id && ids && ids.length > 0) {
-        return mcpText(`**Error:** Provide either "id" or "ids", not both.`);
+        return exclusiveParamError('getAsset', 'id', 'ids');
       }
 
       type Creator = { address: string; share: number; verified: boolean };
@@ -132,7 +132,7 @@ export function registerAssetTools(server: McpServer) {
       // --- Batch mode ---
       if (ids && ids.length > 0) {
         if (ids.length > 1000) {
-          return mcpText(`**Error:** Maximum 1000 assets per batch. You provided ${ids.length}.`);
+          return batchLimitError('getAsset', 1000, ids.length);
         }
 
         let assets;
@@ -343,7 +343,10 @@ export function registerAssetTools(server: McpServer) {
       // General search → searchAssets
       else {
         if (name && !ownerAddress) {
-          return mcpText(`**Search Error:** Searching by name requires an owner address. Please also provide \`ownerAddress\` to search for assets named "${name}".`);
+          return mcpError(
+            `**Search Error:** Searching by name requires an owner address. Please also provide \`ownerAddress\` to search for assets named "${name}".`,
+            { type: 'VALIDATION', code: 'MISSING_PARAM', retryable: false, recovery: 'Provide `ownerAddress` when searching by name.' }
+          );
         }
 
         type SearchParams = {

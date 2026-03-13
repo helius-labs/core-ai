@@ -2,13 +2,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { mcpText, mcpError } from '../utils/errors.js';
+import type { ErrorMeta } from '../utils/errors.js';
 import { hasApiKey } from '../utils/helius.js';
 import { getJwt } from '../utils/config.js';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { MCP_USER_AGENT } from '../http.js';
-import { PRODUCT_CATALOG } from './product-catalog.js';
-import { PLAN_RANK } from './product-catalog.js';
+import { PRODUCT_CATALOG, PLAN_RANK } from './product-catalog.js';
 
 /**
  * Static plan metadata — NOT the source of truth for pricing or billing data.
@@ -48,6 +48,13 @@ const BILLING_FETCH_ERROR =
   '- `lookupHeliusDocs({ topic: \'billing\' })` for full billing documentation\n' +
   '- Visit https://www.helius.dev/docs/billing directly';
 
+const BILLING_FETCH_META: ErrorMeta = {
+  type: 'API',
+  code: 'FETCH_FAILED',
+  retryable: true,
+  recovery: 'Try lookupHeliusDocs({ topic: "billing" }) or visit https://www.helius.dev/docs/billing directly',
+};
+
 /**
  * Detect the user's current Helius plan from their JWT session.
  * Returns the plan key (e.g. "developer") or undefined if unavailable.
@@ -81,13 +88,13 @@ export function registerPlanTools(server: McpServer) {
       try {
         billingDoc = await fetchDoc('billing');
       } catch {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       // Required: plans table
       const plansTable = extractSections(billingDoc, ['standard plans', 'standard pricing'], { includeLooseMatches: false });
       if (!plansTable) {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       // Optional sections
@@ -141,7 +148,7 @@ export function registerPlanTools(server: McpServer) {
       try {
         billingDoc = await fetchDoc('billing');
       } catch {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       const sectionMap: Record<string, string[]> = {
@@ -152,7 +159,7 @@ export function registerPlanTools(server: McpServer) {
 
       const extracted = extractSections(billingDoc, sectionMap[category], { includeLooseMatches: false });
       if (!extracted) {
-        return mcpError(BILLING_FETCH_ERROR);
+        return mcpError(BILLING_FETCH_ERROR, BILLING_FETCH_META);
       }
 
       const lines: string[] = [];
@@ -211,6 +218,9 @@ export function registerPlanTools(server: McpServer) {
 
         const planKey = (details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase()) ?? 'unknown';
         const planInfo = HELIUS_PLANS[planKey];
+        if (!planInfo) {
+          console.warn(`[getAccountPlan] Unrecognized plan "${planKey}" — tool eligibility may be inaccurate`);
+        }
         const planName = planInfo?.name ?? planKey;
 
         // Credit info
