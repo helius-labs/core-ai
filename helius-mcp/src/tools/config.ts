@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { setApiKey, setNetwork, hasApiKey, getHeliusClient } from '../utils/helius.js';
-import { mcpText, validateEnum, getErrorMessage } from '../utils/errors.js';
+import { mcpText, mcpError, validateEnum, getErrorMessage } from '../utils/errors.js';
 import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
 
 export function registerConfigTools(server: McpServer) {
@@ -36,7 +36,10 @@ export function registerConfigTools(server: McpServer) {
         const errorMsg = getErrorMessage(e);
         if (errorMsg.includes('invalid api key') || errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
           setApiKey('');
-          return mcpText(`❌ Invalid API key. Please check your key and try again.\n\nGet your key at https://dashboard.helius.dev/api-keys`);
+          return mcpError(
+            `❌ Invalid API key. Please check your key and try again.\n\nGet your key at https://dashboard.helius.dev/api-keys`,
+            { type: 'AUTH', code: 'INVALID_API_KEY', retryable: false, recovery: 'Check your API key at https://dashboard.helius.dev/api-keys and call setHeliusApiKey with a valid key.' }
+          );
         }
       }
 

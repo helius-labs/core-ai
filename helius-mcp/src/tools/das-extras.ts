@@ -38,7 +38,10 @@ export function registerDasExtraTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
       try {
         if (ids.length > 1000) {
-          return mcpError('Max 1000 proofs per batch');
+          return mcpError(
+            'Max 1000 proofs per batch',
+            { type: 'VALIDATION', code: 'TOO_MANY_ITEMS', retryable: false, recovery: 'Reduce batch to 1000 or fewer.' }
+          );
         }
         const helius = getHeliusClient();
         const result = await helius.getAssetProofBatch({ ids });
@@ -58,8 +61,8 @@ export function registerDasExtraTools(server: McpServer) {
     'BEST FOR: transaction history for a specific asset by mint address. PREFER getTransactionHistory for wallet-level transaction history. Get transaction history for any DAS asset. DAS API (10 credits/call).',
     {
       id: z.string().describe('Asset mint address (base58 encoded, any DAS asset)'),
-      page: z.number().optional().default(1),
-      limit: z.number().optional().default(20)
+      page: z.number().optional().default(1).describe('Page number for pagination (default: 1)'),
+      limit: z.number().optional().default(20).describe('Results per page, max 1000 (default: 20)')
     },
     async ({ id, page, limit }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -91,8 +94,8 @@ export function registerDasExtraTools(server: McpServer) {
     'BEST FOR: finding numbered edition prints of a master NFT. Get all edition NFTs for a master NFT. DAS API (10 credits/call).',
     {
       mint: z.string().describe('Master NFT mint address (base58 encoded)'),
-      page: z.number().optional().default(1),
-      limit: z.number().optional().default(20)
+      page: z.number().optional().default(1).describe('Page number for pagination (default: 1)'),
+      limit: z.number().optional().default(20).describe('Results per page, max 1000 (default: 20)')
     },
     async ({ mint, page, limit }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -112,7 +115,7 @@ export function registerDasExtraTools(server: McpServer) {
       } catch (err) {
         const header = `Editions for ${formatAddress(mint)}`;
         return handleToolError(err, 'Error fetching editions', [
-          { match: (m) => m.includes('null value was encountered'), respond: () => mcpText(`**${header}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.`) },
+          { match: (m) => m.includes('null value was encountered'), respond: () => mcpError(`**${header}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.`, { type: 'VALIDATION', code: 'INVALID_PARAM', retryable: false, recovery: 'Provide a master edition mint address. getNftEditions only works with master edition NFTs.' }) },
           notFoundError(header, 'Asset not found. This mint address does not exist or has not been indexed.'),
           addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
           paginationError(header),

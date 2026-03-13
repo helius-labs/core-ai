@@ -13,14 +13,14 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       vote: z.boolean().optional().describe('Include vote transactions'),
       failed: z.boolean().optional().describe('Include failed transactions'),
       signature: z.string().optional().describe('Transaction signature (base58 encoded, 86-88 characters) to filter to'),
-      accountInclude: z.array(z.string()).optional().describe('Accounts to include (base58 encoded, up to 50,000, OR logic)'),
-      accountExclude: z.array(z.string()).optional().describe('Accounts to exclude (base58 encoded)'),
-      accountRequired: z.array(z.string()).optional().describe('Accounts required (base58 encoded, AND logic)'),
-      commitment: z.string().optional().default('confirmed'),
-      encoding: z.string().optional().default('jsonParsed'),
-      transactionDetails: z.string().optional().default('full'),
-      showRewards: z.boolean().optional().default(false),
-      maxSupportedTransactionVersion: z.number().optional().default(0)
+      accountInclude: z.array(z.string()).optional().describe('Accounts to include in filter (base58 encoded, up to 50,000). OR logic: tx matches if it involves ANY of these accounts. Use accountRequired for AND logic.'),
+      accountExclude: z.array(z.string()).optional().describe('Accounts to exclude from results (base58 encoded). Transactions involving ANY of these accounts are filtered out, even if they match accountInclude.'),
+      accountRequired: z.array(z.string()).optional().describe('Accounts required in every matched transaction (base58 encoded). AND logic: tx must involve ALL of these accounts. Use accountInclude for OR logic.'),
+      commitment: z.string().optional().default('confirmed').describe('Commitment level for transaction confirmation. Values: "processed", "confirmed" (default), "finalized"'),
+      encoding: z.string().optional().default('jsonParsed').describe('Response encoding format. Values: "base58", "base64", "jsonParsed" (default — recommended, returns decoded instruction data)'),
+      transactionDetails: z.string().optional().default('full').describe('Level of transaction detail in response. Values: "full" (default — complete data), "signatures" (just sigs), "accounts" (account keys only), "none"'),
+      showRewards: z.boolean().optional().default(false).describe('Include block rewards in transaction results (default: false)'),
+      maxSupportedTransactionVersion: z.number().optional().default(0).describe('Max transaction version to return. Defaults to 0, which includes versioned transactions (v0).')
     },
     async (params) => {
       let err;
@@ -128,8 +128,8 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     'BEST FOR: real-time account change monitoring for live UI updates (WebSocket). PREFER createWebhook for fire-and-forget notifications on account changes. PREFER laserstreamSubscribe for lowest-latency production streaming. Get Enhanced WebSocket config for real-time Solana account monitoring. Track balance changes and data updates. Business+ plans only. Returns connection config and code example. Data streaming cost: 3 credits per 0.1 MB received.',
     {
       account: z.string().describe('Account address (base58 encoded)'),
-      encoding: z.string().optional().default('base58'),
-      commitment: z.string().optional().default('finalized')
+      encoding: z.string().optional().default('base58').describe('Account data encoding format. Values: "base58" (default), "base64", "base64+zstd" (compressed), "jsonParsed" (decoded if known program)'),
+      commitment: z.string().optional().default('finalized').describe('Commitment level for change notifications. Values: "processed", "confirmed", "finalized" (default — most reliable)')
     },
     async ({ account, encoding, commitment }) => {
       let err;
@@ -215,7 +215,8 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
         return mcpError(
           'Could not fetch live Enhanced WebSocket documentation. Try:\n' +
           '- `lookupHeliusDocs({ topic: \'enhanced-websockets\' })` for full documentation\n' +
-          '- Visit https://www.helius.dev/docs/enhanced-websockets directly'
+          '- Visit https://www.helius.dev/docs/enhanced-websockets directly',
+          { type: 'API', code: 'FETCH_FAILED', retryable: true, recovery: 'Try lookupHeliusDocs({ topic: "enhanced-websockets" }) or visit https://www.helius.dev/docs/enhanced-websockets directly' }
         );
       }
 

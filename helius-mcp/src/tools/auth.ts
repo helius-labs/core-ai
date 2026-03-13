@@ -238,7 +238,10 @@ export function registerAuthTools(server: McpServer) {
         }
 
         if (!address) {
-          return mcpError('No signup wallet found. Call `generateKeypair` first to create a wallet.');
+          return mcpError(
+            'No signup wallet found. Call `generateKeypair` first to create a wallet.',
+            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
+          );
         }
 
         const solBalance = await checkSolBalance(address);
@@ -329,7 +332,10 @@ export function registerAuthTools(server: McpServer) {
         try {
           signerData = await loadSignerOrFail();
         } catch {
-          return mcpError('No signup keypair found. Call `generateKeypair` first to create a wallet, fund it, then call this tool.');
+          return mcpError(
+            'No signup keypair found. Call `generateKeypair` first to create a wallet, fund it, then call this tool.',
+            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet, fund it, then retry.' }
+          );
         }
 
         const result = await agenticSignup({
@@ -414,12 +420,18 @@ export function registerAuthTools(server: McpServer) {
       try {
         const jwt = getJwt();
         if (!jwt) {
-          return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
+          return mcpError(
+            'Not authenticated. Call `agenticSignup` or authenticate first.',
+            { type: 'AUTH', code: 'NOT_AUTHENTICATED', retryable: false, recovery: 'Call `agenticSignup` to authenticate.' }
+          );
         }
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+          return mcpError(
+            'No projects found. Call `agenticSignup` to create an account first.',
+            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `agenticSignup` to create an account first.' }
+          );
         }
 
         const projectId = projects[0].id;
@@ -487,7 +499,8 @@ export function registerAuthTools(server: McpServer) {
             !lastName && 'lastName',
           ].filter(Boolean);
           return mcpError(
-            `Partial customer info provided. If any of email/firstName/lastName is given, all three are required. Missing: ${missing.join(', ')}`
+            `Partial customer info provided. If any of email/firstName/lastName is given, all three are required. Missing: ${missing.join(', ')}`,
+            { type: 'VALIDATION', code: 'MISSING_PARAM', retryable: false, recovery: `Provide all three: email, firstName, and lastName. Missing: ${missing.join(', ')}` }
           );
         }
 
@@ -495,17 +508,26 @@ export function registerAuthTools(server: McpServer) {
         try {
           signerData = await loadSignerOrFail();
         } catch {
-          return mcpError('No keypair found. Call `generateKeypair` first.');
+          return mcpError(
+            'No keypair found. Call `generateKeypair` first.',
+            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
+          );
         }
 
         const jwt = getJwt();
         if (!jwt) {
-          return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
+          return mcpError(
+            'Not authenticated. Call `agenticSignup` or authenticate first.',
+            { type: 'AUTH', code: 'NOT_AUTHENTICATED', retryable: false, recovery: 'Call `agenticSignup` to authenticate.' }
+          );
         }
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+          return mcpError(
+            'No projects found. Call `agenticSignup` to create an account first.',
+            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `agenticSignup` to create an account first.' }
+          );
         }
 
         const projectId = projects[0].id;
@@ -524,7 +546,8 @@ export function registerAuthTools(server: McpServer) {
             `**Upgrade ${result.status}**\n\n` +
             (result.error ? `Error: ${result.error}\n` : '') +
             (result.txSignature ? `TX: \`${result.txSignature}\`\n` : '') +
-            `\nIf you need help, contact support with the payment intent ID: \`${result.paymentIntentId}\``
+            `\nIf you need help, contact support with the payment intent ID: \`${result.paymentIntentId}\``,
+            { type: 'API', code: 'OPERATION_FAILED', retryable: false, recovery: `Upgrade ${result.status}. Contact support with payment intent ID: ${result.paymentIntentId}` }
           );
         }
 
@@ -577,7 +600,10 @@ export function registerAuthTools(server: McpServer) {
         // ── Tier 3: full status via JWT ──
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+          return mcpError(
+            'No projects found. Call `agenticSignup` to create an account first.',
+            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `agenticSignup` to create an account first.' }
+          );
         }
 
         const projectId = projects[0].id;
@@ -684,12 +710,18 @@ export function registerAuthTools(server: McpServer) {
         try {
           signerData = await loadSignerOrFail();
         } catch {
-          return mcpError('No keypair found. Call `generateKeypair` first.');
+          return mcpError(
+            'No keypair found. Call `generateKeypair` first.',
+            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
+          );
         }
 
         const jwt = getJwt();
         if (!jwt) {
-          return mcpError('Not authenticated. Call `agenticSignup` or authenticate first.');
+          return mcpError(
+            'Not authenticated. Call `agenticSignup` or authenticate first.',
+            { type: 'AUTH', code: 'NOT_AUTHENTICATED', retryable: false, recovery: 'Call `agenticSignup` to authenticate.' }
+          );
         }
 
         const result = await executeRenewal(signerData.secretKey, jwt, paymentIntentId, MCP_USER_AGENT);
@@ -699,7 +731,8 @@ export function registerAuthTools(server: McpServer) {
             `**Payment ${result.status}**\n\n` +
             (result.error ? `Error: ${result.error}\n` : '') +
             (result.txSignature ? `TX: \`${result.txSignature}\`\n` : '') +
-            `\nIf you need help, contact support with the payment intent ID: \`${result.paymentIntentId}\``
+            `\nIf you need help, contact support with the payment intent ID: \`${result.paymentIntentId}\``,
+            { type: 'API', code: 'OPERATION_FAILED', retryable: false, recovery: `Payment ${result.status}. Contact support with payment intent ID: ${result.paymentIntentId}` }
           );
         }
 

@@ -34,8 +34,8 @@ describe('Helius MCP Tools', () => {
     registerTools(mockServer);
   });
 
-  it('registers 68 tools', () => {
-    expect(tools.size).toBe(68);
+  it('registers 69 tools', () => {
+    expect(tools.size).toBe(69);
   });
 
   it('all tools have descriptions', () => {
@@ -55,7 +55,7 @@ describe('Helius MCP Tools', () => {
       // Onboarding
       'getStarted', 'setHeliusApiKey', 'generateKeypair', 'checkSignupBalance', 'agenticSignup', 'getAccountStatus',
       // Plans & billing
-      'getHeliusPlanInfo', 'compareHeliusPlans', 'previewUpgrade', 'upgradePlan', 'payRenewal',
+      'getHeliusPlanInfo', 'compareHeliusPlans', 'getAccountPlan', 'previewUpgrade', 'upgradePlan', 'payRenewal',
       // Balance
       'getBalance', 'getTokenBalances',
       // DAS
@@ -86,6 +86,8 @@ describe('Helius MCP Tools', () => {
       'getLatencyComparison', 'getPumpFunGuide', 'recommendStack',
       // Solana Knowledge
       'getSIMD', 'listSIMDs', 'searchSolanaDocs', 'readSolanaSourceFile', 'fetchHeliusBlog',
+      // Staking
+      'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
     ];
 
     for (const name of expected) {
@@ -119,6 +121,8 @@ describe('noApiKey guard', () => {
     // Wallet
     'getWalletBalances', 'getWalletHistory', 'getWalletTransfers',
     'getWalletIdentity', 'batchWalletIdentity', 'getWalletFundedBy',
+    // Staking
+    'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
   ];
 
   let tools: Map<string, { name: string; description: string; handler: Function }>;
@@ -139,6 +143,6 @@ describe('noApiKey guard', () => {
     expect(tool, `tool not found: ${toolName}`).toBeDefined();
     const result = await tool!.handler({});
     expect(result.content[0].text).toContain('Helius API Key Required');
-    expect(result.isError).toBeUndefined(); // noApiKeyResponse is not an error, just a guide
+    expect(result.isError).toBe(true); // noApiKeyResponse is an auth error with structured metadata
   });
 });

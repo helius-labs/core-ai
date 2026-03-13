@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatSol } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
-import { mcpText, validateEnum, handleToolError, addressError, paginationError } from '../utils/errors.js';
+import { mcpText, validateEnum, handleToolError, addressError, paginationError, missingParamError, exclusiveParamError, batchLimitError } from '../utils/errors.js';
 
 function formatParsedAccountData(account: {
   data: unknown;
@@ -53,11 +53,11 @@ export function registerAccountTools(server: McpServer) {
 
       // Validate: must provide exactly one of address or addresses
       if (!address && (!addresses || addresses.length === 0)) {
-        return mcpText(`**Error:** Provide either \`address\` (single account) or \`addresses\` (batch of up to 100).`);
+        return missingParamError('getAccountInfo', 'Provide either `address` (single account) or `addresses` (batch of up to 100).');
       }
 
       if (address && addresses && addresses.length > 0) {
-        return mcpText(`**Error:** Provide either \`address\` or \`addresses\`, not both.`);
+        return exclusiveParamError('getAccountInfo', 'address', 'addresses');
       }
 
       try {
@@ -66,7 +66,7 @@ export function registerAccountTools(server: McpServer) {
         // --- Batch mode ---
         if (addresses && addresses.length > 0) {
           if (addresses.length > 100) {
-            return mcpText(`**Error:** Maximum 100 accounts per request. You provided ${addresses.length}.`);
+            return batchLimitError('getAccountInfo', 100, addresses.length);
           }
 
           const result = await (helius as any).getMultipleAccounts(addresses, { encoding });
@@ -145,7 +145,7 @@ export function registerAccountTools(server: McpServer) {
       const helius = getHeliusClient();
 
       if (!owner && !mint) {
-        return mcpText(`**Error:** You must provide at least one of: owner or mint address.`);
+        return missingParamError('getTokenAccounts', 'Provide at least one of: `owner` or `mint` address.');
       }
 
       type TokenAccountParams = {
