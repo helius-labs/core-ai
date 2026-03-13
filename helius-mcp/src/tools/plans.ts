@@ -1,12 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDoc, extractSections } from '../utils/docs.js';
-import { mcpError } from '../utils/errors.js';
+import { mcpText, mcpError } from '../utils/errors.js';
 import type { ErrorMeta } from '../utils/errors.js';
+import { hasApiKey } from '../utils/helius.js';
 import { getJwt } from '../utils/config.js';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { MCP_USER_AGENT } from '../http.js';
+import { PRODUCT_CATALOG, PLAN_RANK } from './product-catalog.js';
 
 /**
  * Static plan metadata — NOT the source of truth for pricing or billing data.
@@ -174,4 +176,174 @@ export function registerPlanTools(server: McpServer) {
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
     }
   );
+
+  // ── getAccountPlan — lightweight pre-flight check ──
+
+  server.tool(
+    'getAccountPlan',
+    'Lightweight pre-flight check: returns current plan, credit balance, and which MCP tools require an upgrade. 0 credits. Call before gated tools (transactionSubscribe, laserstreamSubscribe, etc.).',
+    {},
+    async () => {
+      // ── Tier 1: not authenticated at all ──
+      if (!hasApiKey()) {
+        return mcpText(
+          `## Account Plan\n\n` +
+          `**Auth:** Not authenticated\n\n` +
+          `No API key or session found. To get started:\n` +
+          `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
+          `- If you need an account: use \`generateKeypair\` → fund wallet → \`agenticSignup\``
+        );
+      }
+
+      // ── Tier 2: API key present but no JWT ──
+      const jwt = getJwt();
+      if (!jwt) {
+        return mcpText(
+          `## Account Plan\n\n` +
+          `**Auth:** API key configured, plan unknown\n\n` +
+          `To see your plan and tool eligibility, call \`agenticSignup\`.\n` +
+          `Your existing account will be detected automatically — no payment needed.`
+        );
+      }
+
+      // ── Tier 3: full status via JWT ──
+      try {
+        const projects = await listProjects(jwt, MCP_USER_AGENT);
+        if (projects.length === 0) {
+          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+        }
+
+        const projectId = projects[0].id;
+        const details = await getProject(jwt, projectId, MCP_USER_AGENT);
+
+        const planKey = (details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase()) ?? 'unknown';
+        const planInfo = HELIUS_PLANS[planKey];
+        if (!planInfo) {
+          console.warn(`[getAccountPlan] Unrecognized plan "${planKey}" — tool eligibility may be inaccurate`);
+        }
+        const planName = planInfo?.name ?? planKey;
+
+        // Credit info
+        const totalCredits = details.subscriptionPlanDetails?.totalCredits ?? 0;
+        const usedCredits = details.subscriptionPlanDetails?.usedCredits ?? 0;
+        const remainingCredits = totalCredits - usedCredits;
+        const usedPct = totalCredits > 0 ? ((usedCredits / totalCredits) * 100).toFixed(1) : '0.0';
+
+        // Tool eligibility
+        const eligibility = computeToolEligibility(planKey);
+
+        const lines: string[] = [
+          `## Account Plan`,
+          ``,
+          `**Plan:** ${planName}`,
+          ``,
+          `### Credits`,
+          `- **Remaining:** ${remainingCredits.toLocaleString()} / ${totalCredits.toLocaleString()} (${usedPct}% used)`,
+          ``,
+          `### Gated Tool Eligibility`,
+          `All Free-tier tools are available on every plan.`,
+          ``,
+        ];
+
+        if (eligibility.length > 0) {
+          lines.push(
+            `| Tool | Status | Requires |`,
+            `|------|--------|----------|`,
+          );
+          for (const e of eligibility) {
+            lines.push(`| ${e.tool} | ${e.status} | ${e.requires} |`);
+          }
+        } else {
+          lines.push(`All tools are available on your plan.`);
+        }
+
+        // Next steps — find tools that need upgrade
+        const upgradeNeeded = eligibility.filter(e => e.status.includes('UPGRADE REQUIRED'));
+        if (upgradeNeeded.length > 0) {
+          lines.push(``, `### Next Steps`);
+          const toolNames = upgradeNeeded.map(e => e.tool);
+          const uniqueRequires = [...new Set(upgradeNeeded.map(e => e.requires))];
+          lines.push(`To unlock ${toolNames.join(', ')}, upgrade to ${uniqueRequires.join(' or ')}.`);
+          lines.push(`→ Use \`previewUpgrade\` to see pricing`);
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return mcpError(`Failed to fetch account plan: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  );
+}
+
+// ─── Tool Eligibility Helper ───
+
+interface ToolEligibilityEntry {
+  tool: string;
+  status: string;
+  requires: string;
+}
+
+function computeToolEligibility(planKey: string): ToolEligibilityEntry[] {
+  const userRank = PLAN_RANK[planKey] ?? 0;
+
+  // Collect all non-free product entries per tool
+  const toolProducts: Record<string, { productName: string; minimumPlan: string }[]> = {};
+
+  for (const product of Object.values(PRODUCT_CATALOG)) {
+    if (product.minimumPlan === 'free') continue;
+    for (const tool of product.mcpTools) {
+      if (!toolProducts[tool]) toolProducts[tool] = [];
+      toolProducts[tool].push({ productName: product.name, minimumPlan: product.minimumPlan });
+    }
+  }
+
+  const results: ToolEligibilityEntry[] = [];
+
+  for (const [tool, products] of Object.entries(toolProducts)) {
+    // Also check if this tool appears in any free product (e.g. transactionSubscribe in standard-websockets)
+    const inFreeToo = Object.values(PRODUCT_CATALOG).some(
+      p => p.minimumPlan === 'free' && p.mcpTools.includes(tool)
+    );
+
+    if (products.length === 1) {
+      const p = products[0];
+      const available = userRank >= (PLAN_RANK[p.minimumPlan] ?? 99);
+      const planDisplay = HELIUS_PLANS[p.minimumPlan]?.name ?? p.minimumPlan;
+
+      if (inFreeToo && available) {
+        // Tool is available at free tier AND at this gated tier — show available
+        results.push({ tool, status: 'AVAILABLE', requires: planDisplay });
+      } else if (inFreeToo && !available) {
+        // Tool works at free tier but the enhanced version needs upgrade
+        results.push({ tool, status: `AVAILABLE (basic) / UPGRADE REQUIRED (${p.productName})`, requires: planDisplay });
+      } else {
+        results.push({ tool, status: available ? 'AVAILABLE' : 'UPGRADE REQUIRED', requires: planDisplay });
+      }
+    } else {
+      // Multiple non-free products (e.g. laserstreamSubscribe in devnet + mainnet)
+      const statuses: string[] = [];
+      const requires: string[] = [];
+
+      for (const p of products) {
+        const available = userRank >= (PLAN_RANK[p.minimumPlan] ?? 99);
+        const planDisplay = HELIUS_PLANS[p.minimumPlan]?.name ?? p.minimumPlan;
+        const label = p.productName.includes('(') ? p.productName.replace(/.*\(/, '').replace(/\).*/, '').toLowerCase() : p.productName;
+        statuses.push(available ? `AVAILABLE (${label})` : `UPGRADE REQUIRED (${label})`);
+        requires.push(planDisplay);
+      }
+
+      const allAvailable = statuses.every(s => s.startsWith('AVAILABLE'));
+      const allUnavailable = statuses.every(s => s.startsWith('UPGRADE'));
+
+      if (allAvailable) {
+        results.push({ tool, status: 'AVAILABLE', requires: requires.join(' / ') });
+      } else if (allUnavailable) {
+        results.push({ tool, status: 'UPGRADE REQUIRED', requires: requires[requires.length - 1] });
+      } else {
+        results.push({ tool, status: statuses.join(' / '), requires: requires.join(' / ') });
+      }
+    }
+  }
+
+  return results;
 }

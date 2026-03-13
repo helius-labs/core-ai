@@ -4,7 +4,7 @@ import { mcpText } from '../utils/errors.js';
 import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
-import { PRODUCT_CATALOG, CatalogProduct } from './product-catalog.js';
+import { PRODUCT_CATALOG, CatalogProduct, PLAN_RANK } from './product-catalog.js';
 // fetchDoc/extractSections no longer needed — live billing fetch removed
 
 
@@ -24,16 +24,14 @@ export const KNOWN_TOOLS = new Set([
   'transactionSubscribe', 'accountSubscribe', 'getEnhancedWebSocketInfo',
   'laserstreamSubscribe', 'getLaserstreamInfo',
   'getWalletIdentity', 'batchWalletIdentity', 'getWalletFundedBy',
-  'getHeliusPlanInfo', 'compareHeliusPlans',
+  'getHeliusPlanInfo', 'compareHeliusPlans', 'getAccountPlan',
   'lookupHeliusDocs', 'listHeliusDocTopics', 'getHeliusCreditsInfo', 'getRateLimitInfo',
   'troubleshootError', 'getSenderInfo', 'getWebhookGuide', 'getLatencyComparison', 'getPumpFunGuide',
   'recommendStack',
   'transferSol', 'transferToken',
 ]);
 
-// ─── Plan Ranking ───
-
-export const PLAN_RANK: Record<string, number> = { free: 0, developer: 1, business: 2, professional: 3 };
+// ─── Plan Ranking (re-exported from product-catalog.ts) ───
 
 function planAtOrBelow(plan: string, maxPlan: string): boolean {
   return (PLAN_RANK[plan] ?? 99) <= (PLAN_RANK[maxPlan] ?? 99);

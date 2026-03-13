@@ -14,8 +14,8 @@
 
 import fs from 'fs';
 import path from 'path';
-import { PRODUCT_CATALOG } from '../tools/product-catalog.js';
-import { KNOWN_TOOLS, PLAN_RANK } from '../tools/recommend.js';
+import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
+import { KNOWN_TOOLS } from '../tools/recommend.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
