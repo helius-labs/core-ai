@@ -129,7 +129,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
       'getCompressedBalance', 'getCompressedBalanceByOwner',
       'getCompressedMintTokenHolders', 'getCompressedTokenAccountBalance',
       'getCompressedTokenAccountsByOwner', 'getCompressedTokenAccountsByDelegate',
-      'getCompressedTokenBalancesByOwner',
+      'getCompressedTokenBalancesByOwnerV2',
       'getCompressedAccountProof', 'getMultipleCompressedAccountProofs', 'getMultipleNewAddressProofs',
       'getCompressionSignaturesForAccount', 'getCompressionSignaturesForAddress',
       'getCompressionSignaturesForOwner', 'getCompressionSignaturesForTokenOwner',
@@ -140,6 +140,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     creditCostPerCall: '10 credits',
     minimumPlan: 'free',
     docKey: 'zk-compression',
+    referenceFile: 'references/zk-compression.md',
     description: 'Query compressed accounts, token balances, Merkle proofs, validity proofs, and compression transaction history via the ZK Compression / Light Protocol indexer. Powers state compression for cost-efficient on-chain data storage.',
   },
   'token-holders': {

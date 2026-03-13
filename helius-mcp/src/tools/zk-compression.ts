@@ -61,7 +61,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressedAccountsByOwner',
     'BEST FOR: listing all compressed accounts owned by a wallet. Returns paginated compressed accounts with data, lamports, tree info. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      owner: z.string().describe('Owner wallet address (base58)'),
+      owner: z.string().min(1).describe('Owner wallet address (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
@@ -175,7 +175,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressedBalanceByOwner',
     'BEST FOR: checking total compressed SOL balance across all accounts owned by a wallet. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      owner: z.string().describe('Owner wallet address (base58)'),
+      owner: z.string().min(1).describe('Owner wallet address (base58)'),
     },
     async ({ owner }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -198,7 +198,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressedMintTokenHolders',
     'BEST FOR: listing holders of a compressed token mint. Returns paginated list of owners and balances. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      mint: z.string().describe('Token mint address (base58)'),
+      mint: z.string().min(1).describe('Token mint address (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
@@ -267,7 +267,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressedTokenAccountsByOwner',
     'BEST FOR: listing compressed token accounts owned by a wallet, optionally filtered by mint. Returns account data with token info. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      owner: z.string().describe('Owner wallet address (base58)'),
+      owner: z.string().min(1).describe('Owner wallet address (base58)'),
       mint: z.string().optional().describe('Optional token mint to filter by (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
@@ -313,7 +313,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressedTokenAccountsByDelegate',
     'BEST FOR: listing compressed token accounts delegated to an address, optionally filtered by mint. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      delegate: z.string().describe('Delegate wallet address (base58)'),
+      delegate: z.string().min(1).describe('Delegate wallet address (base58)'),
       mint: z.string().optional().describe('Optional token mint to filter by (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
@@ -356,10 +356,10 @@ export function registerZkCompressionTools(server: McpServer) {
   );
 
   server.tool(
-    'getCompressedTokenBalancesByOwner',
+    'getCompressedTokenBalancesByOwnerV2',
     'BEST FOR: summarizing compressed token balances per mint for a wallet. Returns mint addresses and raw balances. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      owner: z.string().describe('Owner wallet address (base58)'),
+      owner: z.string().min(1).describe('Owner wallet address (base58)'),
       mint: z.string().optional().describe('Optional token mint to filter by (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
@@ -404,7 +404,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressedAccountProof',
     'BEST FOR: getting Merkle proof for a compressed account. Required for building ZK Compression transactions. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      hash: z.string().describe('Compressed account hash (base58, 32-byte leaf hash)'),
+      hash: z.string().min(1).describe('Compressed account hash (base58, 32-byte leaf hash)'),
     },
     async ({ hash }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -435,7 +435,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getMultipleCompressedAccountProofs',
     'BEST FOR: batch Merkle proofs for multiple compressed accounts. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      hashes: z.array(z.string()).describe('Array of compressed account hashes (base58, 32-byte leaf hashes)'),
+      hashes: z.array(z.string().min(1)).describe('Array of compressed account hashes (base58, 32-byte leaf hashes)'),
     },
     async ({ hashes }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -466,8 +466,8 @@ export function registerZkCompressionTools(server: McpServer) {
     'BEST FOR: getting non-inclusion proofs for new addresses with specific Merkle trees. Required for creating new compressed accounts. Credit cost: 10 credits (ZK Compression RPC).',
     {
       addresses: z.array(z.object({
-        address: z.string().describe('New address to prove non-inclusion (base58)'),
-        tree: z.string().describe('Merkle tree address (base58)'),
+        address: z.string().min(1).describe('New address to prove non-inclusion (base58)'),
+        tree: z.string().min(1).describe('Merkle tree address (base58)'),
       })).describe('Array of address-tree pairs'),
     },
     async ({ addresses }) => {
@@ -500,7 +500,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressionSignaturesForAccount',
     'BEST FOR: getting compression transaction signatures for a specific compressed account by hash. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      hash: z.string().describe('Compressed account hash (base58, 32-byte leaf hash)'),
+      hash: z.string().min(1).describe('Compressed account hash (base58, 32-byte leaf hash)'),
     },
     async ({ hash }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -533,7 +533,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressionSignaturesForAddress',
     'BEST FOR: getting compression transaction signatures for a specific address. Returns paginated results. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      address: z.string().describe('Compressed account address (base58)'),
+      address: z.string().min(1).describe('Compressed account address (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
@@ -576,7 +576,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressionSignaturesForOwner',
     'BEST FOR: getting all compression transaction signatures for a wallet owner. Returns paginated results. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      owner: z.string().describe('Owner wallet address (base58)'),
+      owner: z.string().min(1).describe('Owner wallet address (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
@@ -619,7 +619,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getCompressionSignaturesForTokenOwner',
     'BEST FOR: getting compression transaction signatures specifically for token operations by a wallet owner. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      owner: z.string().describe('Token owner wallet address (base58)'),
+      owner: z.string().min(1).describe('Token owner wallet address (base58)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
@@ -744,7 +744,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getTransactionWithCompressionInfo',
     'BEST FOR: inspecting a transaction\'s compression state changes — accounts opened and closed. Credit cost: 10 credits (ZK Compression RPC).',
     {
-      signature: z.string().describe('Transaction signature (base58)'),
+      signature: z.string().min(1).describe('Transaction signature (base58)'),
     },
     async ({ signature }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -797,8 +797,8 @@ export function registerZkCompressionTools(server: McpServer) {
     {
       hashes: z.array(z.string()).optional().describe('Compressed account hashes to prove (base58). Provide hashes and/or newAddressesWithTrees.'),
       newAddressesWithTrees: z.array(z.object({
-        address: z.string().describe('New address (base58)'),
-        tree: z.string().describe('Merkle tree address (base58)'),
+        address: z.string().min(1).describe('New address (base58)'),
+        tree: z.string().min(1).describe('Merkle tree address (base58)'),
       })).optional().describe('New address-tree pairs for non-inclusion proofs'),
     },
     async ({ hashes, newAddressesWithTrees }) => {

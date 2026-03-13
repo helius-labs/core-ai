@@ -33,7 +33,7 @@ export const KNOWN_TOOLS = new Set([
   'getCompressedBalance', 'getCompressedBalanceByOwner',
   'getCompressedMintTokenHolders', 'getCompressedTokenAccountBalance',
   'getCompressedTokenAccountsByOwner', 'getCompressedTokenAccountsByDelegate',
-  'getCompressedTokenBalancesByOwner',
+  'getCompressedTokenBalancesByOwnerV2',
   'getCompressedAccountProof', 'getMultipleCompressedAccountProofs', 'getMultipleNewAddressProofs',
   'getCompressionSignaturesForAccount', 'getCompressionSignaturesForAddress',
   'getCompressionSignaturesForOwner', 'getCompressionSignaturesForTokenOwner',
