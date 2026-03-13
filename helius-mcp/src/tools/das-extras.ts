@@ -38,7 +38,10 @@ export function registerDasExtraTools(server: McpServer) {
       if (!hasApiKey()) return noApiKeyResponse();
       try {
         if (ids.length > 1000) {
-          return mcpError('Max 1000 proofs per batch');
+          return mcpError(
+            'Max 1000 proofs per batch',
+            { type: 'VALIDATION', code: 'TOO_MANY_ITEMS', retryable: false, recovery: 'Reduce batch to 1000 or fewer.' }
+          );
         }
         const helius = getHeliusClient();
         const result = await helius.getAssetProofBatch({ ids });
@@ -112,7 +115,7 @@ export function registerDasExtraTools(server: McpServer) {
       } catch (err) {
         const header = `Editions for ${formatAddress(mint)}`;
         return handleToolError(err, 'Error fetching editions', [
-          { match: (m) => m.includes('null value was encountered'), respond: () => mcpText(`**${header}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.`) },
+          { match: (m) => m.includes('null value was encountered'), respond: () => mcpError(`**${header}**\n\nThis mint is not a master edition NFT. getNftEditions only works with master edition mints.`, { type: 'VALIDATION', code: 'INVALID_PARAM', retryable: false, recovery: 'Provide a master edition mint address. getNftEditions only works with master edition NFTs.' }) },
           notFoundError(header, 'Asset not found. This mint address does not exist or has not been indexed.'),
           addressError(header, 'Invalid Solana address. Please provide a valid base58-encoded mint address.'),
           paginationError(header),
