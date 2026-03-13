@@ -86,6 +86,8 @@ describe('Helius MCP Tools', () => {
       'getLatencyComparison', 'getPumpFunGuide', 'recommendStack',
       // Solana Knowledge
       'getSIMD', 'listSIMDs', 'searchSolanaDocs', 'readSolanaSourceFile', 'fetchHeliusBlog',
+      // Staking
+      'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
     ];
 
     for (const name of expected) {
@@ -119,6 +121,8 @@ describe('noApiKey guard', () => {
     // Wallet
     'getWalletBalances', 'getWalletHistory', 'getWalletTransfers',
     'getWalletIdentity', 'batchWalletIdentity', 'getWalletFundedBy',
+    // Staking
+    'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
   ];
 
   let tools: Map<string, { name: string; description: string; handler: Function }>;
