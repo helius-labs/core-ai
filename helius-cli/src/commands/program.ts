@@ -1,13 +1,12 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatAddress, formatTable, type TableColumn } from "../lib/formatters.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface ProgramOptions extends OutputOptions, ResolveOptions {}
 
 export async function programAccountsCommand(programId: string, options: ProgramOptions & { dataSize?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -48,7 +47,7 @@ export async function programAccountsCommand(programId: string, options: Program
 }
 
 export async function programAccountsAllCommand(programId: string, options: ProgramOptions & { dataSize?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -72,7 +71,7 @@ export async function programAccountsAllCommand(programId: string, options: Prog
 }
 
 export async function programTokenAccountsCommand(owner: string, options: ProgramOptions & { limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);

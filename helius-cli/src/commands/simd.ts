@@ -1,7 +1,6 @@
 import chalk from "chalk";
-import ora from "ora";
 import { CLI_USER_AGENT } from "../http.js";
-import { outputJson, handleCommandError, exitWithError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, exitWithError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 // ---------------------------------------------------------------------------
 // GitHub constants
@@ -78,7 +77,7 @@ function extractFrontMatter(markdown: string): { title: string; status: string; 
 interface SimdListOptions extends OutputOptions {}
 
 export async function simdListCommand(options: SimdListOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Fetching SIMD index from GitHub...");
     const index = await fetchSimdIndex();
@@ -105,7 +104,7 @@ export async function simdListCommand(options: SimdListOptions = {}): Promise<vo
 interface SimdGetOptions extends OutputOptions {}
 
 export async function simdGetCommand(number: string, options: SimdGetOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     if (!/^\d+$/.test(number)) {
       exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, options.json);

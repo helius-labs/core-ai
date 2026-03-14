@@ -1,14 +1,13 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 import { validateSolanaAddresses } from "../lib/validation.js";
 
 interface WebhookOptions extends OutputOptions, ResolveOptions {}
 
 export async function webhookListCommand(options: WebhookOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -41,7 +40,7 @@ export async function webhookListCommand(options: WebhookOptions = {}): Promise<
 }
 
 export async function webhookGetCommand(webhookId: string, options: WebhookOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -72,7 +71,7 @@ export async function webhookGetCommand(webhookId: string, options: WebhookOptio
 export async function webhookCreateCommand(options: WebhookOptions & {
   url: string; accounts: string; types: string; webhookType?: string;
 }): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -109,7 +108,7 @@ export async function webhookCreateCommand(options: WebhookOptions & {
 export async function webhookUpdateCommand(webhookId: string, options: WebhookOptions & {
   url?: string; accounts?: string; types?: string;
 }): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -138,7 +137,7 @@ export async function webhookUpdateCommand(webhookId: string, options: WebhookOp
 }
 
 export async function webhookDeleteCommand(webhookId: string, options: WebhookOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
