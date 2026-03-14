@@ -67,7 +67,15 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
 
     if (!options.yes) {
       if (isAgent) {
-        exitWithError("INVALID_INPUT", "Interactive confirmation required. Pass --yes to skip.", undefined, options.json);
+        outputJson({
+          action: "preview",
+          paymentIntentId: intent.id,
+          amount: intent.amount,
+          amountUsdc,
+          status: intent.status,
+          expiresAt: intent.expiresAt,
+        });
+        return;
       }
       const ok = await confirm(`  Pay $${amountUsdc.toFixed(2)} USDC? (y/N) `);
       if (!ok) {

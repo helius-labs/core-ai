@@ -4,7 +4,7 @@ import { signup, listProjects, getProject } from "../lib/api.js";
 import { getCheckoutPreview, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
-import { outputJson, exitWithError, handleCommandError, isAgent, createSpinner, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 import { validateUpgradePlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
@@ -131,9 +131,6 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     }
 
     if (!options.yes) {
-      if (isAgent) {
-        exitWithError("INVALID_INPUT", "Interactive confirmation required. Pass --yes to skip.", undefined, options.json);
-      }
       const ok = await confirm("  Proceed with upgrade? (y/N) ");
       if (!ok) {
         console.log(chalk.gray("  Cancelled."));
