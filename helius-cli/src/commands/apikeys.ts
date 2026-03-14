@@ -1,8 +1,7 @@
 import chalk from "chalk";
-import ora from "ora";
 import { getProject, listProjects, createApiKey } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 async function resolveProjectId(jwt: string, projectId?: string, json?: boolean): Promise<string> {
   if (projectId) {
@@ -41,7 +40,7 @@ interface ApikeysOptions extends OutputOptions {
 }
 
 export async function apikeysCommand(projectId?: string, options: ApikeysOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     const jwt = getJwt();
@@ -102,7 +101,7 @@ interface CreateApiKeyOptions extends OutputOptions {
 }
 
 export async function createApiKeyCommand(projectId?: string, options: CreateApiKeyOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     const jwt = getJwt();

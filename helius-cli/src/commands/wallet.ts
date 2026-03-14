@@ -1,13 +1,12 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, restRequest, type ResolveOptions } from "../lib/helius.js";
 import { formatAddress, formatTable, formatEnumLabel, type TableColumn } from "../lib/formatters.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface WalletOptions extends OutputOptions, ResolveOptions {}
 
 export async function walletIdentityCommand(address: string, options: WalletOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -30,7 +29,7 @@ export async function walletIdentityCommand(address: string, options: WalletOpti
 }
 
 export async function walletIdentityBatchCommand(addresses: string[], options: WalletOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -58,7 +57,7 @@ export async function walletIdentityBatchCommand(addresses: string[], options: W
 }
 
 export async function walletBalancesCommand(address: string, options: WalletOptions & { showNfts?: boolean } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -101,7 +100,7 @@ export async function walletBalancesCommand(address: string, options: WalletOpti
 }
 
 export async function walletHistoryCommand(address: string, options: WalletOptions & { limit?: string; type?: string; before?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -136,7 +135,7 @@ export async function walletHistoryCommand(address: string, options: WalletOptio
 }
 
 export async function walletTransfersCommand(address: string, options: WalletOptions & { limit?: string; cursor?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -169,7 +168,7 @@ export async function walletTransfersCommand(address: string, options: WalletOpt
 }
 
 export async function walletFundedByCommand(address: string, options: WalletOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);

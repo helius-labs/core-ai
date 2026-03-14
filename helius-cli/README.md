@@ -223,6 +223,12 @@ Keypair commands (`signup`, `login`, `upgrade`, `pay`, `stake`) also accept:
 |---|---|
 | `-k, --keypair <path>` | Path to Solana keypair file (default: `~/.helius/keypair.json`) |
 
+## NO_DNA Support
+
+Helius CLI supports the [NO_DNA](https://no-dna.org) convention. When the `NO_DNA` environment variable is set, the CLI adapts its behavior for non-human callers:
+- **Spinners suppressed** — no terminal animations polluting agent output
+- **Interactive prompts blocked** — commands that require confirmation (`upgrade`, `pay`) exit with a clear error instead of hanging on stdin; pass `--yes` to skip confirmation
+
 ## Exit Codes
 
 | Code | Meaning | Retryable |

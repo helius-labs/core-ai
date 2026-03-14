@@ -1,9 +1,18 @@
 // Output utilities for JSON mode
 import chalk from "chalk";
+import ora from "ora";
 import { sendCommandEvent, getCurrentCommand } from "./feedback.js";
 
 export interface OutputOptions {
   json?: boolean;
+}
+
+/** True when the caller is a non-human agent (NO_DNA convention). */
+export const isAgent = !!process.env.NO_DNA;
+
+/** Create a spinner, suppressed when --json is set or NO_DNA is detected. */
+export function createSpinner(options: OutputOptions = {}): ReturnType<typeof ora> | null {
+  return options.json || isAgent ? null : ora();
 }
 
 // Exit codes for machine-readable error handling

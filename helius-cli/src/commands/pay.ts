@@ -1,12 +1,11 @@
 import chalk from "chalk";
-import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup } from "../lib/api.js";
 import { getPaymentIntent, executeRenewal } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, isAgent, createSpinner, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 
 interface PayOptions extends OutputOptions {
@@ -25,7 +24,7 @@ function confirm(question: string): Promise<boolean> {
 }
 
 export async function payCommand(paymentIntentId: string, options: PayOptions): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     // Check keypair exists
@@ -67,6 +66,17 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
     }
 
     if (!options.yes) {
+      if (isAgent) {
+        outputJson({
+          action: "preview",
+          paymentIntentId: intent.id,
+          amount: intent.amount,
+          amountUsdc,
+          status: intent.status,
+          expiresAt: intent.expiresAt,
+        });
+        return;
+      }
       const ok = await confirm(`  Pay $${amountUsdc.toFixed(2)} USDC? (y/N) `);
       if (!ok) {
         console.log(chalk.gray("  Cancelled."));

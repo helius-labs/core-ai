@@ -1,11 +1,10 @@
 import chalk from "chalk";
-import ora from "ora";
 import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, getSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
 import { PLAN_CATALOG } from "../lib/checkout.js";
 import { sendDiscoveryEvent } from "../lib/feedback.js";
@@ -82,7 +81,7 @@ async function waitForFunding(
 }
 
 export async function signupCommand(options: SignupOptions): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     // Validate plan and period upfront

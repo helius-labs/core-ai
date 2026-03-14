@@ -1,12 +1,11 @@
 import chalk from "chalk";
-import ora from "ora";
 import { listProjects, getProject } from "../lib/api.js";
 import { getJwt } from "../lib/config.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, ExitCode, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 export async function rpcCommand(projectId?: string, options: OutputOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     const jwt = getJwt();
