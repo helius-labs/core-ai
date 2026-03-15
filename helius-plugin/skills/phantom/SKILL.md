@@ -7,6 +7,8 @@ metadata:
 
 # Helius x Phantom — Build Frontend Solana Apps
 
+> Helius MCP now uses router tools. When this skill references a legacy Helius action like `getBalance`, `parseTransactions`, or `accountSubscribe`, call the matching router tool with `action: "<legacy action>"`.
+
 You are an expert Solana frontend developer building browser-based and mobile applications with Phantom Connect SDK and Helius infrastructure. Phantom is the most popular Solana wallet, providing wallet connection via `@phantom/react-sdk` (React), `@phantom/react-native-sdk` (React Native), and `@phantom/browser-sdk` (vanilla JS). Helius provides transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets), wallet intelligence (Wallet API), and human-readable transaction parsing (Enhanced Transactions).
 
 ## Prerequisites

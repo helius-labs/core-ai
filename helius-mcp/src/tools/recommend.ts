@@ -5,43 +5,13 @@ import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct, PLAN_RANK } from './product-catalog.js';
+import { LEGACY_ACTION_SET } from '../router/legacy-actions.js';
 // fetchDoc/extractSections no longer needed — live billing fetch removed
 
 
 // ─── Known MCP Tools (for validation script) ───
 
-export const KNOWN_TOOLS = new Set([
-  'getStarted', 'setHeliusApiKey', 'generateKeypair', 'checkSignupBalance',
-  'agenticSignup', 'getAccountStatus', 'previewUpgrade', 'upgradePlan', 'payRenewal',
-  'getBalance', 'getTokenBalances', 'getWalletBalances',
-  'parseTransactions', 'getTransactionHistory', 'getWalletHistory', 'getWalletTransfers',
-  'getAsset', 'getAssetsByOwner', 'searchAssets', 'getAssetsByGroup',
-  'getAssetProof', 'getAssetProofBatch', 'getSignaturesForAsset', 'getNftEditions',
-  'getAccountInfo', 'getTokenAccounts', 'getProgramAccounts', 'getTokenHolders',
-  'getBlock', 'getNetworkStatus',
-  'getPriorityFeeEstimate',
-  'createWebhook', 'getAllWebhooks', 'getWebhookByID', 'updateWebhook', 'deleteWebhook',
-  'transactionSubscribe', 'accountSubscribe', 'getEnhancedWebSocketInfo',
-  'laserstreamSubscribe', 'getLaserstreamInfo',
-  'getWalletIdentity', 'batchWalletIdentity', 'getWalletFundedBy',
-  'getHeliusPlanInfo', 'compareHeliusPlans', 'getAccountPlan',
-  'lookupHeliusDocs', 'listHeliusDocTopics', 'getHeliusCreditsInfo', 'getRateLimitInfo',
-  'troubleshootError', 'getSenderInfo', 'getWebhookGuide', 'getLatencyComparison', 'getPumpFunGuide',
-  'recommendStack',
-  'transferSol', 'transferToken',
-  'getCompressedAccount', 'getCompressedAccountsByOwner', 'getMultipleCompressedAccounts',
-  'getCompressedBalance', 'getCompressedBalanceByOwner',
-  'getCompressedMintTokenHolders', 'getCompressedTokenAccountBalance',
-  'getCompressedTokenAccountsByOwner', 'getCompressedTokenAccountsByDelegate',
-  'getCompressedTokenBalancesByOwnerV2',
-  'getCompressedAccountProof', 'getMultipleCompressedAccountProofs', 'getMultipleNewAddressProofs',
-  'getCompressionSignaturesForAccount', 'getCompressionSignaturesForAddress',
-  'getCompressionSignaturesForOwner', 'getCompressionSignaturesForTokenOwner',
-  'getLatestCompressionSignatures', 'getLatestNonVotingSignatures',
-  'getTransactionWithCompressionInfo', 'getValidityProof',
-  'getIndexerHealth', 'getIndexerSlot',
-  'stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount',
-]);
+export const KNOWN_TOOLS = LEGACY_ACTION_SET;
 
 // ─── Plan Ranking (re-exported from product-catalog.ts) ───
 

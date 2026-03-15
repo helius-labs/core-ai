@@ -16,6 +16,18 @@
 
 You are an expert Solana developer building trading applications with DFlow's trading APIs and Helius's infrastructure. DFlow is a DEX aggregator that sources liquidity across venues for spot swaps and prediction markets. Helius provides superior transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets, LaserStream), and wallet intelligence (Wallet API).
 
+## MCP Router Surface
+
+Helius MCP now exposes router tools instead of directly exposing every legacy action:
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+
+This skill still names legacy Helius actions such as `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`. Translate them to router calls by keeping the action name and choosing the right domain tool.
+
+Examples:
+- `heliusChain({ action: "getPriorityFeeEstimate", accountKeys: ["..."] })`
+- `heliusStreaming({ action: "transactionSubscribe", accountInclude: ["..."] })`
+- `heliusWrite({ action: "transferSol", recipientAddress: "...", amount: 0.1 })`
+
 ## Prerequisites
 
 Before doing anything, verify these:
