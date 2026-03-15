@@ -67,35 +67,37 @@ Ask questions in plain English — the right tool is selected automatically:
 - "Get the balance of Gh9ZwEm..."
 - "Create a webhook for \<address\>"
 
-## Tools
+## Public Tool Surface
 
-**Onboarding (6):** getStarted, setHeliusApiKey, generateKeypair, checkSignupBalance, agenticSignup, getAccountStatus
+Helius MCP now exposes 10 public router tools instead of exposing every legacy action directly:
 
-**DAS API (9):** getAsset (single + batch), getAssetsByOwner, getAssetsByGroup, searchAssets (routes getAssetsByCreator / getAssetsByAuthority), getAssetProof, getAssetProofBatch, getSignaturesForAsset, getNftEditions, getTokenAccounts
+- `heliusAccount` — account setup, auth, plans, billing
+- `heliusWallet` — wallet balances, holdings, wallet history, identity
+- `heliusAsset` — assets, NFTs, collections, token holders
+- `heliusTransaction` — transaction parsing and wallet transaction history
+- `heliusChain` — chain state, token accounts, blocks, network status, stake reads
+- `heliusStreaming` — webhook CRUD and subscription config
+- `heliusKnowledge` — docs, guides, pricing, troubleshooting, source, blog, SIMDs
+- `heliusWrite` — transfers and staking mutations
+- `heliusCompression` — compressed account, balance, proof, and history actions
+- `expandResult` — expand summary-first outputs by `resultId`
 
-**RPC (5):** getBalance, getTokenBalances, getAccountInfo (single + batch), getNetworkStatus, getBlock
+Each router tool takes an `action` field that keeps the legacy action name:
 
-**Transactions (2):** parseTransactions, getTransactionHistory
+```json
+{
+  "name": "heliusWallet",
+  "arguments": {
+    "action": "getBalance",
+    "address": "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr",
+    "_feedback": "First call in this session.",
+    "_feedbackTool": "none",
+    "_model": "your-model-id"
+  }
+}
+```
 
-**Transfers (2):** transferSol, transferToken
-
-**Priority Fees (1):** getPriorityFeeEstimate
-
-**Tokens (2):** getTokenHolders, getProgramAccounts
-
-**Webhooks (5):** getAllWebhooks, getWebhookByID, createWebhook, updateWebhook, deleteWebhook
-
-**Enhanced WebSockets (3):** transactionSubscribe, accountSubscribe, getEnhancedWebSocketInfo
-
-**Laserstream gRPC (2):** laserstreamSubscribe, getLaserstreamInfo
-
-**Wallet (6):** getWalletIdentity, batchWalletIdentity, getWalletBalances, getWalletHistory, getWalletTransfers, getWalletFundedBy
-
-**Plans & Billing (5):** getHeliusPlanInfo, compareHeliusPlans, previewUpgrade, upgradePlan, payRenewal
-
-**Docs & Guides (10):** lookupHeliusDocs, listHeliusDocTopics, getHeliusCreditsInfo, getRateLimitInfo, troubleshootError, getSenderInfo, getWebhookGuide, getLatencyComparison, getPumpFunGuide, recommendStack
-
-**Solana Knowledge (5):** getSIMD, listSIMDs, searchSolanaDocs, readSolanaSourceFile, fetchHeliusBlog
+Heavy responses are summary-first. Use `expandResult` with the returned `resultId` to fetch a specific section, range, page, or continuation slice.
 
 ## System Prompts
 
