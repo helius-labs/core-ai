@@ -191,7 +191,21 @@ describe('Public Router Surface', () => {
 
     expect(expanded.isError).toBeFalsy();
     expect(expanded.content[0].text.length).toBeGreaterThan(0);
+    expect(expanded.structuredContent).toBeUndefined();
     expect(expanded._meta.action).toBe('recommendStack');
+  });
+
+  it('keeps router metadata out of structuredContent for normal responses', async () => {
+    const result = await tools.heliusAccount.handler(
+      {
+        action: 'getStarted',
+        ...telemetry(),
+      },
+      {},
+    );
+
+    expect(result.structuredContent).toBeUndefined();
+    expect(result._meta.action).toBe('getStarted');
   });
 });
 
