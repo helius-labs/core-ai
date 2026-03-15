@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { HistoryTransaction, Transfer } from 'helius-sdk/wallet/types';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
-import { formatAddress, formatSol, formatTimestamp } from '../utils/formatters.js';
+import { formatAddress, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
 
@@ -198,7 +198,7 @@ export function registerWalletTools(server: McpServer) {
         transactions.forEach((tx: HistoryTransaction, i: number) => {
           const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
           const status = tx.error ? 'Failed' : 'Success';
-          const fee = tx.fee ? formatSol(tx.fee) : 'N/A';
+          const fee = tx.fee != null ? `${tx.fee} SOL` : 'N/A';
 
           lines.push(`${i + 1}. ${time} — ${status} — Fee: ${fee}`);
           lines.push(`   Signature: \`${tx.signature}\``);
@@ -309,7 +309,7 @@ export function registerWalletTools(server: McpServer) {
 
         if (data.funderType) lines.push(`**Type:** ${data.funderType}`);
         if (data.amount !== undefined) {
-          lines.push(`**Amount:** ${formatSol(data.amount)}`);
+          lines.push(`**Amount:** ${data.amount} SOL`);
         }
         if (data.date) lines.push(`**Date:** ${data.date}`);
         if (data.explorerUrl) lines.push(`**Explorer:** ${data.explorerUrl}`);
