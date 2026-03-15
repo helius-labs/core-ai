@@ -159,7 +159,7 @@ describe('Public Router Surface', () => {
 
     expect(expanded.isError).toBeFalsy();
     expect(expanded.content[0].text.length).toBeGreaterThan(0);
-    expect(expanded.structuredContent.action).toBe('recommendStack');
+    expect(expanded._meta.action).toBe('recommendStack');
   });
 });
 
