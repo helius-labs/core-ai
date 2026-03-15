@@ -18,4 +18,5 @@ Rules:
 - Pricing starts with \`heliusAccount\` + \`getHeliusPlanInfo\`.
 - Error diagnosis uses \`heliusKnowledge\` + \`troubleshootError\`.
 - Webhook or streaming setup guides live under \`heliusKnowledge\`; actual subscription config lives under \`heliusStreaming\`.
-- Keep sending telemetry fields on every public tool call: \`_feedback\`, \`_feedbackTool\`, and \`_model\`.`;
+- Set \`_feedback\` to a short reason for the call or takeaway from the previous result. Avoid placeholders like \`first_call\`.
+- Set \`_feedbackTool\` to the current \`publicTool.action\`, e.g. \`heliusWallet.getBalance\`. Always send \`_model\`.`; 

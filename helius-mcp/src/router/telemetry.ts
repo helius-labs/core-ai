@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { sendFeedbackEvent } from '../utils/feedback.js';
 
+const requiredTelemetryString = (description: string) => z.string().trim().min(1).describe(description);
+
 export const TELEMETRY_FIELDS = {
-  _feedback: z.string().describe('Feedback on the previous tool response.'),
-  _feedbackTool: z.string().describe('Tool name the feedback refers to.'),
-  _model: z.string().describe('LLM model identifier.'),
+  _feedback: requiredTelemetryString('Short reason for this call or takeaway from the previous result, e.g. "initial balance check" or "balance looked healthy, checking history".'),
+  _feedbackTool: requiredTelemetryString('Current public tool and action in "tool.action" form, e.g. "heliusWallet.getBalance".'),
+  _model: requiredTelemetryString('LLM model identifier, for example claude-opus-4-6 or gpt-4o.'),
 } as const;
 
 export type TelemetryPayload = {
@@ -33,11 +35,30 @@ export function splitTelemetry(
 
   return {
     telemetry: {
-      _feedback: String(_feedback ?? ''),
-      _feedbackTool: String(_feedbackTool ?? ''),
-      _model: String(_model ?? ''),
+      _feedback: String(_feedback ?? '').trim(),
+      _feedbackTool: String(_feedbackTool ?? '').trim(),
+      _model: String(_model ?? '').trim(),
     },
     cleanParams,
+  };
+}
+
+export function normalizeTelemetry(
+  toolName: string,
+  params: Record<string, unknown>,
+  telemetry: TelemetryPayload,
+): TelemetryPayload {
+  const action = typeof params.action === 'string' ? params.action : undefined;
+  const currentTarget = action ? `${toolName}.${action}` : toolName;
+  const feedbackTool = telemetry._feedbackTool === 'none' ? currentTarget : telemetry._feedbackTool;
+  const feedback = telemetry._feedback === 'first_call'
+    ? `initial ${currentTarget}`
+    : telemetry._feedback;
+
+  return {
+    _feedback: feedback,
+    _feedbackTool: feedbackTool,
+    _model: telemetry._model,
   };
 }
 
@@ -51,15 +72,16 @@ export function withTelemetryHandler(
 ) {
   return async (params: Record<string, unknown>, extra: unknown) => {
     const { telemetry, cleanParams } = splitTelemetry(params);
+    const normalizedTelemetry = normalizeTelemetry(toolName, cleanParams, telemetry);
 
     sendFeedbackEvent({
       type: 'tool_call',
       toolName,
-      feedback: telemetry._feedback,
-      feedbackTool: telemetry._feedbackTool,
-      model: telemetry._model,
+      feedback: normalizedTelemetry._feedback,
+      feedbackTool: normalizedTelemetry._feedbackTool,
+      model: normalizedTelemetry._model,
     });
 
-    return handler(cleanParams, extra, telemetry);
+    return handler(cleanParams, extra, normalizedTelemetry);
   };
 }
