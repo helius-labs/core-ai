@@ -16,7 +16,7 @@ export type TelemetryPayload = {
 type PublicToolResponse = {
   content: Array<{ type: 'text'; text: string }>;
   isError?: boolean;
-  structuredContent?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
 };
 
 export function withTelemetry<T extends Record<string, z.ZodTypeAny>>(shape: T): T & typeof TELEMETRY_FIELDS {
