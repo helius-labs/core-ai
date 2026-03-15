@@ -57,7 +57,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'webhooks': {
     name: 'Webhooks',
-    mcpTools: ['createWebhook', 'getAllWebhooks', 'updateWebhook', 'deleteWebhook'],
+    mcpTools: ['createWebhook', 'getAllWebhooks', 'getWebhookByID', 'updateWebhook', 'deleteWebhook'],
     creditCostPerCall: '100 credits to create, 1 credit per event',
     minimumPlan: 'free',
     docKey: 'webhooks',

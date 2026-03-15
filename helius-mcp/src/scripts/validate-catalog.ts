@@ -4,7 +4,7 @@
  * Validates the product catalog for correctness.
  *
  * Checks:
- * 1. Every mcpTools entry exists in KNOWN_TOOLS
+ * 1. Every mcpTools entry exists in the legacy action registry
  * 2. Every referenceFile exists on disk
  * 3. Every docKey exists in DOCS_INDEX
  * 4. Every minimumPlan is a valid key in PLAN_RANK and HELIUS_PLANS
@@ -15,7 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
-import { KNOWN_TOOLS } from '../tools/recommend.js';
+import { LEGACY_ACTION_SET } from '../router/legacy-actions.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -30,9 +30,9 @@ function error(productKey: string, msg: string) {
 }
 
 for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
-  // 1. MCP tool names exist in KNOWN_TOOLS
+  // 1. MCP tool names exist in the canonical legacy action registry
   for (const tool of product.mcpTools) {
-    if (!KNOWN_TOOLS.has(tool)) {
+    if (!LEGACY_ACTION_SET.has(tool)) {
       error(key, `Unknown MCP tool "${tool}"`);
     }
   }

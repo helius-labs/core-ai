@@ -2,6 +2,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDoc, fetchDocs, getDocsIndex, extractSections, truncateDoc, DOCS_INDEX } from '../utils/docs.js';
 
+function getDocHeadings(content: string): string[] {
+  return Array.from(content.matchAll(/^#{1,3}\s+(.+)$/gm))
+    .map((match) => match[1].trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 export function registerDocsTools(server: McpServer) {
   /**
    * Lookup Helius documentation - fetches official docs for accurate information
@@ -60,7 +67,14 @@ export function registerDocsTools(server: McpServer) {
               content: [
                 {
                   type: 'text' as const,
-                  text: `No sections matching "${section}" found in ${topic} docs. Returning full documentation:\n\n${content}`,
+                  text: [
+                    `No sections matching "${section}" were found in \`${topic}\` docs.`,
+                    '',
+                    'Available sections:',
+                    ...getDocHeadings(content).map((heading) => `- ${heading}`),
+                    '',
+                    'Tip: retry with a more specific section filter or omit `section` to receive the default truncated document summary.',
+                  ].join('\n'),
                 },
               ],
             };
