@@ -1,0 +1,2253 @@
+{
+  "generatedAt": "2026-03-15T01:04:07.055Z",
+  "scenarioCount": 92,
+  "scenarios": [
+    {
+      "id": "getStarted",
+      "description": "Onboarding/status flow with no external inputs.",
+      "baseline": [
+        {
+          "name": "getStarted",
+          "arguments": {},
+          "expectation": "success"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "getStarted"
+          },
+          "expectation": "success"
+        }
+      ]
+    },
+    {
+      "id": "setHeliusApiKey",
+      "description": "Config write path with an invalid API key in an isolated benchmark home.",
+      "baseline": [
+        {
+          "name": "setHeliusApiKey",
+          "arguments": {
+            "apiKey": "invalid-api-key",
+            "network": "mainnet-beta"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "setHeliusApiKey",
+            "apiKey": "invalid-api-key",
+            "network": "mainnet-beta"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "generateKeypair",
+      "description": "Keypair generation in an isolated benchmark home.",
+      "baseline": [
+        {
+          "name": "generateKeypair",
+          "arguments": {},
+          "expectation": "success"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "generateKeypair"
+          },
+          "expectation": "success"
+        }
+      ]
+    },
+    {
+      "id": "checkSignupBalance",
+      "description": "Signup balance check after generating a temporary keypair.",
+      "baseline": [
+        {
+          "name": "generateKeypair",
+          "expectation": "success"
+        },
+        {
+          "name": "checkSignupBalance",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "generateKeypair"
+          },
+          "expectation": "success"
+        },
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "checkSignupBalance"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "agenticSignup",
+      "description": "Agentic signup with a temporary unfunded keypair should fail safely.",
+      "baseline": [
+        {
+          "name": "generateKeypair",
+          "expectation": "success"
+        },
+        {
+          "name": "agenticSignup",
+          "arguments": {
+            "plan": "basic",
+            "discoveryPath": "benchmark"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "generateKeypair"
+          },
+          "expectation": "success"
+        },
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "agenticSignup",
+            "plan": "basic",
+            "discoveryPath": "benchmark"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "getAccountStatus",
+      "description": "Account status lookup with whatever auth state the benchmark target has.",
+      "baseline": [
+        {
+          "name": "getAccountStatus",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "getAccountStatus"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAccountPlan",
+      "description": "Plan preflight/feature check.",
+      "baseline": [
+        {
+          "name": "getAccountPlan",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "getAccountPlan"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getHeliusPlanInfo",
+      "description": "Plan catalog lookup.",
+      "baseline": [
+        {
+          "name": "getHeliusPlanInfo",
+          "arguments": {
+            "plan": "all"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "getHeliusPlanInfo",
+            "plan": "all"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "compareHeliusPlans",
+      "description": "Plan comparison lookup.",
+      "baseline": [
+        {
+          "name": "compareHeliusPlans",
+          "arguments": {
+            "category": "pricing"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "compareHeliusPlans",
+            "args": {
+              "category": "pricing"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "previewUpgrade",
+      "description": "Upgrade preview lookup with synthetic plan inputs.",
+      "baseline": [
+        {
+          "name": "previewUpgrade",
+          "arguments": {
+            "plan": "developer",
+            "period": "monthly"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "previewUpgrade",
+            "plan": "developer",
+            "period": "monthly"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "upgradePlan",
+      "description": "Upgrade should fail safely with synthetic plan data in an isolated benchmark home.",
+      "baseline": [
+        {
+          "name": "upgradePlan",
+          "arguments": {
+            "plan": "developer",
+            "period": "monthly"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "upgradePlan",
+            "plan": "developer",
+            "period": "monthly"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "payRenewal",
+      "description": "Renewal payment should fail safely with a dummy payment intent id.",
+      "baseline": [
+        {
+          "name": "payRenewal",
+          "arguments": {
+            "paymentIntentId": "pi_dummy"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "payRenewal",
+            "paymentIntentId": "pi_dummy"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "getBalance",
+      "description": "SOL balance lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getBalance",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getBalance",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getTokenBalances",
+      "description": "Token-balance lookup for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getTokenBalances",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getTokenBalances",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWalletBalances",
+      "description": "Portfolio lookup with a bounded synthetic wallet query.",
+      "baseline": [
+        {
+          "name": "getWalletBalances",
+          "arguments": {
+            "address": "11111111111111111111111111111111",
+            "limit": 5,
+            "showNative": true,
+            "showNfts": false,
+            "showZeroBalance": false
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getWalletBalances",
+            "address": "11111111111111111111111111111111",
+            "limit": 5,
+            "showNative": true,
+            "showNfts": false,
+            "showZeroBalance": false
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWalletHistory",
+      "description": "Wallet-history lookup with bounded synthetic inputs.",
+      "baseline": [
+        {
+          "name": "getWalletHistory",
+          "arguments": {
+            "address": "11111111111111111111111111111111",
+            "limit": 5,
+            "tokenAccounts": "balanceChanged"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getWalletHistory",
+            "address": "11111111111111111111111111111111",
+            "limit": 5,
+            "args": {
+              "tokenAccounts": "balanceChanged"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWalletTransfers",
+      "description": "Wallet-transfer lookup with bounded synthetic inputs.",
+      "baseline": [
+        {
+          "name": "getWalletTransfers",
+          "arguments": {
+            "address": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getWalletTransfers",
+            "address": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWalletIdentity",
+      "description": "Wallet-identity lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getWalletIdentity",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getWalletIdentity",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "batchWalletIdentity",
+      "description": "Batch wallet-identity lookup for a synthetic address list.",
+      "baseline": [
+        {
+          "name": "batchWalletIdentity",
+          "arguments": {
+            "addresses": [
+              "11111111111111111111111111111111",
+              "So11111111111111111111111111111111111111112"
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "batchWalletIdentity",
+            "addresses": [
+              "11111111111111111111111111111111",
+              "So11111111111111111111111111111111111111112"
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWalletFundedBy",
+      "description": "Funding-source lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getWalletFundedBy",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getWalletFundedBy",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAsset",
+      "description": "Single-asset lookup for a synthetic mint.",
+      "baseline": [
+        {
+          "name": "getAsset",
+          "arguments": {
+            "id": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getAsset",
+            "id": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAssetsByOwner",
+      "description": "Assets-by-owner lookup for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getAssetsByOwner",
+          "arguments": {
+            "address": "11111111111111111111111111111111",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getAssetsByOwner",
+            "address": "11111111111111111111111111111111",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "searchAssets",
+      "description": "Filtered asset search with bounded synthetic filters.",
+      "baseline": [
+        {
+          "name": "searchAssets",
+          "arguments": {
+            "ownerAddress": "11111111111111111111111111111111",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "searchAssets",
+            "ownerAddress": "11111111111111111111111111111111",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAssetsByGroup",
+      "description": "Collection/group asset lookup with synthetic collection values.",
+      "baseline": [
+        {
+          "name": "getAssetsByGroup",
+          "arguments": {
+            "groupKey": "collection",
+            "groupValue": "So11111111111111111111111111111111111111112",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getAssetsByGroup",
+            "groupKey": "collection",
+            "groupValue": "So11111111111111111111111111111111111111112",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAssetProof",
+      "description": "Single asset-proof lookup for a synthetic mint.",
+      "baseline": [
+        {
+          "name": "getAssetProof",
+          "arguments": {
+            "id": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getAssetProof",
+            "id": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAssetProofBatch",
+      "description": "Batch asset-proof lookup for synthetic mints.",
+      "baseline": [
+        {
+          "name": "getAssetProofBatch",
+          "arguments": {
+            "ids": [
+              "So11111111111111111111111111111111111111112"
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getAssetProofBatch",
+            "ids": [
+              "So11111111111111111111111111111111111111112"
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getSignaturesForAsset",
+      "description": "Asset-signature lookup for a synthetic mint.",
+      "baseline": [
+        {
+          "name": "getSignaturesForAsset",
+          "arguments": {
+            "id": "So11111111111111111111111111111111111111112",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getSignaturesForAsset",
+            "id": "So11111111111111111111111111111111111111112",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getNftEditions",
+      "description": "NFT-edition lookup for a synthetic mint.",
+      "baseline": [
+        {
+          "name": "getNftEditions",
+          "arguments": {
+            "mint": "So11111111111111111111111111111111111111112",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getNftEditions",
+            "mint": "So11111111111111111111111111111111111111112",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getTokenHolders",
+      "description": "Token-holder lookup for a synthetic mint.",
+      "baseline": [
+        {
+          "name": "getTokenHolders",
+          "arguments": {
+            "mint": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAsset",
+          "arguments": {
+            "action": "getTokenHolders",
+            "mint": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "parseTransactions",
+      "description": "Transaction parsing for a synthetic signature.",
+      "baseline": [
+        {
+          "name": "parseTransactions",
+          "arguments": {
+            "signatures": [
+              "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusTransaction",
+          "arguments": {
+            "action": "parseTransactions",
+            "signatures": [
+              "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getTransactionHistory",
+      "description": "Transaction-history lookup with bounded synthetic inputs.",
+      "baseline": [
+        {
+          "name": "getTransactionHistory",
+          "arguments": {
+            "address": "11111111111111111111111111111111",
+            "mode": "signatures",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusTransaction",
+          "arguments": {
+            "action": "getTransactionHistory",
+            "address": "11111111111111111111111111111111",
+            "mode": "signatures",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getAccountInfo",
+      "description": "Account-info lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getAccountInfo",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getAccountInfo",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getTokenAccounts",
+      "description": "Token-account lookup for a synthetic owner.",
+      "baseline": [
+        {
+          "name": "getTokenAccounts",
+          "arguments": {
+            "owner": "11111111111111111111111111111111",
+            "limit": 5,
+            "page": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getTokenAccounts",
+            "limit": 5,
+            "page": 1,
+            "args": {
+              "owner": "11111111111111111111111111111111"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getProgramAccounts",
+      "description": "Program-account lookup for a synthetic program id.",
+      "baseline": [
+        {
+          "name": "getProgramAccounts",
+          "arguments": {
+            "programId": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getProgramAccounts",
+            "programId": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getBlock",
+      "description": "Block lookup for a low synthetic slot.",
+      "baseline": [
+        {
+          "name": "getBlock",
+          "arguments": {
+            "slot": 1
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getBlock",
+            "slot": 1
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getNetworkStatus",
+      "description": "Network-status snapshot lookup.",
+      "baseline": [
+        {
+          "name": "getNetworkStatus",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getNetworkStatus"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getPriorityFeeEstimate",
+      "description": "Priority-fee estimate with bounded synthetic account keys.",
+      "baseline": [
+        {
+          "name": "getPriorityFeeEstimate",
+          "arguments": {
+            "accountKeys": [
+              "11111111111111111111111111111111"
+            ],
+            "includeAllLevels": true
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getPriorityFeeEstimate",
+            "accountKeys": [
+              "11111111111111111111111111111111"
+            ],
+            "includeAllLevels": true
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getStakeAccounts",
+      "description": "Stake-account lookup for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getStakeAccounts",
+          "arguments": {
+            "wallet": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getStakeAccounts",
+            "args": {
+              "wallet": "11111111111111111111111111111111"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWithdrawableAmount",
+      "description": "Withdrawable-stake lookup for a synthetic stake account.",
+      "baseline": [
+        {
+          "name": "getWithdrawableAmount",
+          "arguments": {
+            "stakeAccount": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusChain",
+          "arguments": {
+            "action": "getWithdrawableAmount",
+            "stakeAccount": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "createWebhook",
+      "description": "Webhook creation should fail safely with intentionally incomplete synthetic input.",
+      "baseline": [
+        {
+          "name": "createWebhook",
+          "arguments": {
+            "accountAddresses": [
+              "11111111111111111111111111111111"
+            ],
+            "webhookType": "enhanced"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "createWebhook",
+            "accountAddresses": [
+              "11111111111111111111111111111111"
+            ],
+            "webhookType": "enhanced"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "getAllWebhooks",
+      "description": "List-webhooks lookup for the current auth state.",
+      "baseline": [
+        {
+          "name": "getAllWebhooks",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "getAllWebhooks"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWebhookByID",
+      "description": "Webhook-id lookup should fail safely with intentionally missing required fields.",
+      "baseline": [
+        {
+          "name": "getWebhookByID",
+          "arguments": {},
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "getWebhookByID"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "updateWebhook",
+      "description": "Webhook update should fail safely with intentionally incomplete synthetic input.",
+      "baseline": [
+        {
+          "name": "updateWebhook",
+          "arguments": {
+            "webhookType": "enhanced"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "updateWebhook",
+            "webhookType": "enhanced"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "deleteWebhook",
+      "description": "Webhook delete should fail safely with intentionally missing required fields.",
+      "baseline": [
+        {
+          "name": "deleteWebhook",
+          "arguments": {},
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "deleteWebhook"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "transactionSubscribe",
+      "description": "Enhanced WebSocket transaction subscription config with a synthetic account filter.",
+      "baseline": [
+        {
+          "name": "transactionSubscribe",
+          "arguments": {
+            "accountInclude": [
+              "11111111111111111111111111111111"
+            ],
+            "commitment": "confirmed",
+            "encoding": "jsonParsed"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "transactionSubscribe",
+            "accountInclude": [
+              "11111111111111111111111111111111"
+            ],
+            "commitment": "confirmed",
+            "encoding": "jsonParsed"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "accountSubscribe",
+      "description": "Enhanced WebSocket account subscription config for a synthetic account.",
+      "baseline": [
+        {
+          "name": "accountSubscribe",
+          "arguments": {
+            "account": "11111111111111111111111111111111",
+            "commitment": "confirmed",
+            "encoding": "jsonParsed"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "accountSubscribe",
+            "account": "11111111111111111111111111111111",
+            "commitment": "confirmed",
+            "encoding": "jsonParsed"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "laserstreamSubscribe",
+      "description": "Laserstream config lookup with bounded synthetic filters.",
+      "baseline": [
+        {
+          "name": "laserstreamSubscribe",
+          "arguments": {
+            "subscribeTransactions": true,
+            "transactionAccountInclude": [
+              "11111111111111111111111111111111"
+            ],
+            "region": "ewr"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusStreaming",
+          "arguments": {
+            "action": "laserstreamSubscribe",
+            "transactionAccountInclude": [
+              "11111111111111111111111111111111"
+            ],
+            "region": "ewr",
+            "args": {
+              "subscribeTransactions": true
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "lookupHeliusDocs",
+      "description": "Targeted docs lookup.",
+      "baseline": [
+        {
+          "name": "lookupHeliusDocs",
+          "arguments": {
+            "topic": "billing",
+            "section": "credits"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "lookupHeliusDocs",
+            "topic": "billing",
+            "section": "credits"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "listHeliusDocTopics",
+      "description": "List of docs topics.",
+      "baseline": [
+        {
+          "name": "listHeliusDocTopics",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "listHeliusDocTopics"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getHeliusCreditsInfo",
+      "description": "Credits info lookup.",
+      "baseline": [
+        {
+          "name": "getHeliusCreditsInfo",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getHeliusCreditsInfo"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getRateLimitInfo",
+      "description": "Rate-limit info lookup.",
+      "baseline": [
+        {
+          "name": "getRateLimitInfo",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getRateLimitInfo"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "troubleshootError",
+      "description": "Error-code troubleshooting lookup.",
+      "baseline": [
+        {
+          "name": "troubleshootError",
+          "arguments": {
+            "errorCode": "429"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "troubleshootError",
+            "errorCode": "429"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "recommendStack",
+      "description": "Architecture recommendation lookup.",
+      "baseline": [
+        {
+          "name": "recommendStack",
+          "arguments": {
+            "description": "Build a wallet dashboard with live balances and transaction history.",
+            "budget": "free",
+            "complexity": "low",
+            "scale": "prototype",
+            "remember": false
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "recommendStack",
+            "description": "Build a wallet dashboard with live balances and transaction history.",
+            "budget": "free",
+            "complexity": "low",
+            "scale": "prototype",
+            "remember": false
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getSIMD",
+      "description": "SIMD lookup for a known proposal number.",
+      "baseline": [
+        {
+          "name": "getSIMD",
+          "arguments": {
+            "number": "228"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getSIMD",
+            "number": "228"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "listSIMDs",
+      "description": "SIMD index lookup.",
+      "baseline": [
+        {
+          "name": "listSIMDs",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "listSIMDs"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "searchSolanaDocs",
+      "description": "Solana docs search query.",
+      "baseline": [
+        {
+          "name": "searchSolanaDocs",
+          "arguments": {
+            "query": "PDAs"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "searchSolanaDocs",
+            "query": "PDAs"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "readSolanaSourceFile",
+      "description": "Solana source-file lookup for a known Agave file.",
+      "baseline": [
+        {
+          "name": "readSolanaSourceFile",
+          "arguments": {
+            "repo": "agave",
+            "branch": "master",
+            "path": "runtime/src/bank.rs"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "readSolanaSourceFile",
+            "repo": "agave",
+            "branch": "master",
+            "path": "runtime/src/bank.rs"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "fetchHeliusBlog",
+      "description": "Helius blog listing lookup.",
+      "baseline": [
+        {
+          "name": "fetchHeliusBlog",
+          "arguments": {
+            "action": "list"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "fetchHeliusBlog",
+            "args": {
+              "action": "list"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getPumpFunGuide",
+      "description": "Pump.fun guide lookup.",
+      "baseline": [
+        {
+          "name": "getPumpFunGuide",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getPumpFunGuide"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getSenderInfo",
+      "description": "Sender guide lookup.",
+      "baseline": [
+        {
+          "name": "getSenderInfo",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getSenderInfo"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getWebhookGuide",
+      "description": "Webhook guide lookup.",
+      "baseline": [
+        {
+          "name": "getWebhookGuide",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getWebhookGuide"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getLatencyComparison",
+      "description": "Streaming latency comparison lookup.",
+      "baseline": [
+        {
+          "name": "getLatencyComparison",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getLatencyComparison"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getEnhancedWebSocketInfo",
+      "description": "Enhanced WebSocket guide lookup.",
+      "baseline": [
+        {
+          "name": "getEnhancedWebSocketInfo",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getEnhancedWebSocketInfo"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getLaserstreamInfo",
+      "description": "Laserstream guide lookup.",
+      "baseline": [
+        {
+          "name": "getLaserstreamInfo",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getLaserstreamInfo"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "transferSol",
+      "description": "SOL transfer should fail safely with a synthetic recipient and no valid signing context.",
+      "baseline": [
+        {
+          "name": "transferSol",
+          "arguments": {
+            "recipientAddress": "11111111111111111111111111111111"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWrite",
+          "arguments": {
+            "action": "transferSol",
+            "recipientAddress": "11111111111111111111111111111111"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "transferToken",
+      "description": "Token transfer should fail safely with synthetic args and no valid signing context.",
+      "baseline": [
+        {
+          "name": "transferToken",
+          "arguments": {
+            "recipientAddress": "11111111111111111111111111111111",
+            "mintAddress": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWrite",
+          "arguments": {
+            "action": "transferToken",
+            "recipientAddress": "11111111111111111111111111111111",
+            "mintAddress": "So11111111111111111111111111111111111111112"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "stakeSOL",
+      "description": "Stake flow should fail safely with no valid signing context.",
+      "baseline": [
+        {
+          "name": "stakeSOL",
+          "arguments": {
+            "amount": 0.01
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWrite",
+          "arguments": {
+            "action": "stakeSOL",
+            "amount": 0.01
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "unstakeSOL",
+      "description": "Unstake flow should fail safely with no valid signing context.",
+      "baseline": [
+        {
+          "name": "unstakeSOL",
+          "arguments": {
+            "stakeAccount": "11111111111111111111111111111111"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWrite",
+          "arguments": {
+            "action": "unstakeSOL",
+            "stakeAccount": "11111111111111111111111111111111"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "withdrawStake",
+      "description": "Stake-withdraw flow should fail safely with no valid signing context.",
+      "baseline": [
+        {
+          "name": "withdrawStake",
+          "arguments": {
+            "stakeAccount": "11111111111111111111111111111111"
+          },
+          "expectation": "error"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWrite",
+          "arguments": {
+            "action": "withdrawStake",
+            "stakeAccount": "11111111111111111111111111111111"
+          },
+          "expectation": "error"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedAccount",
+      "description": "Compressed-account lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getCompressedAccount",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedAccount",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedAccountsByOwner",
+      "description": "Compressed-account owner lookup for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getCompressedAccountsByOwner",
+          "arguments": {
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedAccountsByOwner",
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getMultipleCompressedAccounts",
+      "description": "Batch compressed-account lookup for a synthetic address list.",
+      "baseline": [
+        {
+          "name": "getMultipleCompressedAccounts",
+          "arguments": {
+            "addresses": [
+              "11111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getMultipleCompressedAccounts",
+            "addresses": [
+              "11111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedBalance",
+      "description": "Compressed balance lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getCompressedBalance",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedBalance",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedBalanceByOwner",
+      "description": "Compressed balance by owner lookup for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getCompressedBalanceByOwner",
+          "arguments": {
+            "owner": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedBalanceByOwner",
+            "owner": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedMintTokenHolders",
+      "description": "Compressed token-holder lookup for a synthetic mint.",
+      "baseline": [
+        {
+          "name": "getCompressedMintTokenHolders",
+          "arguments": {
+            "mint": "So11111111111111111111111111111111111111112",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedMintTokenHolders",
+            "mint": "So11111111111111111111111111111111111111112",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedTokenAccountBalance",
+      "description": "Compressed token-account balance lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getCompressedTokenAccountBalance",
+          "arguments": {
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedTokenAccountBalance",
+            "address": "11111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedTokenAccountsByOwner",
+      "description": "Compressed token-account lookup by owner for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getCompressedTokenAccountsByOwner",
+          "arguments": {
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedTokenAccountsByOwner",
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedTokenAccountsByDelegate",
+      "description": "Compressed token-account lookup by delegate for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getCompressedTokenAccountsByDelegate",
+          "arguments": {
+            "delegate": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedTokenAccountsByDelegate",
+            "limit": 5,
+            "args": {
+              "delegate": "11111111111111111111111111111111"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedTokenBalancesByOwnerV2",
+      "description": "Compressed token-balance summary lookup for a synthetic wallet.",
+      "baseline": [
+        {
+          "name": "getCompressedTokenBalancesByOwnerV2",
+          "arguments": {
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedTokenBalancesByOwnerV2",
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressedAccountProof",
+      "description": "Compressed account-proof lookup for a synthetic hash.",
+      "baseline": [
+        {
+          "name": "getCompressedAccountProof",
+          "arguments": {
+            "hash": "11111111111111111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressedAccountProof",
+            "hash": "11111111111111111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getMultipleCompressedAccountProofs",
+      "description": "Batch compressed account-proof lookup for a synthetic hash list.",
+      "baseline": [
+        {
+          "name": "getMultipleCompressedAccountProofs",
+          "arguments": {
+            "hashes": [
+              "11111111111111111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getMultipleCompressedAccountProofs",
+            "hashes": [
+              "11111111111111111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getMultipleNewAddressProofs",
+      "description": "Non-inclusion proof lookup for a synthetic address/tree pair.",
+      "baseline": [
+        {
+          "name": "getMultipleNewAddressProofs",
+          "arguments": {
+            "addresses": [
+              {
+                "address": "11111111111111111111111111111111",
+                "tree": "11111111111111111111111111111111"
+              }
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getMultipleNewAddressProofs",
+            "addresses": [
+              {
+                "address": "11111111111111111111111111111111",
+                "tree": "11111111111111111111111111111111"
+              }
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressionSignaturesForAccount",
+      "description": "Compression signatures lookup for a synthetic hash.",
+      "baseline": [
+        {
+          "name": "getCompressionSignaturesForAccount",
+          "arguments": {
+            "hash": "11111111111111111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressionSignaturesForAccount",
+            "hash": "11111111111111111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressionSignaturesForAddress",
+      "description": "Compression signatures lookup for a synthetic address.",
+      "baseline": [
+        {
+          "name": "getCompressionSignaturesForAddress",
+          "arguments": {
+            "address": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressionSignaturesForAddress",
+            "address": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressionSignaturesForOwner",
+      "description": "Compression signatures lookup for a synthetic owner.",
+      "baseline": [
+        {
+          "name": "getCompressionSignaturesForOwner",
+          "arguments": {
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressionSignaturesForOwner",
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getCompressionSignaturesForTokenOwner",
+      "description": "Compression token-owner signatures lookup for a synthetic owner.",
+      "baseline": [
+        {
+          "name": "getCompressionSignaturesForTokenOwner",
+          "arguments": {
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getCompressionSignaturesForTokenOwner",
+            "owner": "11111111111111111111111111111111",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getLatestCompressionSignatures",
+      "description": "Latest compression signatures lookup.",
+      "baseline": [
+        {
+          "name": "getLatestCompressionSignatures",
+          "arguments": {
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getLatestCompressionSignatures",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getLatestNonVotingSignatures",
+      "description": "Latest non-voting compression signatures lookup.",
+      "baseline": [
+        {
+          "name": "getLatestNonVotingSignatures",
+          "arguments": {
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getLatestNonVotingSignatures",
+            "limit": 5
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getTransactionWithCompressionInfo",
+      "description": "Compression transaction-detail lookup for a synthetic signature.",
+      "baseline": [
+        {
+          "name": "getTransactionWithCompressionInfo",
+          "arguments": {
+            "signature": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getTransactionWithCompressionInfo",
+            "args": {
+              "signature": "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+            }
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getValidityProof",
+      "description": "Compression validity-proof lookup for a synthetic hash list.",
+      "baseline": [
+        {
+          "name": "getValidityProof",
+          "arguments": {
+            "hashes": [
+              "11111111111111111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getValidityProof",
+            "hashes": [
+              "11111111111111111111111111111111111111111111"
+            ]
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getIndexerHealth",
+      "description": "Compression indexer health lookup.",
+      "baseline": [
+        {
+          "name": "getIndexerHealth",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getIndexerHealth"
+          },
+          "expectation": "any"
+        }
+      ]
+    },
+    {
+      "id": "getIndexerSlot",
+      "description": "Compression indexer slot lookup.",
+      "baseline": [
+        {
+          "name": "getIndexerSlot",
+          "arguments": {},
+          "expectation": "any"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusCompression",
+          "arguments": {
+            "action": "getIndexerSlot"
+          },
+          "expectation": "any"
+        }
+      ]
+    }
+  ]
+}

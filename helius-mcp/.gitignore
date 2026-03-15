@@ -6,6 +6,7 @@ dist/
 
 # Test coverage
 coverage/
+benchmark-reports/
 
 # IDE
 .idea/

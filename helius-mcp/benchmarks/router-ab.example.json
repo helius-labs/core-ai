@@ -1,0 +1,96 @@
+{
+  "scenarios": [
+    {
+      "id": "rate-limit-info",
+      "description": "Static knowledge lookup routed through heliusKnowledge in the new surface.",
+      "baseline": [
+        {
+          "name": "getRateLimitInfo"
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusKnowledge",
+          "arguments": {
+            "action": "getRateLimitInfo"
+          }
+        }
+      ]
+    },
+    {
+      "id": "plan-info",
+      "description": "Pricing/catalog response old vs routed.",
+      "baseline": [
+        {
+          "name": "getHeliusPlanInfo",
+          "arguments": {
+            "plan": "all"
+          }
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusAccount",
+          "arguments": {
+            "action": "getHeliusPlanInfo",
+            "plan": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "sol-balance",
+      "description": "Live SOL balance query if both HELIUS_API_KEY and BENCHMARK_WALLET are set.",
+      "requiredEnv": [
+        "HELIUS_API_KEY",
+        "BENCHMARK_WALLET"
+      ],
+      "baseline": [
+        {
+          "name": "getBalance",
+          "arguments": {
+            "address": "${env:BENCHMARK_WALLET}"
+          }
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusWallet",
+          "arguments": {
+            "action": "getBalance",
+            "address": "${env:BENCHMARK_WALLET}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "transaction-history",
+      "description": "History query old vs routed if a wallet and API key are available.",
+      "requiredEnv": [
+        "HELIUS_API_KEY",
+        "BENCHMARK_WALLET"
+      ],
+      "baseline": [
+        {
+          "name": "getTransactionHistory",
+          "arguments": {
+            "address": "${env:BENCHMARK_WALLET}",
+            "mode": "signatures",
+            "limit": 10
+          }
+        }
+      ],
+      "candidate": [
+        {
+          "name": "heliusTransaction",
+          "arguments": {
+            "action": "getTransactionHistory",
+            "address": "${env:BENCHMARK_WALLET}",
+            "mode": "signatures",
+            "limit": 10
+          }
+        }
+      ]
+    }
+  ]
+}
