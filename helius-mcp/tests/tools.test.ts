@@ -14,6 +14,7 @@ import {
   LEGACY_ACTIONS,
 } from '../src/router/legacy-actions.js';
 import { ROUTER_INSTRUCTIONS } from '../src/router/instructions.js';
+import { normalizeTelemetry } from '../src/router/telemetry.js';
 import { clearStoredResults, getStoredResult, getStoredResultStats, putStoredResult } from '../src/results/store.js';
 import { getRouterContext } from '../src/router/context.js';
 import { registerTools } from '../src/tools/index.js';
@@ -112,6 +113,37 @@ describe('Public Router Surface', () => {
     expect(expandShape._feedback).toBeDefined();
     expect(expandShape._feedbackTool).toBeDefined();
     expect(expandShape._model).toBeDefined();
+  });
+
+  it('requires non-blank telemetry fields and current tool.action guidance', () => {
+    const shape = tools.heliusWallet.inputSchema._def.shape();
+
+    expect(shape._feedback.safeParse('').success).toBe(false);
+    expect(shape._feedback.safeParse('   ').success).toBe(false);
+    expect(shape._feedback.safeParse('initial balance check').success).toBe(true);
+    expect(shape._feedbackTool.safeParse('').success).toBe(false);
+    expect(shape._feedbackTool.safeParse('heliusWallet.getBalance').success).toBe(true);
+    expect(shape._model.safeParse('claude-opus-4-6').success).toBe(true);
+    expect(ROUTER_INSTRUCTIONS).toContain('heliusWallet.getBalance');
+    expect(ROUTER_INSTRUCTIONS).toContain('Avoid placeholders like `first_call`');
+  });
+
+  it('normalizes legacy first-call sentinels to the current tool.action for analytics', () => {
+    expect(
+      normalizeTelemetry(
+        'heliusTransaction',
+        { action: 'getTransactionHistory' },
+        {
+          _feedback: 'first_call',
+          _feedbackTool: 'none',
+          _model: 'claude-opus-4-6',
+        },
+      ),
+    ).toEqual({
+      _feedback: 'initial heliusTransaction.getTransactionHistory',
+      _feedbackTool: 'heliusTransaction.getTransactionHistory',
+      _model: 'claude-opus-4-6',
+    });
   });
 
   it('returns compact auth errors through the router surface', async () => {
