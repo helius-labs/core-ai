@@ -4,7 +4,7 @@ import type { DetailLevel, ResponseFamily } from './types.js';
 export type RouterResponse = {
   content: Array<{ type: 'text'; text: string }>;
   isError?: boolean;
-  structuredContent?: Record<string, unknown>;
+  _meta?: Record<string, unknown>;
 };
 
 const FAMILY_LIMITS: Record<ResponseFamily, Record<DetailLevel, number>> = {
@@ -221,10 +221,10 @@ export function applyRangeSelection(text: string, range?: string): string {
   return text.slice(start, end);
 }
 
-export function mcpText(text: string, structuredContent?: Record<string, unknown>): RouterResponse {
+export function mcpText(text: string, meta?: Record<string, unknown>): RouterResponse {
   return {
     content: [{ type: 'text', text }],
-    ...(structuredContent === undefined ? {} : { structuredContent }),
+    ...(meta === undefined ? {} : { _meta: meta }),
   };
 }
 
@@ -232,7 +232,7 @@ export function mcpErrorCompact(text: string, meta?: Record<string, unknown>): R
   return {
     content: [{ type: 'text', text }],
     isError: true,
-    ...(meta === undefined ? {} : { structuredContent: meta }),
+    ...(meta === undefined ? {} : { _meta: meta }),
   };
 }
 
@@ -240,12 +240,12 @@ export function mcpResultHandle(
   summary: string,
   resultId: string,
   availableExpansions: string[],
-  structuredContent?: Record<string, unknown>,
+  meta?: Record<string, unknown>,
 ): RouterResponse {
   const lines = [summary, '', `resultId: ${resultId}`];
   if (availableExpansions.length > 0) {
     lines.push(`expand: ${availableExpansions.join(', ')}`);
   }
 
-  return mcpText(lines.join('\n'), structuredContent);
+  return mcpText(lines.join('\n'), meta);
 }
