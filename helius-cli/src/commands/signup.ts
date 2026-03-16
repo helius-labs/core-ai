@@ -4,13 +4,16 @@ import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
 import { agenticSignup, listProjects } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, getSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
-import { printWalletQR } from "../lib/qr.js";
+import { printSolanaPayQR, buildSolanaPayUri } from "../lib/qr.js";
 import { formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, ExitCode, handleCommandError, type OutputOptions } from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
-import { PLAN_CATALOG } from "../lib/checkout.js";
+import { getSignupQuote, type PaymentMode } from "../lib/checkout.js";
 import { sendDiscoveryEvent } from "../lib/feedback.js";
 import { validateSignupPlan, validatePeriod, validateEmail } from "../lib/validation.js";
+import { signAuthMessage } from "helius-sdk/auth/signAuthMessage";
+import { walletSignup } from "helius-sdk/auth/walletSignup";
+import { CLI_USER_AGENT } from "../constants.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -24,6 +27,7 @@ interface SignupOptions extends OutputOptions {
   frictionPoints?: string;
   wait?: boolean;
   noQr?: boolean;
+  sponsored?: boolean;
 }
 
 const POLL_INTERVAL_MS = 5_000;
@@ -36,16 +40,16 @@ interface FundingResult {
 }
 
 /**
- * Polls SOL and USDC balances until both meet the required thresholds.
- * Returns which assets were funded so the caller can report accurate timeout status.
+ * Polls balances until funded. In sponsored mode, only polls USDC.
  */
 async function waitForFunding(
   walletAddress: string,
   requiredUsdcRaw: bigint,
+  sponsored: boolean,
   spinner?: { start(text: string): void; succeed(text: string): void } | null,
 ): Promise<FundingResult> {
   const start = Date.now();
-  let solFunded = false;
+  let solFunded = sponsored; // SOL not needed in sponsored mode
   let usdcFunded = false;
 
   while (Date.now() - start < POLL_TIMEOUT_MS) {
@@ -85,6 +89,7 @@ async function waitForFunding(
 
 export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = options.json ? null : ora();
+  const paymentMode: PaymentMode = options.sponsored ? "sponsored" : "self_funded";
 
   try {
     // Validate plan and period upfront
@@ -104,11 +109,10 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     // Auto-generate keypair if none exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
-        // In JSON mode, don't do interactive keygen — just error
         exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
-      await keygenCommand({ output: options.keypair, noQr: true });
+      await keygenCommand({ output: options.keypair });
       console.log();
     }
 
@@ -118,38 +122,56 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet loaded: ${walletAddress}`);
 
-    // Check balance before attempting payment
-    spinner?.start("Checking wallet balance...");
-    const solBalance = await checkSolBalance(walletAddress);
-    const usdcBalance = await checkUsdcBalance(walletAddress);
-    const solAmount = Number(solBalance) / 1_000_000_000;
-    const usdcAmount = Number(usdcBalance) / 1_000_000;
-    const solOk = solBalance >= 1_000_000n;    // ~0.001 SOL
+    // Early wallet auth to get JWT + refId for exact pricing
+    spinner?.start("Authenticating...");
+    const { message, signature } = await signAuthMessage(keypair.secretKey);
+    const auth = await walletSignup(message, signature, walletAddress, CLI_USER_AGENT);
+    const jwt = auth.token;
+    const refId = auth.refId;
+    spinner?.succeed("Authenticated");
 
-    // Compute required USDC based on selected plan
-    const planKey = options.plan?.toLowerCase();
-    const catalogEntry = planKey ? PLAN_CATALOG[planKey] : null;
-    let requiredUsdcRaw: bigint;
-    let requiredUsdcLabel: string;
-    if (catalogEntry) {
-      const period = options.period?.toLowerCase();
-      const priceInCents = period === "yearly" ? catalogEntry.yearlyPrice : catalogEntry.monthlyPrice;
-      requiredUsdcRaw = BigInt(priceInCents) * 10_000n; // cents → USDC raw (6 decimals)
-      requiredUsdcLabel = `${priceInCents / 100} USDC`;
-    } else {
-      requiredUsdcRaw = 1_000_000n; // $1 basic plan
-      requiredUsdcLabel = "1 USDC";
-    }
+    // Get exact pricing from backend (replaces local PLAN_CATALOG math)
+    const plan = options.plan?.toLowerCase() || "basic";
+    const period = (options.period?.toLowerCase() as "monthly" | "yearly") || "monthly";
+
+    spinner?.start("Getting pricing...");
+    const quote = await getSignupQuote(jwt, {
+      plan,
+      period,
+      refId,
+      couponCode: options.coupon,
+    });
+    spinner?.succeed(
+      quote.discountCents > 0
+        ? `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)} (was $${(quote.baseAmountCents / 100).toFixed(2)})`
+        : `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)}`
+    );
+
+    const requiredUsdcAmount = quote.dueTodayCents / 100; // token units
+    const requiredUsdcRaw = BigInt(quote.dueTodayCents) * 10_000n; // cents → 6-decimal raw
+    const requiredUsdcLabel = `${requiredUsdcAmount} USDC`;
+
+    // Check balance (skip SOL in sponsored mode)
+    spinner?.start("Checking wallet balance...");
+    const usdcBalance = await checkUsdcBalance(walletAddress);
+    const usdcAmountHave = Number(usdcBalance) / 1_000_000;
     const usdcOk = usdcBalance >= requiredUsdcRaw;
+
+    let solOk = true;
+    let solAmountHave = 0;
+    if (paymentMode !== "sponsored") {
+      const solBalance = await checkSolBalance(walletAddress);
+      solAmountHave = Number(solBalance) / 1_000_000_000;
+      solOk = solBalance >= 1_000_000n;
+    }
 
     if (!solOk || !usdcOk) {
       spinner?.fail("Insufficient balance");
       const missing: string[] = [];
-      if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
-      if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmount.toFixed(2)})`);
+      if (!solOk) missing.push(`~0.001 SOL (have ${solAmountHave.toFixed(6)})`);
+      if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmountHave.toFixed(2)})`);
 
       if (!options.wait) {
-        // No polling — exit immediately
         if (options.json) {
           exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, {
             wallet: walletAddress,
@@ -161,7 +183,8 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
           console.error(`  • ${m}`);
         }
         if (!options.noQr) {
-          await printWalletQR(walletAddress);
+          const qrUri = buildSolanaPayUri(walletAddress, requiredUsdcAmount);
+          await printSolanaPayQR(qrUri);
         }
         console.error(chalk.gray("\nThen run `helius signup` again, or use `helius signup --wait` to poll until funded."));
         process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
@@ -173,32 +196,37 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         console.error(`  • ${m}`);
       }
       if (!options.noQr) {
-        await printWalletQR(walletAddress);
+        const qrUri = buildSolanaPayUri(walletAddress, requiredUsdcAmount);
+        await printSolanaPayQR(qrUri);
       }
       console.log(chalk.gray("\nWaiting for funds... (Ctrl+C to cancel)\n"));
-      const result = await waitForFunding(walletAddress, requiredUsdcRaw, spinner);
+      const result = await waitForFunding(walletAddress, requiredUsdcRaw, paymentMode === "sponsored", spinner);
       if (!result.funded) {
         process.exit(!result.solFunded ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
       }
     } else {
-      spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
+      const balanceMsg = paymentMode === "sponsored"
+        ? `Balance OK: ${usdcAmountHave.toFixed(2)} USDC (SOL sponsored)`
+        : `Balance OK: ${solAmountHave.toFixed(4)} SOL, ${usdcAmountHave.toFixed(2)} USDC`;
+      spinner?.succeed(balanceMsg);
     }
 
     // Snapshot local config state before signup — used to detect recovery vs. duplicate
     const hadLocalApiKey = !!getSharedApiKey();
 
-    // Run agenticSignup (handles all plan paths)
+    // Run agenticSignup (handles all plan paths including checkout + sponsored)
     const planLabel = options.plan || "basic";
     spinner?.start(`Signing up (${planLabel} plan)...`);
 
     const result = await agenticSignup({
       secretKey: keypair.secretKey,
       plan: options.plan,
-      period: (options.period as "monthly" | "yearly") || undefined,
+      period: period === "monthly" ? undefined : period,
       couponCode: options.coupon,
       email: options.email,
       firstName: options.firstName,
       lastName: options.lastName,
+      paymentMode,
     });
 
     spinner?.succeed("Signup complete");
@@ -224,7 +252,6 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // Handle result statuses
     if (result.status === "existing_project") {
-      // No prior local key = interrupted signup being recovered; otherwise a genuine re-run
       const isRecovery = !hadLocalApiKey;
       const allProjects = await listProjects(result.jwt);
 

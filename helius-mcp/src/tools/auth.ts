@@ -9,17 +9,22 @@ import { getCheckoutPreview, executeCheckout, executeRenewal } from 'helius-sdk/
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
+import { signAuthMessage } from 'helius-sdk/auth/signAuthMessage';
+import { walletSignup } from 'helius-sdk/auth/walletSignup';
+import { getSignupQuote } from 'helius-sdk/auth/signupFunding';
 import { MCP_USER_AGENT } from '../http.js';
 import {
   setApiKey,
   hasApiKey,
   setSessionSecretKey,
+  getSessionSecretKey,
   setSessionWalletAddress,
   getSessionWalletAddress,
   loadSignerOrFail,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
-import { generateWalletQR } from '../utils/qr.js';
+import { generateSolanaPayQR, buildSolanaPayUri } from '../utils/qr.js';
+import { computeExactUsdc } from '../utils/pricing.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import { setSharedApiKey, setJwt, getJwt, SHARED_CONFIG_PATH, KEYPAIR_PATH, loadKeypairFromDisk, saveKeypairToDisk, keypairExistsOnDisk } from '../utils/config.js';
@@ -124,18 +129,19 @@ export function registerAuthTools(server: McpServer) {
       }
 
       lines.push(
-        '### Step 2: Fund the wallet',
-        'Send the following to the wallet address from Step 1:',
-        '- **~0.001 SOL** — covers transaction fees',
-        '- **1 USDC** — pays for the basic plan ($1)',
+        '### Step 2: Check balance & fund the wallet',
+        'Call `checkSignupBalance` with the desired `plan` (and optionally `period`). It will:',
+        '- Tell you the exact SOL + USDC amounts needed',
+        '- Show a **scannable QR code** encoding the exact USDC payment — the user just scans to pay',
         '',
-        'You can send from any Solana wallet, exchange, or on-ramp.',
-        'The USDC token mint on Solana is: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`',
+        'Plan pricing:',
+        '- basic: $1 USDC (one-time)',
+        ...PAID_PLAN_ORDER.filter(k => k in PLAN_CATALOG).map(k => `- ${k}: $${PLAN_CATALOG[k].monthlyPrice / 100}/mo ($${PLAN_CATALOG[k].yearlyPrice / 100}/yr)`),
         '',
-        `For paid plans, send more USDC instead: ${PAID_PLAN_ORDER.filter(k => k in PLAN_CATALOG).map(k => `$${PLAN_CATALOG[k].monthlyPrice / 100} (${PLAN_CATALOG[k].name})`).join(', ')}.`,
+        'The user also needs **~0.001 SOL** for transaction fees (sent separately).',
         '',
         '### Step 3: Verify funding',
-        'Call `checkSignupBalance` to confirm your SOL and USDC balances are sufficient.',
+        'Call `checkSignupBalance` again to confirm balances are sufficient.',
         '',
         '### Step 4: Create the account',
         'Call `agenticSignup` to process the payment and create your Helius account.',
@@ -167,7 +173,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'generateKeypair',
-    'Generate a new Solana keypair for Helius account signup. Returns the wallet address. The user must fund this wallet with ~0.001 SOL + 1 USDC (basic plan) or more USDC (for paid plans) before calling agenticSignup.',
+    'Generate a new Solana keypair for Helius account signup. Returns the wallet address. After generating, call `checkSignupBalance` (with plan context) to verify funding — it will show a scannable QR code with the exact USDC amount needed.',
     {},
     async () => {
       try {
@@ -184,15 +190,10 @@ export function registerAuthTools(server: McpServer) {
           setSessionWalletAddress(address);
           captureWalletAddress(address);
 
-          const existingQR = await generateWalletQR(address);
           return mcpText(
             `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
             `**Wallet Address:** \`${address}\`\n\n` +
-            `To create a Helius account, fund this wallet with:\n` +
-            `- **~0.001 SOL** for transaction fees\n` +
-            `- **1 USDC** for basic plan (or more for paid plans)\n\n` +
-            `**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n` +
-            `\`\`\`\n${existingQR}\`\`\`\n` +
+            `Next, call \`checkSignupBalance\` with the desired plan to see a scannable QR code with the exact USDC amount needed.\n` +
             `Then call \`agenticSignup\` to complete account creation.`
           );
         }
@@ -207,16 +208,11 @@ export function registerAuthTools(server: McpServer) {
         setSessionWalletAddress(address);
         captureWalletAddress(address);
 
-        const newQR = await generateWalletQR(address);
         return mcpText(
           `**Keypair Generated**\n\n` +
           `**Wallet Address:** \`${address}\`\n` +
           `**Saved to:** \`${KEYPAIR_PATH}\`\n\n` +
-          `To create a Helius account, fund this wallet with:\n` +
-          `- **~0.001 SOL** for transaction fees\n` +
-          `- **1 USDC** for basic plan (or more for paid plans)\n\n` +
-          `**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n` +
-          `\`\`\`\n${newQR}\`\`\`\n` +
+          `Next, call \`checkSignupBalance\` with the desired plan to see a scannable QR code with the exact USDC amount needed.\n` +
           `Then call \`agenticSignup\` to complete account creation.`
         );
       } catch (err) {
@@ -227,9 +223,14 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'checkSignupBalance',
-    'Check if the signup wallet has sufficient SOL and USDC balance for Helius basic plan ($1 USDC). Paid plans (developer/business/professional) require more USDC — the exact amount depends on the plan and is checked during checkout.',
-    {},
-    async () => {
+    'Check if the signup wallet has sufficient SOL and USDC balance. Pass plan/period for exact USDC checking; defaults to basic plan ($1 USDC) when omitted. In sponsored mode, only USDC is required (Helius pays SOL fees).',
+    {
+      plan: z.string().optional().describe('Plan: "basic" ($1, default), "developer", "business", or "professional"'),
+      period: z.enum(["monthly", "yearly"]).optional().describe('Billing period (default: monthly). Only used with paid plans.'),
+      couponCode: z.string().optional().describe('Coupon code — applied to get exact discounted pricing from the backend'),
+      paymentMode: z.enum(["self_funded", "sponsored"]).optional().describe('Payment mode: "self_funded" (default) or "sponsored" (skip SOL check)'),
+    },
+    async ({ plan, period, couponCode, paymentMode }) => {
       try {
         let address = getSessionWalletAddress();
 
@@ -251,26 +252,66 @@ export function registerAuthTools(server: McpServer) {
           );
         }
 
-        const solBalance = await checkSolBalance(address);
+        const sponsored = paymentMode === 'sponsored';
         const usdcBalance = await checkUsdcBalance(address);
-
-        const solAmount = Number(solBalance) / 1_000_000_000;
         const usdcAmount = Number(usdcBalance) / 1_000_000;
 
-        const solOk = solBalance >= 1_000_000n;
-        const usdcOk = usdcBalance >= 1_000_000n; // 1 USDC for basic plan
+        // In sponsored mode, skip SOL check entirely
+        let solAmount = 0;
+        let solOk = true;
+        if (!sponsored) {
+          const solBalance = await checkSolBalance(address);
+          solAmount = Number(solBalance) / 1_000_000_000;
+          solOk = solBalance >= 1_000_000n;
+        }
+
+        // Try to get exact pricing from backend via auth + quote (reflects coupons)
+        let requiredUsdcAmount: number;
+        let planLabel: string;
+
+        try {
+          const secretKey = getSessionSecretKey() ?? loadKeypairFromDisk();
+          if (!secretKey) throw new Error('no secret key');
+
+          const { message, signature } = await signAuthMessage(secretKey);
+          const auth = await walletSignup(message, signature, address, MCP_USER_AGENT);
+          const quotePlan = plan?.toLowerCase() || 'basic';
+          const quotePeriod: 'monthly' | 'yearly' = period?.toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+          const quote = await getSignupQuote(auth.token, {
+            plan: quotePlan,
+            period: quotePeriod,
+            refId: auth.refId,
+            couponCode,
+          }, MCP_USER_AGENT);
+
+          requiredUsdcAmount = quote.dueTodayCents / 100;
+          planLabel = `${quote.plan} plan ($${requiredUsdcAmount})`;
+        } catch {
+          // Fall back to local pricing if auth/quote fails (network error, etc.)
+          const pricing = computeExactUsdc(plan, period);
+          requiredUsdcAmount = pricing?.usdcAmount ?? 1;
+          planLabel = pricing?.label ?? 'basic plan ($1)';
+        }
+
+        const requiredUsdcRaw = BigInt(Math.round(requiredUsdcAmount * 1_000_000));
+        const usdcOk = usdcBalance >= requiredUsdcRaw;
 
         const funded = solOk && usdcOk;
 
         // Reset counter when balance is sufficient
         if (funded) {
           insufficientBalanceChecks = 0;
+          const solLine = sponsored
+            ? `- **SOL:** Not required (sponsored)`
+            : `- **SOL:** ${solAmount.toFixed(6)} (sufficient)`;
           return mcpText(
             `**Signup Wallet Balance** (\`${address}\`)\n\n` +
-            `- **SOL:** ${solAmount.toFixed(6)} (sufficient)\n` +
-            `- **USDC:** ${usdcAmount.toFixed(2)} (sufficient for basic)\n\n` +
-            `**Status:** Ready for signup (basic plan). For paid plans, ensure sufficient USDC for the plan price.\n\n` +
-            `Call \`agenticSignup\` to proceed.`
+            `${solLine}\n` +
+            `- **USDC:** ${usdcAmount.toFixed(2)} (sufficient for ${planLabel})\n\n` +
+            `**Status:** Ready for signup (${planLabel}).` +
+            (couponCode ? ` Coupon "${couponCode}" will be applied at checkout.` : '') +
+            (sponsored ? ' SOL transaction fees are sponsored by Helius.' : '') +
+            `\n\nCall \`agenticSignup\`${sponsored ? ' with paymentMode: "sponsored"' : ''} to proceed.`
           );
         }
 
@@ -279,12 +320,16 @@ export function registerAuthTools(server: McpServer) {
 
         const missing: string[] = [];
         if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
-        if (!usdcOk) missing.push(`1 USDC (have ${usdcAmount.toFixed(2)})`);
+        if (!usdcOk) missing.push(`${requiredUsdcAmount} USDC for ${planLabel} (have ${usdcAmount.toFixed(2)})`);
+
+        const solLine = sponsored
+          ? `- **SOL:** Not required (sponsored)`
+          : `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient)'}`;
 
         let balanceBlock =
           `**Signup Wallet Balance** (\`${address}\`)\n\n` +
-          `- **SOL:** ${solAmount.toFixed(6)} ${solOk ? '(sufficient)' : '(insufficient)'}\n` +
-          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? '(sufficient for basic)' : '(insufficient)'}\n\n` +
+          `${solLine}\n` +
+          `- **USDC:** ${usdcAmount.toFixed(2)} ${usdcOk ? `(sufficient for ${planLabel})` : '(insufficient)'}\n\n` +
           `**Status:** Need more funds: ${missing.join(', ')}`;
 
         if (insufficientBalanceChecks === 1) {
@@ -293,7 +338,8 @@ export function registerAuthTools(server: McpServer) {
             `\n\n**Action required:** Ask the user to send the missing funds to \`${address}\`. ` +
             `Do **not** call \`checkSignupBalance\` again until the user confirms they have sent the funds.`;
           try {
-            const qrText = await generateWalletQR(address);
+            const qrUri = buildSolanaPayUri(address, requiredUsdcAmount);
+            const qrText = await generateSolanaPayQR(qrUri);
             balanceBlock += `\n\n**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n\`\`\`\n${qrText}\`\`\``;
           } catch {
             // QR generation failed — skip
@@ -321,7 +367,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'agenticSignup',
-    'Create a Helius account using the generated keypair. Default: basic plan ($1 USDC). For paid plans (developer/business/professional), email, firstName, and lastName are required. On success, automatically configures the API key for this session.',
+    'Create a Helius account using the generated keypair. Default: basic plan ($1 USDC). For paid plans (developer/business/professional), email, firstName, and lastName are required. On success, automatically configures the API key for this session. Use paymentMode "sponsored" to skip SOL fees (Helius pays transaction fees).',
     {
       plan: z.string().optional().describe('Plan to sign up for: "basic" ($1, default), "developer", "business", or "professional"'),
       period: z.enum(["monthly", "yearly"]).optional().describe('Billing period for paid plans (default: monthly)'),
@@ -329,10 +375,11 @@ export function registerAuthTools(server: McpServer) {
       firstName: z.string().optional().describe('First name (required for paid plans)'),
       lastName: z.string().optional().describe('Last name (required for paid plans)'),
       couponCode: z.string().optional().describe('Coupon code for paid plans'),
+      paymentMode: z.enum(["self_funded", "sponsored"]).optional().describe('Payment mode: "self_funded" (default, user pays SOL fees) or "sponsored" (Helius pays SOL fees, USDC only)'),
       discoveryPath: z.string().optional().describe('How did you discover Helius? Helps us improve agent onboarding'),
       frictionPoints: z.string().optional().describe('What friction did you hit finding or setting up Helius? Free-form feedback'),
     },
-    async ({ plan, period, email, firstName, lastName, couponCode, discoveryPath, frictionPoints }) => {
+    async ({ plan, period, email, firstName, lastName, couponCode, paymentMode, discoveryPath, frictionPoints }) => {
       if (discoveryPath || frictionPoints) {
         sendFeedbackEvent({
           type: 'discovery',
@@ -360,6 +407,7 @@ export function registerAuthTools(server: McpServer) {
           firstName,
           lastName,
           couponCode,
+          paymentMode,
         });
 
         // Configure API key for this session and persist to shared config

@@ -18,7 +18,7 @@ If any MCP tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Agentic signup:** `generateKeypair` → user funds wallet with **~0.001 SOL** for fees + **USDC** (USDC mint: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`) — **1 USDC** basic, **$49** Developer, **$499** Business, **$999** Professional → `checkSignupBalance` → `agenticSignup`. **Do NOT skip steps** — on-chain payment required.
+**Path B — Agentic signup:** `generateKeypair` → `checkSignupBalance` (pass `plan`/`period` for exact USDC amount + scannable QR code) → user funds wallet with USDC → `agenticSignup`. In **sponsored mode** (`paymentMode: "sponsored"`), only USDC is required — Helius pays SOL transaction fees. In **self-funded mode** (default), also send ~0.001 SOL. **Do NOT skip steps** — on-chain payment required.
 
 **Path C — CLI:** `npx helius-cli@latest keygen` → fund wallet → `npx helius-cli@latest signup`
 
@@ -1143,8 +1143,8 @@ Getting users set up with Helius: creating accounts, obtaining API keys, underst
 |---|---|
 | `setHeliusApiKey` | Configure an existing API key for the session (validates against `getBlockHeight`) |
 | `generateKeypair` | Generate or load a Solana keypair for agentic signup (persists to `~/.helius-cli/keypair.json`) |
-| `checkSignupBalance` | Check if the signup wallet has sufficient SOL + USDC |
-| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key |
+| `checkSignupBalance` | Check wallet balance — pass `plan`/`period` for exact USDC checking, shows scannable QR code. Supports `paymentMode: "sponsored"` (USDC only, no SOL needed). |
+| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key. Supports `paymentMode: "sponsored"` (Helius pays SOL fees). |
 | `getAccountStatus` | Check current plan, credits remaining, rate limits, billing cycle, burn-rate projections |
 | `getHeliusPlanInfo` | View plan details — pricing, credits, rate limits, features |
 | `compareHeliusPlans` | Compare plans side-by-side by category (rates, features, connections, pricing, support) |
@@ -1169,19 +1169,21 @@ If the environment variable `HELIUS_API_KEY` is already set, no action is needed
 The fully autonomous signup flow, no browser needed:
 
 1. **`generateKeypair`** — generates a new Solana keypair (or loads an existing one from `~/.helius-cli/keypair.json`). Returns the wallet address.
-2. **User funds the wallet** with:
-   - ~0.001 SOL for transaction fees
-   - 1 USDC for the basic plan (or more for paid plans: $49 Developer, $499 Business, $999 Professional)
-3. **`checkSignupBalance`** — verifies SOL and USDC balances are sufficient
+2. **`checkSignupBalance`** — pass `plan` (and optionally `period`, `paymentMode`) to check exact USDC requirement. Shows a **scannable QR code** encoding the exact USDC amount — user scans to fund.
+   - In **self-funded mode** (default): checks SOL (~0.001) + USDC
+   - In **sponsored mode** (`paymentMode: "sponsored"`): checks USDC only — Helius pays SOL transaction fees
+3. **User funds the wallet** by scanning the QR code or sending USDC manually
 4. **`agenticSignup`** — creates the account, processes USDC payment, returns API key + RPC endpoints + project ID
    - API key is automatically configured for the session and saved to shared config
    - If the wallet already has an account, it detects and returns existing credentials (no double payment)
+   - Pass `paymentMode: "sponsored"` to use sponsored mode (USDC only, no SOL needed)
 
 **Parameters for `agenticSignup`:**
 - `plan`: `"basic"` (default, $1), `"developer"`, `"business"`, or `"professional"`
 - `period`: `"monthly"` (default) or `"yearly"` (paid plans only)
 - `email`, `firstName`, `lastName`: required for paid plans
 - `couponCode`: optional discount code
+- `paymentMode`: `"self_funded"` (default) or `"sponsored"` (Helius pays SOL fees)
 
 Here, paid plans refers to `"developer"`, `"business"`, and `"professional"`
 
@@ -1231,6 +1233,7 @@ const result = await helius.auth.agenticSignup({
   email: 'user@example.com',
   firstName: 'Jane',
   lastName: 'Doe',
+  paymentMode: 'sponsored', // or 'self_funded' (default)
 });
 // result.apiKey, result.projectId, result.endpoints, result.jwt
 ```

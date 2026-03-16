@@ -6,6 +6,8 @@ import { executeCheckout as sdkExecuteCheckout } from "helius-sdk/auth/checkout"
 import { getCheckoutPreview as sdkGetCheckoutPreview } from "helius-sdk/auth/checkout";
 import { getPaymentIntent as sdkGetPaymentIntent } from "helius-sdk/auth/checkout";
 import { executeRenewal as sdkExecuteRenewal } from "helius-sdk/auth/checkout";
+import { getSignupQuote as sdkGetSignupQuote } from "helius-sdk/auth/signupFunding";
+import { initializeSignupFunding as sdkInitializeSignupFunding } from "helius-sdk/auth/signupFunding";
 import type {
   CheckoutInitializeRequest,
   CheckoutInitializeResponse,
@@ -13,6 +15,9 @@ import type {
   CheckoutPreviewResponse,
   CheckoutResult,
   CheckoutRequest,
+  SignupQuote,
+  SignupFundingIntent,
+  PaymentMode,
 } from "helius-sdk/auth/types";
 
 export async function initializeCheckout(
@@ -64,6 +69,29 @@ export async function executeRenewal(
   return sdkExecuteRenewal(secretKey, jwt, paymentIntentId, CLI_USER_AGENT);
 }
 
+export async function getSignupQuote(
+  jwt: string,
+  options: { plan: string; period: "monthly" | "yearly"; refId: string; couponCode?: string },
+): Promise<SignupQuote> {
+  return sdkGetSignupQuote(jwt, options, CLI_USER_AGENT);
+}
+
+export async function initializeSignupFunding(
+  jwt: string,
+  options: {
+    plan: string;
+    period: "monthly" | "yearly";
+    refId: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    couponCode?: string;
+    paymentMode?: PaymentMode;
+  },
+): Promise<SignupFundingIntent> {
+  return sdkInitializeSignupFunding(jwt, options, CLI_USER_AGENT);
+}
+
 export { payWithMemo } from "helius-sdk/auth/payWithMemo";
 export { payPaymentIntent } from "helius-sdk/auth/checkout";
 export { PLAN_CATALOG } from "helius-sdk/auth/planCatalog";
@@ -75,4 +103,7 @@ export type {
   CheckoutPreviewResponse,
   CheckoutResult,
   CheckoutRequest,
+  SignupQuote,
+  SignupFundingIntent,
+  PaymentMode,
 } from "helius-sdk/auth/types";

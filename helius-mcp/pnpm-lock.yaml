@@ -24,8 +24,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       helius-sdk:
-        specifier: ^2.2.2
-        version: 2.2.2(typescript@5.9.3)
+        specifier: link:/Users/nathan/Desktop/dev/helius-sdk
+        version: link:../../helius-sdk
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -345,16 +345,6 @@ packages:
     resolution: {integrity: sha512-2HRCml6OztYXyJXAvdDXPKcawukWY2GpR5/nxKp4iBgiO3wcoEGkAaqctIbZcNB6KlUQBIqt8VYkNSj2397EfA==}
     cpu: [x64]
     os: [win32]
-
-  '@solana-program/compute-budget@0.11.0':
-    resolution: {integrity: sha512-7f1ePqB/eURkTwTOO9TNIdUXZcyrZoX3Uy2hNo7cXMfNhPFWp9AVgIyRNBc2jf15sdUa9gNpW+PfP2iV8AYAaw==}
-    peerDependencies:
-      '@solana/kit': ^5.0
-
-  '@solana-program/stake@0.5.0':
-    resolution: {integrity: sha512-G3G1kcyTDTqcDEUqJkKyPfHAGh6AociXnDu4dZ87LprWeV3qZ26tReiOu3HN7inf2wCyJ32BWJyxoKNFVL9C8w==}
-    peerDependencies:
-      '@solana/kit': ^5.0
 
   '@solana-program/system@0.10.0':
     resolution: {integrity: sha512-Go+LOEZmqmNlfr+Gjy5ZWAdY5HbYzk2RBewD9QinEU/bBSzpFfzqDRT55JjFRBGJUvMgf3C2vfXEGT4i8DSI4g==}
@@ -1024,9 +1014,6 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  helius-sdk@2.2.2:
-    resolution: {integrity: sha512-T7H9fJOYAB9HUZomDQ47EnKYPE//SgweZz4PbWF6q0Y1/jA0J+7xY15kFpZLJHyAGd4AXXxDCSISRdABmpCjfQ==}
-
   hono@4.11.4:
     resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
     engines: {node: '>=16.9.0'}
@@ -1343,9 +1330,6 @@ packages:
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
-
-  tslib@2.8.1:
-    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
   type-is@2.0.1:
     resolution: {integrity: sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw==}
@@ -1669,14 +1653,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.59.0':
     optional: true
-
-  '@solana-program/compute-budget@0.11.0(@solana/kit@5.4.0(typescript@5.9.3))':
-    dependencies:
-      '@solana/kit': 5.4.0(typescript@5.9.3)
-
-  '@solana-program/stake@0.5.0(@solana/kit@5.4.0(typescript@5.9.3))':
-    dependencies:
-      '@solana/kit': 5.4.0(typescript@5.9.3)
 
   '@solana-program/system@0.10.0(@solana/kit@5.4.0(typescript@5.9.3))':
     dependencies:
@@ -2457,21 +2433,6 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  helius-sdk@2.2.2(typescript@5.9.3):
-    dependencies:
-      '@solana-program/compute-budget': 0.11.0(@solana/kit@5.4.0(typescript@5.9.3))
-      '@solana-program/stake': 0.5.0(@solana/kit@5.4.0(typescript@5.9.3))
-      '@solana-program/system': 0.10.0(@solana/kit@5.4.0(typescript@5.9.3))
-      '@solana-program/token': 0.9.0(@solana/kit@5.4.0(typescript@5.9.3))
-      '@solana/kit': 5.4.0(typescript@5.9.3)
-      bs58: 6.0.0
-      tslib: 2.8.1
-    transitivePeerDependencies:
-      - bufferutil
-      - fastestsmallesttextencoderdecoder
-      - typescript
-      - utf-8-validate
-
   hono@4.11.4: {}
 
   http-errors@2.0.1:
@@ -2769,8 +2730,6 @@ snapshots:
   toidentifier@1.0.1: {}
 
   tr46@0.0.3: {}
-
-  tslib@2.8.1: {}
 
   type-is@2.0.1:
     dependencies:
