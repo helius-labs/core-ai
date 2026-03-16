@@ -1,5 +1,5 @@
 import type { RoutedPublicToolName } from '../router/action-groups.js';
-import type { LegacyActionName } from '../router/legacy-actions.js';
+import type { ActionName } from '../router/actions.js';
 import type { DetailLevel, ResponseFamily } from '../router/types.js';
 
 export type TransactionHistoryContinuation =
@@ -14,7 +14,7 @@ export type ContinuationState =
 
 export type ActionRecipe = {
   publicTool: RoutedPublicToolName;
-  action: LegacyActionName;
+  action: ActionName;
   params: Record<string, unknown>;
   responseFamily: ResponseFamily;
   defaultDetail: DetailLevel;

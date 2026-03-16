@@ -9,7 +9,7 @@ import {
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
   HELIUS_WRITE_ACTIONS,
-} from './legacy-actions.js';
+} from './actions.js';
 import { withTelemetry } from './telemetry.js';
 
 const detailField = z.enum(['summary', 'standard', 'full']).optional();

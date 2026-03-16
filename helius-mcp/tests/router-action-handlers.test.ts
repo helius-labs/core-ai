@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { callLegacyAction } from '../src/router/legacy-executors.js';
+import { callActionHandler } from '../src/router/action-handlers.js';
 
 const getTransactionsForAddress = vi.fn(async () => ({
   data: [],
@@ -24,13 +24,13 @@ vi.mock('../src/utils/helius.js', () => ({
   loadSignerOrFail: vi.fn(),
 }));
 
-describe('legacy executor bridge', () => {
+describe('action handler bridge', () => {
   beforeEach(() => {
     getTransactionsForAddress.mockClear();
   });
 
-  it('applies legacy zod defaults before invoking getTransactionHistory', async () => {
-    const result = await callLegacyAction(
+  it('applies action-schema defaults before invoking getTransactionHistory', async () => {
+    const result = await callActionHandler(
       'getTransactionHistory',
       {
         address: 'BenchWallet11111111111111111111111111111111',
@@ -56,9 +56,9 @@ describe('legacy executor bridge', () => {
     expect(result.content?.[0]?.text).toContain('No signatures found.');
   });
 
-  it('returns a clear validation error when a required legacy field is missing', async () => {
+  it('returns a clear validation error when a required action field is missing', async () => {
     await expect(
-      callLegacyAction(
+      callActionHandler(
         'getTransactionHistory',
         {
           mode: 'signatures',

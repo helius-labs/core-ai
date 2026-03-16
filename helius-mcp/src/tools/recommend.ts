@@ -5,13 +5,13 @@ import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct, PLAN_RANK } from './product-catalog.js';
-import { LEGACY_ACTION_SET } from '../router/legacy-actions.js';
+import { ACTION_NAME_SET } from '../router/actions.js';
 // fetchDoc/extractSections no longer needed — live billing fetch removed
 
 
 // ─── Known MCP Tools (for validation script) ───
 
-export const KNOWN_TOOLS = LEGACY_ACTION_SET;
+export const KNOWN_TOOLS = ACTION_NAME_SET;
 
 // ─── Plan Ranking (re-exported from product-catalog.ts) ───
 

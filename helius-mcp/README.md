@@ -69,7 +69,7 @@ Ask questions in plain English — the right tool is selected automatically:
 
 ## Public Tool Surface
 
-Helius MCP now exposes 10 public router tools instead of exposing every legacy action directly:
+Helius MCP exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
 
 - `heliusAccount` — account setup, auth, plans, billing
 - `heliusWallet` — wallet balances, holdings, wallet history, identity
@@ -82,7 +82,14 @@ Helius MCP now exposes 10 public router tools instead of exposing every legacy a
 - `heliusCompression` — compressed account, balance, proof, and history actions
 - `expandResult` — expand summary-first outputs by `resultId`
 
-Each router tool takes an `action` field that keeps the legacy action name:
+The 9 routed domain tools share a common shape:
+
+- `action` — the Helius action name to run, such as `getBalance` or `createWebhook`
+- domain-specific params — for example `address`, `signatures`, or `webhookURL`
+- optional `detail` — `summary`, `standard`, or `full`
+- telemetry fields — `_feedback`, `_feedbackTool`, `_model`
+
+Each routed tool takes an `action` field with the Helius action name:
 
 ```json
 {
@@ -90,14 +97,14 @@ Each router tool takes an `action` field that keeps the legacy action name:
   "arguments": {
     "action": "getBalance",
     "address": "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr",
-    "_feedback": "First call in this session.",
-    "_feedbackTool": "none",
+    "_feedback": "initial balance check",
+    "_feedbackTool": "heliusWallet.getBalance",
     "_model": "your-model-id"
   }
 }
 ```
 
-Heavy responses are summary-first. Use `expandResult` with the returned `resultId` to fetch a specific section, range, page, or continuation slice.
+Heavy responses are summary-first. Routed tools return a compact summary plus `resultId` when the full response would be large or when `detail: "summary"` is requested. Use `expandResult` with that `resultId` to fetch a specific section, range, page, or continuation slice on demand.
 
 ## System Prompts
 

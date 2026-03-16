@@ -8,8 +8,8 @@ import {
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
   HELIUS_WRITE_ACTIONS,
-  type LegacyActionName,
-} from './legacy-actions.js';
+  type ActionName,
+} from './actions.js';
 
 export const PUBLIC_TOOL_NAMES = [
   'heliusAccount',
@@ -27,7 +27,7 @@ export const PUBLIC_TOOL_NAMES = [
 export type PublicToolName = typeof PUBLIC_TOOL_NAMES[number];
 export type RoutedPublicToolName = Exclude<PublicToolName, 'expandResult'>;
 
-export const ACTION_GROUPS: Record<RoutedPublicToolName, readonly LegacyActionName[]> = {
+export const ACTION_GROUPS: Record<RoutedPublicToolName, readonly ActionName[]> = {
   heliusAccount: HELIUS_ACCOUNT_ACTIONS,
   heliusWallet: HELIUS_WALLET_ACTIONS,
   heliusAsset: HELIUS_ASSET_ACTIONS,
@@ -39,12 +39,12 @@ export const ACTION_GROUPS: Record<RoutedPublicToolName, readonly LegacyActionNa
   heliusCompression: HELIUS_COMPRESSION_ACTIONS,
 };
 
-export function findPublicToolForAction(action: LegacyActionName): RoutedPublicToolName {
-  for (const [tool, actions] of Object.entries(ACTION_GROUPS) as Array<[RoutedPublicToolName, readonly LegacyActionName[]]>) {
+export function findPublicToolForAction(action: ActionName): RoutedPublicToolName {
+  for (const [tool, actions] of Object.entries(ACTION_GROUPS) as Array<[RoutedPublicToolName, readonly ActionName[]]>) {
     if (actions.includes(action)) {
       return tool;
     }
   }
 
-  throw new Error(`No public tool mapping found for legacy action "${action}"`);
+  throw new Error(`No public tool mapping found for action "${action}"`);
 }

@@ -8,9 +8,9 @@ import {
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
   HELIUS_WRITE_ACTIONS,
-  LEGACY_ACTIONS,
-  type LegacyActionName,
-} from './legacy-actions.js';
+  ACTION_NAMES,
+  type ActionName,
+} from './actions.js';
 import { findPublicToolForAction, type RoutedPublicToolName } from './action-groups.js';
 import type {
   ActionCatalogEntry,
@@ -41,7 +41,7 @@ function gate(
 }
 
 function makeEntry(
-  action: LegacyActionName,
+  action: ActionName,
   overrides: Partial<ActionCatalogEntry> = {},
 ): ActionCatalogEntry {
   const publicTool = overrides.publicTool ?? findPublicToolForAction(action);
@@ -70,8 +70,8 @@ function makeEntry(
 }
 
 function addEntries(
-  target: Partial<Record<LegacyActionName, ActionCatalogEntry>>,
-  actions: readonly LegacyActionName[],
+  target: Partial<Record<ActionName, ActionCatalogEntry>>,
+  actions: readonly ActionName[],
   overrides: Partial<ActionCatalogEntry> = {},
 ): void {
   for (const action of actions) {
@@ -79,7 +79,7 @@ function addEntries(
   }
 }
 
-const catalog: Partial<Record<LegacyActionName, ActionCatalogEntry>> = {};
+const catalog: Partial<Record<ActionName, ActionCatalogEntry>> = {};
 
 addEntries(catalog, HELIUS_ACCOUNT_ACTIONS, {
   authRequirement: 'none',
@@ -145,7 +145,7 @@ const professionalLaserstreamGate = gate(
   ],
 );
 
-const scalarActions: LegacyActionName[] = [
+const scalarActions: ActionName[] = [
   'getBalance',
   'checkSignupBalance',
   'getAccountPlan',
@@ -168,7 +168,7 @@ for (const action of scalarActions) {
   });
 }
 
-const mutationActions: LegacyActionName[] = [
+const mutationActions: ActionName[] = [
   'createWebhook',
   'updateWebhook',
   'deleteWebhook',
@@ -188,7 +188,7 @@ for (const action of mutationActions) {
   });
 }
 
-const listActions: LegacyActionName[] = [
+const listActions: ActionName[] = [
   'getTokenBalances',
   'getWalletBalances',
   'getWalletHistory',
@@ -221,7 +221,7 @@ for (const action of listActions) {
   });
 }
 
-const historyActions: LegacyActionName[] = [
+const historyActions: ActionName[] = [
   'parseTransactions',
   'getTransactionHistory',
   'getSignaturesForAsset',
@@ -241,7 +241,7 @@ for (const action of historyActions) {
   });
 }
 
-const documentActions: LegacyActionName[] = [
+const documentActions: ActionName[] = [
   'lookupHeliusDocs',
   'getHeliusCreditsInfo',
   'getRateLimitInfo',
@@ -449,22 +449,22 @@ catalog.getTransactionHistory = makeEntry('getTransactionHistory', {
   continuationModel: 'transactionHistory',
 });
 
-for (const action of LEGACY_ACTIONS) {
+for (const action of ACTION_NAMES) {
   if (!catalog[action]) {
     throw new Error(`Missing action catalog entry for ${action}`);
   }
 }
 
-export const ACTION_CATALOG: Record<LegacyActionName, ActionCatalogEntry> =
-  catalog as Record<LegacyActionName, ActionCatalogEntry>;
+export const ACTION_CATALOG: Record<ActionName, ActionCatalogEntry> =
+  catalog as Record<ActionName, ActionCatalogEntry>;
 
-export function getActionCatalogEntry(action: LegacyActionName): ActionCatalogEntry {
+export function getActionCatalogEntry(action: ActionName): ActionCatalogEntry {
   return ACTION_CATALOG[action];
 }
 
-export function getActionsForTool(tool: RoutedPublicToolName): LegacyActionName[] {
+export function getActionsForTool(tool: RoutedPublicToolName): ActionName[] {
   return (Object.values(ACTION_CATALOG)
     .filter((entry) => entry.publicTool === tool)
     .map((entry) => entry.action)
-    .sort()) as LegacyActionName[];
+    .sort()) as ActionName[];
 }

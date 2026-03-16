@@ -9,20 +9,20 @@ This monorepo contains Helius developer tools for building on Solana:
 
 | Package | What it does |
 |---|---|
-| `helius-mcp/` | MCP server (`npx helius-mcp@latest`) — exposes 50+ Solana/Helius tools to any MCP-compatible AI assistant |
+| `helius-mcp/` | MCP server (`npx helius-mcp@latest`) — exposes 10 public tools total: 9 routed domain tools plus `expandResult` |
 | `helius-skills/` | Canonical skill source — SKILL.md + reference files for each domain |
 | `helius-plugin/` | Claude Code plugin — bundles skills + auto-starts MCP server |
 | `helius-cli/` | CLI for account setup, blockchain queries, and staking (`npx helius-cli@latest`) |
 
 ## MCP Server Setup
 
-The Helius MCP server provides live blockchain tools (balances, assets, transactions, webhooks, streaming, etc.). Configure it as an MCP tool source:
+The Helius MCP server provides live blockchain access through 10 public tools total: 9 routed domain tools plus `expandResult`. Configure it as an MCP tool source:
 
 ```
 npx helius-mcp@latest
 ```
 
-This works with any MCP-compatible client. The server exposes tools like `getBalance`, `getAssetsByOwner`, `parseTransactions`, `createWebhook`, `transferSol`, and many more.
+This works with any MCP-compatible client. Use a domain tool such as `heliusWallet`, `heliusAsset`, or `heliusStreaming` plus `action: "getBalance"`, `action: "getAssetsByOwner"`, or `action: "createWebhook"` to call a specific Helius action. Use `expandResult` for summary-first follow-ups.
 
 For Codex, run `codex mcp add helius -- npx helius-mcp@latest` or add to `.codex/config.toml` (or `~/.codex/config.toml` for global):
 
@@ -56,6 +56,21 @@ Most tools require a Helius API key. Three paths:
 **Path C — CLI:** `npx helius-cli@latest keygen` → fund wallet → `npx helius-cli@latest signup`
 
 Get keys from https://dashboard.helius.dev.
+
+## Public Tool Surface
+
+Helius MCP exposes 10 public tools total:
+
+- Routed domain tools: `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`
+- Expansion tool: `expandResult`
+
+The routed domain tools take a Helius action name in `action`. Example:
+
+- `heliusWallet` + `action: "getBalance"`
+- `heliusKnowledge` + `action: "getRateLimitInfo"`
+- `heliusStreaming` + `action: "createWebhook"`
+
+Heavy responses are summary-first. Use `expandResult({ resultId: "..." })` to fetch a full section, range, page, or continuation on demand.
 
 ## Skills
 
@@ -94,32 +109,32 @@ Each skill has:
 
 ## MCP Tool Usage Rules
 
-### Prefer Specific Tools
-- Use `getBalance` (1 credit) over `getWalletBalances` (100 credits) when only SOL balance is needed
-- Use `getTokenBalances` (10 credits) over `getWalletBalances` when you don't need USD values
-- Use `lookupHeliusDocs` with the `section` parameter for targeted lookups — full docs can be 10,000+ tokens
+### Prefer Specific Routed Actions
+- Use `heliusWallet` + `getBalance` (1 credit) over `heliusWallet` + `getWalletBalances` (100 credits) when only SOL balance is needed
+- Use `heliusWallet` + `getTokenBalances` (10 credits) over `heliusWallet` + `getWalletBalances` when you don't need USD values
+- Use `heliusKnowledge` + `lookupHeliusDocs` with the `section` parameter for targeted lookups — full docs can be 10,000+ tokens
 
 ### Use Batch Endpoints
-- `getAsset` accepts an `ids` array for batch lookups — one call instead of N
-- `getAssetProofBatch` for multiple compressed NFT proofs
-- `getAccountInfo` accepts an `addresses` array for batch account lookups
+- `heliusAsset` + `getAsset` accepts an `ids` array for batch lookups — one call instead of N
+- `heliusAsset` + `getAssetProofBatch` for multiple compressed NFT proofs
+- `heliusChain` + `getAccountInfo` accepts an `addresses` array for batch account lookups
 
 ### Transaction Sending
 - Always use Helius Sender endpoints — never raw `sendTransaction` to standard RPC
 - Always include `skipPreflight: true` when using Sender
 - Always include `maxRetries: 0` when using Sender
 - Always include a Jito tip (minimum 0.0002 SOL) and priority fee
-- Use `getPriorityFeeEstimate` to get fee levels — never hardcode fees
+- Use `heliusChain` + `getPriorityFeeEstimate` to get fee levels — never hardcode fees
 
 ### Data Queries
-- Use `parseTransactions` over raw RPC for human-readable transaction data
-- Use `getAssetsByOwner` with `showFungible: true` for both NFTs and fungible tokens
-- Use `searchAssets` for multi-criteria queries instead of client-side filtering
+- Use `heliusTransaction` + `parseTransactions` over raw RPC for human-readable transaction data
+- Use `heliusAsset` + `getAssetsByOwner` with `showFungible: true` for both NFTs and fungible tokens
+- Use `heliusAsset` + `searchAssets` for multi-criteria queries instead of client-side filtering
 
 ### Errors and Docs
-- Use `troubleshootError` with the error code before manual diagnosis
-- Use `getRateLimitInfo` or `getHeliusCreditsInfo` — never guess at credit costs
-- For pricing questions, start with `getHeliusPlanInfo` — not `lookupHeliusDocs`
+- Use `heliusKnowledge` + `troubleshootError` with the error code before manual diagnosis
+- Use `heliusKnowledge` + `getRateLimitInfo` or `getHeliusCreditsInfo` — never guess at credit costs
+- For pricing questions, start with `heliusAccount` + `getHeliusPlanInfo` — not `heliusKnowledge` + `lookupHeliusDocs`
 
 ## Agent Behavior
 

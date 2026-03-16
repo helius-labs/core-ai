@@ -23,24 +23,24 @@ import { registerSolanaKnowledgeTools } from '../tools/solana-knowledge.js';
 import { registerTransferTools } from '../tools/transfers.js';
 import { registerZkCompressionTools } from '../tools/zk-compression.js';
 import { registerStakingTools } from '../tools/staking.js';
-import type { LegacyActionName } from './legacy-actions.js';
+import type { ActionName } from './actions.js';
 
-export type LegacyToolResponse = {
+export type ActionHandlerResponse = {
   content?: Array<{ type?: string; text?: string }>;
   isError?: boolean;
   structuredContent?: unknown;
 };
 
-export type LegacyToolHandler = (
+export type ActionHandler = (
   params: Record<string, unknown>,
   extra: unknown,
-) => Promise<LegacyToolResponse> | LegacyToolResponse;
+) => Promise<ActionHandlerResponse> | ActionHandlerResponse;
 
-export type LegacyToolDefinition = {
-  name: LegacyActionName;
+export type ActionHandlerDefinition = {
+  name: ActionName;
   description?: string;
   inputSchema?: unknown;
-  handler: LegacyToolHandler;
+  handler: ActionHandler;
 };
 
 function isZodType(value: unknown): value is ZodTypeAny {
@@ -70,7 +70,7 @@ function buildRuntimeSchema(inputSchema: unknown): z.ZodObject<ZodRawShape> | nu
   return z.object(rawShape).passthrough();
 }
 
-function materializeLegacyParams(tool: LegacyToolDefinition, params: Record<string, unknown>): Record<string, unknown> {
+function materializeActionParams(tool: ActionHandlerDefinition, params: Record<string, unknown>): Record<string, unknown> {
   const schema = buildRuntimeSchema(tool.inputSchema);
   if (!schema) {
     return params;
@@ -87,8 +87,8 @@ function materializeLegacyParams(tool: LegacyToolDefinition, params: Record<stri
   throw new Error(message);
 }
 
-class LegacyToolCollector {
-  readonly tools = new Map<LegacyActionName, LegacyToolDefinition>();
+class ActionHandlerCollector {
+  readonly tools = new Map<ActionName, ActionHandlerDefinition>();
 
   tool(name: string, ...rest: unknown[]): void {
     let description: string | undefined;
@@ -104,21 +104,21 @@ class LegacyToolCollector {
 
     const handler = rest[0];
     if (typeof handler !== 'function') {
-      throw new Error(`Legacy tool "${name}" is missing a callable handler`);
+      throw new Error(`Action handler "${name}" is missing a callable handler`);
     }
 
-    this.tools.set(name as LegacyActionName, {
-      name: name as LegacyActionName,
+    this.tools.set(name as ActionName, {
+      name: name as ActionName,
       description,
       inputSchema,
-      handler: handler as LegacyToolHandler,
+      handler: handler as ActionHandler,
     });
   }
 }
 
-let cachedLegacyTools: Map<LegacyActionName, LegacyToolDefinition> | null = null;
+let cachedActionHandlers: Map<ActionName, ActionHandlerDefinition> | null = null;
 
-export function registerLegacyTools(server: McpServer): void {
+export function registerActionHandlers(server: McpServer): void {
   registerAuthTools(server);
   registerConfigTools(server);
   registerPlanTools(server);
@@ -144,27 +144,27 @@ export function registerLegacyTools(server: McpServer): void {
   registerStakingTools(server);
 }
 
-export function getLegacyTools(): Map<LegacyActionName, LegacyToolDefinition> {
-  if (cachedLegacyTools) {
-    return cachedLegacyTools;
+export function getActionHandlers(): Map<ActionName, ActionHandlerDefinition> {
+  if (cachedActionHandlers) {
+    return cachedActionHandlers;
   }
 
-  const collector = new LegacyToolCollector();
-  registerLegacyTools(collector as unknown as McpServer);
-  cachedLegacyTools = collector.tools;
-  return cachedLegacyTools;
+  const collector = new ActionHandlerCollector();
+  registerActionHandlers(collector as unknown as McpServer);
+  cachedActionHandlers = collector.tools;
+  return cachedActionHandlers;
 }
 
-export async function callLegacyAction(
-  action: LegacyActionName,
+export async function callActionHandler(
+  action: ActionName,
   params: Record<string, unknown>,
   extra: unknown,
-): Promise<LegacyToolResponse> {
-  const tool = getLegacyTools().get(action);
+): Promise<ActionHandlerResponse> {
+  const tool = getActionHandlers().get(action);
   if (!tool) {
-    throw new Error(`No legacy executor registered for action "${action}"`);
+    throw new Error(`No action handler registered for action "${action}"`);
   }
 
-  const normalizedParams = materializeLegacyParams(tool, params);
+  const normalizedParams = materializeActionParams(tool, params);
   return await Promise.resolve(tool.handler(normalizedParams, extra));
 }

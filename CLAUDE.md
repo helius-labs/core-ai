@@ -72,6 +72,24 @@ All skill content flows from `helius-skills/` to four destinations:
 
 CI validates all sync paths. After modifying any `SKILL.md` or reference file in `helius-skills/`, run `npx tsx scripts/compile-skills.ts` to regenerate output.
 
+## Router Surface Maintenance
+
+The Helius MCP public surface is a coordinated contract: 10 public tools total, shared `action` routing, and summary-first responses with `expandResult`.
+
+If you change the router surface, routed tool descriptions, action-routing guidance, or summary-first response behavior, update all of these in the same pass:
+
+- `AGENTS.md`
+- `README.md`
+- `helius-mcp/README.md`
+- `helius-plugin/README.md`
+- `helius-cursor/README.md`
+- canonical `helius-skills/*/SKILL.md`
+- manual plugin/cursor `SKILL.md` copies
+- generated `.agents/skills/` output
+- generated `helius-mcp/system-prompts/` output
+
+Do not leave router/runtime changes documented in only one layer.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:

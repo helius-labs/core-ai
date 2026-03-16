@@ -1,10 +1,10 @@
 import { getStoredResult, putStoredResult } from '../results/store.js';
 import type { ContinuationState, StoredResult, TransactionHistoryContinuation } from '../results/types.js';
-import { callLegacyAction, type LegacyToolResponse } from './legacy-executors.js';
+import { callActionHandler, type ActionHandlerResponse } from './action-handlers.js';
 import { getActionCatalogEntry } from './catalog.js';
 import { getRouterContext } from './context.js';
 import type { RoutedPublicToolName } from './action-groups.js';
-import type { LegacyActionName } from './legacy-actions.js';
+import type { ActionName } from './actions.js';
 import type { ActionCatalogEntry, CapabilityVariant, DetailLevel, GatePredicate, ResponseFamily } from './types.js';
 import {
   applyItemSelection,
@@ -79,7 +79,7 @@ function pickRequestedDetail(entry: ActionCatalogEntry, detail?: unknown): Detai
   return entry.defaultDetail;
 }
 
-function buildLegacyParams(input: Record<string, unknown>): Record<string, unknown> {
+function buildActionParams(input: Record<string, unknown>): Record<string, unknown> {
   const { action: _action, detail: _detail, args, ...topLevel } = input;
   const merged: Record<string, unknown> = {
     ...(args && typeof args === 'object' && !Array.isArray(args) ? (args as Record<string, unknown>) : {}),
@@ -94,7 +94,7 @@ function buildLegacyParams(input: Record<string, unknown>): Record<string, unkno
   return merged;
 }
 
-function detectContinuation(action: LegacyActionName, params: Record<string, unknown>, text: string): ContinuationState {
+function detectContinuation(action: ActionName, params: Record<string, unknown>, text: string): ContinuationState {
   if (action === 'getTransactionHistory') {
     const tokenMatch = text.match(/\*\*Next Page Token:\*\*\s+`([^`]+)`/);
     if (tokenMatch) {
@@ -242,11 +242,11 @@ function normalizeSuccessResponse(
   });
 }
 
-function normalizeLegacyResponse(
+function normalizeActionResponse(
   entry: ActionCatalogEntry,
   publicTool: RoutedPublicToolName,
   params: Record<string, unknown>,
-  result: LegacyToolResponse,
+  result: ActionHandlerResponse,
   requestedDetail: DetailLevel,
   allowHandles: boolean,
 ): RouterResponse {
@@ -263,17 +263,17 @@ function normalizeLegacyResponse(
   return normalizeSuccessResponse(entry, publicTool, params, text, requestedDetail, allowHandles);
 }
 
-async function executeLegacyViaRouter(
+async function executeActionViaRouter(
   publicTool: RoutedPublicToolName,
-  action: LegacyActionName,
+  action: ActionName,
   params: Record<string, unknown>,
   requestedDetail: DetailLevel,
   extra: unknown,
   allowHandles: boolean,
 ): Promise<RouterResponse> {
   const entry = getActionCatalogEntry(action);
-  const result = await callLegacyAction(action, params, extra);
-  return normalizeLegacyResponse(entry, publicTool, params, result, requestedDetail, allowHandles);
+  const result = await callActionHandler(action, params, extra);
+  return normalizeActionResponse(entry, publicTool, params, result, requestedDetail, allowHandles);
 }
 
 export async function dispatchRoutedTool(
@@ -281,14 +281,14 @@ export async function dispatchRoutedTool(
   params: Record<string, unknown>,
   extra: unknown,
 ): Promise<RouterResponse> {
-  const action = params.action as LegacyActionName | undefined;
+  const action = params.action as ActionName | undefined;
   if (!action) {
     return mcpErrorCompact('Missing required "action" field.', { code: 'MISSING_ACTION' });
   }
 
   const requestedDetail = pickRequestedDetail(getActionCatalogEntry(action), params.detail);
-  const legacyParams = buildLegacyParams(params);
-  return executeLegacyViaRouter(publicTool, action, legacyParams, requestedDetail, extra, true);
+  const actionParams = buildActionParams(params);
+  return executeActionViaRouter(publicTool, action, actionParams, requestedDetail, extra, true);
 }
 
 function applyContinuation(params: Record<string, unknown>, stored: StoredResult, continuation?: string): Record<string, unknown> {
@@ -359,7 +359,7 @@ export async function expandStoredResult(
     ? params.detail
     : 'full';
 
-  const rawResponse = await callLegacyAction(stored.payload.recipe.action, nextParams, extra);
+  const rawResponse = await callActionHandler(stored.payload.recipe.action, nextParams, extra);
   const rawText = toPlainText(rawResponse);
   if (rawResponse.isError) {
     return mcpErrorCompact(compactErrorText(rawText), {

@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PUBLIC_TOOL_NAMES, ACTION_GROUPS } from '../src/router/action-groups.js';
@@ -11,8 +13,8 @@ import {
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
   HELIUS_WRITE_ACTIONS,
-  LEGACY_ACTIONS,
-} from '../src/router/legacy-actions.js';
+  ACTION_NAMES,
+} from '../src/router/actions.js';
 import { ROUTER_INSTRUCTIONS } from '../src/router/instructions.js';
 import { normalizeTelemetry } from '../src/router/telemetry.js';
 import { clearStoredResults, getStoredResult, getStoredResultStats, putStoredResult } from '../src/results/store.js';
@@ -63,6 +65,34 @@ function telemetry() {
   };
 }
 
+const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
+const ROUTER_LEGACY_ALLOWLIST = [
+  /legacyHeaders/,
+  /legacy injected/i,
+  /legacy .*provider/i,
+  /legacy .*Transaction.* class/i,
+  /both legacy and versioned transactions/i,
+  /legacy and versioned transactions/i,
+  /Legacy and programmable NFTs/i,
+  /^## Legacy Endpoints$/i,
+  /BPF Loader \(Legacy \/ V1\)/,
+];
+
+function collectAuditFiles(target: string): string[] {
+  const stats = statSync(target);
+  if (!stats.isDirectory()) {
+    return target.endsWith('.md') || target.endsWith('.ts') ? [target] : [];
+  }
+
+  return readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
+    const child = path.join(target, entry.name);
+    if (entry.isDirectory()) {
+      return collectAuditFiles(child);
+    }
+    return child.endsWith('.md') || child.endsWith('.ts') ? [child] : [];
+  });
+}
+
 describe('Public Router Surface', () => {
   let tools: RegisteredToolMap;
 
@@ -76,10 +106,10 @@ describe('Public Router Surface', () => {
     expect(Object.keys(tools).sort()).toEqual([...PUBLIC_TOOL_NAMES].sort());
   });
 
-  it('covers all legacy actions exactly once', () => {
+  it('covers all action names exactly once', () => {
     const groupedActions = Object.values(ACTION_GROUPS).flat();
-    expect(groupedActions).toHaveLength(LEGACY_ACTIONS.length);
-    expect(new Set(groupedActions).size).toBe(LEGACY_ACTIONS.length);
+    expect(groupedActions).toHaveLength(ACTION_NAMES.length);
+    expect(new Set(groupedActions).size).toBe(ACTION_NAMES.length);
   });
 
   it('keeps router instructions under budget', () => {
@@ -124,11 +154,23 @@ describe('Public Router Surface', () => {
     expect(shape._feedbackTool.safeParse('').success).toBe(false);
     expect(shape._feedbackTool.safeParse('heliusWallet.getBalance').success).toBe(true);
     expect(shape._model.safeParse('claude-opus-4-6').success).toBe(true);
+    expect(ROUTER_INSTRUCTIONS).toContain('Choose tools by user intent, not by name similarity.');
+    expect(ROUTER_INSTRUCTIONS).toContain('heliusWallet.getTokenBalances');
+    expect(ROUTER_INSTRUCTIONS).toContain('heliusKnowledge.getRateLimitInfo');
     expect(ROUTER_INSTRUCTIONS).toContain('heliusWallet.getBalance');
     expect(ROUTER_INSTRUCTIONS).toContain('Avoid placeholders like `first_call`');
   });
 
-  it('normalizes legacy first-call sentinels to the current tool.action for analytics', () => {
+  it('uses intent-specific routed tool descriptions', () => {
+    expect(tools.heliusWallet.description).toContain('not raw token accounts');
+    expect(tools.heliusChain.description).toContain('not wallet portfolio summaries');
+    expect(tools.heliusStreaming.description).toContain('not how-to guides');
+    expect(tools.heliusKnowledge.description).toContain('rate limits');
+    expect(tools.heliusWrite.description).toContain('not read-only queries');
+    expect(tools.expandResult.description).toContain('summary-first');
+  });
+
+  it('normalizes first-call sentinels to the current tool.action for analytics', () => {
     expect(
       normalizeTelemetry(
         'heliusTransaction',
@@ -192,6 +234,47 @@ describe('Public Router Surface', () => {
     expect(expanded.isError).toBeFalsy();
     expect(expanded.content[0].text.length).toBeGreaterThan(0);
     expect(expanded._meta.action).toBe('recommendStack');
+  });
+});
+
+describe('Router Legacy Audit', () => {
+  it('keeps router-specific legacy wording out of code and docs', () => {
+    const targets = [
+      path.join(REPO_ROOT, 'AGENTS.md'),
+      path.join(REPO_ROOT, 'README.md'),
+      path.join(REPO_ROOT, 'CLAUDE.md'),
+      path.join(REPO_ROOT, 'helius-mcp', 'README.md'),
+      path.join(REPO_ROOT, 'helius-plugin', 'README.md'),
+      path.join(REPO_ROOT, 'helius-cursor', 'README.md'),
+      path.join(REPO_ROOT, 'helius-skills', 'helius', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-skills', 'helius-dflow', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-skills', 'helius-phantom', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-plugin', 'skills', 'build', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-plugin', 'skills', 'dflow', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-plugin', 'skills', 'phantom', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-cursor', 'skills', 'build', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-cursor', 'skills', 'dflow', 'SKILL.md'),
+      path.join(REPO_ROOT, 'helius-cursor', 'skills', 'phantom', 'SKILL.md'),
+      path.join(REPO_ROOT, '.agents', 'skills'),
+      path.join(REPO_ROOT, 'helius-mcp', 'system-prompts'),
+      path.join(REPO_ROOT, 'helius-mcp', 'src', 'router'),
+    ];
+
+    const violations: string[] = [];
+    for (const file of targets.flatMap((target) => collectAuditFiles(target))) {
+      const lines = readFileSync(file, 'utf8').split('\n');
+      for (const [index, line] of lines.entries()) {
+        if (!/legacy/i.test(line)) {
+          continue;
+        }
+        if (ROUTER_LEGACY_ALLOWLIST.some((pattern) => pattern.test(line))) {
+          continue;
+        }
+        violations.push(`${path.relative(REPO_ROOT, file)}:${index + 1}: ${line.trim()}`);
+      }
+    }
+
+    expect(violations).toEqual([]);
   });
 });
 

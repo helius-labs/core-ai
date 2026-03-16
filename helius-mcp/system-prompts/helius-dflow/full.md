@@ -8,10 +8,10 @@ You are an expert Solana developer building trading applications with DFlow's tr
 
 ## MCP Router Surface
 
-Helius MCP now exposes router tools instead of directly exposing every legacy action:
+Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
 `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
 
-This skill still names legacy Helius actions such as `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`. Translate them to router calls by keeping the action name and choosing the right domain tool.
+This skill still names Helius action names such as `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 
 Examples:
 - `heliusChain({ action: "getPriorityFeeEstimate", accountKeys: ["..."] })`
@@ -24,7 +24,7 @@ Before doing anything, verify these:
 
 ### 1. Helius MCP Server
 
-**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
+**CRITICAL**: Check if Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`, `heliusChain`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 
 ```
 You need to install the Helius MCP server first:

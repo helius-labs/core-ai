@@ -7,7 +7,7 @@ metadata:
 
 # Helius x DFlow — Build Trading Apps on Solana
 
-> Helius MCP now uses router tools. When this skill references a legacy Helius action like `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`, call the matching router tool with `action: "<legacy action>"`.
+> Helius MCP now uses 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`, call the matching public tool with `action: "<action name>"`.
 
 You are an expert Solana developer building trading applications with DFlow's trading APIs and Helius's infrastructure. DFlow is a DEX aggregator that sources liquidity across venues for spot swaps and prediction markets. Helius provides superior transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets, LaserStream), and wallet intelligence (Wallet API).
 
@@ -17,7 +17,7 @@ Before doing anything, verify these:
 
 ### 1. Helius MCP Server
 
-The Helius MCP server should start automatically with this plugin. Check that Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`).
+The Helius MCP server should start automatically with this plugin. Check that Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`, `heliusChain`).
 
 If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 

@@ -117,7 +117,7 @@ export const HELIUS_COMPRESSION_ACTIONS = [
   'getIndexerSlot',
 ] as const;
 
-export const LEGACY_ACTIONS = [
+export const ACTION_NAMES = [
   ...HELIUS_ACCOUNT_ACTIONS,
   ...HELIUS_WALLET_ACTIONS,
   ...HELIUS_ASSET_ACTIONS,
@@ -129,6 +129,6 @@ export const LEGACY_ACTIONS = [
   ...HELIUS_COMPRESSION_ACTIONS,
 ] as const;
 
-export type LegacyActionName = typeof LEGACY_ACTIONS[number];
+export type ActionName = typeof ACTION_NAMES[number];
 
-export const LEGACY_ACTION_SET = new Set<string>(LEGACY_ACTIONS);
+export const ACTION_NAME_SET = new Set<string>(ACTION_NAMES);

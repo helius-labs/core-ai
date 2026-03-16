@@ -1,4 +1,4 @@
-import type { LegacyActionName } from './legacy-actions.js';
+import type { ActionName } from './actions.js';
 import type { RoutedPublicToolName } from './action-groups.js';
 
 export type DetailLevel = 'summary' | 'standard' | 'full';
@@ -36,7 +36,7 @@ export type CapabilityGate = {
 };
 
 export type ActionCatalogEntry = {
-  action: LegacyActionName;
+  action: ActionName;
   publicTool: RoutedPublicToolName;
   aliases?: string[];
   authRequirement: AuthRequirement;

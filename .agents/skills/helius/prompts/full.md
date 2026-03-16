@@ -8,10 +8,10 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ## MCP Router Surface
 
-Helius MCP now exposes a compact public surface:
+Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
 `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
 
-This skill still refers to legacy action names such as `getBalance`, `lookupHeliusDocs`, or `transactionSubscribe`. When you see one of those names, call the matching router tool with `action: "<legacy action>"`.
+This skill still refers to Helius action names such as `getBalance`, `lookupHeliusDocs`, or `transactionSubscribe`. When you see one of those names, call the matching router tool with `action: "<action name>"`.
 
 Examples:
 - `heliusWallet({ action: "getBalance", address: "..." })`
@@ -23,7 +23,7 @@ Examples:
 
 ### 1. Helius MCP Server
 
-**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`). If NOT available, **STOP** and tell the user: `npx helius-mcp@latest` (configure in your MCP client) then restart your AI assistant.
+**CRITICAL**: Check if Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`). If NOT available, **STOP** and tell the user: `npx helius-mcp@latest` (configure in your MCP client) then restart your AI assistant.
 
 ### 2. API Key
 
