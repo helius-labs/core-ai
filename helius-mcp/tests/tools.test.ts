@@ -21,6 +21,15 @@ import { clearStoredResults, getStoredResult, getStoredResultStats, putStoredRes
 import { getRouterContext } from '../src/router/context.js';
 import { registerTools } from '../src/tools/index.js';
 import { hasApiKey } from '../src/utils/helius.js';
+import { callActionHandler, type ActionHandlerResponse } from '../src/router/action-handlers.js';
+
+vi.mock('../src/router/action-handlers.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/router/action-handlers.js')>();
+  return {
+    ...original,
+    callActionHandler: vi.fn(original.callActionHandler),
+  };
+});
 
 vi.mock('../src/utils/helius.js', () => ({
   hasApiKey: vi.fn(() => true),
@@ -275,6 +284,169 @@ describe('Router Legacy Audit', () => {
     }
 
     expect(violations).toEqual([]);
+  });
+});
+
+describe('Dispatch per routed tool', () => {
+  let tools: RegisteredToolMap;
+  const mockedCallHandler = vi.mocked(callActionHandler);
+
+  beforeEach(() => {
+    clearStoredResults();
+    vi.mocked(hasApiKey).mockReturnValue(true);
+    mockedCallHandler.mockRestore();
+    ({ tools } = createServer());
+  });
+
+  it('heliusAccount — getStarted dispatches successfully', async () => {
+    const result = await tools.heliusAccount.handler(
+      { action: 'getStarted', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text.length).toBeGreaterThan(0);
+  });
+
+  it('heliusWallet — getBalance dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: '**Balance:** 1.5 SOL' }],
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusWallet.handler(
+      { action: 'getBalance', address: '11111111111111111111111111111111', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('1.5 SOL');
+  });
+
+  it('heliusAsset — getAsset dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: '**Asset:** Test NFT\n\nCollection: Test' }],
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusAsset.handler(
+      { action: 'getAsset', id: 'So11111111111111111111111111111111111111112', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('Test NFT');
+  });
+
+  it('heliusTransaction — parseTransactions dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: '**Parsed 1 transaction**\n\nType: TRANSFER' }],
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusTransaction.handler(
+      { action: 'parseTransactions', signatures: ['5abc123'], ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('TRANSFER');
+  });
+
+  it('heliusChain — getNetworkStatus dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: '**Epoch:** 500\n**Slot:** 250000000' }],
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusChain.handler(
+      { action: 'getNetworkStatus', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('Epoch');
+  });
+
+  it('heliusStreaming — getAllWebhooks dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: 'No webhooks configured.' }],
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusStreaming.handler(
+      { action: 'getAllWebhooks', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text.length).toBeGreaterThan(0);
+  });
+
+  it('heliusKnowledge — listHeliusDocTopics dispatches successfully', async () => {
+    const result = await tools.heliusKnowledge.handler(
+      { action: 'listHeliusDocTopics', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text.length).toBeGreaterThan(0);
+  });
+
+  it('heliusWrite — transferSol error path dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: 'No signer configured. Call generateKeypair first.' }],
+      isError: true,
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusWrite.handler(
+      { action: 'transferSol', recipientAddress: '11111111111111111111111111111111', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('signer');
+  });
+
+  it('heliusCompression — getIndexerHealth dispatches successfully', async () => {
+    const mockResponse: ActionHandlerResponse = {
+      content: [{ type: 'text', text: '**Indexer Health:** OK' }],
+    };
+    mockedCallHandler.mockResolvedValueOnce(mockResponse);
+
+    const result = await tools.heliusCompression.handler(
+      { action: 'getIndexerHealth', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('OK');
+  });
+
+  it('produces graceful error when handler throws', async () => {
+    mockedCallHandler.mockRejectedValueOnce(new Error('Connection refused'));
+
+    const result = await tools.heliusWallet.handler(
+      { action: 'getBalance', address: '11111111111111111111111111111111', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Connection refused');
+    expect(result._meta?.code).toBe('HANDLER_ERROR');
+  });
+
+  it('rejects missing required params before calling handler', async () => {
+    const result = await tools.heliusWallet.handler(
+      { action: 'getBalance', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Missing required parameter');
+    expect(result.content[0].text).toContain('address');
+    expect(result._meta?.code).toBe('MISSING_PARAMS');
+  });
+
+  it('rejects multiple missing required params', async () => {
+    const result = await tools.heliusWrite.handler(
+      { action: 'transferToken', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Missing required parameters');
+    expect(result.content[0].text).toContain('recipientAddress');
+    expect(result.content[0].text).toContain('mintAddress');
   });
 });
 

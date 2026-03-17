@@ -5,6 +5,7 @@ import { getActionCatalogEntry } from './catalog.js';
 import { getRouterContext } from './context.js';
 import type { RoutedPublicToolName } from './action-groups.js';
 import type { ActionName } from './actions.js';
+import { ACTION_REQUIRED_PARAMS } from './required-params.js';
 import type { ActionCatalogEntry, CapabilityVariant, DetailLevel, GatePredicate, ResponseFamily } from './types.js';
 import {
   applyItemSelection,
@@ -96,6 +97,7 @@ function buildActionParams(input: Record<string, unknown>): Record<string, unkno
 
 function detectContinuation(action: ActionName, params: Record<string, unknown>, text: string): ContinuationState {
   if (action === 'getTransactionHistory') {
+    // Fragile: depends on handler markdown format "**Next Page Token:** `<token>`"
     const tokenMatch = text.match(/\*\*Next Page Token:\*\*\s+`([^`]+)`/);
     if (tokenMatch) {
       const mode = typeof params.mode === 'string' ? params.mode : 'parsed';
@@ -117,6 +119,7 @@ function detectContinuation(action: ActionName, params: Record<string, unknown>,
     const mode = typeof params.mode === 'string' ? params.mode : 'parsed';
     const sortOrder = typeof params.sortOrder === 'string' ? params.sortOrder : 'desc';
     if (mode === 'signatures' && sortOrder === 'desc' && !hasFilters) {
+      // Fragile: depends on handler "✅/❌ <base58sig>" line format for signature extraction
       const signatures = Array.from(
         text.matchAll(/^[^\S\r\n]*[✅❌]\s+([1-9A-HJ-NP-Za-km-z]{86,88})$/gm),
       ).map((match) => match[1]);
@@ -272,8 +275,13 @@ async function executeActionViaRouter(
   allowHandles: boolean,
 ): Promise<RouterResponse> {
   const entry = getActionCatalogEntry(action);
-  const result = await callActionHandler(action, params, extra);
-  return normalizeActionResponse(entry, publicTool, params, result, requestedDetail, allowHandles);
+  try {
+    const result = await callActionHandler(action, params, extra);
+    return normalizeActionResponse(entry, publicTool, params, result, requestedDetail, allowHandles);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return mcpErrorCompact(message, { code: 'HANDLER_ERROR', action, publicTool });
+  }
 }
 
 export async function dispatchRoutedTool(
@@ -288,6 +296,18 @@ export async function dispatchRoutedTool(
 
   const requestedDetail = pickRequestedDetail(getActionCatalogEntry(action), params.detail);
   const actionParams = buildActionParams(params);
+
+  const requiredFields = ACTION_REQUIRED_PARAMS[action];
+  if (requiredFields) {
+    const missing = requiredFields.filter((f) => actionParams[f] === undefined);
+    if (missing.length > 0) {
+      return mcpErrorCompact(
+        `Missing required parameter${missing.length > 1 ? 's' : ''} for ${action}: ${missing.join(', ')}`,
+        { code: 'MISSING_PARAMS', action, missing },
+      );
+    }
+  }
+
   return executeActionViaRouter(publicTool, action, actionParams, requestedDetail, extra, true);
 }
 
@@ -359,40 +379,45 @@ export async function expandStoredResult(
     ? params.detail
     : 'full';
 
-  const rawResponse = await callActionHandler(stored.payload.recipe.action, nextParams, extra);
-  const rawText = toPlainText(rawResponse);
-  if (rawResponse.isError) {
-    return mcpErrorCompact(compactErrorText(rawText), {
-      code: 'EXPAND_FAILED',
-      action: stored.payload.recipe.action,
-    });
-  }
+  try {
+    const rawResponse = await callActionHandler(stored.payload.recipe.action, nextParams, extra);
+    const rawText = toPlainText(rawResponse);
+    if (rawResponse.isError) {
+      return mcpErrorCompact(compactErrorText(rawText), {
+        code: 'EXPAND_FAILED',
+        action: stored.payload.recipe.action,
+      });
+    }
 
-  const selected = applyRangeSelection(
-    applyItemSelection(
-      applySectionSelection(rawText, typeof params.section === 'string' ? params.section : undefined),
-      typeof params.item === 'number' ? params.item : undefined,
-    ),
-    typeof params.range === 'string' ? params.range : undefined,
-  );
-
-  const entry = getActionCatalogEntry(stored.payload.recipe.action);
-  if (params.continuation === 'next' || typeof params.page === 'number') {
-    return normalizeSuccessResponse(
-      entry,
-      stored.payload.recipe.publicTool,
-      nextParams,
-      selected,
-      requestedDetail,
-      true,
+    const selected = applyRangeSelection(
+      applyItemSelection(
+        applySectionSelection(rawText, typeof params.section === 'string' ? params.section : undefined),
+        typeof params.item === 'number' ? params.item : undefined,
+      ),
+      typeof params.range === 'string' ? params.range : undefined,
     );
-  }
 
-  const rendered = buildTextVariant(entry.responseFamily, requestedDetail, selected);
-  return mcpText(rendered, {
-    action: stored.payload.recipe.action,
-    family: stored.kind,
-    resultId,
-    detail: requestedDetail,
-  });
+    const entry = getActionCatalogEntry(stored.payload.recipe.action);
+    if (params.continuation === 'next' || typeof params.page === 'number') {
+      return normalizeSuccessResponse(
+        entry,
+        stored.payload.recipe.publicTool,
+        nextParams,
+        selected,
+        requestedDetail,
+        true,
+      );
+    }
+
+    const rendered = buildTextVariant(entry.responseFamily, requestedDetail, selected);
+    return mcpText(rendered, {
+      action: stored.payload.recipe.action,
+      family: stored.kind,
+      resultId,
+      detail: requestedDetail,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return mcpErrorCompact(message, { code: 'EXPAND_HANDLER_ERROR', action: stored.payload.recipe.action });
+  }
 }

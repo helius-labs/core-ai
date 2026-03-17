@@ -1,6 +1,21 @@
 import { extractSections } from '../utils/docs.js';
 import type { DetailLevel, ResponseFamily } from './types.js';
 
+// ── Markdown-dependent patterns ──────────────────────────────────────────
+// The summarization and section-hint helpers below rely on markdown
+// formatting conventions produced by action handlers. If handler output
+// changes (e.g. heading levels, list separators, or emoji usage), these
+// patterns may silently under-match. Affected patterns:
+//
+//   summarizeDocument  – heading extraction: /^#{1,3}\s+.+$/gm
+//   summarizeListLike  – list splitting:     /\n---\n|\n\n(?=\*\*|...)/u
+//   applyItemSelection – same list splitter as above
+//   collectSectionHints – heading text:      /^#{1,3}\s+(.+)$/gm
+//
+// See also dispatch.ts detectContinuation for two additional markdown-
+// dependent regexes (pagination token and signature extraction).
+// ─────────────────────────────────────────────────────────────────────────
+
 export type RouterResponse = {
   content: Array<{ type: 'text'; text: string }>;
   isError?: boolean;
