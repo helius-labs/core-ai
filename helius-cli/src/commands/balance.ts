@@ -1,13 +1,12 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatAddress, formatTokenAmount, formatTable, type TableColumn } from "../lib/formatters.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface BalanceOptions extends OutputOptions, ResolveOptions {}
 
 export async function balanceCommand(address: string, options: BalanceOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -34,7 +33,7 @@ export async function balanceCommand(address: string, options: BalanceOptions = 
 }
 
 export async function tokensCommand(address: string, options: BalanceOptions & { limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -88,7 +87,7 @@ export async function tokensCommand(address: string, options: BalanceOptions & {
 }
 
 export async function tokenHoldersCommand(mint: string, options: BalanceOptions & { limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);

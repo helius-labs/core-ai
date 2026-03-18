@@ -1,12 +1,11 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatAddress, formatTable, type TableColumn } from "../lib/formatters.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface AssetOptions extends OutputOptions, ResolveOptions {}
 
-async function setup(spinner: ReturnType<typeof ora> | null, options: AssetOptions, message: string) {
+async function setup(spinner: any, options: AssetOptions, message: string) {
   spinner?.start("Resolving API key...");
   const apiKey = await resolveApiKey(options);
   const network = resolveNetwork(options);
@@ -52,7 +51,7 @@ function printAssetList(items: any[], label: string): void {
 }
 
 export async function assetGetCommand(id: string, options: AssetOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching asset...");
     const result = await helius.getAsset({ id });
@@ -66,7 +65,7 @@ export async function assetGetCommand(id: string, options: AssetOptions = {}): P
 }
 
 export async function assetBatchCommand(ids: string[], options: AssetOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, `Fetching ${ids.length} asset(s)...`);
     const result = await helius.getAssetBatch({ ids });
@@ -81,7 +80,7 @@ export async function assetBatchCommand(ids: string[], options: AssetOptions = {
 }
 
 export async function assetOwnerCommand(address: string, options: AssetOptions & { page?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching assets by owner...");
     const result = await helius.getAssetsByOwner({
@@ -99,7 +98,7 @@ export async function assetOwnerCommand(address: string, options: AssetOptions &
 }
 
 export async function assetCreatorCommand(address: string, options: AssetOptions & { page?: string; limit?: string; verified?: boolean } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching assets by creator...");
     const result = await helius.getAssetsByCreator({
@@ -118,7 +117,7 @@ export async function assetCreatorCommand(address: string, options: AssetOptions
 }
 
 export async function assetAuthorityCommand(address: string, options: AssetOptions & { page?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching assets by authority...");
     const result = await helius.getAssetsByAuthority({
@@ -136,7 +135,7 @@ export async function assetAuthorityCommand(address: string, options: AssetOptio
 }
 
 export async function assetCollectionCommand(address: string, options: AssetOptions & { page?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching collection assets...");
     const result = await helius.getAssetsByGroup({
@@ -159,7 +158,7 @@ export async function assetSearchCommand(options: AssetOptions & {
   compressed?: boolean; burnt?: boolean; frozen?: boolean;
   page?: string; limit?: string;
 } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Searching assets...");
     const params: any = {
@@ -183,7 +182,7 @@ export async function assetSearchCommand(options: AssetOptions & {
 }
 
 export async function assetProofCommand(id: string, options: AssetOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching asset proof...");
     const result = await helius.getAssetProof({ id });
@@ -204,7 +203,7 @@ export async function assetProofCommand(id: string, options: AssetOptions = {}):
 }
 
 export async function assetProofBatchCommand(ids: string[], options: AssetOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, `Fetching proofs for ${ids.length} asset(s)...`);
     const result = await helius.getAssetProofBatch({ ids });
@@ -221,7 +220,7 @@ export async function assetProofBatchCommand(ids: string[], options: AssetOption
 }
 
 export async function assetEditionsCommand(mint: string, options: AssetOptions & { page?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching NFT editions...");
     const result = await helius.getNftEditions({
@@ -246,7 +245,7 @@ export async function assetEditionsCommand(mint: string, options: AssetOptions &
 }
 
 export async function assetSignaturesCommand(id: string, options: AssetOptions & { page?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching signatures for asset...");
     const result = await helius.getSignaturesForAsset({
@@ -272,7 +271,7 @@ export async function assetSignaturesCommand(id: string, options: AssetOptions &
 }
 
 export async function assetTokenAccountsCommand(options: AssetOptions & { owner?: string; mint?: string; page?: string; limit?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching token accounts...");
     const params: any = {

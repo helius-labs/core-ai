@@ -1,17 +1,16 @@
 import chalk from "chalk";
-import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
-import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface LoginOptions extends OutputOptions {
   keypair: string;
 }
 
 export async function loginCommand(options: LoginOptions): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     // Check keypair exists

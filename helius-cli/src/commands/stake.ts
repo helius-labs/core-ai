@@ -1,13 +1,12 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
-import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface StakeOptions extends OutputOptions, ResolveOptions {}
 
 export async function stakeAccountsCommand(wallet: string, options: StakeOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -35,7 +34,7 @@ export async function stakeAccountsCommand(wallet: string, options: StakeOptions
 }
 
 export async function stakeWithdrawableCommand(stakeAccount: string, options: StakeOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -56,7 +55,7 @@ export async function stakeWithdrawableCommand(stakeAccount: string, options: St
 }
 
 export async function stakeInstructionsCommand(amount: string, options: StakeOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -78,7 +77,7 @@ export async function stakeInstructionsCommand(amount: string, options: StakeOpt
 }
 
 export async function stakeUnstakeInstructionCommand(stakeAccount: string, options: StakeOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -99,7 +98,7 @@ export async function stakeUnstakeInstructionCommand(stakeAccount: string, optio
 }
 
 export async function stakeWithdrawInstructionCommand(stakeAccount: string, options: StakeOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -120,7 +119,7 @@ export async function stakeWithdrawInstructionCommand(stakeAccount: string, opti
 }
 
 export async function stakeCreateCommand(amount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   if (!options.keypair) {
     exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, options.json);
   }
@@ -146,7 +145,7 @@ export async function stakeCreateCommand(amount: string, options: StakeOptions &
 }
 
 export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   if (!options.keypair) {
     exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, options.json);
   }
@@ -170,7 +169,7 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
 }
 
 export async function stakeWithdrawCommand(stakeAccount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   if (!options.keypair) {
     exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, options.json);
   }

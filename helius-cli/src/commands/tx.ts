@@ -1,13 +1,12 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface TxOptions extends OutputOptions, ResolveOptions {}
 
 export async function txParseCommand(signatures: string[], options: TxOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -59,7 +58,7 @@ export async function txParseCommand(signatures: string[], options: TxOptions = 
 }
 
 export async function txHistoryCommand(address: string, options: TxOptions & { limit?: string; before?: string; type?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);
@@ -103,7 +102,7 @@ export async function txHistoryCommand(address: string, options: TxOptions & { l
 }
 
 export async function txFeesCommand(options: TxOptions & { accounts?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     spinner?.start("Resolving API key...");
     const apiKey = await resolveApiKey(options);

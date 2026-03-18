@@ -1,11 +1,10 @@
 import chalk from "chalk";
-import ora from "ora";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
 import { signup, listProjects, getProject } from "../lib/api.js";
 import { getCheckoutPreview, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
-import { outputJson, exitWithError, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, isAgent, createSpinner, type OutputOptions } from "../lib/output.js";
 import readline from "readline";
 import { validateUpgradePlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
@@ -31,7 +30,7 @@ function confirm(question: string): Promise<boolean> {
 }
 
 export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
 
   try {
     // Validate plan, period, and email upfront
@@ -132,6 +131,21 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     }
 
     if (!options.yes) {
+      if (isAgent) {
+        outputJson({
+          action: "preview",
+          currentPlan,
+          upgradeTo: preview.planName,
+          period: preview.period,
+          subtotal: preview.subtotal,
+          proratedCredits: preview.proratedCredits,
+          appliedCredits: preview.appliedCredits,
+          discounts: preview.discounts,
+          coupon: preview.coupon,
+          dueToday: preview.dueToday,
+        });
+        return;
+      }
       const ok = await confirm("  Proceed with upgrade? (y/N) ");
       if (!ok) {
         console.log(chalk.gray("  Cancelled."));

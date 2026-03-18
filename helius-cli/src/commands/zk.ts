@@ -1,11 +1,10 @@
 import chalk from "chalk";
-import ora from "ora";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { outputJson, handleCommandError, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 interface ZkOptions extends OutputOptions, ResolveOptions {}
 
-async function setup(spinner: ReturnType<typeof ora> | null, options: ZkOptions, message: string) {
+async function setup(spinner: any, options: ZkOptions, message: string) {
   spinner?.start("Resolving API key...");
   const apiKey = await resolveApiKey(options);
   const network = resolveNetwork(options);
@@ -22,7 +21,7 @@ function handleResult(spinner: any, result: any, options: ZkOptions, label: stri
 }
 
 export async function zkAccountCommand(addressOrHash: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed account...");
     const result = await helius.zk.getCompressedAccount({ address: addressOrHash });
@@ -33,7 +32,7 @@ export async function zkAccountCommand(addressOrHash: string, options: ZkOptions
 }
 
 export async function zkAccountsByOwnerCommand(owner: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed accounts by owner...");
     const result = await helius.zk.getCompressedAccountsByOwner({ owner });
@@ -44,7 +43,7 @@ export async function zkAccountsByOwnerCommand(owner: string, options: ZkOptions
 }
 
 export async function zkBalanceCommand(addressOrHash: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed balance...");
     const result = await helius.zk.getCompressedBalance({ address: addressOrHash });
@@ -55,7 +54,7 @@ export async function zkBalanceCommand(addressOrHash: string, options: ZkOptions
 }
 
 export async function zkBalanceByOwnerCommand(owner: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed balance by owner...");
     const result = await helius.zk.getCompressedBalanceByOwner({ owner });
@@ -66,7 +65,7 @@ export async function zkBalanceByOwnerCommand(owner: string, options: ZkOptions 
 }
 
 export async function zkTokenHoldersCommand(mint: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed token holders...");
     const result = await helius.zk.getCompressedMintTokenHolders({ mint });
@@ -77,7 +76,7 @@ export async function zkTokenHoldersCommand(mint: string, options: ZkOptions = {
 }
 
 export async function zkTokenBalanceCommand(account: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed token account balance...");
     const result = await helius.zk.getCompressedTokenAccountBalance({ address: account });
@@ -88,7 +87,7 @@ export async function zkTokenBalanceCommand(account: string, options: ZkOptions 
 }
 
 export async function zkTokenAccountsByOwnerCommand(owner: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed token accounts by owner...");
     const result = await helius.zk.getCompressedTokenAccountsByOwner({ owner });
@@ -99,7 +98,7 @@ export async function zkTokenAccountsByOwnerCommand(owner: string, options: ZkOp
 }
 
 export async function zkTokenAccountsByDelegateCommand(delegate: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed token accounts by delegate...");
     const result = await helius.zk.getCompressedTokenAccountsByDelegate({ delegate });
@@ -110,7 +109,7 @@ export async function zkTokenAccountsByDelegateCommand(delegate: string, options
 }
 
 export async function zkTokenBalancesByOwnerCommand(owner: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed token balances by owner (V2)...");
     const result = await helius.zk.getCompressedTokenBalancesByOwnerV2({ owner });
@@ -121,7 +120,7 @@ export async function zkTokenBalancesByOwnerCommand(owner: string, options: ZkOp
 }
 
 export async function zkProofCommand(addressOrHash: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compressed account proof...");
     const result = await helius.zk.getCompressedAccountProof({ hash: addressOrHash });
@@ -132,7 +131,7 @@ export async function zkProofCommand(addressOrHash: string, options: ZkOptions =
 }
 
 export async function zkProofsCommand(addresses: string[], options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, `Fetching proofs for ${addresses.length} account(s)...`);
     const result = await helius.zk.getMultipleCompressedAccountProofs({ hashes: addresses });
@@ -143,7 +142,7 @@ export async function zkProofsCommand(addresses: string[], options: ZkOptions = 
 }
 
 export async function zkMultipleAccountsCommand(addresses: string[], options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, `Fetching ${addresses.length} compressed account(s)...`);
     const result = await helius.zk.getMultipleCompressedAccounts({ addresses });
@@ -154,7 +153,7 @@ export async function zkMultipleAccountsCommand(addresses: string[], options: Zk
 }
 
 export async function zkAddressProofsCommand(addresses: string[], options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, `Fetching address proofs (V2)...`);
     const result = await helius.zk.getMultipleNewAddressProofsV2(addresses);
@@ -165,7 +164,7 @@ export async function zkAddressProofsCommand(addresses: string[], options: ZkOpt
 }
 
 export async function zkSignaturesAccountCommand(account: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compression signatures for account...");
     const result = await helius.zk.getCompressionSignaturesForAccount({ hash: account });
@@ -176,7 +175,7 @@ export async function zkSignaturesAccountCommand(account: string, options: ZkOpt
 }
 
 export async function zkSignaturesAddressCommand(address: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compression signatures for address...");
     const result = await helius.zk.getCompressionSignaturesForAddress({ address });
@@ -187,7 +186,7 @@ export async function zkSignaturesAddressCommand(address: string, options: ZkOpt
 }
 
 export async function zkSignaturesOwnerCommand(owner: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compression signatures for owner...");
     const result = await helius.zk.getCompressionSignaturesForOwner({ owner });
@@ -198,7 +197,7 @@ export async function zkSignaturesOwnerCommand(owner: string, options: ZkOptions
 }
 
 export async function zkSignaturesTokenOwnerCommand(owner: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching compression signatures for token owner...");
     const result = await helius.zk.getCompressionSignaturesForTokenOwner({ owner });
@@ -209,7 +208,7 @@ export async function zkSignaturesTokenOwnerCommand(owner: string, options: ZkOp
 }
 
 export async function zkLatestSignaturesCommand(options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching latest compression signatures...");
     const result = await helius.zk.getLatestCompressionSignatures({});
@@ -220,7 +219,7 @@ export async function zkLatestSignaturesCommand(options: ZkOptions = {}): Promis
 }
 
 export async function zkLatestNonVotingCommand(options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching latest non-voting signatures...");
     const result = await helius.zk.getLatestNonVotingSignatures({});
@@ -231,7 +230,7 @@ export async function zkLatestNonVotingCommand(options: ZkOptions = {}): Promise
 }
 
 export async function zkTxCommand(signature: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching transaction with compression info...");
     const result = await helius.zk.getTransactionWithCompressionInfo({ signature });
@@ -242,7 +241,7 @@ export async function zkTxCommand(signature: string, options: ZkOptions = {}): P
 }
 
 export async function zkValidityProofCommand(options: ZkOptions & { hashes?: string; addresses?: string } = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching validity proof...");
     const params: any = {};
@@ -256,7 +255,7 @@ export async function zkValidityProofCommand(options: ZkOptions & { hashes?: str
 }
 
 export async function zkIndexerHealthCommand(options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Checking indexer health...");
     const result = await helius.zk.getIndexerHealth();
@@ -267,7 +266,7 @@ export async function zkIndexerHealthCommand(options: ZkOptions = {}): Promise<v
 }
 
 export async function zkIndexerSlotCommand(options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching indexer slot...");
     const result = await helius.zk.getIndexerSlot();
@@ -278,7 +277,7 @@ export async function zkIndexerSlotCommand(options: ZkOptions = {}): Promise<voi
 }
 
 export async function zkSignaturesForAssetCommand(id: string, options: ZkOptions = {}): Promise<void> {
-  const spinner = options.json ? null : ora();
+  const spinner = createSpinner(options);
   try {
     const helius = await setup(spinner, options, "Fetching signatures for asset...");
     const result = await helius.zk.getSignaturesForAsset({ id, page: 1 });
