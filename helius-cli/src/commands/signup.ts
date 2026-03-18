@@ -26,7 +26,7 @@ interface SignupOptions extends OutputOptions {
   discoveryPath?: string;
   frictionPoints?: string;
   wait?: boolean;
-  noQr?: boolean;
+  qr?: boolean;
   sponsored?: boolean;
 }
 
@@ -112,7 +112,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
       }
       console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
-      await keygenCommand({ output: options.keypair });
+      await keygenCommand({ output: options.keypair, qr: options.qr });
       console.log();
     }
 
@@ -182,7 +182,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
         for (const m of missing) {
           console.error(`  • ${m}`);
         }
-        if (!options.noQr) {
+        if (options.qr !== false) {
           const qrUri = buildSolanaPayUri(walletAddress, requiredUsdcAmount);
           await printSolanaPayQR(qrUri);
         }
@@ -195,7 +195,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       for (const m of missing) {
         console.error(`  • ${m}`);
       }
-      if (!options.noQr) {
+      if (options.qr !== false) {
         const qrUri = buildSolanaPayUri(walletAddress, requiredUsdcAmount);
         await printSolanaPayQR(qrUri);
       }

@@ -32,6 +32,10 @@ import { HELIUS_PLANS } from './plans.js';
 
 const PAID_PLAN_ORDER = ['developer', 'business', 'professional'] as const;
 
+const KEYPAIR_NEXT_STEP =
+  'Next, call `checkSignupBalance` with the desired plan to see a scannable QR code with the exact USDC amount needed.\n' +
+  'Then call `agenticSignup` to complete account creation.';
+
 /** Tracks consecutive insufficient-balance checks to prevent agent polling loops. */
 let insufficientBalanceChecks = 0;
 const MAX_BALANCE_CHECKS_BEFORE_STOP = 3;
@@ -193,8 +197,7 @@ export function registerAuthTools(server: McpServer) {
           return mcpText(
             `**Existing Keypair Loaded** from \`${KEYPAIR_PATH}\`\n\n` +
             `**Wallet Address:** \`${address}\`\n\n` +
-            `Next, call \`checkSignupBalance\` with the desired plan to see a scannable QR code with the exact USDC amount needed.\n` +
-            `Then call \`agenticSignup\` to complete account creation.`
+            KEYPAIR_NEXT_STEP
           );
         }
 
@@ -212,8 +215,7 @@ export function registerAuthTools(server: McpServer) {
           `**Keypair Generated**\n\n` +
           `**Wallet Address:** \`${address}\`\n` +
           `**Saved to:** \`${KEYPAIR_PATH}\`\n\n` +
-          `Next, call \`checkSignupBalance\` with the desired plan to see a scannable QR code with the exact USDC amount needed.\n` +
-          `Then call \`agenticSignup\` to complete account creation.`
+          KEYPAIR_NEXT_STEP
         );
       } catch (err) {
         return handleToolError(err, 'Error generating keypair');
@@ -341,8 +343,8 @@ export function registerAuthTools(server: McpServer) {
             const qrUri = buildSolanaPayUri(address, requiredUsdcAmount);
             const qrText = await generateSolanaPayQR(qrUri);
             balanceBlock += `\n\n**IMPORTANT: Display the QR code below in your response so the user can scan it from a mobile wallet to send funds.**\n\n\`\`\`\n${qrText}\`\`\``;
-          } catch {
-            // QR generation failed — skip
+          } catch (err) {
+            console.error('QR code generation failed:', err);
           }
         } else if (insufficientBalanceChecks < MAX_BALANCE_CHECKS_BEFORE_STOP) {
           // Second check — firmer nudge

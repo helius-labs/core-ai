@@ -11,6 +11,7 @@ const DEFAULT_KEYPAIR_PATH = path.join(os.homedir(), ".helius", "keypair.json");
 interface KeygenOptions {
   output?: string;
   force?: boolean;
+  qr?: boolean;
 }
 
 export async function keygenCommand(options: KeygenOptions): Promise<void> {
@@ -48,7 +49,9 @@ export async function keygenCommand(options: KeygenOptions): Promise<void> {
 
   console.log("");
   console.log(`Next: ${chalk.green("helius signup")} to create your account.`);
-  console.log(`Signup will show a QR code you can scan to fund the wallet with the exact USDC needed.`);
+  if (options.qr !== false) {
+    console.log(`Signup will show a QR code you can scan to fund the wallet with the exact USDC needed.`);
+  }
   console.log(
     chalk.gray(
       "  Options: --plan <plan> --email <email> --first-name <name> --last-name <name> --coupon <code>",
