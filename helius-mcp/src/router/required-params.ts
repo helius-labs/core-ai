@@ -44,13 +44,11 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   accountSubscribe: ['account'],
 
   // Knowledge
-  lookupHeliusDocs: ['topic'],
   troubleshootError: ['errorCode'],
   recommendStack: ['description'],
   getSIMD: ['number'],
   searchSolanaDocs: ['query'],
   readSolanaSourceFile: ['path'],
-  fetchHeliusBlog: ['action'],
   compareHeliusPlans: ['category'],
 
   // Write

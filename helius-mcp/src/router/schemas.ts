@@ -13,11 +13,19 @@ import {
 import { withTelemetry } from './telemetry.js';
 
 const detailField = z.enum(['summary', 'standard', 'full']).optional();
-const argsField = z.object({}).passthrough().optional();
+const argsField = z.union([
+  z.object({}).passthrough(),
+  z.string().transform((s, ctx) => {
+    try { return JSON.parse(s); } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'args must be a JSON object string' });
+      return z.NEVER;
+    }
+  }).pipe(z.object({}).passthrough()),
+]).optional();
 
 const stringArray = () => z.array(z.string()).optional();
 const optionalString = () => z.string().optional();
-const optionalNumber = () => z.number().optional();
+const optionalNumber = () => z.coerce.number().optional();
 const optionalBoolean = () => z.boolean().optional();
 
 export const HeliusAccountActionSchema = z.enum(HELIUS_ACCOUNT_ACTIONS);
@@ -119,6 +127,8 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
   includeAllLevels: optionalBoolean(),
   encoding: optionalString(),
   dataSize: optionalNumber(),
+  owner: optionalString(),
+  mint: optionalString(),
 });
 
 export const HELIUS_STREAMING_SCHEMA = withTelemetry({
@@ -187,6 +197,7 @@ export const HELIUS_COMPRESSION_SCHEMA = withTelemetry({
   hash: optionalString(),
   hashes: stringArray(),
   owner: optionalString(),
+  delegate: optionalString(),
   mint: optionalString(),
   limit: optionalNumber(),
   cursor: optionalString(),

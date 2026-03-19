@@ -574,7 +574,8 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
     {
       action: z
         .enum(['fetch', 'list'])
-        .describe('"fetch" to read a specific post, "list" to see available posts by category'),
+        .optional()
+        .describe('"fetch" to read a specific post, "list" to see available posts by category. Defaults to "fetch" if slug provided, "list" otherwise.'),
       slug: z
         .string()
         .optional()
@@ -586,7 +587,9 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
         .default('all')
         .describe('Filter by category when listing posts'),
     },
-    async ({ action, slug, category }) => {
+    async ({ action: rawAction, slug: rawSlug, category }) => {
+      let slug = rawSlug;
+      const action = rawAction ?? (slug ? 'fetch' : 'list');
       try {
         if (action === 'list') {
           const entries = Object.entries(BLOG_INDEX);
@@ -635,6 +638,24 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
             'Please provide a slug. Use `fetchHeliusBlog` with action "list" to see available posts.',
             { type: 'VALIDATION', code: 'MISSING_PARAM', retryable: false, recovery: 'Provide a slug. Use fetchHeliusBlog with action "list" to see available posts.' }
           );
+        }
+
+        // Fuzzy slug matching — if exact slug isn't in index, find close matches
+        if (!BLOG_INDEX[slug]) {
+          const lower = slug.toLowerCase();
+          const matches = Object.keys(BLOG_INDEX).filter(
+            (k) => k.includes(lower) || lower.includes(k) || k.split('-').some((w) => lower.includes(w) && w.length > 3),
+          );
+          if (matches.length === 1) {
+            // Single match — auto-correct
+            slug = matches[0];
+          } else if (matches.length > 1) {
+            return mcpError(
+              `No exact blog post "${slug}". Did you mean one of these?\n${matches.map((m) => `- \`${m}\` — ${BLOG_INDEX[m].title}`).join('\n')}`,
+              { type: 'VALIDATION', code: 'UNKNOWN_SLUG', retryable: true, recovery: 'Retry with one of the suggested slugs.' },
+            );
+          }
+          // If no matches, let it proceed — the fetch will 404 with a helpful message
         }
 
         const url = `https://www.helius.dev/blog/${slug}`;

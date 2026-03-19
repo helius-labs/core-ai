@@ -6,7 +6,7 @@ import { getRouterContext } from './context.js';
 import type { RoutedPublicToolName } from './action-groups.js';
 import type { ActionName } from './actions.js';
 import { ACTION_REQUIRED_PARAMS } from './required-params.js';
-import type { ActionCatalogEntry, CapabilityVariant, DetailLevel, GatePredicate, ResponseFamily } from './types.js';
+import type { ActionCatalogEntry, DetailLevel, ResponseFamily } from './types.js';
 import {
   applyItemSelection,
   applyRangeSelection,
@@ -22,52 +22,6 @@ import {
   toPlainText,
   type RouterResponse,
 } from './responses.js';
-
-const PLAN_ORDER: Record<CapabilityVariant['minimumPlan'], number> = {
-  free: 0,
-  developer: 1,
-  business: 2,
-  professional: 3,
-};
-
-function matchesPredicate(
-  predicate: GatePredicate,
-  params: Record<string, unknown>,
-  network: 'devnet' | 'mainnet-beta',
-): boolean {
-  switch (predicate.kind) {
-    case 'always':
-      return true;
-    case 'network':
-      return predicate.oneOf.includes(network);
-    case 'paramPresent':
-      return params[predicate.field] !== undefined;
-    case 'paramEquals':
-      return params[predicate.field] === predicate.value;
-    case 'and':
-      return predicate.all.every((part) => matchesPredicate(part, params, network));
-    default:
-      return false;
-  }
-}
-
-function getCapabilityVariant(entry: ActionCatalogEntry, params: Record<string, unknown>): CapabilityVariant | null {
-  const { network } = getRouterContext();
-  const matches = [entry.capabilityGate.baseline, ...(entry.capabilityGate.variants ?? [])]
-    .filter((variant) => matchesPredicate(variant.predicate, params, network))
-    .sort((left, right) => PLAN_ORDER[right.minimumPlan] - PLAN_ORDER[left.minimumPlan]);
-
-  return matches[0] ?? null;
-}
-
-function capabilityPrefix(entry: ActionCatalogEntry, params: Record<string, unknown>): string {
-  const matched = getCapabilityVariant(entry, params);
-  if (!matched || matched.minimumPlan === 'free') {
-    return '';
-  }
-
-  return `Requirement: ${matched.label}\n\n`;
-}
 
 function isHandleEligible(entry: ActionCatalogEntry): boolean {
   return entry.handleEligibility;
@@ -91,6 +45,11 @@ function buildActionParams(input: Record<string, unknown>): Record<string, unkno
       merged[key] = value;
     }
   }
+
+  // Normalize common address field mismatches
+  if (!merged.address && merged.ownerAddress) merged.address = merged.ownerAddress;
+  if (!merged.owner && merged.address && !merged.ownerAddress) merged.owner = merged.address;
+  if (!merged.address && merged.owner) merged.address = merged.owner;
 
   return merged;
 }
@@ -211,8 +170,7 @@ function normalizeSuccessResponse(
   requestedDetail: DetailLevel,
   allowHandles: boolean,
 ): RouterResponse {
-  const prefix = capabilityPrefix(entry, params);
-  const baseText = `${prefix}${text}`.trim();
+  const baseText = text.trim();
   const summaryText = buildTextVariant(entry.responseFamily, 'summary', baseText);
   const standardText = buildTextVariant(entry.responseFamily, 'standard', baseText);
   const fullText = buildTextVariant(entry.responseFamily, 'full', baseText);
