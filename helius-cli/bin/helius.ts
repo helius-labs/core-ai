@@ -100,8 +100,8 @@ program
   .option("--last-name <name>", "Last name (required for paid plans)")
   .option("--discovery-path <text>", "How did you discover Helius?")
   .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
+  .option("--sponsored", "Backend pays transaction fees (only USDC required)")
   .option("--wait", "Poll for funds if balance is insufficient, then continue signup automatically")
-  .option("--sponsored", "Use sponsored mode (Helius pays SOL transaction fees, USDC only required)")
   .option("--no-qr", "Suppress QR code display")
   .option("--json", "Output in JSON format")
   .action(function(this: any) { signupCommand(opts(this)); });
