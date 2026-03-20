@@ -29,8 +29,8 @@ Get your key from [dashboard.helius.dev](https://dashboard.helius.dev).
 helius keygen
 
 # 2. Fund the wallet address shown above:
-#    - ~0.001 SOL for transaction fees
 #    - 1 USDC for the basic plan ($1 one-time)
+#    (SOL fees are automatically sponsored by Helius)
 
 # 3. Create account
 helius signup
@@ -237,7 +237,6 @@ Helius CLI supports the [NO_DNA](https://no-dna.org) convention. When the `NO_DN
 | 1 | General error | — |
 | 10 | Not logged in | No |
 | 11 | Keypair not found | No |
-| 20 | Insufficient SOL | No |
 | 21 | Insufficient USDC | No |
 | 30 | No projects found | No |
 | 31 | Project not found | No |

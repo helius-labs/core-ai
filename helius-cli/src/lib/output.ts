@@ -220,7 +220,7 @@ const CLI_GUIDANCE: Record<string, string> = {
   NOT_FOUND: 'The requested resource was not found. Verify the address or identifier is correct.',
   SERVER_ERROR: 'Helius backend error. Retry after a few seconds.',
   NETWORK_ERROR: 'Could not connect to Helius. Check your internet connection and retry.',
-  INSUFFICIENT_SOL: 'Fund your wallet with ~0.001 SOL for transaction fees, then retry.',
+  INSUFFICIENT_SOL: 'SOL fees are normally sponsored by Helius. If sponsorship is unavailable, fund your wallet with ~0.001 SOL, then retry.',
   INSUFFICIENT_USDC: 'Fund your wallet with the required USDC amount, then retry.',
   PAYMENT_FAILED: 'The on-chain payment did not complete. Check your wallet balance and retry.',
   NOT_LOGGED_IN: 'Run `helius login` to authenticate, or `helius signup` to create a new account.',

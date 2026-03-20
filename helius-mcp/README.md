@@ -44,7 +44,7 @@ Or set it from your AI assistant by calling the `setHeliusApiKey` tool.
 The MCP includes a fully autonomous signup flow — no browser needed:
 
 1. Call the `generateKeypair` tool — it creates a Solana wallet and returns the address
-2. Fund the wallet with **~0.001 SOL** (transaction fees) + **1 USDC** (basic plan costs $1)
+2. Fund the wallet with **1 USDC** (basic plan costs $1) — SOL fees are automatically sponsored by Helius
 3. Call `checkSignupBalance` to verify funds arrived
 4. Call `agenticSignup` to create your account — API key is configured automatically
 
@@ -54,7 +54,7 @@ Or do the same from the terminal:
 
 ```bash
 npx helius-cli@latest keygen     # Generate keypair
-# Fund the wallet address shown above with ~0.001 SOL + 1 USDC
+# Fund the wallet address shown above with 1 USDC (SOL fees are sponsored)
 npx helius-cli@latest signup      # Verify balance + create account
 ```
 

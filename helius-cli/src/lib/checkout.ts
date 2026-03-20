@@ -17,7 +17,6 @@ import type {
   CheckoutRequest,
   SignupQuote,
   SignupFundingIntent,
-  PaymentMode,
 } from "helius-sdk/auth/types";
 
 export async function initializeCheckout(
@@ -82,11 +81,11 @@ export async function initializeSignupFunding(
     plan: string;
     period: "monthly" | "yearly";
     refId: string;
+    walletAddress?: string;
     email?: string;
     firstName?: string;
     lastName?: string;
     couponCode?: string;
-    paymentMode?: PaymentMode;
   },
 ): Promise<SignupFundingIntent> {
   return sdkInitializeSignupFunding(jwt, options, CLI_USER_AGENT);
@@ -105,5 +104,4 @@ export type {
   CheckoutRequest,
   SignupQuote,
   SignupFundingIntent,
-  PaymentMode,
 } from "helius-sdk/auth/types";
