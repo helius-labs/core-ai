@@ -1695,7 +1695,7 @@ Getting users set up with Helius: creating accounts, obtaining API keys, underst
 | `setHeliusApiKey` | Configure an existing API key for the session (validates against `getBlockHeight`) |
 | `generateKeypair` | Generate or load a Solana keypair for agentic signup (persists to `~/.helius-cli/keypair.json`) |
 | `checkSignupBalance` | Check wallet balance — pass `plan`/`period` for exact USDC checking, shows scannable QR code. SOL fees are automatically sponsored by Helius. Only USDC required. |
-| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key. SOL fees are automatically sponsored by Helius. |
+| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key. SOL fees are automatically sponsored by Helius. Only USDC required. |
 | `getAccountStatus` | Check current plan, credits remaining, rate limits, billing cycle, burn-rate projections |
 | `getHeliusPlanInfo` | View plan details — pricing, credits, rate limits, features |
 | `compareHeliusPlans` | Compare plans side-by-side by category (rates, features, connections, pricing, support) |
@@ -1725,7 +1725,6 @@ The fully autonomous signup flow, no browser needed:
 4. **`agenticSignup`** — creates the account, processes USDC payment, returns API key + RPC endpoints + project ID
    - API key is automatically configured for the session and saved to shared config
    - If the wallet already has an account, it detects and returns existing credentials (no double payment)
-
 **Parameters for `agenticSignup`:**
 - `plan`: `"basic"` (default, $1), `"developer"`, `"business"`, or `"professional"`
 - `period`: `"monthly"` (default) or `"yearly"` (paid plans only)
