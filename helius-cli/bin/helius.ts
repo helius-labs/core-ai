@@ -53,6 +53,7 @@ import { sendBroadcastCommand, sendRawCommand, sendSenderCommand, sendPollComman
 import { wsAccountCommand, wsLogsCommand, wsSlotCommand, wsSignatureCommand, wsProgramCommand } from "../src/commands/ws.js";
 import { simdListCommand, simdGetCommand } from "../src/commands/simd.js";
 import { owsLinkCommand, owsUnlinkCommand, owsStatusCommand } from "../src/commands/ows.js";
+import { updateCommand } from "../src/commands/update.js";
 import { VERSION } from "../src/constants.js";
 import { sendCommandEvent, sendCliFeedback, setCurrentCommand } from "../src/lib/feedback.js";
 
@@ -836,6 +837,15 @@ simdCmd
   .description("Read a specific SIMD proposal by number")
   .option("--json", "Output in JSON format")
   .action(function(this: any, number: string) { simdGetCommand(number, opts(this)); });
+
+// ── Update ──
+
+program
+  .command("update")
+  .description("Check for and install CLI updates")
+  .option("--check", "Check for updates without installing")
+  .option("--json", "Output in JSON format")
+  .action(function(this: any) { updateCommand(opts(this)); });
 
 // ── Feedback ──
 
