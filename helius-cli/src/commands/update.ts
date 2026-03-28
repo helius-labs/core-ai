@@ -38,9 +38,11 @@ function compareSemver(a: string, b: string): number {
  */
 function detectPackageManager(): "pnpm" | "volta" | "bun" | "npm" {
   const execPath = process.argv[1] || "";
-  if (execPath.includes(".pnpm") || execPath.includes("pnpm")) return "pnpm";
-  if (execPath.includes(".volta") || execPath.includes("volta")) return "volta";
-  if (execPath.includes(".bun") || execPath.includes("bun")) return "bun";
+  // Normalize to forward slashes for consistent matching
+  const normalized = execPath.replace(/\\/g, "/");
+  if (/[/]\.?pnpm[/]/.test(normalized)) return "pnpm";
+  if (/[/]\.?volta[/]/.test(normalized)) return "volta";
+  if (/[/]\.?bun[/]/.test(normalized)) return "bun";
   return "npm";
 }
 
