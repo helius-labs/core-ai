@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 import chalk from "chalk";
 import { VERSION } from "../constants.js";
-import { outputJson, createSpinner, type OutputOptions } from "../lib/output.js";
+import { outputJson, createSpinner, handleCommandError, type OutputOptions } from "../lib/output.js";
 
 interface UpdateOptions extends OutputOptions {
   check?: boolean;
@@ -95,17 +95,7 @@ export async function updateCommand(options: UpdateOptions = {}): Promise<void> 
     } catch (execError: any) {
       const stderr = execError?.stderr?.toString() || "";
       if (stderr.includes("EACCES") || stderr.includes("permission denied")) {
-        spinner?.fail("Permission denied");
-        if (options.json) {
-          outputJson({
-            error: "PERMISSION_DENIED",
-            message: `Permission denied. Try: sudo ${cmd}`,
-            retryable: true,
-          });
-        } else {
-          console.error(chalk.yellow(`\n  Hint: Run with elevated permissions: ${chalk.cyan("sudo " + cmd)}`));
-        }
-        process.exit(1);
+        throw new Error(`Permission denied. Try: sudo ${cmd}`);
       }
       throw execError;
     }
@@ -116,11 +106,6 @@ export async function updateCommand(options: UpdateOptions = {}): Promise<void> 
       outputJson({ previous: VERSION, current: latest, updated: true, packageManager: pm });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    spinner?.fail(message);
-    if (options.json) {
-      outputJson({ error: "UPDATE_FAILED", message, retryable: true });
-    }
-    process.exit(1);
+    handleCommandError(error, options, spinner);
   }
 }
