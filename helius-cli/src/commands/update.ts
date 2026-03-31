@@ -113,7 +113,7 @@ export async function updateCommand(options: UpdateOptions = {}): Promise<void> 
     spinner?.succeed(`Updated helius-cli v${VERSION} → v${latest}`);
 
     if (options.json) {
-      outputJson({ current: VERSION, latest, updated: true, packageManager: pm });
+      outputJson({ previous: VERSION, current: latest, updated: true, packageManager: pm });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
