@@ -57,7 +57,7 @@ Codex auto-discovers skills from `.agents/skills/` in the repo root.
 
 ### Skill Discovery
 
-Codex discovers skills based on name and description in the SKILL.md frontmatter. Skills are triggered implicitly when your task matches the description, or explicitly with `$helius`, `$helius-dflow`, `$helius-phantom`, `$svm`.
+Codex discovers skills based on name and description in the SKILL.md frontmatter. Skills are triggered implicitly when your task matches the description, or explicitly with `$helius`, `$helius-dflow`, `$helius-drift`, `$helius-phantom`, `$svm`.
 
 ### Installing into Your Project
 
@@ -195,5 +195,6 @@ This makes it clear where trusted skill instructions begin and end.
 |-------|--------|-----------------|
 | `helius` | Solana app development with Helius | 9 (DAS, Sender, WebSockets, etc.) |
 | `helius-dflow` | Trading apps with DFlow + Helius | 12 (DFlow spot, prediction markets, etc.) |
+| `helius-drift` | Perpetual trading, lending, prediction markets with Drift + Helius | 14 (perps, spot, lending, predictions, vaults, SDK) |
 | `helius-phantom` | Frontend apps with Phantom + Helius | 16 (React SDK, browser SDK, payments, etc.) |
 | `svm` | Solana protocol internals | 10 (execution, consensus, validators, etc.) |

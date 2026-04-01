@@ -80,6 +80,7 @@ Skills are in `.agents/skills/`. Each provides expert routing, rules, and refere
 |---|---|---|
 | **Helius** | `.agents/skills/helius/` | Building Solana apps with Helius infrastructure — transactions, DAS API, WebSockets, Laserstream, webhooks, wallet analysis |
 | **Helius DFlow** | `.agents/skills/helius-dflow/` | Trading apps combining DFlow (spot swaps, prediction markets, Proof KYC) with Helius |
+| **Helius Drift** | `.agents/skills/helius-drift/` | Perpetual trading, lending, prediction markets, and strategy vaults combining Drift Protocol with Helius |
 | **Helius Phantom** | `.agents/skills/helius-phantom/` | Frontend Solana apps with Phantom wallet + Helius — React, React Native, vanilla JS |
 | **SVM** | `.agents/skills/svm/` | Solana protocol internals — SVM engine, account model, consensus, validators, token extensions |
 

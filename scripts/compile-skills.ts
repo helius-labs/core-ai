@@ -63,6 +63,17 @@ const SKILLS: SkillConfig[] = [
   optimizing priority fees for trading. Requires helius-mcp MCP server.`,
   },
   {
+    dir: "helius-drift",
+    pluginDir: "drift",
+    enhancedDescription: `Build Solana perpetual trading, lending, and prediction market applications
+  combining Drift Protocol with Helius infrastructure. Use this skill when:
+  trading perpetual futures (40+ markets, up to 101x leverage), placing spot
+  margin trades, lending or borrowing tokens, trading on BET prediction markets,
+  managing strategy vaults, building liquidation bots with LaserStream, monitoring
+  funding rates, querying orderbook data via DLOB, or submitting Drift transactions
+  via Helius Sender. Requires helius-mcp MCP server and @drift-labs/sdk.`,
+  },
+  {
     dir: "helius-okx",
     pluginDir: "okx",
     enhancedDescription: `Build Solana trading and intelligence applications combining OKX DEX aggregation

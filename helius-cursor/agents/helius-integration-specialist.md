@@ -25,6 +25,7 @@ When helping with a Helius integration:
 1. **Identify the domain** — Determine what the user is building and apply the matching skill(s):
    - Backend/server/script/CLI → apply the `build` skill
    - Trading app / DEX / swap UI / prediction markets → apply the `dflow` skill
+   - Perpetual futures / perps / leverage / liquidation / funding rates / Drift → apply the `drift` skill
    - Frontend / React / Next.js / mobile wallet app → apply the `phantom` skill
    - Solana protocol research / architecture questions → apply the `svm` skill
    - Full-stack apps that span multiple domains → apply multiple skills together (e.g., `build` + `phantom` for a dApp with a backend and wallet-connected frontend, or `dflow` + `phantom` + `build` for a trading UI using Sender for transaction submission)

@@ -37,6 +37,16 @@ The Phantom skill (`helius-skills/helius-phantom/`, `helius-plugin/skills/phanto
 - The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
 - When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to both `helius-plugin/skills/phantom/references/` and `helius-cursor/skills/phantom/references/`.
 
+### Drift Skill References
+
+The Drift skill (`helius-skills/helius-drift/`, `helius-plugin/skills/drift/`, and `helius-cursor/skills/drift/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/helius-drift/references/`
+- **Copies**: `helius-plugin/skills/drift/references/`, `helius-cursor/skills/drift/references/`
+- The Drift skill contains 14 reference files: 7 Helius copies (prefixed with `helius-`), 6 Drift-specific files (perps, spot, lending, predictions, vaults, sdk), and 1 integration-patterns file.
+- The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside Drift files in the same directory.
+- When updating Drift reference files, update in `helius-skills/helius-drift/references/` first, then copy to both `helius-plugin/skills/drift/references/` and `helius-cursor/skills/drift/references/`.
+
 ### OKX Skill References
 
 The OKX skill (`helius-skills/helius-okx/`, `helius-plugin/skills/okx/`, and `helius-cursor/skills/okx/`) has its own reference files that **must also be kept in sync**.

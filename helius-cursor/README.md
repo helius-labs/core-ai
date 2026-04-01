@@ -16,6 +16,8 @@ Search **"Helius"** in the Cursor Marketplace, or run `/add-plugin` in Cursor an
 
 **DFlow trading skill** — makes the agent an expert at building Solana trading applications. Combines DFlow's trading APIs (spot swaps, prediction markets, real-time streaming, Proof KYC) with Helius infrastructure (Sender, priority fees, DAS, WebSockets, LaserStream, Wallet API).
 
+**Drift trading skill** — makes the agent an expert at building perpetual trading, lending, and prediction market applications. Combines Drift Protocol (40+ perp markets, up to 101x leverage, BET prediction markets, strategy vaults) with Helius infrastructure.
+
 **Phantom frontend skill** — makes the agent an expert at building frontend Solana dApps with Phantom Connect SDK (`@phantom/react-sdk`, `@phantom/browser-sdk`, `@phantom/react-native-sdk`). Covers wallet connection (React, React Native, vanilla JS), transaction signing via Helius Sender, API key proxying, token gating, NFT minting, crypto payments, real-time updates, and secure frontend architecture.
 
 **SVM skill** — makes the agent a Solana protocol expert. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
