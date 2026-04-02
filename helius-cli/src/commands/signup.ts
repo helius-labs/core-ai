@@ -112,26 +112,37 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const refId = auth.refId;
     spinner?.succeed("Authenticated");
 
-    // Get exact pricing from backend (replaces local PLAN_CATALOG math)
+    // Get exact pricing from backend (or hardcoded for basic)
     const plan = options.plan?.toLowerCase() || "basic";
     const period = (options.period?.toLowerCase() as "monthly" | "yearly") || "monthly";
 
-    spinner?.start("Getting pricing...");
-    const quote = await getSignupQuote(jwt, {
-      plan,
-      period,
-      refId,
-      couponCode: options.coupon,
-    });
-    spinner?.succeed(
-      quote.discountCents > 0
-        ? `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)} (was $${(quote.baseAmountCents / 100).toFixed(2)})`
-        : `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)}`
-    );
+    let requiredUsdcAmount: number;
+    let requiredUsdcRaw: bigint;
+    let requiredUsdcLabel: string;
 
-    const requiredUsdcAmount = quote.dueTodayCents / 100; // token units
-    const requiredUsdcRaw = BigInt(quote.dueTodayCents) * 10_000n; // cents → 6-decimal raw
-    const requiredUsdcLabel = `${requiredUsdcAmount} USDC`;
+    if (plan === "basic") {
+      // Basic plan: fixed $1 USDC, doesn't go through checkout pricing
+      requiredUsdcAmount = 1;
+      requiredUsdcRaw = 1_000_000n; // 1 USDC in 6-decimal raw
+      requiredUsdcLabel = "1 USDC";
+      spinner?.succeed("Basic plan: $1.00");
+    } else {
+      spinner?.start("Getting pricing...");
+      const quote = await getSignupQuote(jwt, {
+        plan,
+        period,
+        refId,
+        couponCode: options.coupon,
+      });
+      requiredUsdcAmount = quote.dueTodayCents / 100;
+      requiredUsdcRaw = BigInt(quote.dueTodayCents) * 10_000n; // cents → 6-decimal raw
+      requiredUsdcLabel = `${requiredUsdcAmount} USDC`;
+      spinner?.succeed(
+        quote.discountCents > 0
+          ? `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)} (was $${(quote.baseAmountCents / 100).toFixed(2)})`
+          : `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)}`
+      );
+    }
 
     // Check USDC balance (SOL fees sponsored by Helius)
     spinner?.start("Checking wallet balance...");
