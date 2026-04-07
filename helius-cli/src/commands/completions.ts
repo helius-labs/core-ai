@@ -1,3 +1,7 @@
+import fs from "fs";
+import path from "path";
+import os from "os";
+import chalk from "chalk";
 import type { Command } from "commander";
 
 interface CommandInfo {
@@ -139,19 +143,58 @@ function generateFish(program: Command): string {
   return lines.join("\n");
 }
 
-export function completionsCommand(shell: string, program: Command): void {
+function getInstallPath(shell: string): string {
   switch (shell) {
-    case "bash":
-      console.log(generateBash(program));
-      break;
-    case "zsh":
-      console.log(generateZsh(program));
-      break;
-    case "fish":
-      console.log(generateFish(program));
-      break;
+    case "bash": return path.join(os.homedir(), ".bashrc");
+    case "zsh":  return path.join(os.homedir(), ".zshrc");
+    case "fish": return path.join(os.homedir(), ".config", "fish", "completions", "helius.fish");
+    default:     return "";
+  }
+}
+
+function generate(shell: string, program: Command): string {
+  switch (shell) {
+    case "bash": return generateBash(program);
+    case "zsh":  return generateZsh(program);
+    case "fish": return generateFish(program);
     default:
       console.error(`Unknown shell: ${shell}. Supported: bash, zsh, fish`);
       process.exit(1);
   }
+}
+
+export function completionsCommand(shell: string, program: Command, options: { install?: boolean } = {}): void {
+  const script = generate(shell, program);
+
+  if (!options.install) {
+    console.log(script);
+    return;
+  }
+
+  const target = getInstallPath(shell);
+
+  // For fish, ensure the completions directory exists
+  if (shell === "fish") {
+    const dir = path.dirname(target);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    // Fish uses a dedicated file, so overwrite it
+    fs.writeFileSync(target, script);
+    console.log(chalk.green(`Completions installed to ${target}`));
+    console.log(chalk.gray("Completions will be available in new fish sessions."));
+    return;
+  }
+
+  // For bash/zsh, append to rc file (skip if already installed)
+  const existing = fs.existsSync(target) ? fs.readFileSync(target, "utf-8") : "";
+  if (existing.includes("_helius_completions") || existing.includes("_helius")) {
+    console.log(chalk.yellow(`Completions already installed in ${target}`));
+    console.log(chalk.gray("To reinstall, remove the existing helius completion block first."));
+    return;
+  }
+
+  fs.appendFileSync(target, "\n" + script);
+  console.log(chalk.green(`Completions installed to ${target}`));
+  console.log(chalk.gray(`Run ${chalk.white(`source ${target}`)} or open a new terminal to activate.`));
 }

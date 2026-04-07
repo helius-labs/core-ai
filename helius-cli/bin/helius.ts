@@ -854,7 +854,8 @@ program
 program
   .command("completions <shell>")
   .description("Output shell completion script (bash, zsh, or fish)")
-  .action(function(shell: string) { completionsCommand(shell, program); });
+  .option("--install", "Install completions to your shell config")
+  .action(function(this: any, shell: string) { completionsCommand(shell, program, this.opts()); });
 
 // ── Feedback ──
 
