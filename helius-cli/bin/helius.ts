@@ -54,6 +54,7 @@ import { wsAccountCommand, wsLogsCommand, wsSlotCommand, wsSignatureCommand, wsP
 import { simdListCommand, simdGetCommand } from "../src/commands/simd.js";
 import { owsLinkCommand, owsUnlinkCommand, owsStatusCommand } from "../src/commands/ows.js";
 import { updateCommand } from "../src/commands/update.js";
+import { completionsCommand } from "../src/commands/completions.js";
 import { VERSION } from "../src/constants.js";
 import { sendCommandEvent, sendCliFeedback, setCurrentCommand } from "../src/lib/feedback.js";
 
@@ -847,6 +848,13 @@ program
   .option("--check", "Check for updates without installing")
   .option("--json", "Output in JSON format")
   .action(function(this: any) { updateCommand(opts(this)); });
+
+// ── Completions ──
+
+program
+  .command("completions <shell>")
+  .description("Output shell completion script (bash, zsh, or fish)")
+  .action(function(shell: string) { completionsCommand(shell, program); });
 
 // ── Feedback ──
 
