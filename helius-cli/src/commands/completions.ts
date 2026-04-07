@@ -7,7 +7,6 @@ import type { Command } from "commander";
 interface CommandInfo {
   name: string;
   subcommands: string[];
-  options: string[];
 }
 
 /** Walk the Commander tree and collect command names, subcommands, and options. */
@@ -20,10 +19,9 @@ function collectCommands(program: Command): { topLevel: string[]; groups: Comman
     topLevel.push(name);
 
     const subs = cmd.commands.map((c: Command) => c.name());
-    const opts = cmd.options.map((o: { long?: string; short?: string }) => o.long || o.short || "").filter(Boolean);
 
     if (subs.length > 0) {
-      groups.push({ name, subcommands: subs, options: opts });
+      groups.push({ name, subcommands: subs });
     }
   }
 
@@ -188,7 +186,7 @@ export function completionsCommand(shell: string, program: Command, options: { i
 
   // For bash/zsh, append to rc file (skip if already installed)
   const existing = fs.existsSync(target) ? fs.readFileSync(target, "utf-8") : "";
-  if (existing.includes("_helius_completions") || existing.includes("_helius")) {
+  if (existing.includes("_helius_completions") || existing.includes("_helius()")) {
     console.log(chalk.yellow(`Completions already installed in ${target}`));
     console.log(chalk.gray("To reinstall, remove the existing helius completion block first."));
     return;
