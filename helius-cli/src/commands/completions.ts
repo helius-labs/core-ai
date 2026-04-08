@@ -9,6 +9,21 @@ interface CommandInfo {
   subcommands: string[];
 }
 
+interface GlobalOption {
+  long: string;
+  description: string;
+  hasArg: boolean;
+}
+
+/** Extract global options (--api-key, --network, etc.) from the program. */
+function collectGlobalOptions(program: Command): GlobalOption[] {
+  return program.options.map((o: { long?: string; short?: string; description?: string; flags?: string }) => ({
+    long: o.long || o.short || "",
+    description: (o.description || "").replace(/'/g, ""),
+    hasArg: !!o.flags && /</.test(o.flags),
+  })).filter((o) => o.long);
+}
+
 /** Walk the Commander tree and collect command names, subcommands, and options. */
 function collectCommands(program: Command): { topLevel: string[]; groups: CommandInfo[] } {
   const topLevel: string[] = [];
@@ -30,6 +45,8 @@ function collectCommands(program: Command): { topLevel: string[]; groups: Comman
 
 function generateBash(program: Command): string {
   const { topLevel, groups } = collectCommands(program);
+  const globalOpts = collectGlobalOptions(program);
+  const globalFlags = globalOpts.map((o) => o.long).join(" ");
 
   const cases = groups.map((g) =>
     `    ${g.name})\n      COMPREPLY=($(compgen -W "${g.subcommands.join(" ")}" -- "$cur"))\n      return\n      ;;`
@@ -45,7 +62,7 @@ _helius_completions() {
 
   # Complete flags
   if [[ "$cur" == -* ]]; then
-    COMPREPLY=($(compgen -W "--api-key --network --json --help --version" -- "$cur"))
+    COMPREPLY=($(compgen -W "${globalFlags}" -- "$cur"))
     return
   fi
 
@@ -67,6 +84,12 @@ complete -o default -F _helius_completions helius
 
 function generateZsh(program: Command): string {
   const { topLevel, groups } = collectCommands(program);
+  const globalOpts = collectGlobalOptions(program);
+
+  const zshFlags = globalOpts.map((o) => {
+    const argSpec = o.hasArg ? `:${o.description}:` : "";
+    return `    '${o.long}[${o.description}]${argSpec}'`;
+  }).join(" \\\n");
 
   const subcmdCases = groups.map((g) => {
     const items = g.subcommands.map((s) => `'${s}'`).join(" ");
@@ -82,11 +105,7 @@ _helius() {
   local curcontext="\$curcontext" state
 
   _arguments -C \\
-    '--api-key[Helius API key]:key:' \\
-    '--network[Network: mainnet or devnet]:net:(mainnet devnet)' \\
-    '--json[Output in JSON format]' \\
-    '--help[Show help]' \\
-    '--version[Show version]' \\
+${zshFlags} \\
     '1:command:->cmd' \\
     '*:subcommand:->subcmd'
 
