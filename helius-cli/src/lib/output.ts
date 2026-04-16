@@ -117,6 +117,49 @@ export function getExitCode(errorCode: string): ExitCodeType {
   return errorToExitCode[errorCode] || ExitCode.GENERAL_ERROR;
 }
 
+// Error categories for JSON output. Agents can branch on `category` without
+// needing to memorize the exit code range for a given errorCode.
+//
+// Note: the 50-59 range (SDK/data errors) spans multiple categories — e.g.
+// INVALID_API_KEY is "auth", INVALID_ADDRESS is "input", NETWORK_ERROR is
+// "network" — so category is derived per-errorCode, not per exit-code-range.
+export type ErrorCategory =
+  | "auth"
+  | "balance"
+  | "project"
+  | "api"
+  | "input"
+  | "network"
+  | "general";
+
+const categoryForErrorCode: Record<string, ErrorCategory> = {
+  NOT_LOGGED_IN: "auth",
+  KEYPAIR_NOT_FOUND: "auth",
+  AUTH_FAILED: "auth",
+  NO_API_KEY: "auth",
+  INVALID_API_KEY: "auth",
+  INSUFFICIENT_SOL: "balance",
+  INSUFFICIENT_USDC: "balance",
+  PAYMENT_FAILED: "balance",
+  NO_PROJECTS: "project",
+  PROJECT_NOT_FOUND: "project",
+  MULTIPLE_PROJECTS: "project",
+  PROJECT_EXISTS: "project",
+  API_ERROR: "api",
+  NO_API_KEYS: "api",
+  SDK_ERROR: "api",
+  NOT_FOUND: "api",
+  RATE_LIMITED: "api",
+  SERVER_ERROR: "api",
+  INVALID_ADDRESS: "input",
+  INVALID_INPUT: "input",
+  NETWORK_ERROR: "network",
+};
+
+export function getCategory(errorCode: string): ErrorCategory {
+  return categoryForErrorCode[errorCode] || "general";
+}
+
 // Classification result returned by classifyError()
 export interface ErrorClassification {
   exitCode: ExitCodeType;
@@ -275,7 +318,8 @@ export function handleCommandError(
   sendCommandEvent(cmdName, { exitCode, success: false });
 
   if (options.json) {
-    outputJson({ error: errorCode, message, retryable, ...(guidance ? { guidance } : {}) });
+    const category = getCategory(errorCode);
+    outputJson({ error: errorCode, message, category, retryable, ...(guidance ? { guidance } : {}) });
   } else {
     const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
     spinner?.fail(`${message}${hint}`);
@@ -323,7 +367,8 @@ export function exitWithError(
 
   if (json) {
     const retryable = RETRYABLE_CODES.has(exitCode);
-    outputJson({ error: errorCode, message, retryable, ...details });
+    const category = getCategory(errorCode);
+    outputJson({ error: errorCode, message, category, retryable, ...details });
   } else {
     console.error(chalk.red(message));
     const guidance = CLI_GUIDANCE[errorCode];

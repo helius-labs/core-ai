@@ -88,9 +88,11 @@ WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-r
 
 The `retryable` field in `--json` error output reflects this directly.
 
+JSON error output also includes a `category` field (`"auth" | "balance" | "project" | "api" | "input" | "network" | "general"`), derived per-errorCode via `getCategory()` in `src/lib/output.ts`. Categories don't map cleanly to exit code ranges — the 50-59 range spans `auth` (INVALID_API_KEY, NO_API_KEY), `input` (INVALID_ADDRESS, INVALID_INPUT), and `network` (NETWORK_ERROR). Both `handleCommandError()` and `exitWithError()` emit it.
+
 ## Error Classification
 
-`classifyError(error)` in `src/lib/output.ts` returns `{ exitCode, errorCode, retryable }` using three tiers:
+`classifyError(error)` in `src/lib/output.ts` returns `{ exitCode, errorCode, retryable }` using three tiers (the `category` string is derived separately via `getCategory(errorCode)` at output time):
 
 1. **`HeliusHttpError`** (from `restRequest()` — wallet.ts REST path): exact `status` property → precise code
 2. **Status in message** (enhanced TX: `"Helius HTTP 429: ..."`, webhooks: `"HTTP error! status: 429 - ..."`): regex extracts status → same mapping
