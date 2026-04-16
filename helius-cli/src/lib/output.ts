@@ -88,8 +88,33 @@ const RETRYABLE_CODES = new Set<ExitCodeType>([
   ExitCode.NETWORK_ERROR,
 ]);
 
+// Known error code strings. Used as the key type for errorToExitCode and
+// categoryForErrorCode so the compiler enforces matching coverage in both.
+export type ErrorCode =
+  | "NOT_LOGGED_IN"
+  | "KEYPAIR_NOT_FOUND"
+  | "AUTH_FAILED"
+  | "INSUFFICIENT_SOL"
+  | "INSUFFICIENT_USDC"
+  | "PAYMENT_FAILED"
+  | "NO_PROJECTS"
+  | "PROJECT_NOT_FOUND"
+  | "MULTIPLE_PROJECTS"
+  | "PROJECT_EXISTS"
+  | "API_ERROR"
+  | "NO_API_KEYS"
+  | "NO_API_KEY"
+  | "SDK_ERROR"
+  | "INVALID_ADDRESS"
+  | "INVALID_INPUT"
+  | "INVALID_API_KEY"
+  | "NOT_FOUND"
+  | "RATE_LIMITED"
+  | "SERVER_ERROR"
+  | "NETWORK_ERROR";
+
 // Map error code strings to exit codes
-const errorToExitCode: Record<string, ExitCodeType> = {
+const errorToExitCode: Record<ErrorCode, ExitCodeType> = {
   NOT_LOGGED_IN: ExitCode.NOT_LOGGED_IN,
   KEYPAIR_NOT_FOUND: ExitCode.KEYPAIR_NOT_FOUND,
   AUTH_FAILED: ExitCode.AUTH_FAILED,
@@ -114,7 +139,9 @@ const errorToExitCode: Record<string, ExitCodeType> = {
 };
 
 export function getExitCode(errorCode: string): ExitCodeType {
-  return errorToExitCode[errorCode] || ExitCode.GENERAL_ERROR;
+  // Cast to ErrorCode to index the tightly-typed map; runtime misses fall
+  // through to GENERAL_ERROR via `||`.
+  return errorToExitCode[errorCode as ErrorCode] || ExitCode.GENERAL_ERROR;
 }
 
 // Error categories for JSON output. Agents can branch on `category` without
@@ -132,7 +159,7 @@ export type ErrorCategory =
   | "network"
   | "general";
 
-const categoryForErrorCode: Record<string, ErrorCategory> = {
+const categoryForErrorCode: Record<ErrorCode, ErrorCategory> = {
   NOT_LOGGED_IN: "auth",
   KEYPAIR_NOT_FOUND: "auth",
   AUTH_FAILED: "auth",
@@ -157,7 +184,8 @@ const categoryForErrorCode: Record<string, ErrorCategory> = {
 };
 
 export function getCategory(errorCode: string): ErrorCategory {
-  return categoryForErrorCode[errorCode] || "general";
+  // Cast mirrors getExitCode; runtime misses fall through to "general".
+  return categoryForErrorCode[errorCode as ErrorCode] || "general";
 }
 
 // Classification result returned by classifyError()
@@ -368,7 +396,9 @@ export function exitWithError(
   if (json) {
     const retryable = RETRYABLE_CODES.has(exitCode);
     const category = getCategory(errorCode);
-    outputJson({ error: errorCode, message, category, retryable, ...details });
+    // Spread details first so canonical fields (error, message, category,
+    // retryable) can't be accidentally overridden by a caller.
+    outputJson({ ...details, error: errorCode, message, category, retryable });
   } else {
     console.error(chalk.red(message));
     const guidance = CLI_GUIDANCE[errorCode];
