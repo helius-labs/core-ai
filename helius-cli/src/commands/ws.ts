@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { jsonReplacer, classifyError, exitWithError, CLI_GUIDANCE, type OutputOptions } from "../lib/output.js";
+import { jsonReplacer, classifyError, exitWithError, getCategory, CLI_GUIDANCE, type OutputOptions } from "../lib/output.js";
 import { sendCommandEvent, getCurrentCommand } from "../lib/feedback.js";
 import { validateAddress, validateSignature } from "../lib/validation.js";
 
@@ -41,7 +41,7 @@ function handleWsError(error: unknown, options: WsOptions): void {
   sendCommandEvent(cmdName, { exitCode, success: false });
 
   if (options.json) {
-    emitEvent("error", { error: errorCode, message, retryable, ...(guidance ? { guidance } : {}) });
+    emitEvent("error", { error: errorCode, message, category: getCategory(errorCode), retryable, ...(guidance ? { guidance } : {}) });
   } else {
     const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
     console.error(chalk.red(`Error: ${message}${hint}`));
