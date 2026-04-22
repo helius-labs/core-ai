@@ -1699,14 +1699,15 @@ The fully autonomous signup flow, no browser needed:
 3. **User funds the wallet** by scanning the QR code or sending USDC manually
 4. **`agenticSignup`** — creates the account, processes USDC payment, returns API key + RPC endpoints + project ID
    - API key is automatically configured for the session and saved to shared config
-   - If the wallet already has an account, it detects and returns existing credentials (no double payment)
+   - If the wallet already has an account, the SDK routes through the upgrade flow for paid plans. When the existing plan matches the requested one, the CLI's pre-signup fast-path returns the existing API key without triggering a new purchase.
+
 **Parameters for `agenticSignup`:**
-- `plan`: `"basic"` (default, $1), `"developer"`, `"business"`, or `"professional"`
-- `period`: `"monthly"` (default) or `"yearly"` (paid plans only)
-- `email`, `firstName`, `lastName`: required for paid plans
+- `plan`: `"agent"` (default — $10 one-time, 1,000,000 starting credits), `"developer"`, `"business"`, or `"professional"`
+- `period`: `"monthly"` (default) or `"yearly"` — **ignored for the agent plan** (one-time purchase, no subscription interval)
+- `email`, `firstName`, `lastName`: required for all supported plans
 - `couponCode`: optional discount code
 
-Here, paid plans refers to `"developer"`, `"business"`, and `"professional"`
+Once on the agent plan, call `purchaseCredits` (or `helius credits buy --tier=10_USDC`) to add another 1,000,000 credits per 10 USDC, with sponsored SOL fees.
 
 ### Path C: Helius CLI
 
@@ -1716,8 +1717,11 @@ The `helius-cli` provides the same autonomous signup from the terminal:
 # Generate keypair (saved to ~/.helius-cli/keypair.json)
 helius keygen
 
-# Fund the wallet, then sign up (pays 1 USDC for basic plan)
-helius signup --json
+# Fund the wallet, then sign up (pays 10 USDC for agent plan by default)
+helius signup --email you@example.com --first-name Jane --last-name Doe --json
+
+# Buy more credits later (agent plan only, sponsored SOL fees)
+helius credits buy --tier=10_USDC --json
 
 # List projects and get API keys
 helius projects --json
@@ -1761,11 +1765,11 @@ const result = await helius.auth.agenticSignup({
 
 The agentic signup flow uses these plan tiers (all paid in USDC):
 
-| | Basic | Developer | Business | Professional |
+| | Agent | Developer | Business | Professional |
 |---|---|---|---|---|
-| **Price** | $1 USDC | $49/mo | $499/mo | $999/mo |
-| **Credits** | 1M | 10M | 100M | 200M |
-| **Extra credits** | N/A | $5/M | $5/M | $5/M |
+| **Price** | $10 USDC one-time | $49/mo | $499/mo | $999/mo |
+| **Credits** | 1M starting (buy more) | 10M | 100M | 200M |
+| **Extra credits** | $10/M via `helius credits buy` | $5/M | $5/M | $5/M |
 | **RPC RPS** | 10 | 50 | 200 | 500 |
 | **sendTransaction** | 1/s | 5/s | 50/s | 100/s |
 | **DAS** | 2/s | 10/s | 50/s | 100/s |
@@ -1774,7 +1778,13 @@ The agentic signup flow uses these plan tiers (all paid in USDC):
 | **LaserStream** | No | Devnet | Devnet | Full (mainnet + devnet) |
 | **Support** | Discord | Chat (24hr) | Priority (12hr) | Slack + Telegram (8hr) |
 
-The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but agentic signup charges $1 USDC to create the account on-chain.
+The `agent` plan is the default for CLI/MCP signups: $10 USDC one-time gets
+a project with 1,000,000 starting credits and a working API key
+immediately. When the starting credits run out, `helius credits buy
+--tier=10_USDC` (or the `purchaseCredits` MCP tool) adds another 1,000,000
+credits per 10 USDC, with sponsored SOL fees. Existing-user upgrades to
+agent plan are supported but require SOL in the wallet for fees —
+sponsored mode is signup-only.
 
 ### Credit Costs
 
@@ -1788,8 +1798,8 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 
 | Feature | Minimum Plan |
 |---|---|
-| Standard RPC, DAS, Webhooks, Sender | Basic |
-| Standard WebSockets | Basic |
+| Standard RPC, DAS, Webhooks, Sender | Agent |
+| Standard WebSockets | Agent |
 | Enhanced WebSockets | Business |
 | LaserStream (devnet) | Developer |
 | LaserStream (mainnet) | Professional |

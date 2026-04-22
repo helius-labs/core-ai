@@ -51,10 +51,10 @@ This creates a new Solana keypair and saves it to `~/.helius/keypair.json`. The 
 
 Before creating an account, send the following to the public key from step 1:
 
-- **1 USDC** (used as payment for the basic plan)
-- **A small amount of SOL** to cover transaction fees (~0.01 SOL is sufficient)
+- **10 USDC** (used as payment for the default `agent` plan — a one-time purchase that ships with 1,000,000 starting credits)
+- **No SOL needed** — Helius sponsors transaction fees for new signups
 
-You can use any wallet or exchange to send funds. The CLI will not proceed until the keypair has the required balance.
+You can use any wallet or exchange to send USDC. The CLI will not proceed until the keypair has the required USDC balance. When your starting credits run out, run `helius credits buy --tier=10_USDC` to add 1,000,000 more — sponsored SOL fees too.
 
 **Step 3 — Create your Helius account**
 

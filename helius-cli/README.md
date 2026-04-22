@@ -29,18 +29,21 @@ Get your key from [dashboard.helius.dev](https://dashboard.helius.dev).
 helius keygen
 
 # 2. Fund the wallet address shown above:
-#    - 1 USDC for the basic plan ($1 one-time)
+#    - 10 USDC for the default agent plan ($10 one-time, 1,000,000 starting credits)
 #    (SOL fees are automatically sponsored by Helius)
 
-# 3. Create account
-helius signup
+# 3. Create account (contact info is required for all supported plans)
+helius signup --email you@example.com --first-name Jane --last-name Doe
 
 # 4. Start querying
 helius balance <wallet-address>
 helius tx parse <signature>
+
+# 5. Top up credits later (agent-plan only, 10 USDC → 1,000,000 more credits, sponsored SOL fees)
+helius credits buy --tier=10_USDC
 ```
 
-Paid plans: add `--plan developer` ($49/mo), `--plan business` ($499/mo), or `--plan professional` ($999/mo) to `helius signup`, with `--email`, `--first-name`, `--last-name` required.
+Subscription plans: add `--plan developer` ($49/mo), `--plan business` ($499/mo), or `--plan professional` ($999/mo) to `helius signup`.
 
 ## Configuration
 
@@ -73,7 +76,8 @@ helius config clear               # Reset config
 | Command | Description |
 |---|---|
 | `helius keygen` | Generate a new Solana keypair |
-| `helius signup` | Create a Helius account (default: basic $1; use `--plan` for paid) |
+| `helius signup` | Create a Helius account (default: agent $10 one-time, 1M starting credits; use `--plan` for subscription plans) |
+| `helius credits buy --tier=10_USDC` | Buy 1,000,000 more credits for an agent-plan project (sponsored SOL fees) |
 | `helius login` | Authenticate with an existing wallet |
 | `helius upgrade --plan <name>` | Upgrade to a paid plan |
 | `helius pay <payment-intent-id>` | Pay a renewal or pending payment intent |
