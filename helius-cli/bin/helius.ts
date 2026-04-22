@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { signupCommand } from "../src/commands/signup.js";
+import { creditsBuyCommand } from "../src/commands/credits.js";
 import { upgradeCommand } from "../src/commands/upgrade.js";
 import { payCommand } from "../src/commands/pay.js";
 import { loginCommand } from "../src/commands/login.js";
@@ -90,20 +91,38 @@ program
 
 program
   .command("signup")
-  .description("Create a Helius account (default: $1 basic plan, or specify a paid plan)")
+  .description("Create a Helius account (default: agent plan, $10 one-time, 1M starting credits)")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
-  .option("--plan <plan>", "Plan: basic ($1), developer ($49/mo), business ($499/mo), professional ($999/mo)")
-  .option("--period <period>", "Billing period: monthly or yearly (paid plans only)", "monthly")
-  .option("--coupon <code>", "Coupon code (paid plans only)")
-  .option("--email <email>", "Email address (required for paid plans)")
-  .option("--first-name <name>", "First name (required for paid plans)")
-  .option("--last-name <name>", "Last name (required for paid plans)")
+  .option("--plan <plan>", "Plan: agent ($10 one-time, 1M credits), developer ($49/mo), business ($499/mo), professional ($999/mo)")
+  .option("--period <period>", "Billing period: monthly or yearly (ignored for agent, one-time purchase)", "monthly")
+  .option("--coupon <code>", "Coupon code")
+  .option("--email <email>", "Email address (required for all supported plans)")
+  .option("--first-name <name>", "First name (required for all supported plans)")
+  .option("--last-name <name>", "Last name (required for all supported plans)")
   .option("--discovery-path <text>", "How did you discover Helius?")
   .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
   .option("--wait", "Poll for funds if balance is insufficient, then continue signup automatically")
   .option("--no-qr", "Suppress QR code display")
   .option("--json", "Output in JSON format")
   .action(function(this: any) { signupCommand(opts(this)); });
+
+// ── Prepaid credits (agent-plan top-up) ──
+
+const creditsCmd = program
+  .command("credits")
+  .description("Manage prepaid credits for your agent-plan project");
+
+creditsCmd
+  .command("buy")
+  .description("Buy additional prepaid credits (agent-plan only). 10 USDC → 1,000,000 credits per unit. Sponsored SOL fees.")
+  .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
+  .option("--tier <tier>", "Credit tier — currently only 10_USDC is supported", "10_USDC")
+  .option("--qty <n>", "Quantity multiplier (default 1, max 100)", "1")
+  .option("--project <id>", "Project ID to credit (defaults to the wallet's first project)")
+  .option("--wait", "Poll for USDC if insufficient, then continue purchase automatically")
+  .option("--no-qr", "Suppress QR code display when funding is needed")
+  .option("--json", "Output in JSON format")
+  .action(function(this: any) { creditsBuyCommand(opts(this)); });
 
 program
   .command("upgrade")
