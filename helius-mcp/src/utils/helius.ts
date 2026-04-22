@@ -9,6 +9,12 @@ let heliusClient: HeliusClient | null = null;
 // Session keypair storage for auth flow
 let sessionSecretKey: Uint8Array | null = null;
 let sessionWalletAddress: string | null = null;
+// Session-scoped pre-authenticated context. Populated by `checkSignupBalance`
+// when it authenticates to fetch a pricing quote, so `agenticSignup` can
+// forward the same (jwt, refId) pair to the SDK and skip a second
+// /wallet-signup round trip (one user signature per signup, not two).
+let sessionSignupJwt: string | null = null;
+let sessionSignupRefId: string | null = null;
 
 export function setSessionSecretKey(key: Uint8Array): void {
   sessionSecretKey = key;
@@ -24,6 +30,21 @@ export function setSessionWalletAddress(address: string): void {
 
 export function getSessionWalletAddress(): string | null {
   return sessionWalletAddress;
+}
+
+export function setSessionSignupAuth(jwt: string, refId: string): void {
+  sessionSignupJwt = jwt;
+  sessionSignupRefId = refId;
+}
+
+export function getSessionSignupAuth(): { jwt: string; refId: string } | null {
+  if (!sessionSignupJwt || !sessionSignupRefId) return null;
+  return { jwt: sessionSignupJwt, refId: sessionSignupRefId };
+}
+
+export function clearSessionSignupAuth(): void {
+  sessionSignupJwt = null;
+  sessionSignupRefId = null;
 }
 
 export function setApiKey(apiKey: string): void {

@@ -3,14 +3,16 @@ import { PLAN_CATALOG } from "../lib/checkout.js";
 import { outputJson, type OutputOptions } from "../lib/output.js";
 
 export function plansCommand(options: OutputOptions = {}): void {
-  // The "basic" plan in signup is the Agent tier ($1 one-time signup fee)
+  // `agent` is a one-time $10 USDC purchase that ships with 1,000,000
+  // starting credits. It lives outside PLAN_CATALOG because it has no
+  // monthly/yearly subscription pricing.
   const plans = [
     {
-      key: "basic",
+      key: "agent",
       name: "Agent",
       monthlyPrice: 0,
       yearlyPrice: 0,
-      signupFee: 1,
+      signupFee: 10,
       credits: 1_000_000,
       requestsPerSecond: 10,
     },

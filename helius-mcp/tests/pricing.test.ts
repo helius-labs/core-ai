@@ -12,16 +12,31 @@ describe('computeExactUsdc', () => {
     expect(computeExactUsdc('')).toBeUndefined();
   });
 
-  // ─── Basic plan ($1) ───
+  // ─── Agent plan ($10 one-time, 1M starting credits) ───
 
-  it('returns $1 for basic plan', () => {
-    const result = computeExactUsdc('basic');
-    expect(result).toEqual({ usdcAmount: 1, label: 'basic plan ($1)' });
+  it('returns $10 for agent plan (period irrelevant)', () => {
+    const result = computeExactUsdc('agent');
+    expect(result).toEqual({ usdcAmount: 10, label: 'agent plan ($10)' });
   });
 
-  it('returns $1 for basic plan (case insensitive)', () => {
-    const result = computeExactUsdc('Basic');
-    expect(result).toEqual({ usdcAmount: 1, label: 'basic plan ($1)' });
+  it('returns $10 for agent plan (case insensitive)', () => {
+    const result = computeExactUsdc('Agent');
+    expect(result).toEqual({ usdcAmount: 10, label: 'agent plan ($10)' });
+  });
+
+  it('ignores period for agent plan', () => {
+    expect(computeExactUsdc('agent', 'monthly')).toEqual({
+      usdcAmount: 10,
+      label: 'agent plan ($10)',
+    });
+    expect(computeExactUsdc('agent', 'yearly')).toEqual({
+      usdcAmount: 10,
+      label: 'agent plan ($10)',
+    });
+  });
+
+  it('returns undefined for basic plan (removed from supported set)', () => {
+    expect(computeExactUsdc('basic')).toBeUndefined();
   });
 
   // ─── Developer plan ───

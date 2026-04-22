@@ -314,8 +314,11 @@ function computeToolEligibility(planKey: string): ToolEligibilityEntry[] {
         // Tool is available at free tier AND at this gated tier — show available
         results.push({ tool, status: 'AVAILABLE', requires: planDisplay });
       } else if (inFreeToo && !available) {
-        // Tool works at free tier but the enhanced version needs upgrade
-        results.push({ tool, status: `AVAILABLE (basic) / UPGRADE REQUIRED (${p.productName})`, requires: planDisplay });
+        // Tool works at the free tier but the enhanced version needs upgrade.
+        // Label the free-tier availability as "free" (matches HELIUS_PLANS key),
+        // not "basic" — basic was removed from the signup plan set and the
+        // label was misleading readers into thinking it still exists.
+        results.push({ tool, status: `AVAILABLE (free) / UPGRADE REQUIRED (${p.productName})`, requires: planDisplay });
       } else {
         results.push({ tool, status: available ? 'AVAILABLE' : 'UPGRADE REQUIRED', requires: planDisplay });
       }

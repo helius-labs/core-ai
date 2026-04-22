@@ -6,6 +6,7 @@ import { getAddress } from 'helius-sdk/auth/getAddress';
 import { checkUsdcBalance } from 'helius-sdk/auth/checkBalances';
 import { agenticSignup } from 'helius-sdk/auth/agenticSignup';
 import { getCheckoutPreview, executeCheckout, executeRenewal } from 'helius-sdk/auth/checkout';
+import { purchaseCredits } from 'helius-sdk/auth/purchaseCredits';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { PLAN_CATALOG } from 'helius-sdk/auth/planCatalog';
@@ -20,6 +21,9 @@ import {
   getSessionSecretKey,
   setSessionWalletAddress,
   getSessionWalletAddress,
+  setSessionSignupAuth,
+  getSessionSignupAuth,
+  clearSessionSignupAuth,
   loadSignerOrFail,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
@@ -136,10 +140,10 @@ export function registerAuthTools(server: McpServer) {
         '### Step 2: Check balance & fund the wallet',
         'Call `checkSignupBalance` with the desired `plan` (and optionally `period`). It will:',
         '- Tell you the exact USDC amount needed (SOL fees are sponsored by Helius)',
-        '- Show a **scannable QR code** encoding the exact USDC payment — the user just scans to pay',
+        '- Show a **scannable wallet-funding QR** encoding the exact USDC amount. The user scans with their mobile wallet to send USDC to the CLI-owned signup wallet; the CLI then completes sponsored checkout programmatically.',
         '',
         'Plan pricing:',
-        '- basic: $1 USDC (one-time)',
+        '- agent: $10 USDC one-time, includes 1,000,000 starting credits (default for CLI/MCP signups; buy more with `purchaseCredits`)',
         ...PAID_PLAN_ORDER.filter(k => k in PLAN_CATALOG).map(k => `- ${k}: $${PLAN_CATALOG[k].monthlyPrice / 100}/mo ($${PLAN_CATALOG[k].yearlyPrice / 100}/yr)`),
         '',
         'SOL transaction fees are **automatically sponsored by Helius** — only USDC is needed.',
@@ -151,7 +155,7 @@ export function registerAuthTools(server: McpServer) {
         'Call `agenticSignup` to process the payment and create your Helius account.',
         'Your API key will be configured automatically — no extra steps needed.',
         '',
-        '> **Paid plans only:** `agenticSignup` requires `email`, `firstName`, and `lastName` for developer/business/professional plans. Basic plan ($1) does not require them.',
+        '> `agenticSignup` requires `email`, `firstName`, and `lastName` for all supported plans (developer/business/professional/agent).',
         '',
         '---',
         '',
@@ -225,10 +229,10 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'checkSignupBalance',
-    'Check if the signup wallet has sufficient USDC balance for signup. SOL transaction fees are automatically sponsored by Helius — only USDC is required. Pass plan/period for exact USDC checking; defaults to basic plan ($1 USDC) when omitted.',
+    'Check if the signup wallet has sufficient USDC balance for signup. SOL transaction fees are automatically sponsored by Helius — only USDC is required. Pass plan/period for exact USDC checking; defaults to the agent plan ($10 USDC one-time, includes 1,000,000 starting credits) when omitted.',
     {
-      plan: z.string().optional().describe('Plan: "basic" ($1, default), "developer", "business", or "professional"'),
-      period: z.enum(["monthly", "yearly"]).optional().describe('Billing period (default: monthly). Only used with paid plans.'),
+      plan: z.string().optional().describe('Plan: "agent" ($10 one-time, 1M starting credits, default), "developer", "business", or "professional"'),
+      period: z.enum(["monthly", "yearly"]).optional().describe('Billing period (default: monthly). Ignored for the agent plan (one-time purchase).'),
       couponCode: z.string().optional().describe('Coupon code — applied to get exact discounted pricing from the backend'),
     },
     async ({ plan, period, couponCode }) => {
@@ -266,7 +270,11 @@ export function registerAuthTools(server: McpServer) {
 
           const { message, signature } = await signAuthMessage(secretKey);
           const auth = await walletSignup(message, signature, address, MCP_USER_AGENT);
-          const quotePlan = plan?.toLowerCase() || 'basic';
+          // Cache (jwt, refId) so the subsequent agenticSignup call can reuse
+          // this session and skip a second /wallet-signup round trip.
+          setSessionSignupAuth(auth.token, auth.refId);
+
+          const quotePlan = plan?.toLowerCase() || 'agent';
           const quotePeriod: 'monthly' | 'yearly' = period?.toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
           const quote = await getSignupQuote(auth.token, {
             plan: quotePlan,
@@ -280,8 +288,8 @@ export function registerAuthTools(server: McpServer) {
         } catch {
           // Fall back to local pricing if auth/quote fails (network error, etc.)
           const pricing = computeExactUsdc(plan, period);
-          requiredUsdcAmount = pricing?.usdcAmount ?? 1;
-          planLabel = pricing?.label ?? 'basic plan ($1)';
+          requiredUsdcAmount = pricing?.usdcAmount ?? 10;
+          planLabel = pricing?.label ?? 'agent plan ($10)';
         }
 
         const requiredUsdcRaw = BigInt(Math.round(requiredUsdcAmount * 1_000_000));
@@ -349,14 +357,14 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'agenticSignup',
-    'Create a Helius account using the generated keypair. Default: basic plan ($1 USDC). For paid plans (developer/business/professional), email, firstName, and lastName are required. On success, automatically configures the API key for this session. SOL transaction fees are automatically sponsored by Helius — only USDC is needed.',
+    'Create a Helius account using the generated keypair. Default: agent plan ($10 USDC one-time, includes 1,000,000 starting credits). Contact info (email, firstName, lastName) is required for all supported plans. On success, automatically configures the API key for this session. SOL transaction fees are automatically sponsored by Helius — only USDC is needed.',
     {
-      plan: z.string().optional().describe('Plan to sign up for: "basic" ($1, default), "developer", "business", or "professional"'),
-      period: z.enum(["monthly", "yearly"]).optional().describe('Billing period for paid plans (default: monthly)'),
-      email: z.string().email().optional().describe('Email address (required for paid plans)'),
-      firstName: z.string().optional().describe('First name (required for paid plans)'),
-      lastName: z.string().optional().describe('Last name (required for paid plans)'),
-      couponCode: z.string().optional().describe('Coupon code for paid plans'),
+      plan: z.string().optional().describe('Plan to sign up for: "agent" ($10 one-time, 1M credits, default), "developer", "business", or "professional"'),
+      period: z.enum(["monthly", "yearly"]).optional().describe('Billing period (default: monthly). Ignored for the agent plan (one-time purchase).'),
+      email: z.string().email().optional().describe('Email address (required for all supported plans)'),
+      firstName: z.string().optional().describe('First name (required for all supported plans)'),
+      lastName: z.string().optional().describe('Last name (required for all supported plans)'),
+      couponCode: z.string().optional().describe('Optional coupon code'),
       discoveryPath: z.string().optional().describe('How did you discover Helius? Helps us improve agent onboarding'),
       frictionPoints: z.string().optional().describe('What friction did you hit finding or setting up Helius? Free-form feedback'),
     },
@@ -379,6 +387,13 @@ export function registerAuthTools(server: McpServer) {
           );
         }
 
+        // Reuse the (jwt, refId) pair captured by `checkSignupBalance` when
+        // it authenticated to fetch a pricing quote. Skips a second
+        // /wallet-signup round trip so the user only signs the auth message
+        // once per signup flow. If no cached auth exists, the SDK will
+        // authenticate internally.
+        const cachedAuth = getSessionSignupAuth();
+
         const result = await agenticSignup({
           secretKey: signerData.secretKey,
           userAgent: MCP_USER_AGENT,
@@ -388,7 +403,11 @@ export function registerAuthTools(server: McpServer) {
           firstName,
           lastName,
           couponCode,
+          ...(cachedAuth && { jwt: cachedAuth.jwt, refId: cachedAuth.refId }),
         });
+
+        // Clear the cached signup auth — it's single-use by design.
+        clearSessionSignupAuth();
 
         // Configure API key for this session and persist to shared config
         if (result.apiKey) {
@@ -405,28 +424,21 @@ export function registerAuthTools(server: McpServer) {
           ? `\nAPI key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`. All Helius tools are now ready to use.`
           : '';
 
-        if (result.status === 'existing_project') {
-          return mcpText(
-            `**Helius Account Found**\n\n` +
-            `You already have a Helius account. No payment was needed.\n\n` +
-            `- **Wallet:** \`${result.walletAddress}\`\n` +
-            `- **Project ID:** \`${result.projectId}\`\n` +
-            (result.apiKey ? `- **API Key:** \`${result.apiKey}\`\n` : '') +
-            (result.endpoints ? `- **Mainnet RPC:** \`${result.endpoints.mainnet}\`\n` : '') +
-            (result.endpoints ? `- **Devnet RPC:** \`${result.endpoints.devnet}\`\n` : '') +
-            (result.credits !== null ? `- **Credits:** ${result.credits.toLocaleString()}\n` : '') +
-            saveNote
-          );
-        }
+        // The plan the user ended up on; agent-plan shows a credits next-step hint.
+        const resolvedPlan = (plan || 'agent').toLowerCase();
+        const agentCreditsNote = resolvedPlan === 'agent'
+          ? '\nYour agent plan includes 1,000,000 starting credits. Call `purchaseCredits` when you need more.'
+          : '';
 
         if (result.status === 'upgraded') {
           return mcpText(
-            `**Plan Upgraded to ${plan || 'paid plan'}**\n\n` +
+            `**Plan Upgraded to ${plan || 'agent plan'}**\n\n` +
             `- **Wallet:** \`${result.walletAddress}\`\n` +
             `- **Project ID:** \`${result.projectId}\`\n` +
             (result.apiKey ? `- **API Key:** \`${result.apiKey}\`\n` : '') +
             (result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '') +
-            saveNote
+            saveNote +
+            agentCreditsNote
           );
         }
 
@@ -439,7 +451,8 @@ export function registerAuthTools(server: McpServer) {
           (result.endpoints ? `- **Devnet RPC:** \`${result.endpoints.devnet}\`\n` : '') +
           (result.credits !== null ? `- **Credits:** ${result.credits.toLocaleString()}\n` : '') +
           (result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '') +
-          saveNote
+          saveNote +
+          agentCreditsNote
         );
       } catch (err) {
         return handleToolError(err, 'Error during signup');
@@ -737,6 +750,112 @@ export function registerAuthTools(server: McpServer) {
         return handleToolError(err, 'Error fetching account status');
       }
     }
+  );
+
+  server.tool(
+    'purchaseCredits',
+    'Buy additional prepaid credits for your agent-plan project. Agent-plan only. 10 USDC → 1,000,000 credits per qty unit. SOL fees are sponsored by Helius; only USDC is required. The SDK pre-flights the target project\'s plan and rejects non-agent projects before calling the checkout endpoint.',
+    {
+      tier: z
+        .enum(['10_USDC'])
+        .default('10_USDC')
+        .describe('Credit tier — currently only 10_USDC is advertised (10 USDC → 1M credits per unit).'),
+      qty: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Quantity multiplier (default 1). Credits added = qty × 1,000,000.'),
+      projectId: z
+        .string()
+        .optional()
+        .describe('Target project ID (defaults to the first project on the wallet).'),
+      couponCode: z.string().optional().describe('Optional coupon code.'),
+    },
+    async ({ tier, qty, projectId, couponCode }) => {
+      try {
+        let signerData: { secretKey: Uint8Array; walletAddress: string };
+        try {
+          signerData = await loadSignerOrFail();
+        } catch {
+          return mcpError(
+            'No keypair found. Call `generateKeypair` first.',
+            {
+              type: 'AUTH',
+              code: 'NO_KEYPAIR',
+              retryable: false,
+              recovery: 'Call `generateKeypair` to create a wallet.',
+            },
+          );
+        }
+
+        const jwt = getJwt();
+        if (!jwt) {
+          return mcpError(
+            'Not authenticated. Call `agenticSignup` to sign up for the agent plan first.',
+            {
+              type: 'AUTH',
+              code: 'NOT_AUTHENTICATED',
+              retryable: false,
+              recovery: 'Call `agenticSignup` to authenticate.',
+            },
+          );
+        }
+
+        // Resolve projectId — fall back to the first project on the wallet.
+        let targetProjectId = projectId;
+        if (!targetProjectId) {
+          const projects = await listProjects(jwt, MCP_USER_AGENT);
+          if (projects.length === 0) {
+            return mcpError(
+              'No project found. Call `agenticSignup --plan=agent` first.',
+              {
+                type: 'AUTH',
+                code: 'NO_PROJECT',
+                retryable: false,
+                recovery: 'Call `agenticSignup` with plan=agent first.',
+              },
+            );
+          }
+          targetProjectId = projects[0].id;
+        }
+
+        const result = await purchaseCredits(
+          signerData.secretKey,
+          jwt,
+          { tier, qty, projectId: targetProjectId, couponCode },
+          MCP_USER_AGENT,
+        );
+
+        if (result.status !== 'completed') {
+          return mcpError(
+            `**Purchase ${result.status}**\n\n` +
+              (result.error ? `Error: ${result.error}\n` : '') +
+              (result.txSignature ? `TX: \`${result.txSignature}\`\n` : '') +
+              `\nIf you need help, contact support with payment intent ID: \`${result.paymentIntentId}\``,
+            {
+              type: 'API',
+              code: 'OPERATION_FAILED',
+              retryable: false,
+              recovery: `Purchase ${result.status}. Contact support with payment intent ID: ${result.paymentIntentId}`,
+            },
+          );
+        }
+
+        const creditsAdded = (qty ?? 1) * 1_000_000;
+        return mcpText(
+          `**Credits Purchased**\n\n` +
+            `- **Added:** ${creditsAdded.toLocaleString()} credits\n` +
+            `- **Project:** \`${targetProjectId}\`\n` +
+            `- **Amount:** $${(result.amountCents / 100).toFixed(2)}\n` +
+            (result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '') +
+            `\nCall \`getAccountStatus\` to confirm the new credit balance.`,
+        );
+      } catch (err) {
+        return handleToolError(err, 'Error purchasing credits');
+      }
+    },
   );
 
   server.tool(

@@ -95,6 +95,21 @@ export { payWithMemo } from "helius-sdk/auth/payWithMemo";
 export { payPaymentIntent } from "helius-sdk/auth/checkout";
 export { PLAN_CATALOG } from "helius-sdk/auth/planCatalog";
 
+/**
+ * Local mapping of advertised credits tier → USDC amount per unit. The
+ * authoritative amount is the backend priceId in
+ * `stripe.prepaidCreditsPlans`; this is a fast hint for pre-funding QR
+ * rendering before `purchaseCredits` is called.
+ */
+const CREDITS_TIER_USDC: Record<string, number> = {
+  "10_usdc": 10,
+};
+
+export function computeTierUsdc(tier: string): number {
+  const normalized = tier.toLowerCase();
+  return CREDITS_TIER_USDC[normalized] ?? 10;
+}
+
 export type {
   CheckoutInitializeRequest,
   CheckoutInitializeResponse,

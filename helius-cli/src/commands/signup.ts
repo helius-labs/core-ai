@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
-import { agenticSignup, listProjects } from "../lib/api.js";
+import { agenticSignup, listProjects, getProject } from "../lib/api.js";
 import { setJwt, setApiKey, setSharedApiKey, setProjectId, getSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
 import { printSolanaPayQR, buildSolanaPayUri } from "../lib/qr.js";
@@ -104,7 +104,10 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet loaded: ${walletAddress}`);
 
-    // Early wallet auth to get JWT + refId for exact pricing
+    // Early wallet auth to get JWT + refId for exact pricing. The same
+    // (jwt, refId) pair is forwarded into agenticSignup below so the SDK
+    // skips its internal re-authentication — one /wallet-signup round trip
+    // per signup instead of two.
     spinner?.start("Authenticating...");
     const { message, signature } = await signAuthMessage(keypair.secretKey);
     const auth = await walletSignup(message, signature, walletAddress, CLI_USER_AGENT);
@@ -112,37 +115,92 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const refId = auth.refId;
     spinner?.succeed("Authenticated");
 
-    // Get exact pricing from backend (or hardcoded for basic)
-    const plan = options.plan?.toLowerCase() || "basic";
+    // Recovery fast-path: returning users with existing project(s) and no
+    // explicit plan should land on their existing API key instead of being
+    // asked to pay for a fresh agent-plan signup. Only short-circuits when
+    // no plan was specified — if the user explicitly passed --plan=<X>
+    // they're asking to upgrade, so fall through to agenticSignup.
+    if (!options.plan) {
+      const existing = await listProjects(jwt);
+      if (existing.length > 0) {
+        const project = existing[0];
+        const projectDetails = await getProject(jwt, project.id);
+        const apiKey = projectDetails.apiKeys?.[0]?.keyId || null;
+        const hadLocalApiKey = !!getSharedApiKey();
+        const isRecovery = !hadLocalApiKey;
+
+        if (apiKey) {
+          setJwt(jwt);
+          setApiKey(apiKey);
+          setSharedApiKey(apiKey);
+          setProjectId(project.id);
+        }
+
+        if (options.json) {
+          outputJson({
+            status: isRecovery ? "RECOVERED" : "EXISTING_PROJECT",
+            wallet: walletAddress,
+            projectId: project.id,
+            apiKey,
+            configPath: apiKey ? SHARED_CONFIG_PATH : null,
+            endpoints: apiKey
+              ? {
+                  mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
+                  devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
+                }
+              : null,
+            credits: projectDetails.creditsUsage?.remainingCredits ?? null,
+            projects: existing.map((p) => ({ id: p.id, name: p.name })),
+          });
+          return;
+        }
+
+        if (isRecovery) {
+          console.log(chalk.green("Resuming previous signup — your account was already created."));
+        } else {
+          console.log(chalk.yellow("You already have project(s):"));
+        }
+        for (const p of existing) {
+          console.log(`  ${chalk.cyan(p.id)} - ${p.name}`);
+          if (p.subscription) {
+            console.log(`    Plan: ${formatEnumLabel(p.subscription.plan)}`);
+          }
+        }
+        if (apiKey) {
+          console.log(`\nAPI Key: ${chalk.cyan(apiKey)}`);
+          console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+          console.log(chalk.bold("\nRPC Endpoints:"));
+          console.log(`  Mainnet: ${chalk.blue(`https://mainnet.helius-rpc.com/?api-key=${apiKey}`)}`);
+          console.log(`  Devnet:  ${chalk.blue(`https://devnet.helius-rpc.com/?api-key=${apiKey}`)}`);
+        }
+        if (!isRecovery) {
+          console.log(chalk.gray("\nPass --plan=<plan> to upgrade, or use `helius projects` to view details."));
+        }
+        return;
+      }
+    }
+
+    // Default plan is `agent` (10 USDC one-time, ships with 1,000,000
+    // starting credits). `basic` is no longer supported by the SDK — the
+    // validator above rejects it before we get here.
+    const plan = options.plan?.toLowerCase() || "agent";
     const period = (options.period?.toLowerCase() as "monthly" | "yearly") || "monthly";
 
-    let requiredUsdcAmount: number;
-    let requiredUsdcRaw: bigint;
-    let requiredUsdcLabel: string;
-
-    if (plan === "basic") {
-      // Basic plan: fixed $1 USDC, doesn't go through checkout pricing
-      requiredUsdcAmount = 1;
-      requiredUsdcRaw = 1_000_000n; // 1 USDC in 6-decimal raw
-      requiredUsdcLabel = "1 USDC";
-      spinner?.succeed("Basic plan: $1.00");
-    } else {
-      spinner?.start("Getting pricing...");
-      const quote = await getSignupQuote(jwt, {
-        plan,
-        period,
-        refId,
-        couponCode: options.coupon,
-      });
-      requiredUsdcAmount = quote.dueTodayCents / 100;
-      requiredUsdcRaw = BigInt(quote.dueTodayCents) * 10_000n; // cents → 6-decimal raw
-      requiredUsdcLabel = `${requiredUsdcAmount} USDC`;
-      spinner?.succeed(
-        quote.discountCents > 0
-          ? `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)} (was $${(quote.baseAmountCents / 100).toFixed(2)})`
-          : `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)}`
-      );
-    }
+    spinner?.start("Getting pricing...");
+    const quote = await getSignupQuote(jwt, {
+      plan,
+      period,
+      refId,
+      couponCode: options.coupon,
+    });
+    const requiredUsdcAmount = quote.dueTodayCents / 100;
+    const requiredUsdcRaw = BigInt(quote.dueTodayCents) * 10_000n; // cents → 6-decimal raw
+    const requiredUsdcLabel = `${requiredUsdcAmount} USDC`;
+    spinner?.succeed(
+      quote.discountCents > 0
+        ? `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)} (was $${(quote.baseAmountCents / 100).toFixed(2)})`
+        : `${quote.plan} plan: $${(quote.dueTodayCents / 100).toFixed(2)}`
+    );
 
     // Check USDC balance (SOL fees sponsored by Helius)
     spinner?.start("Checking wallet balance...");
@@ -192,18 +250,22 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     // Snapshot local config state before signup — used to detect recovery vs. duplicate
     const hadLocalApiKey = !!getSharedApiKey();
 
-    // Run agenticSignup (handles all plan paths including checkout)
-    const planLabel = options.plan || "basic";
+    // Run agenticSignup (handles all plan paths including checkout).
+    // We forward `jwt` + `refId` so the SDK reuses the session from our
+    // earlier walletSignup call instead of re-authenticating (dedup).
+    const planLabel = options.plan || "agent";
     spinner?.start(`Signing up (${planLabel} plan)...`);
 
     const result = await agenticSignup({
       secretKey: keypair.secretKey,
-      plan: options.plan,
+      plan,
       period: period === "monthly" ? undefined : period,
       couponCode: options.coupon,
       email: options.email,
       firstName: options.firstName,
       lastName: options.lastName,
+      jwt,
+      refId,
     });
 
     spinner?.succeed("Signup complete");
@@ -227,50 +289,10 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       setProjectId(result.projectId);
     }
 
-    // Handle result statuses
-    if (result.status === "existing_project") {
-      const isRecovery = !hadLocalApiKey;
-      const allProjects = await listProjects(result.jwt);
-
-      if (options.json) {
-        outputJson({
-          status: isRecovery ? "RECOVERED" : "EXISTING_PROJECT",
-          wallet: result.walletAddress,
-          projectId: result.projectId,
-          apiKey: result.apiKey,
-          configPath: result.apiKey ? SHARED_CONFIG_PATH : null,
-          endpoints: result.endpoints,
-          credits: result.credits,
-          projects: allProjects.map((p) => ({ id: p.id, name: p.name })),
-        });
-        return;
-      }
-
-      if (isRecovery) {
-        console.log("\n" + chalk.green("Resuming previous signup — your account was already created."));
-      } else {
-        console.log("\n" + chalk.yellow("You already have project(s):"));
-      }
-      for (const p of allProjects) {
-        console.log(`  ${chalk.cyan(p.id)} - ${p.name}`);
-        if (p.subscription) {
-          console.log(`    Plan: ${formatEnumLabel(p.subscription.plan)}`);
-        }
-      }
-      if (result.apiKey) {
-        console.log(`\nAPI Key: ${chalk.cyan(result.apiKey)}`);
-        console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
-      }
-      if (result.endpoints) {
-        console.log(chalk.bold("\nRPC Endpoints:"));
-        console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
-        console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
-      }
-      if (!isRecovery) {
-        console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
-      }
-      return;
-    }
+    // Handle result statuses (SDK returns "success" for new signups and
+    // "upgraded" for existing-user upgrades — the prior "existing_project"
+    // recovery status is handled in the pre-signup fast-path above).
+    void hadLocalApiKey;
 
     if (result.status === "upgraded") {
       if (options.json) {
@@ -320,6 +342,12 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       console.log(chalk.bold("\nRPC Endpoints:"));
       console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
       console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
+    }
+    if (plan === "agent") {
+      console.log(
+        chalk.gray("\nYour agent plan includes 1,000,000 starting credits."),
+      );
+      console.log(chalk.gray("Run `helius credits buy --tier=10_USDC` when you need more."));
     }
     if (result.txSignature) {
       console.log(

@@ -32,9 +32,14 @@ describe('buildSolanaPayUri', () => {
     expect(uri).toBe(`solana:${TEST_ADDRESS}?amount=1.5&spl-token=${USDC_MINT}`);
   });
 
-  it('handles the basic plan amount ($1)', () => {
+  it('handles small whole-dollar amounts', () => {
     const uri = buildSolanaPayUri(TEST_ADDRESS, 1);
     expect(uri).toBe(`solana:${TEST_ADDRESS}?amount=1&spl-token=${USDC_MINT}`);
+  });
+
+  it('handles the agent plan amount ($10 one-time)', () => {
+    const uri = buildSolanaPayUri(TEST_ADDRESS, 10);
+    expect(uri).toBe(`solana:${TEST_ADDRESS}?amount=10&spl-token=${USDC_MINT}`);
   });
 
   it('handles large amounts (professional plan $999)', () => {
