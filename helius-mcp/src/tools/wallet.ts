@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { HistoryTransaction, Transfer } from 'helius-sdk/wallet/types';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
-import { formatAddress, formatSol, formatTimestamp } from '../utils/formatters.js';
+import { formatAddress, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
 
@@ -10,19 +10,21 @@ export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Identity ───
   server.tool(
     'getWalletIdentity',
-    'BEST FOR: identifying a single known wallet. PREFER batchWalletIdentity for multiple addresses. Identify known wallets (exchanges, protocols, institutions). Returns name, type, category, tags. Credit cost: 100 credits.',
+    'BEST FOR: identifying a single known wallet. PREFER batchWalletIdentity for multiple addresses. Identify known wallets (exchanges, protocols, institutions). Returns name, type, category, tags. Also accepts SNS/ANS domains (e.g., `toly.sol`, `helius.bonk`) — mainnet only. Credit cost: 100 credits.',
     {
-      address: z.string().describe('Solana wallet address (base58 encoded)')
+      address: z.string().describe('Solana wallet address (base58) or SNS/ANS domain (e.g., toly.sol, helius.bonk — mainnet only)')
     },
     async ({ address }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
         const client = getHeliusClient();
-        const data = await client.wallet.getIdentity({ wallet: address });
+        // TODO: drop `any` once helius-sdk types include inputDomain on the identity response
+        const data = await client.wallet.getIdentity({ wallet: address }) as any;
 
         const lines = ['**Wallet Identity**', ''];
-        lines.push(`**Address:** ${formatAddress(address)}`);
+        if (data.inputDomain) lines.push(`**Input:** ${data.inputDomain}`);
+        lines.push(`**Address:** ${formatAddress(data.address || address)}`);
         if (data.name) lines.push(`**Name:** ${data.name}`);
         if (data.type) lines.push(`**Type:** ${data.type}`);
         if (data.category) lines.push(`**Category:** ${data.category}`);
@@ -40,47 +42,55 @@ export function registerWalletTools(server: McpServer) {
   // ─── Batch Wallet Identity ───
   server.tool(
     'batchWalletIdentity',
-    'BEST FOR: identifying multiple wallets at once (up to 100). PREFER getWalletIdentity for a single address. Look up identities for up to 100 Solana addresses. Returns names, types, and categories. Credit cost: 100 credits.',
+    'BEST FOR: identifying multiple wallets at once (up to 100). PREFER getWalletIdentity for a single address. Look up identities for up to 100 entries. Returns names, types, and categories. Entries may be addresses or SNS/ANS domains (mainnet only); unresolved domains are returned with `unresolved: true`. Credit cost: 100 credits.',
     {
-      addresses: z.array(z.string()).describe('Array of Solana wallet addresses (base58 encoded, max 100)')
+      entries: z.array(z.string()).describe('Array of up to 100 entries — each a base58 address or SNS/ANS domain')
     },
-    async ({ addresses }) => {
+    async ({ entries }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
-      if (addresses.length > 100) {
+      if (entries.length > 100) {
         return mcpError(
-          'Maximum 100 addresses per batch request.',
-          { type: 'VALIDATION', code: 'TOO_MANY_ITEMS', retryable: false, recovery: 'Reduce batch to 100 or fewer addresses.' }
+          'Maximum 100 entries per batch request.',
+          { type: 'VALIDATION', code: 'TOO_MANY_ITEMS', retryable: false, recovery: 'Reduce batch to 100 or fewer entries.' }
         );
       }
 
       try {
         const client = getHeliusClient();
-        const results = await client.wallet.getBatchIdentity({ addresses });
+        const results = await client.wallet.getBatchIdentity({ addresses: entries });
 
         if (results.length === 0) {
-          return mcpText(`**Batch Identity Lookup** (${addresses.length} addresses)\n\nNo identities found.`);
+          return mcpText(`**Batch Identity Lookup** (${entries.length} entries)\n\nNo identities found.`);
         }
 
         const lines = [`**Batch Identity Lookup** (${results.length} results)`, ''];
 
-        for (const entry of results) {
+        // TODO: drop `Array<any>` once helius-sdk types include inputDomain/unresolved on the batch response
+        for (const entry of results as Array<any>) {
+          if (entry.unresolved) {
+            lines.push(`- \`${entry.inputDomain || '?'}\` — Unresolved domain`);
+            continue;
+          }
           const addr = formatAddress(entry.address || '');
+          const subject = entry.inputDomain && entry.address
+            ? `\`${entry.inputDomain}\` → ${addr}`
+            : addr;
           if (entry.name) {
-            lines.push(`- **${entry.name}** — ${addr}`);
+            lines.push(`- **${entry.name}** — ${subject}`);
             const details: string[] = [];
             if (entry.type) details.push(entry.type);
             if (entry.category) details.push(entry.category);
             if (details.length > 0) lines.push(`  ${details.join(' | ')}`);
           } else {
-            lines.push(`- ${addr} — Unknown`);
+            lines.push(`- ${subject} — Unknown`);
           }
         }
 
         return mcpText(lines.join('\n'));
       } catch (err) {
         return handleToolError(err, 'Error fetching batch identities', [
-          addressError('Batch Identity'),
+          addressError('Batch Identity', 'Entries must be base58 addresses or SNS/ANS domains.'),
         ]);
       }
     }
@@ -198,7 +208,7 @@ export function registerWalletTools(server: McpServer) {
         transactions.forEach((tx: HistoryTransaction, i: number) => {
           const time = tx.timestamp ? formatTimestamp(tx.timestamp) : 'N/A';
           const status = tx.error ? 'Failed' : 'Success';
-          const fee = tx.fee ? formatSol(tx.fee) : 'N/A';
+          const fee = tx.fee != null ? `${tx.fee} SOL` : 'N/A';
 
           lines.push(`${i + 1}. ${time} — ${status} — Fee: ${fee}`);
           lines.push(`   Signature: \`${tx.signature}\``);
@@ -309,7 +319,7 @@ export function registerWalletTools(server: McpServer) {
 
         if (data.funderType) lines.push(`**Type:** ${data.funderType}`);
         if (data.amount !== undefined) {
-          lines.push(`**Amount:** ${formatSol(data.amount)}`);
+          lines.push(`**Amount:** ${data.amount} SOL`);
         }
         if (data.date) lines.push(`**Date:** ${data.date}`);
         if (data.explorerUrl) lines.push(`**Explorer:** ${data.explorerUrl}`);

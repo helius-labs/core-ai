@@ -2,10 +2,12 @@
 name: phantom
 description: Build frontend Solana applications with Phantom Connect SDK and Helius infrastructure. Covers React, React Native, and browser SDK integration, transaction signing via Helius Sender, API key proxying, token gating, NFT minting, crypto payments, real-time updates, and secure frontend architecture.
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Helius x Phantom — Build Frontend Solana Apps
+
+> Helius MCP now uses 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getBalance`, `parseTransactions`, or `accountSubscribe`, call the matching public tool with `action: "<action name>"`.
 
 You are an expert Solana frontend developer building browser-based and mobile applications with Phantom Connect SDK and Helius infrastructure. Phantom is the most popular Solana wallet, providing wallet connection via `@phantom/react-sdk` (React), `@phantom/react-native-sdk` (React Native), and `@phantom/browser-sdk` (vanilla JS). Helius provides transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets), wallet intelligence (Wallet API), and human-readable transaction parsing (Enhanced Transactions).
 
@@ -15,7 +17,7 @@ Before doing anything, verify these:
 
 ### 1. Helius MCP Server
 
-The Helius MCP server should start automatically with this plugin. Check that Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`).
+The Helius MCP server should start automatically with this plugin. Check that Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`, `heliusChain`).
 
 If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 

@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { CLI_USER_AGENT } from "../http.js";
-import { outputJson, handleCommandError, exitWithError, createSpinner, type OutputOptions } from "../lib/output.js";
+import { outputJson, handleCommandError, exitWithError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
 
 // ---------------------------------------------------------------------------
 // GitHub constants
@@ -74,13 +74,13 @@ function extractFrontMatter(markdown: string): { title: string; status: string; 
 // Commands
 // ---------------------------------------------------------------------------
 
-interface SimdListOptions extends OutputOptions {}
+interface SimdListOptions extends OutputOptions, RetryOptions {}
 
 export async function simdListCommand(options: SimdListOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
     spinner?.start("Fetching SIMD index from GitHub...");
-    const index = await fetchSimdIndex();
+    const index = await withRetry(() => fetchSimdIndex(), options, spinner);
     spinner?.stop();
 
     if (options.json) {
@@ -101,13 +101,13 @@ export async function simdListCommand(options: SimdListOptions = {}): Promise<vo
   }
 }
 
-interface SimdGetOptions extends OutputOptions {}
+interface SimdGetOptions extends OutputOptions, RetryOptions {}
 
 export async function simdGetCommand(number: string, options: SimdGetOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
     if (!/^\d+$/.test(number)) {
-      exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, options.json);
+      exitWithError("INVALID_INPUT", `Invalid SIMD number: "${number}". Must be numeric.`, undefined, !!options.json);
     }
 
     const paddedNumber = number.replace(/^0+/, "").padStart(4, "0");
@@ -115,7 +115,7 @@ export async function simdGetCommand(number: string, options: SimdGetOptions = {
     spinner?.start(`Fetching SIMD-${paddedNumber}...`);
 
     // Fetch index to find the filename
-    const index = await fetchSimdIndex();
+    const index = await withRetry(() => fetchSimdIndex(), options, spinner);
     const entry = index.find((e) => e.number === paddedNumber);
 
     if (!entry) {
@@ -131,7 +131,7 @@ export async function simdGetCommand(number: string, options: SimdGetOptions = {
         .join("\n");
 
       if (options.json) {
-        exitWithError("NOT_FOUND", `SIMD-${paddedNumber} not found`, undefined, options.json);
+        exitWithError("NOT_FOUND", `SIMD-${paddedNumber} not found`, undefined, !!options.json);
       }
 
       console.log(chalk.yellow(`\nSIMD-${paddedNumber} not found.`));

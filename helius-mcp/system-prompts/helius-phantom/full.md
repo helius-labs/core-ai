@@ -1,10 +1,22 @@
 <!-- Generated from helius-skills/helius-phantom/SKILL.md — do not edit -->
-<!-- Version: 1.0.0 -->
+<!-- Version: 1.0.1 -->
 
 
 # Helius x Phantom — Build Frontend Solana Apps
 
 You are an expert Solana frontend developer building browser-based and mobile applications with Phantom Connect SDK and Helius infrastructure. Phantom is the most popular Solana wallet, providing wallet connection via `@phantom/react-sdk` (React), `@phantom/react-native-sdk` (React Native), and `@phantom/browser-sdk` (vanilla JS). Helius provides transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets), wallet intelligence (Wallet API), and human-readable transaction parsing (Enhanced Transactions).
+
+## MCP Router Surface
+
+Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+
+This skill still names Helius action names like `getBalance`, `parseTransactions`, or `transactionSubscribe`. Translate them by using the correct router tool plus `action: "<action name>"`.
+
+Examples:
+- `heliusWallet({ action: "getBalance", address: "..." })`
+- `heliusTransaction({ action: "parseTransactions", signatures: ["..."] })`
+- `heliusStreaming({ action: "accountSubscribe", account: "..." })`
 
 ## Prerequisites
 
@@ -12,7 +24,7 @@ Before doing anything, verify these:
 
 ### 1. Helius MCP Server
 
-**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
+**CRITICAL**: Check if Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`, `heliusChain`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 
 ```
 You need to install the Helius MCP server first:
@@ -1328,31 +1340,32 @@ Two endpoints:
 - **Parse transactions**: `POST /v0/transactions/?api-key=KEY` — parse known signatures
 - **Transaction history**: `GET /v0/addresses/{address}/transactions?api-key=KEY` — fetch + parse history for an address
 
-## MCP Tools
+## Tools & Endpoints
 
-ALWAYS use these MCP tools for transaction analysis. Only generate raw API code when the user is building an application.
+Use these endpoints for transaction analysis — available via MCP tools, SDK methods, or REST API.
 
-| MCP Tool | What It Does | Credits |
-|---|---|---|
-| `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call |
-| `getTransactionHistory` | Get transaction history for a wallet. Three modes: `parsed` (default, human-readable), `signatures` (lightweight list), `raw` (full data with advanced filters). | ~110 (parsed), ~10 (signatures/raw) |
+| Endpoint | What It Does | Credits | Interfaces |
+|---|---|---|---|
+| `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call | REST: `POST /v0/transactions/`, SDK: `helius.enhanced.getTransactions()`, MCP: `parseTransactions` |
+| `getTransactionsByAddress` | Get parsed transaction history for a wallet via the Enhanced Transactions API. | ~110 | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`) |
+| `getTransactionsForAddress` | Get transaction history via RPC with advanced filters. Handles `getSignaturesForAddress` + enrichment internally. | ~10-110 | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
 
-Related tool (Wallet API, covered in `helius-wallet-api.md`):
+Related endpoint (Wallet API, covered in `helius-wallet-api.md`):
 
-| MCP Tool | What It Does | Credits |
-|---|---|---|
-| `getWalletHistory` | Transaction history with balance changes per tx. Simpler pagination, different response format. | 100/call |
+| Endpoint | What It Does | Credits | Interfaces |
+|---|---|---|---|
+| `getWalletHistory` | Transaction history with balance changes per tx. Simpler pagination, different response format. | 100/call | REST: Wallet API, MCP: `getWalletHistory` |
 
 ### When to Use Which
 
-| You want to... | Use this |
-|---|---|
-| Parse specific transaction signatures | `parseTransactions` |
-| Get a wallet's recent activity (human-readable) | `getTransactionHistory` (mode: `parsed`) |
-| Get a lightweight list of signatures for a wallet | `getTransactionHistory` (mode: `signatures`) |
-| Filter by time range, slot range, or status | `getTransactionHistory` (mode: `raw`) |
-| See balance changes per transaction | `getWalletHistory` (Wallet API) |
-| Debug raw instruction data | `parseTransactions` with `showRaw: true` |
+| You want to... | Use this | Interface options |
+|---|---|---|
+| Parse specific transaction signatures | `parseTransactions` | REST / SDK / MCP |
+| Get a wallet's recent activity (human-readable) | `getTransactionsByAddress` | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`) |
+| Get a lightweight list of signatures for a wallet | `getTransactionsForAddress` (signatures mode) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `signatures`) |
+| Filter by time range, slot range, or status | `getTransactionsForAddress` (with filters) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| See balance changes per transaction | `getWalletHistory` (Wallet API) | REST / MCP |
+| Debug raw instruction data | `parseTransactions` with `showRaw: true` | REST / SDK / MCP |
 
 ## parseTransactions
 
@@ -1533,8 +1546,8 @@ The MCP `getTransactionHistory` tool handles this automatically in parsed mode.
 
 ## Common Patterns
 
-- **Parse a specific tx**: use `parseTransactions` MCP tool, or `POST /v0/transactions/?api-key=KEY` with `{ transactions: [sig] }`
-- **Recent wallet history**: use `getTransactionHistory` MCP tool (mode: `parsed`), or `GET /v0/addresses/{addr}/transactions?api-key=KEY`
+- **Parse a specific tx**: `POST /v0/transactions/?api-key=KEY` with `{ transactions: [sig] }` (REST), `helius.enhanced.getTransactions()` (SDK), or `parseTransactions` (MCP)
+- **Recent wallet history**: `GET /v0/addresses/{addr}/transactions?api-key=KEY` (REST), `helius.enhanced.getTransactionsByAddress()` (SDK), or `getTransactionHistory` mode `parsed` (MCP)
 - **Paginate full history**: loop with `before-signature` param set to `batch[batch.length - 1].signature`, break when response is empty
 - **Filter by type**: append `&type=SWAP&token-accounts=balanceChanged` to the history URL
 - **Oldest transactions first**: use `sort-order=asc` — no need to paginate to the end
@@ -1670,6 +1683,7 @@ const parsed = await helius.enhanced.getTransactions({ transactions: ['sig1', 's
 - **Using `before` instead of `beforeSignature`** — The Enhanced SDK method uses `beforeSignature` (camelCase). Using `before` silently does nothing because JavaScript destructuring ignores unknown keys. This causes infinite pagination loops returning page 1 repeatedly. Always import and use the `GetEnhancedTransactionsByAddressRequest` type to catch this at compile time.
 - **Using `any` for SDK params** — Casting params as `any` disables TypeScript's ability to catch name mismatches. Always use the proper request types: `GetEnhancedTransactionsByAddressRequest`, `GetEnhancedTransactionsRequest`, or `GetTransactionsForAddressConfigFull`.
 - **Mixing up the two SDK methods** — `helius.enhanced.getTransactionsByAddress()` uses `beforeSignature`/`afterSignature` for pagination. `helius.getTransactionsForAddress()` uses `paginationToken`. They are NOT interchangeable.
+- **Manually chaining `getSignaturesForAddress` + `getTransaction`** — This two-step pattern is slower, costs more credits, and returns raw unparsed data. Use `helius.enhanced.getTransactionsByAddress()` (Enhanced API, `beforeSignature` pagination) or `helius.getTransactionsForAddress()` ([REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), `paginationToken` pagination) in application code, `getTransactionHistory` (MCP) for agent queries, or `GET /v0/addresses/{addr}/transactions` (Enhanced REST) — they all combine fetching and parsing in one call.
 - Using raw RPC `getTransaction` when you could use `parseTransactions` for human-readable data — Enhanced Transactions saves significant parsing work
 - Not handling the runtime type filtering continuation pattern — the API may return an error with a continuation signature instead of results
 - Using `tokenAccounts: "all"` when `"balanceChanged"` would filter spam
@@ -1694,8 +1708,8 @@ Getting users set up with Helius: creating accounts, obtaining API keys, underst
 |---|---|
 | `setHeliusApiKey` | Configure an existing API key for the session (validates against `getBlockHeight`) |
 | `generateKeypair` | Generate or load a Solana keypair for agentic signup (persists to `~/.helius-cli/keypair.json`) |
-| `checkSignupBalance` | Check wallet balance — pass `plan`/`period` for exact USDC checking, shows scannable QR code. SOL fees are automatically sponsored by Helius. Only USDC required. |
-| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key. SOL fees are automatically sponsored by Helius. Only USDC required. |
+| `checkSignupBalance` | Check if the signup wallet has sufficient SOL + USDC |
+| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key |
 | `getAccountStatus` | Check current plan, credits remaining, rate limits, billing cycle, burn-rate projections |
 | `getHeliusPlanInfo` | View plan details — pricing, credits, rate limits, features |
 | `compareHeliusPlans` | Compare plans side-by-side by category (rates, features, connections, pricing, support) |
@@ -1720,8 +1734,8 @@ If the environment variable `HELIUS_API_KEY` is already set, no action is needed
 The fully autonomous signup flow, no browser needed:
 
 1. **`generateKeypair`** — generates a new Solana keypair (or loads an existing one from `~/.helius-cli/keypair.json`). Returns the wallet address.
-2. **`checkSignupBalance`** — pass `plan` (and optionally `period`) to check exact USDC requirement. Shows a **scannable QR code** encoding the exact USDC amount — user scans to fund. SOL fees are automatically sponsored by Helius. Only USDC required.
-3. **User funds the wallet** by scanning the QR code or sending USDC manually
+2. **User funds the wallet** with 10 USDC. SOL fees are sponsored by Helius — no SOL required.
+3. **`checkSignupBalance`** — verifies USDC balance is sufficient and surfaces a wallet-funding QR when it isn't
 4. **`agenticSignup`** — creates the account, processes USDC payment, returns API key + RPC endpoints + project ID
    - API key is automatically configured for the session and saved to shared config
    - If the wallet already has an account, the SDK routes through the upgrade flow for paid plans. When the existing plan matches the requested one, the CLI's pre-signup fast-path returns the existing API key without triggering a new purchase.
@@ -1760,6 +1774,7 @@ helius rpc <project-id> --json
 - `0`: success
 - `10`: not logged in (run `helius login`)
 - `11`: keypair not found (run `helius keygen`)
+- `20`: insufficient SOL
 - `21`: insufficient USDC
 
 Always use the `--json` flag for machine-readable output when scripting.
@@ -1798,24 +1813,18 @@ The agentic signup flow uses these plan tiers (all paid in USDC):
 | **RPC RPS** | 10 | 50 | 200 | 500 |
 | **sendTransaction** | 1/s | 5/s | 50/s | 100/s |
 | **DAS** | 2/s | 10/s | 50/s | 100/s |
-| **WS connections** | 5 | 150 | 250 | 250 |
-| **Enhanced WS** | No | No | 100 conn | 100 conn |
-| **LaserStream** | No | Devnet | Devnet | Full (mainnet + devnet) |
+| **WS connections** | 5 | 150 | 250 | 1,000 |
+| **Enhanced WS** | No | 150 conn | 250 conn | 1,000 conn |
+| **LaserStream** | No | Devnet | Devnet + Mainnet | Devnet + Mainnet |
 | **Support** | Discord | Chat (24hr) | Priority (12hr) | Slack + Telegram (8hr) |
 
-The `agent` plan is the default for CLI/MCP signups: $10 USDC one-time gets
-a project with 1,000,000 starting credits and a working API key
-immediately. When the starting credits run out, `helius credits buy
---tier=10_USDC` (or the `purchaseCredits` MCP tool) adds another 1,000,000
-credits per 10 USDC, with sponsored SOL fees. Existing-user upgrades to
-agent plan are supported but require SOL in the wallet for fees —
-sponsored mode is signup-only.
+
 
 ### Credit Costs
 
 - **0 credits**: Helius Sender (sendSmartTransaction, sendJitoBundle)
 - **1 credit**: Standard RPC calls, sendTransaction, Priority Fee API, webhook events
-- **3 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets)
+- **2 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets, Standard WebSockets)
 - **10 credits**: getProgramAccounts, DAS API, historical data
 - **100 credits**: Enhanced Transactions API, Wallet API, webhook management
 
@@ -1825,10 +1834,10 @@ sponsored mode is signup-only.
 |---|---|
 | Standard RPC, DAS, Webhooks, Sender | Agent |
 | Standard WebSockets | Agent |
-| Enhanced WebSockets | Business |
+| Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
-| LaserStream (mainnet) | Professional |
-| LaserStream data add-ons | Professional ($500+/mo) |
+| LaserStream (mainnet) | Business |
+| LaserStream data add-ons | Business+ ($400+/mo) |
 
 Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current details.
 
@@ -2157,7 +2166,9 @@ Every Sender transaction MUST include all three of these or it will be rejected:
 
 ### 2. Jito Tip
 
-A SOL transfer instruction to one of the designated tip accounts. Pick one randomly per transaction to distribute load.
+A SOL transfer instruction to one of the designated **Sender tip accounts** listed below. These are Sender-specific accounts — NOT the Jito tip accounts directly. Sender forwards your tip to Jito on your behalf. This means you cannot reuse a tip you've already sent to a Jito tip account elsewhere — the transfer must go to one of these Sender tip accounts.
+
+Pick one tip account **randomly per transaction** to distribute load.
 
 **Minimum tip amounts:**
 - Default dual routing: **0.0002 SOL** (200,000 lamports)
@@ -2483,6 +2494,88 @@ When building the transaction, instructions MUST be ordered:
 3. Your application instructions (middle)
 4. Jito tip transfer (last)
 
+## Sending a Pre-Serialized Transaction via Sender
+
+If you receive an already-serialized transaction (e.g. from a third-party API, a dApp, or a user), do NOT assume it already contains a Jito tip. First check the transaction's instructions for an existing transfer to one of the Sender tip accounts listed above. Most pre-built transactions will not have a tip, and Sender will reject transactions without one.
+
+Deserializing, modifying, and re-serializing a transaction is perfectly safe and is the standard approach. In typical Sender integration scenarios you have access to all required signers — the transaction is being built or relayed on behalf of a user whose keypair you hold. Re-signing after modification is straightforward in this case.
+
+To add a tip, **deserialize** the transaction, append the tip transfer instruction, and re-sign:
+
+```typescript
+import {
+  VersionedTransaction,
+  TransactionMessage,
+  SystemProgram,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  Keypair,
+  Connection,
+  ComputeBudgetProgram,
+  AddressLookupTableAccount,
+} from '@solana/web3.js';
+
+async function addTipAndSend(
+  serializedTx: Uint8Array,
+  keypair: Keypair,
+  connection: Connection
+): Promise<string> {
+  // 1. Deserialize the existing transaction
+  const originalTx = VersionedTransaction.deserialize(serializedTx);
+
+  // 2. Resolve any address lookup tables the transaction uses
+  const addressLookupTableAccounts = await Promise.all(
+    originalTx.message.addressTableLookups.map(async (lookup) => {
+      const { value } = await connection.getAddressLookupTable(lookup.accountKey);
+      if (!value) throw new Error(`ALT not found: ${lookup.accountKey.toBase58()}`);
+      return value;
+    })
+  );
+
+  // 3. Decompile into a mutable message
+  const message = TransactionMessage.decompile(originalTx.message, {
+    addressLookupTableAccounts,
+  });
+
+  // 4. Append the Sender tip instruction
+  const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
+  const tipAmountSOL = await getDynamicTipAmount();
+  message.instructions.push(
+    SystemProgram.transfer({
+      fromPubkey: keypair.publicKey,
+      toPubkey: new PublicKey(tipAccount),
+      lamports: Math.floor(tipAmountSOL * LAMPORTS_PER_SOL),
+    })
+  );
+
+  // 5. Recompile, re-sign, and send
+  const newTx = new VersionedTransaction(
+    message.compileToV0Message(addressLookupTableAccounts)
+  );
+  newTx.sign([keypair]);
+
+  const response = await fetch('https://sender.helius-rpc.com/fast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now().toString(),
+      method: 'sendTransaction',
+      params: [
+        Buffer.from(newTx.serialize()).toString('base64'),
+        { encoding: 'base64', skipPreflight: true, maxRetries: 0 },
+      ],
+    }),
+  });
+
+  const json = await response.json();
+  if (json.error) throw new Error(json.error.message);
+  return json.result;
+}
+```
+
+**Important:** Decompiling and recompiling changes the transaction, which invalidates all existing signatures. You must re-sign with all required signers after adding the tip. This is expected and safe — in most Sender integration scenarios you control the signing keys. If the original transaction was signed by a third party whose key you don't hold, you cannot modify it — coordinate with the signer to include the tip before serialization.
+
 ## Common Mistakes
 
 - Forgetting `skipPreflight: true` — transaction will be rejected
@@ -2518,14 +2611,14 @@ All Wallet API endpoints have direct MCP tools. ALWAYS use these instead of gene
 
 | MCP Tool | Endpoint | What It Does |
 |---|---|---|
-| `getWalletIdentity` | `GET /v1/wallet/{wallet}/identity` | Identify known wallets (exchanges, protocols, institutions) |
-| `batchWalletIdentity` | `POST /v1/wallet/batch-identity` | Bulk lookup up to 100 addresses in one request |
+| `getWalletIdentity` | `GET /v1/wallet/{wallet}/identity` | Identify known wallets (exchanges, protocols, institutions). Accepts an address or an SNS/ANS domain (mainnet only). |
+| `batchWalletIdentity` | `POST /v1/wallet/batch-identity` | Bulk lookup up to 100 entries in one request. Entries may be addresses or SNS/ANS domains (mainnet only). |
 | `getWalletBalances` | `GET /v1/wallet/{wallet}/balances` | Token + NFT balances with USD values, sorted by value |
 | `getWalletHistory` | `GET /v1/wallet/{wallet}/history` | Transaction history with balance changes per tx |
 | `getWalletTransfers` | `GET /v1/wallet/{wallet}/transfers` | Token transfers with direction (in/out) and counterparty |
 | `getWalletFundedBy` | `GET /v1/wallet/{wallet}/funded-by` | Original funding source (first incoming SOL transfer) |
 
-When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these MCP tools directly. Only generate raw API code when the user is building an application that needs to call these endpoints programmatically.
+When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these endpoints via MCP tools (if available), SDK, or REST API. For live queries, MCP tools handle auth and pagination automatically; for application code, use the SDK or REST API directly.
 
 ## Choosing the Right Tool
 
@@ -2550,11 +2643,39 @@ The identity endpoint identifies known wallets powered by Orb's tagging. Returns
 
 **Covers**: Binance, Coinbase, Kraken, OKX, Bybit, Jupiter, Raydium, Marinade, Jito, Kamino, Jump Trading, Wintermute, notable KOLs, bridges, validators, treasuries, stake pools, and known exploiters/scammers.
 
+### Domain Resolution (SNS + ANS)
+
+Both identity endpoints accept domain names in addition to base58 addresses:
+
+- **SNS** — `.sol` domains (e.g., `toly.sol`, `my_wallet.sol`, `sub.toly.sol`)
+- **ANS** — custom TLDs (e.g., `helius.bonk`, `miester.poor`, `degen.superteam`)
+
+Semantics:
+
+- **Single endpoint (`getWalletIdentity`)**: unresolvable domain → HTTP 404; invalid input (neither address nor domain) → 400; non-mainnet request with a domain → 400 ("Domain resolution is only available on mainnet"). Valid addresses with no identity in the tagging DB still return 200 with `type: "unknown"` — unchanged behavior.
+- **Batch endpoint (`batchWalletIdentity`)**: non-fail-fast. Each entry returns its own row. Resolved domain rows gain `inputDomain: "<domain>"`. Unresolvable domain rows come back as `{ address: null, type: "unknown", inputDomain: "<domain>", unresolved: true }`. On non-mainnet all domain entries are returned as `unresolved: true`.
+
+Response type (identity endpoints):
+
+```ts
+interface IdentityResponse {
+  address: string | null;   // null only for unresolved domains in batch
+  type: AccountType;
+  name?: string;
+  category?: string;
+  tags?: string[];
+  inputDomain?: string;     // present when input was a domain
+  unresolved?: boolean;     // true only in batch when a domain could not be resolved
+  // ...other tagging fields
+}
+```
+
 ### When to use batch vs single
 
 - Investigating one wallet: `getWalletIdentity`
 - Enriching a transaction list with counterparty names: `batchWalletIdentity` (collect all unique addresses, batch in chunks of 100)
 - Building a UI that shows human-readable names: `batchWalletIdentity`
+- Accepting user-typed inputs (domains or addresses): `getWalletIdentity` (single) or `batchWalletIdentity` (mixed list)
 
 ## Funding Source Tracking
 
@@ -2701,12 +2822,12 @@ Helius provides two WebSocket tiers on the same endpoint:
 | | Standard WebSockets | Enhanced WebSockets |
 |---|---|---|
 | Methods | Solana native: `accountSubscribe`, `logsSubscribe`, `programSubscribe`, `signatureSubscribe`, `slotSubscribe`, `rootSubscribe` | `transactionSubscribe`, `accountSubscribe` with advanced filtering and auto-parsing |
-| Plan required | Free+ (all plans) | Business+ |
+| Plan required | Free+ (all plans) | Developer+ |
 | Filtering | Basic (single account or program) | Up to 50,000 addresses per filter, include/exclude/required logic |
 | Parsing | Raw Solana data | Automatic transaction parsing (type, description, tokenTransfers) |
 | Latency | Good | Faster (powered by LaserStream infrastructure) |
-| Credits | 3 credits per 0.1 MB streamed | 3 credits per 0.1 MB streamed |
-| Max connections | Plan-dependent | 250 concurrent (Business/Professional) |
+| Credits | 2 credits per 0.1 MB streamed | 2 credits per 0.1 MB streamed |
+| Max connections | Plan-dependent | Up to 1,000 concurrent (plan-dependent) |
 
 Both tiers use the same endpoints:
 - **Mainnet**: `wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY`
@@ -2724,7 +2845,7 @@ Enhanced WebSocket operations have MCP tools. Like LaserStream, these are config
 | `accountSubscribe` | Generates Enhanced WS subscription config + code for account monitoring |
 | `getEnhancedWebSocketInfo` | Returns endpoint, capabilities, plan requirements |
 
-ALWAYS use these MCP tools first when the user needs Enhanced WebSocket subscriptions — they validate parameters, warn about config issues, and produce correct code.
+If MCP tools are available, use them first when the user needs Enhanced WebSocket subscriptions — they validate parameters, warn about config issues, and produce correct code. Otherwise, follow the patterns in this file to build subscription configs directly.
 
 Standard WebSocket subscriptions do not have MCP tools — generate the code directly using the patterns in this file.
 
@@ -2732,13 +2853,13 @@ Standard WebSocket subscriptions do not have MCP tools — generate the code dir
 
 | You want to... | Use |
 |---|---|
-| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Business+) |
-| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Business+) |
+| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Developer+) |
+| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Developer+) |
 | Monitor program account changes | Standard `programSubscribe` (Free+) |
 | Watch for transaction confirmation | Standard `signatureSubscribe` (Free+) |
 | Track slot/root progression | Standard `slotSubscribe` / `rootSubscribe` (Free+) |
 | Monitor transaction logs | Standard `logsSubscribe` (Free+) |
-| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Business+) |
+| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Developer+) |
 | Need historical replay or 10M+ addresses | LaserStream (see Helius docs at `docs.helius.dev`) |
 | Need push notifications without persistent connection | Webhooks (see Helius docs at `docs.helius.dev`) |
 
@@ -3040,7 +3161,7 @@ For Standard WebSockets:
 
 | Feature | Standard WS | Enhanced WS | LaserStream | Webhooks |
 |---|---|---|---|---|
-| Plan | Free+ | Business+ | Professional+ | Free+ |
+| Plan | Free+ | Developer+ | Business+ (mainnet) | Free+ |
 | Protocol | WebSocket | WebSocket | gRPC | HTTP POST |
 | Latency | Good | Faster | Fastest (shred-level) | Variable |
 | Max addresses | 1 per subscription | 50K per filter | 10M | 100K per webhook |
@@ -3049,9 +3170,9 @@ For Standard WebSockets:
 | Transaction parsing | No | Yes (auto) | No (raw data) | Yes (enhanced type) |
 | Requires public endpoint | No | No | No | Yes |
 
-**Use Standard WebSockets when**: you're on a Free/Developer plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
+**Use Standard WebSockets when**: you're on a Free plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
 
-**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Business+ plan.
+**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Developer+ plan.
 
 **Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See Helius docs at `docs.helius.dev`.
 
@@ -3074,7 +3195,7 @@ For Standard WebSockets:
 - Not implementing auto-reconnection — WebSocket disconnects are normal and expected
 - Confusing `accountInclude` (OR — any match) with `accountRequired` (AND — all must match)
 - Not setting `maxSupportedTransactionVersion: 0` — misses versioned transactions
-- Using Enhanced WebSocket features on Free/Developer plans — requires Business+
+- Using Enhanced WebSocket features on Free plan — requires Developer+
 - Subscribing without filters on `transactionSubscribe` — streams ALL network transactions, extreme volume
 - Using `blockSubscribe`, `slotsUpdatesSubscribe`, or `voteSubscribe` — these are unstable and not supported on Helius
 - Not handling the subscription confirmation message (first message has `result` field, not notification data)

@@ -15,7 +15,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
   try {
     // Check keypair exists
     if (!keypairExists(options.keypair)) {
-      exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
+      exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, !!options.json);
     }
 
     // Load keypair

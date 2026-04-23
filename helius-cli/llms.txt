@@ -1,0 +1,53 @@
+# Helius CLI (`helius`)
+
+> Official command-line interface for the Helius, Solana's leading developer platform. Built for developers and LLM agents.
+
+`helius` covers account management, Solana data queries (balances, transactions, assets, accounts, blocks), Digital Asset Standard (DAS), ZK compression, webhooks, priority fees, transaction sending, staking, and WebSocket streaming.
+
+Install: `npm install -g helius-cli`
+
+Agents: set `NO_DNA=1` to suppress spinners and unblock non-interactive flows. All data commands support `--json` for machine-readable output. `--retry <n>` enables exponential-backoff retry on transient errors.
+
+## Error handling
+
+Commands exit with distinct codes per error class. When `--json` is set, errors are output as `{ error, message, retryable, guidance? }` on stdout; the `retryable` field indicates whether the error is transient (429, 5xx, network) vs. permanent (400, 401, 404, invalid input).
+
+Exit code ranges:
+- `0` success, `1` general error
+- `10-19` authentication (not logged in, keypair missing)
+- `20-29` balance/payment (insufficient SOL/USDC)
+- `30-39` project state
+- `40-49` API errors
+- `50-59` SDK/data errors (50 no API key, 52 invalid address, 53 invalid input, 54 invalid API key, 55 not found, 56 rate limited, 57 server error, 58 network error)
+
+## Commands
+
+- [Account management](README.md#account-management): `keygen`, `signup`, `login`, `upgrade`, `pay`, `projects`, `project`, `apikeys`, `usage`, `rpc`, `status`, `plans`, `config`
+- [Balances & tokens](README.md#balances--tokens): `balance`, `tokens`, `token-holders`
+- [Transactions](README.md#transactions): `tx parse`, `tx history`, `tx fees`
+- [Digital assets (DAS)](README.md#digital-assets-das-api): `asset get`, `asset batch`, `asset owner`, `asset creator`, `asset authority`, `asset collection`, `asset search`, `asset proof`, `asset proof-batch`, `asset editions`, `asset signatures`, `asset token-accounts`
+- [Account & network](README.md#account--network): `account`, `network-status`, `block`
+- [Wallet API](README.md#wallet-api): `wallet identity`, `wallet identity-batch`, `wallet balances`, `wallet history`, `wallet transfers`, `wallet funded-by`
+- [Webhooks](README.md#webhooks): `webhook list`, `webhook get`, `webhook create`, `webhook update`, `webhook delete`
+- [Program accounts](README.md#program-accounts): `program accounts`, `program accounts-all`, `program token-accounts`
+- [Staking](README.md#staking): `stake create`, `stake unstake`, `stake withdraw`, `stake accounts`, `stake withdrawable`, `stake instructions`
+- [ZK compression](README.md#zk-compression): `zk account`, `zk balance`, `zk token-holders`, `zk proof`, `zk validity-proof`, `zk tx`, `zk indexer-health`, and more
+- [Transaction sending](README.md#transaction-sending): `send broadcast`, `send raw`, `send sender`, `send poll`, `send compute-units`
+- [WebSocket streaming](README.md#websocket-streaming): `ws account`, `ws logs`, `ws slot`, `ws signature`, `ws program`
+- [SIMDs](README.md#simds): `simd list`, `simd get`
+
+## Global options
+
+- `--api-key <key>` — override the configured API key
+- `--network <net>` — `mainnet` (default) or `devnet`
+- `--json` — machine-readable JSON output
+- `--retry <n>` — retry transient errors up to `n` times with exponential backoff (default `0`)
+- `-k, --keypair <path>` — keypair file path (for `signup`, `login`, `upgrade`, `pay`, `stake`)
+
+## Resources
+
+- [Full README](README.md): Complete command reference, configuration, and development setup for the Helius CLI
+- [Helius Agents Documentation](https://www.helius.dev/docs/agents/llms.txt): Machine-readable index of all agent-focused documentation for the Helius Solana platform
+- [Helius for Agents](https://www.helius.dev/docs/agents/overview.md): Everything AI agents need to build on Solana with Helius
+- [Helius Docs](https://www.helius.dev/docs): Platform API documentation (RPC, DAS, Sender, webhooks, Laserstream)
+- [Helius Dashboard](https://dashboard.helius.dev): Manage API keys, billing, and webhooks in the browser

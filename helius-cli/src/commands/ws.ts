@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { jsonReplacer, classifyError, type OutputOptions } from "../lib/output.js";
+import { jsonReplacer, classifyError, exitWithError, getCategory, CLI_GUIDANCE, type OutputOptions } from "../lib/output.js";
+import { sendCommandEvent, getCurrentCommand } from "../lib/feedback.js";
+import { validateAddress, validateSignature } from "../lib/validation.js";
 
 interface WsOptions extends OutputOptions, ResolveOptions {}
 
@@ -30,19 +32,27 @@ async function streamSubscription(
 }
 
 function handleWsError(error: unknown, options: WsOptions): void {
-  if ((error as any)?.name === "AbortError") return;
+  if (error instanceof Error && error.name === "AbortError") return;
   const { exitCode, errorCode, retryable } = classifyError(error);
   const message = error instanceof Error ? error.message : String(error);
+  const guidance = CLI_GUIDANCE[errorCode];
+
+  const cmdName = getCurrentCommand() || "unknown";
+  sendCommandEvent(cmdName, { exitCode, success: false });
+
   if (options.json) {
-    emitEvent("error", { error: errorCode, message, retryable });
+    emitEvent("error", { error: errorCode, message, category: getCategory(errorCode), retryable, ...(guidance ? { guidance } : {}) });
   } else {
     const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
     console.error(chalk.red(`Error: ${message}${hint}`));
+    if (guidance) {
+      console.error(chalk.yellow(`\n  Hint: ${guidance}`));
+    }
   }
   process.exit(exitCode);
 }
 
-function setupShutdown(helius: any, abortController: AbortController, label: string, options: WsOptions): void {
+function setupShutdown(helius: { ws: { close(): void } }, abortController: AbortController, label: string, options: WsOptions): void {
   if (options.json) {
     emitEvent("connected", { subscription: label });
   } else {
@@ -64,6 +74,8 @@ function setupShutdown(helius: any, abortController: AbortController, label: str
 
 export async function wsAccountCommand(address: string, options: WsOptions = {}): Promise<void> {
   try {
+    const addrErr = validateAddress(address);
+    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
     const apiKey = await resolveApiKey(options);
     const network = resolveNetwork(options);
     const helius = getClient(apiKey, network);
@@ -121,6 +133,8 @@ export async function wsSlotCommand(options: WsOptions = {}): Promise<void> {
 
 export async function wsSignatureCommand(signature: string, options: WsOptions = {}): Promise<void> {
   try {
+    const sigErr = validateSignature(signature);
+    if (sigErr) exitWithError("INVALID_INPUT", sigErr, undefined, !!options.json);
     const apiKey = await resolveApiKey(options);
     const network = resolveNetwork(options);
     const helius = getClient(apiKey, network);
@@ -136,6 +150,8 @@ export async function wsSignatureCommand(signature: string, options: WsOptions =
 
 export async function wsProgramCommand(programId: string, options: WsOptions = {}): Promise<void> {
   try {
+    const addrErr = validateAddress(programId);
+    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
     const apiKey = await resolveApiKey(options);
     const network = resolveNetwork(options);
     const helius = getClient(apiKey, network);

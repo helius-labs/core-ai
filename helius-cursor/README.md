@@ -8,7 +8,7 @@ Search **"Helius"** in the Cursor Marketplace, or run `/add-plugin` in Cursor an
 
 ## What's included
 
-**Helius MCP Server** — auto-starts with the plugin. 40+ tools for querying the blockchain, managing webhooks, streaming data, sending transactions, and more.
+**Helius MCP Server** — auto-starts with the plugin. Exposes 10 public tools total: 9 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 
 **DFlow MCP Server** — auto-starts with the plugin. Tools for querying DFlow API details, response schemas, and code examples for trading integrations.
 

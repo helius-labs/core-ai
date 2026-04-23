@@ -1,6 +1,8 @@
 {
-  "helius": "1.0.0",
-  "helius-dflow": "1.0.0",
-  "helius-phantom": "1.0.0",
+  "helius": "1.1.1",
+  "helius-dflow": "1.1.1",
+  "helius-jupiter": "1.0.1",
+  "helius-okx": "1.0.1",
+  "helius-phantom": "1.0.1",
   "svm": "1.0.0"
 }

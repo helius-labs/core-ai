@@ -10,7 +10,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
   try {
     const jwt = getJwt();
     if (!jwt) {
-      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, !!options.json);
     }
 
     spinner?.start("Fetching projects...");
@@ -18,34 +18,29 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
     spinner?.stop();
 
     if (projects.length === 0) {
-      exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
+      exitWithError("NO_PROJECTS", "No projects found", undefined, !!options.json);
     }
 
     // If no project ID provided, try to get the only project
     let project;
     if (!projectId) {
       if (projects.length > 1) {
-        if (options.json) {
-          exitWithError("MULTIPLE_PROJECTS", "Multiple projects found, specify project ID", {
-            projects: projects.map(p => ({ id: p.id, name: p.name })),
-          }, options.json);
+        if (!options.json) {
+          console.log(chalk.yellow("Multiple projects found. Please specify a project ID."));
+          console.log("\nAvailable projects:");
+          for (const p of projects) {
+            console.log(`  ${chalk.cyan(p.id)} - ${p.name || "Unnamed"}`);
+          }
         }
-        console.log(
-          chalk.yellow(
-            "Multiple projects found. Please specify a project ID."
-          )
-        );
-        console.log("\nAvailable projects:");
-        for (const p of projects) {
-          console.log(`  ${chalk.cyan(p.id)} - ${p.name || "Unnamed"}`);
-        }
-        process.exit(ExitCode.MULTIPLE_PROJECTS);
+        exitWithError("MULTIPLE_PROJECTS", "Multiple projects found, specify project ID", {
+          projects: projects.map(p => ({ id: p.id, name: p.name })),
+        }, !!options.json);
       }
       project = projects[0];
     } else {
       project = projects.find(p => p.id === projectId);
       if (!project) {
-        exitWithError("PROJECT_NOT_FOUND", `Project ${projectId} not found`, undefined, options.json);
+        exitWithError("PROJECT_NOT_FOUND", `Project ${projectId} not found`, undefined, !!options.json);
       }
     }
 
@@ -59,7 +54,7 @@ export async function rpcCommand(projectId?: string, options: OutputOptions = {}
       spinner?.stop();
 
       if (!fullProject.apiKeys || fullProject.apiKeys.length === 0) {
-        exitWithError("NO_API_KEYS", "No API keys found", undefined, options.json);
+        exitWithError("NO_API_KEYS", "No API keys found", undefined, !!options.json);
       }
 
       const apiKey = fullProject.apiKeys[0].keyId;

@@ -45,7 +45,7 @@ export function configSetApiKeyCommand(key: string, options: OutputOptions = {})
 
 export function configSetNetworkCommand(network: string, options: OutputOptions = {}): void {
   if (network !== "mainnet" && network !== "devnet") {
-    exitWithError("INVALID_INPUT", `Invalid network: ${network}. Use "mainnet" or "devnet".`, undefined, options.json);
+    exitWithError("INVALID_INPUT", `Invalid network: ${network}. Use "mainnet" or "devnet".`, undefined, !!options.json);
   }
   const resolved = network as "mainnet" | "devnet";
   setNetwork(resolved);

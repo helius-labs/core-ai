@@ -70,35 +70,44 @@ Ask questions in plain English — the right tool is selected automatically:
 - "Get the balance of Gh9ZwEm..."
 - "Create a webhook for \<address\>"
 
-## Tools
+## Public Tool Surface
 
-**Onboarding (6):** getStarted, setHeliusApiKey, generateKeypair, checkSignupBalance, agenticSignup, getAccountStatus
+Helius MCP exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
 
-**DAS API (9):** getAsset (single + batch), getAssetsByOwner, getAssetsByGroup, searchAssets (routes getAssetsByCreator / getAssetsByAuthority), getAssetProof, getAssetProofBatch, getSignaturesForAsset, getNftEditions, getTokenAccounts
+- `heliusAccount` — account setup, auth, plans, billing
+- `heliusWallet` — wallet balances, holdings, wallet history, identity
+- `heliusAsset` — assets, NFTs, collections, token holders
+- `heliusTransaction` — transaction parsing and wallet transaction history
+- `heliusChain` — chain state, token accounts, blocks, network status, stake reads
+- `heliusStreaming` — webhook CRUD and subscription config
+- `heliusKnowledge` — docs, guides, pricing, troubleshooting, source, blog, SIMDs
+- `heliusWrite` — transfers and staking mutations
+- `heliusCompression` — compressed account, balance, proof, and history actions
+- `expandResult` — expand summary-first outputs by `resultId`
 
-**RPC (5):** getBalance, getTokenBalances, getAccountInfo (single + batch), getNetworkStatus, getBlock
+The 9 routed domain tools share a common shape:
 
-**Transactions (2):** parseTransactions, getTransactionHistory
+- `action` — the Helius action name to run, such as `getBalance` or `createWebhook`
+- domain-specific params — for example `address`, `signatures`, or `webhookURL`
+- optional `detail` — `summary`, `standard`, or `full`
+- telemetry fields — `_feedback`, `_feedbackTool`, `_model`
 
-**Transfers (2):** transferSol, transferToken
+Each routed tool takes an `action` field with the Helius action name:
 
-**Priority Fees (1):** getPriorityFeeEstimate
+```json
+{
+  "name": "heliusWallet",
+  "arguments": {
+    "action": "getBalance",
+    "address": "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr",
+    "_feedback": "initial balance check",
+    "_feedbackTool": "heliusWallet.getBalance",
+    "_model": "your-model-id"
+  }
+}
+```
 
-**Tokens (2):** getTokenHolders, getProgramAccounts
-
-**Webhooks (5):** getAllWebhooks, getWebhookByID, createWebhook, updateWebhook, deleteWebhook
-
-**Enhanced WebSockets (3):** transactionSubscribe, accountSubscribe, getEnhancedWebSocketInfo
-
-**Laserstream gRPC (2):** laserstreamSubscribe, getLaserstreamInfo
-
-**Wallet (6):** getWalletIdentity, batchWalletIdentity, getWalletBalances, getWalletHistory, getWalletTransfers, getWalletFundedBy
-
-**Plans & Billing (5):** getHeliusPlanInfo, compareHeliusPlans, previewUpgrade, upgradePlan, payRenewal
-
-**Docs & Guides (10):** lookupHeliusDocs, listHeliusDocTopics, getHeliusCreditsInfo, getRateLimitInfo, troubleshootError, getSenderInfo, getWebhookGuide, getLatencyComparison, getPumpFunGuide, recommendStack
-
-**Solana Knowledge (5):** getSIMD, listSIMDs, searchSolanaDocs, readSolanaSourceFile, fetchHeliusBlog
+Heavy responses are summary-first. Routed tools return a compact summary plus `resultId` when the full response would be large or when `detail: "summary"` is requested. Use `expandResult` with that `resultId` to fetch a specific section, range, page, or continuation slice on demand.
 
 ## System Prompts
 

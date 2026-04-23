@@ -1,4 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSolCompact } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
@@ -7,9 +8,11 @@ import { mcpText, handleToolError } from '../utils/errors.js';
 export function registerNetworkTools(server: McpServer) {
   server.tool(
     'getNetworkStatus',
-    'BEST FOR: quick Solana network health check — epoch, slot, TPS, supply, version. Get current Solana network status including epoch info (current epoch, slot, progress), current TPS (transactions per second), total SOL supply, cluster version, and current block height. No parameters needed — gives a quick overview of blockchain health and state. Credit cost: 4 credits (4 standard RPC calls).',
-    {},
-    async () => {
+    'BEST FOR: quick Solana network health check — epoch, slot, TPS, supply, version. Get current Solana network status including epoch info (current epoch, slot, progress), current TPS (transactions per second), total SOL supply, cluster version, and current block height. Optionally pass "samples" to control the TPS averaging window (each sample ≈ 60s; default 4 ≈ 4 min, max 720 ≈ 12 hours). Credit cost: 4 credits (4 standard RPC calls).',
+    {
+      samples: z.number().optional().default(4).describe('Number of recent performance samples for TPS calculation (each sample ≈ 60s). Default 4 (~4 min). Max 720 (~12 hours).'),
+    },
+    async ({ samples }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
@@ -21,7 +24,7 @@ export function registerNetworkTools(server: McpServer) {
           (helius as any).getEpochInfo(),
           (helius as any).getSupply(),
           (helius as any).getVersion(),
-          (helius as any).getRecentPerformanceSamples(4),
+          (helius as any).getRecentPerformanceSamples(Math.max(1, Math.min(samples, 720))),
         ]);
 
         const lines = ['**Solana Network Status**', ''];
@@ -47,7 +50,7 @@ export function registerNetworkTools(server: McpServer) {
           lines.push('');
         }
 
-        // TPS — averaged from 4 recent performance samples (~60s each, ~4 min window)
+        // TPS — averaged from recent performance samples (~60s each)
         // numTransactions includes vote + non-vote; numNonVoteTransactions is real user TPS
         if (Array.isArray(perfSamples) && perfSamples.length > 0) {
           let totalTx = 0;
@@ -67,7 +70,10 @@ export function registerNetworkTools(server: McpServer) {
           }
           if (totalSeconds > 0) {
             const totalTps = Math.round(totalTx / totalSeconds);
-            lines.push('**TPS (avg. last ~4 min):**');
+            const window = totalSeconds >= 3600
+              ? `~${(totalSeconds / 3600).toFixed(1)} hr`
+              : `~${Math.round(totalSeconds / 60)} min`;
+            lines.push(`**TPS (avg. last ${window}):**`);
             if (hasNonVoteData) {
               const nonVoteTps = Math.round(totalNonVoteTx / totalSeconds);
               lines.push(`- Real (non-vote): ~${nonVoteTps.toLocaleString()} tx/sec`);

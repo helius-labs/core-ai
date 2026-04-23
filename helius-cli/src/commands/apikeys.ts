@@ -45,11 +45,11 @@ export async function apikeysCommand(projectId?: string, options: ApikeysOptions
   try {
     const jwt = getJwt();
     if (!jwt) {
-      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, !!options.json);
     }
 
     spinner?.start("Fetching API keys...");
-    const id = await resolveProjectId(jwt, projectId, options.json);
+    const id = await resolveProjectId(jwt, projectId, !!options.json);
     const project = await getProject(jwt, id);
     spinner?.stop();
 
@@ -106,7 +106,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
   try {
     const jwt = getJwt();
     if (!jwt) {
-      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, !!options.json);
     }
 
     // Get wallet address from the first project's users (the owner)
@@ -114,14 +114,14 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     const projects = await listProjects(jwt);
 
     if (projects.length === 0) {
-      exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
+      exitWithError("NO_PROJECTS", "No projects found", undefined, !!options.json);
     }
 
     const id = projectId || projects[0].id;
     const project = projects.find(p => p.id === id);
 
     if (!project) {
-      exitWithError("PROJECT_NOT_FOUND", `Project ${id} not found`, undefined, options.json);
+      exitWithError("PROJECT_NOT_FOUND", `Project ${id} not found`, undefined, !!options.json);
     }
 
     // Get wallet address from the project users (the owner)
@@ -129,7 +129,7 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     const walletAddress = owner?.id;
 
     if (!walletAddress) {
-      exitWithError("API_ERROR", "Could not determine wallet address from project", undefined, options.json);
+      exitWithError("API_ERROR", "Could not determine wallet address from project", undefined, !!options.json);
     }
 
     if (spinner) spinner.text = "Creating API key...";

@@ -23,7 +23,9 @@ Every Sender transaction MUST include all three of these or it will be rejected:
 
 ### 2. Jito Tip
 
-A SOL transfer instruction to one of the designated tip accounts. Pick one randomly per transaction to distribute load.
+A SOL transfer instruction to one of the designated **Sender tip accounts** listed below. These are Sender-specific accounts — NOT the Jito tip accounts directly. Sender forwards your tip to Jito on your behalf. This means you cannot reuse a tip you've already sent to a Jito tip account elsewhere — the transfer must go to one of these Sender tip accounts.
+
+Pick one tip account **randomly per transaction** to distribute load.
 
 **Minimum tip amounts:**
 - Default dual routing: **0.0002 SOL** (200,000 lamports)
@@ -348,6 +350,88 @@ When building the transaction, instructions MUST be ordered:
 2. `ComputeBudgetProgram.setComputeUnitPrice` (second)
 3. Your application instructions (middle)
 4. Jito tip transfer (last)
+
+## Sending a Pre-Serialized Transaction via Sender
+
+If you receive an already-serialized transaction (e.g. from a third-party API, a dApp, or a user), do NOT assume it already contains a Jito tip. First check the transaction's instructions for an existing transfer to one of the Sender tip accounts listed above. Most pre-built transactions will not have a tip, and Sender will reject transactions without one.
+
+Deserializing, modifying, and re-serializing a transaction is perfectly safe and is the standard approach. In typical Sender integration scenarios you have access to all required signers — the transaction is being built or relayed on behalf of a user whose keypair you hold. Re-signing after modification is straightforward in this case.
+
+To add a tip, **deserialize** the transaction, append the tip transfer instruction, and re-sign:
+
+```typescript
+import {
+  VersionedTransaction,
+  TransactionMessage,
+  SystemProgram,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  Keypair,
+  Connection,
+  ComputeBudgetProgram,
+  AddressLookupTableAccount,
+} from '@solana/web3.js';
+
+async function addTipAndSend(
+  serializedTx: Uint8Array,
+  keypair: Keypair,
+  connection: Connection
+): Promise<string> {
+  // 1. Deserialize the existing transaction
+  const originalTx = VersionedTransaction.deserialize(serializedTx);
+
+  // 2. Resolve any address lookup tables the transaction uses
+  const addressLookupTableAccounts = await Promise.all(
+    originalTx.message.addressTableLookups.map(async (lookup) => {
+      const { value } = await connection.getAddressLookupTable(lookup.accountKey);
+      if (!value) throw new Error(`ALT not found: ${lookup.accountKey.toBase58()}`);
+      return value;
+    })
+  );
+
+  // 3. Decompile into a mutable message
+  const message = TransactionMessage.decompile(originalTx.message, {
+    addressLookupTableAccounts,
+  });
+
+  // 4. Append the Sender tip instruction
+  const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
+  const tipAmountSOL = await getDynamicTipAmount();
+  message.instructions.push(
+    SystemProgram.transfer({
+      fromPubkey: keypair.publicKey,
+      toPubkey: new PublicKey(tipAccount),
+      lamports: Math.floor(tipAmountSOL * LAMPORTS_PER_SOL),
+    })
+  );
+
+  // 5. Recompile, re-sign, and send
+  const newTx = new VersionedTransaction(
+    message.compileToV0Message(addressLookupTableAccounts)
+  );
+  newTx.sign([keypair]);
+
+  const response = await fetch('https://sender.helius-rpc.com/fast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now().toString(),
+      method: 'sendTransaction',
+      params: [
+        Buffer.from(newTx.serialize()).toString('base64'),
+        { encoding: 'base64', skipPreflight: true, maxRetries: 0 },
+      ],
+    }),
+  });
+
+  const json = await response.json();
+  if (json.error) throw new Error(json.error.message);
+  return json.result;
+}
+```
+
+**Important:** Decompiling and recompiling changes the transaction, which invalidates all existing signatures. You must re-sign with all required signers after adding the tip. This is expected and safe — in most Sender integration scenarios you control the signing keys. If the original transaction was signed by a third party whose key you don't hold, you cannot modify it — coordinate with the signer to include the tip before serialization.
 
 ## Common Mistakes
 

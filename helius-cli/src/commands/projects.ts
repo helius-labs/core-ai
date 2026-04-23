@@ -9,7 +9,7 @@ export async function projectsCommand(options: OutputOptions): Promise<void> {
   try {
     const jwt = getJwt();
     if (!jwt) {
-      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, !!options.json);
     }
 
     spinner?.start("Fetching projects...");

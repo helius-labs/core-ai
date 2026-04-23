@@ -37,6 +37,25 @@ The Phantom skill (`helius-skills/helius-phantom/`, `helius-plugin/skills/phanto
 - The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
 - When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to both `helius-plugin/skills/phantom/references/` and `helius-cursor/skills/phantom/references/`.
 
+### Jupiter Skill References
+
+The Jupiter skill (`helius-skills/helius-jupiter/`, `helius-plugin/skills/jupiter/`, and `helius-cursor/skills/jupiter/`) has its own reference files that **must also be kept in sync**.
+
+- **Canonical source**: `helius-skills/helius-jupiter/references/`
+- **Copies**: `helius-plugin/skills/jupiter/references/`, `helius-cursor/skills/jupiter/references/`
+- The Jupiter skill contains 16 reference files: 7 Helius copies (prefixed with `helius-`), 8 Jupiter-specific files (swap, lend, trigger, recurring, tokens-price, perps-predictions, plugin, portal), and 1 integration-patterns file.
+- The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside Jupiter files in the same directory.
+- When updating Jupiter reference files, update in `helius-skills/helius-jupiter/references/` first, then copy to both `helius-plugin/skills/jupiter/references/` and `helius-cursor/skills/jupiter/references/`.
+
+### OKX Skill References
+
+The OKX skill (`helius-skills/helius-okx/`, `helius-plugin/skills/okx/`, and `helius-cursor/skills/okx/`) is an **integration-only layer** that describes how to compose OKX tools with Helius tools. It does not duplicate OKX's own documentation — users install the OKX skill library (`onchainos-skills`) separately.
+
+- **Canonical source**: `helius-skills/helius-okx/references/`
+- **Copies**: `helius-plugin/skills/okx/references/`, `helius-cursor/skills/okx/references/`
+- The OKX skill contains 1 reference file: `integration-patterns.md` (6 end-to-end Helius + OKX composition patterns).
+- When updating OKX reference files, update in `helius-skills/helius-okx/references/` first, then copy to both `helius-plugin/skills/okx/references/` and `helius-cursor/skills/okx/references/`.
+
 ### SVM Skill References
 
 The SVM skill (`helius-skills/svm/`, `helius-plugin/skills/svm/`, and `helius-cursor/skills/svm/`) has its own reference files that **must also be kept in sync**.
@@ -72,11 +91,29 @@ All skill content flows from `helius-skills/` to four destinations:
 
 CI validates all sync paths. After modifying any `SKILL.md` or reference file in `helius-skills/`, run `npx tsx scripts/compile-skills.ts` to regenerate output.
 
+## Router Surface Maintenance
+
+The Helius MCP public surface is a coordinated contract: 10 public tools total, shared `action` routing, and summary-first responses with `expandResult`.
+
+If you change the router surface, routed tool descriptions, action-routing guidance, or summary-first response behavior, update all of these in the same pass:
+
+- `AGENTS.md`
+- `README.md`
+- `helius-mcp/README.md`
+- `helius-plugin/README.md`
+- `helius-cursor/README.md`
+- canonical `helius-skills/*/SKILL.md`
+- manual plugin/cursor `SKILL.md` copies
+- generated `.agents/skills/` output
+- generated `helius-mcp/system-prompts/` output
+
+Do not leave router/runtime changes documented in only one layer.
+
 ## SKILL.md Files
 
 The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
 
-- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
+- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-jupiter` vs `jupiter`, `helius-okx` vs `okx`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
 - Metadata/frontmatter
 - MCP prerequisite messaging (manual install vs plugin auto-start, Cursor vs Claude Code restart instructions)
 

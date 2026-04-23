@@ -4,18 +4,18 @@
  * Validates the product catalog for correctness.
  *
  * Checks:
- * 1. Every mcpTools entry exists in KNOWN_TOOLS
+ * 1. Every mcpTools entry exists in the action registry
  * 2. Every referenceFile exists on disk
  * 3. Every docKey exists in DOCS_INDEX
  * 4. Every minimumPlan is a valid key in PLAN_RANK and HELIUS_PLANS
- * 5. Plan-feature compatibility (Laserstream mainnet → professional, Enhanced WebSockets → business+)
+ * 5. Plan-feature compatibility (Laserstream mainnet → business+, Enhanced WebSockets → developer+)
  * 6. No empty mcpTools arrays
  */
 
 import fs from 'fs';
 import path from 'path';
 import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
-import { KNOWN_TOOLS } from '../tools/recommend.js';
+import { ACTION_NAME_SET } from '../router/actions.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -30,9 +30,9 @@ function error(productKey: string, msg: string) {
 }
 
 for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
-  // 1. MCP tool names exist in KNOWN_TOOLS
+  // 1. MCP tool names exist in the canonical action registry
   for (const tool of product.mcpTools) {
-    if (!KNOWN_TOOLS.has(tool)) {
+    if (!ACTION_NAME_SET.has(tool)) {
       error(key, `Unknown MCP tool "${tool}"`);
     }
   }
@@ -60,11 +60,11 @@ for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
 
   // 5. Plan-feature compatibility
   const nameLower = product.name.toLowerCase();
-  if (nameLower.includes('laserstream') && nameLower.includes('mainnet') && product.minimumPlan !== 'professional') {
-    error(key, `Laserstream mainnet requires professional plan, but has "${product.minimumPlan}"`);
+  if (nameLower.includes('laserstream') && nameLower.includes('mainnet') && (PLAN_RANK[product.minimumPlan] ?? 0) < PLAN_RANK['business']) {
+    error(key, `Laserstream mainnet requires business+ plan, but has "${product.minimumPlan}"`);
   }
-  if (nameLower.includes('enhanced websocket') && (PLAN_RANK[product.minimumPlan] ?? 0) < PLAN_RANK['business']) {
-    error(key, `Enhanced WebSockets requires business+ plan, but has "${product.minimumPlan}"`);
+  if (nameLower.includes('enhanced websocket') && (PLAN_RANK[product.minimumPlan] ?? 0) < PLAN_RANK['developer']) {
+    error(key, `Enhanced WebSockets requires developer+ plan, but has "${product.minimumPlan}"`);
   }
 
   // 6. No empty mcpTools

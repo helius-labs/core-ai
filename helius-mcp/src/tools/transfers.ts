@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createKeyPairSignerFromBytes, address } from '@solana/kit';
+import { address } from '@solana/kit';
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   findAssociatedTokenPda,
@@ -9,9 +9,10 @@ import {
   getTransferCheckedInstruction,
   TOKEN_PROGRAM_ADDRESS,
 } from '@solana-program/token';
-import { getHeliusClient, hasApiKey, loadSignerOrFail } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError, isValidAddressFormat } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
+import { resolveOwsOrKeypairSigner } from '../utils/ows.js';
 
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
@@ -34,21 +35,16 @@ export function registerTransferTools(server: McpServer) {
       recipientAddress: z.string().describe('Recipient Solana wallet address (base58 encoded)'),
       amount: z.number().positive().optional().describe('Amount of SOL to send (e.g., 0.5 for half a SOL). Required unless sendMax is true.'),
       sendMax: z.boolean().optional().default(false).describe('Send the maximum possible amount (entire balance minus transaction fees). When true, amount is ignored.'),
+      owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed). When provided, signs via Open Wallet Standard instead of the local keypair.'),
     },
-    async ({ recipientAddress, amount, sendMax }) => {
+    async ({ recipientAddress, amount, sendMax, owsWallet }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        // Load keypair
-        let signerData: { secretKey: Uint8Array; walletAddress: string };
-        try {
-          signerData = await loadSignerOrFail();
-        } catch {
-          return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before sending.',
-            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
-          );
-        }
+        // Load signer — OWS wallet or local keypair
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        if (!resolved.ok) return resolved.error;
+        const { signer, walletAddress } = resolved;
 
         // Validate recipient address
         if (!isValidAddressFormat(recipientAddress)) {
@@ -59,7 +55,7 @@ export function registerTransferTools(server: McpServer) {
         }
 
         const helius = getHeliusClient();
-        const balanceResult = await helius.getBalance(signerData.walletAddress);
+        const balanceResult = await helius.getBalance(walletAddress);
         const balanceLamports = BigInt(balanceResult.value);
 
         let lamports: bigint;
@@ -82,7 +78,7 @@ export function registerTransferTools(server: McpServer) {
             const available = Number(balanceLamports) / 1_000_000_000;
             return mcpError(
               `Balance too low to cover the transaction fee. You have ${available} SOL.\n\n` +
-              `Wallet: \`${signerData.walletAddress}\``,
+              `Wallet: \`${walletAddress}\``,
               { type: 'INSUFFICIENT_FUNDS', code: 'LOW_SOL', retryable: false, recovery: `Fund the wallet with more SOL. Current balance: ${available} SOL.` }
             );
           }
@@ -102,14 +98,11 @@ export function registerTransferTools(server: McpServer) {
             const available = Number(balanceLamports) / 1_000_000_000;
             return mcpError(
               `Insufficient SOL balance. You have ${available} SOL but need ${sendAmount} SOL plus ~0.005 SOL for transaction fees.\n\n` +
-              `Wallet: \`${signerData.walletAddress}\``,
+              `Wallet: \`${walletAddress}\``,
               { type: 'INSUFFICIENT_FUNDS', code: 'LOW_SOL', retryable: false, recovery: `Fund the wallet with at least ${sendAmount + 0.005} SOL.` }
             );
           }
         }
-
-        // Create signer from keypair bytes
-        const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
 
         // Build transfer instruction
         const ix = getTransferSolInstruction({
@@ -136,9 +129,10 @@ export function registerTransferTools(server: McpServer) {
           });
         }
 
+        const signerLabel = owsWallet ? `\`${walletAddress}\` (OWS: ${owsWallet})` : `\`${walletAddress}\``;
         return mcpText(
           `**SOL Transfer Sent**\n\n` +
-          `- **From:** \`${signerData.walletAddress}\`\n` +
+          `- **From:** ${signerLabel}\n` +
           `- **To:** \`${recipientAddress}\`\n` +
           `- **Amount:** ${sendAmount} SOL${sendMax ? ' (max)' : ''}\n` +
           `- **Signature:** \`${signature}\`\n` +
@@ -167,21 +161,16 @@ export function registerTransferTools(server: McpServer) {
       mintAddress: z.string().describe('Token mint address (base58 encoded, e.g., EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v for USDC)'),
       amount: z.number().positive().optional().describe('Amount of tokens to send in human-readable units (e.g., 10 for 10 USDC). Required unless sendMax is true.'),
       sendMax: z.boolean().optional().default(false).describe('Send the entire token balance and close the sender token account to reclaim rent. When true, amount is ignored.'),
+      owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed). When provided, signs via Open Wallet Standard instead of the local keypair.'),
     },
-    async ({ recipientAddress, mintAddress, amount, sendMax }) => {
+    async ({ recipientAddress, mintAddress, amount, sendMax, owsWallet }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        // Load keypair
-        let signerData: { secretKey: Uint8Array; walletAddress: string };
-        try {
-          signerData = await loadSignerOrFail();
-        } catch {
-          return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before sending.',
-            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call `generateKeypair` to create a wallet.' }
-          );
-        }
+        // Load signer — OWS wallet or local keypair
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        if (!resolved.ok) return resolved.error;
+        const { signer, walletAddress } = resolved;
 
         // Validate addresses
         if (!isValidAddressFormat(recipientAddress)) {
@@ -229,8 +218,6 @@ export function registerTransferTools(server: McpServer) {
           );
         }
 
-        // Create signer from keypair bytes
-        const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
         const mint = address(mintAddress);
         const recipient = address(recipientAddress);
 
@@ -257,7 +244,7 @@ export function registerTransferTools(server: McpServer) {
           } catch {
             return mcpError(
               `No token account found for ${tokenSymbol || tokenName}. You may not hold this token.\n\n` +
-              `Wallet: \`${signerData.walletAddress}\`\n` +
+              `Wallet: \`${walletAddress}\`\n` +
               `Mint: \`${mintAddress}\``,
               { type: 'INSUFFICIENT_FUNDS', code: 'LOW_TOKEN', retryable: false, recovery: `You may not hold ${tokenSymbol || tokenName}. Check your token balances with getTokenBalances.` }
             );
@@ -266,7 +253,7 @@ export function registerTransferTools(server: McpServer) {
           if (rawAmount === 0n) {
             return mcpError(
               `${tokenSymbol || tokenName} balance is 0. Nothing to send.\n\n` +
-              `Wallet: \`${signerData.walletAddress}\`\n` +
+              `Wallet: \`${walletAddress}\`\n` +
               `Mint: \`${mintAddress}\``,
               { type: 'INSUFFICIENT_FUNDS', code: 'ZERO_BALANCE', retryable: false, recovery: `${tokenSymbol || tokenName} balance is zero. Fund the wallet with tokens before sending.` }
             );
@@ -290,7 +277,7 @@ export function registerTransferTools(server: McpServer) {
               const currentHuman = Number(currentRaw) / 10 ** decimals;
               return mcpError(
                 `Insufficient ${tokenSymbol || tokenName} balance. You have ${currentHuman} but are trying to send ${sendAmount}.\n\n` +
-                `Wallet: \`${signerData.walletAddress}\`\n` +
+                `Wallet: \`${walletAddress}\`\n` +
                 `Mint: \`${mintAddress}\``,
                 { type: 'INSUFFICIENT_FUNDS', code: 'LOW_TOKEN', retryable: false, recovery: `You have ${currentHuman} ${tokenSymbol || tokenName} but need ${sendAmount}. Fund the wallet with more tokens.` }
               );
@@ -340,9 +327,10 @@ export function registerTransferTools(server: McpServer) {
           ? `${sendAmount} ${tokenSymbol} (${tokenName})`
           : `${sendAmount} ${tokenName}`;
 
+        const signerLabel = owsWallet ? `\`${walletAddress}\` (OWS: ${owsWallet})` : `\`${walletAddress}\``;
         return mcpText(
           `**Token Transfer Sent**\n\n` +
-          `- **From:** \`${signerData.walletAddress}\`\n` +
+          `- **From:** ${signerLabel}\n` +
           `- **To:** \`${recipientAddress}\`\n` +
           `- **Amount:** ${displayName}${sendMax ? ' (max)' : ''}\n` +
           `- **Mint:** \`${mintAddress}\`\n` +

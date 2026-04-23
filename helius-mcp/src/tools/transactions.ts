@@ -230,7 +230,7 @@ function formatSwapSummary(
       const asset = tokenMetadata.get(input.mint);
       const symbol = asset?.token_info?.symbol || asset?.content?.metadata?.symbol || asset?.content?.metadata?.name || formatAddress(input.mint);
       const amount = Number(input.rawTokenAmount.tokenAmount) / Math.pow(10, input.rawTokenAmount.decimals);
-      parts.push(`${amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`);
+      parts.push(`${amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol} (${input.mint})`);
     }
   }
 
@@ -247,7 +247,7 @@ function formatSwapSummary(
       const asset = tokenMetadata.get(output.mint);
       const symbol = asset?.token_info?.symbol || asset?.content?.metadata?.symbol || asset?.content?.metadata?.name || formatAddress(output.mint);
       const amount = Number(output.rawTokenAmount.tokenAmount) / Math.pow(10, output.rawTokenAmount.decimals);
-      parts.push(`${amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`);
+      parts.push(`${amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol} (${output.mint})`);
     }
   }
 

@@ -86,6 +86,8 @@ helius config clear               # Reset config
 | `helius apikeys [project-id]` | List API keys |
 | `helius apikeys create [project-id]` | Create a new API key |
 | `helius usage [project-id]` | Show credits usage |
+| `helius status` | Show account status: plan, credits, billing cycle |
+| `helius plans` | List available Helius plans and pricing |
 | `helius rpc [project-id]` | Show RPC endpoints |
 
 ### Balances & Tokens
@@ -133,8 +135,8 @@ helius config clear               # Reset config
 
 | Command | Description |
 |---|---|
-| `helius wallet identity <address>` | Look up wallet identity |
-| `helius wallet identity-batch <addresses...>` | Look up identities for multiple wallets |
+| `helius wallet identity <address-or-domain>` | Look up wallet identity (address or SNS/ANS domain) |
+| `helius wallet identity-batch <entries...>` | Look up identities for multiple wallets (addresses and/or domains) |
 | `helius wallet balances <address>` | Get all token balances with USD values |
 | `helius wallet history <address>` | Get transaction history with balance changes |
 | `helius wallet transfers <address>` | Get token transfers |

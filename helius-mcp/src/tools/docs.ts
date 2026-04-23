@@ -2,6 +2,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { fetchDoc, fetchDocs, getDocsIndex, extractSections, truncateDoc, DOCS_INDEX } from '../utils/docs.js';
 
+function getDocHeadings(content: string): string[] {
+  return Array.from(content.matchAll(/^#{1,3}\s+(.+)$/gm))
+    .map((match) => match[1].trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
 export function registerDocsTools(server: McpServer) {
   /**
    * Lookup Helius documentation - fetches official docs for accurate information
@@ -29,6 +36,7 @@ export function registerDocsTools(server: McpServer) {
           'dedicated-nodes',
           'shred-delivery',
         ])
+        .optional()
         .describe('Documentation topic to fetch'),
       section: z
         .string()
@@ -36,8 +44,45 @@ export function registerDocsTools(server: McpServer) {
         .describe(
           'Optional: specific section to extract (e.g., "credits", "rate limits", "parameters"). If provided, returns only matching sections.'
         ),
+      query: z
+        .string()
+        .optional()
+        .describe('Freeform query — used to infer topic if topic is not provided'),
     },
-    async ({ topic, section }) => {
+    async ({ topic: rawTopic, section, query }) => {
+      const VALID_TOPICS = [
+        'overview', 'agents', 'billing', 'das', 'rpc', 'websocket',
+        'enhanced-websockets', 'webhooks', 'enhanced-transactions', 'sender',
+        'priority-fee', 'laserstream', 'wallet-api', 'zk-compression',
+        'dedicated-nodes', 'shred-delivery',
+      ] as const;
+
+      let topic = rawTopic;
+      if (!topic && query) {
+        const q = query.toLowerCase();
+        topic = VALID_TOPICS.find((t) => q.includes(t))
+          ?? (q.includes('grpc') || q.includes('shred') && q.includes('stream') ? 'laserstream'
+          : q.includes('nft') || q.includes('asset') ? 'das'
+          : q.includes('webhook') ? 'webhooks'
+          : q.includes('fee') || q.includes('priority') ? 'priority-fee'
+          : q.includes('wallet') ? 'wallet-api'
+          : q.includes('compress') ? 'zk-compression'
+          : q.includes('websocket') || q.includes('ws') ? 'enhanced-websockets'
+          : q.includes('transaction') || q.includes('parsed') ? 'enhanced-transactions'
+          : q.includes('send') || q.includes('submit') ? 'sender'
+          : undefined);
+      }
+
+      if (!topic) {
+        const topicList = VALID_TOPICS.map((t) => `\`${t}\``).join(', ');
+        return {
+          content: [{
+            type: 'text' as const,
+            text: `Missing required parameter: topic. Valid topics: ${topicList}`,
+          }],
+          isError: true,
+        };
+      }
       try {
         const content = await fetchDoc(topic);
 
@@ -60,7 +105,14 @@ export function registerDocsTools(server: McpServer) {
               content: [
                 {
                   type: 'text' as const,
-                  text: `No sections matching "${section}" found in ${topic} docs. Returning full documentation:\n\n${content}`,
+                  text: [
+                    `No sections matching "${section}" were found in \`${topic}\` docs.`,
+                    '',
+                    'Available sections:',
+                    ...getDocHeadings(content).map((heading) => `- ${heading}`),
+                    '',
+                    'Tip: retry with a more specific section filter or omit `section` to receive the default truncated document summary.',
+                  ].join('\n'),
                 },
               ],
             };
@@ -127,55 +179,15 @@ export function registerDocsTools(server: McpServer) {
     {},
     async () => {
       try {
-        const content = await fetchDoc('overview');
-
-        // Extract credits section
-        const lines = content.split('\n');
-        const creditsLines: string[] = [];
-        let inCreditsSection = false;
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-
-          // Look for Credits section
-          if (line.includes('## Credits') || line.includes('| Credits |')) {
-            inCreditsSection = true;
-          }
-
-          if (inCreditsSection) {
-            creditsLines.push(line);
-
-            // Stop at next major section
-            if (creditsLines.length > 2 && line.startsWith('## ') && !line.includes('Credits')) {
-              creditsLines.pop(); // Remove the next section header
-              break;
-            }
-          }
-        }
-
-        // Also look for the credits table
-        const tableLines: string[] = [];
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].includes('| Credits |') || lines[i].includes('| 0 |') || lines[i].includes('| 1 |') || lines[i].includes('| 3 |') || lines[i].includes('| 10 |') || lines[i].includes('| 100 |')) {
-            // Collect table lines
-            let j = i;
-            while (j < lines.length && (lines[j].includes('|') || lines[j].trim() === '')) {
-              if (lines[j].includes('|')) {
-                tableLines.push(lines[j]);
-              }
-              j++;
-              if (j - i > 20) break; // Safety limit
-            }
-            break;
-          }
-        }
+        const content = await fetchDoc('billing');
+        const credits = extractSections(content, 'credits', { includeLooseMatches: true });
 
         const result = [
           '# Helius Credit Costs (Official)',
           '',
-          'Source: https://www.helius.dev/docs (fetched live)',
+          'Source: https://www.helius.dev/docs/billing (fetched live)',
           '',
-          ...tableLines,
+          credits || 'Credits section not found in billing docs.',
         ].join('\n');
 
         return { content: [{ type: 'text' as const, text: result }] };

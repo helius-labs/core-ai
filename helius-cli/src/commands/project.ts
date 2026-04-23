@@ -10,7 +10,7 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
   try {
     const jwt = getJwt();
     if (!jwt) {
-      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, options.json);
+      exitWithError("NOT_LOGGED_IN", "Not logged in", undefined, !!options.json);
     }
 
     // If no project ID provided, try to get the only project
@@ -22,14 +22,14 @@ export async function projectCommand(projectId?: string, options: OutputOptions 
       spinner?.stop();
 
       if (projects.length === 0) {
-        exitWithError("NO_PROJECTS", "No projects found", undefined, options.json);
+        exitWithError("NO_PROJECTS", "No projects found", undefined, !!options.json);
       }
 
       if (projects.length > 1) {
         if (options.json) {
           exitWithError("MULTIPLE_PROJECTS", "Multiple projects found, specify project ID", {
             projects: projects.map(p => ({ id: p.id, name: p.name })),
-          }, options.json);
+          }, !!options.json);
         }
         console.log(
           chalk.yellow(

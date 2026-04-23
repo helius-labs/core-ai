@@ -1,7 +1,7 @@
 import { createHelius, type HeliusClient } from "helius-sdk";
 import { getApiKey as getConfigApiKey, getNetwork as getConfigNetwork, getJwt, getProjectId } from "./config.js";
 import { listProjects, getProject } from "./api.js";
-import { registerHttpErrorClass } from "./output.js";
+import { registerHttpErrorClass, debug, maskKey } from "./output.js";
 
 /**
  * Thrown by restRequest() on non-2xx responses
@@ -95,25 +95,50 @@ export function getClient(apiKey: string, network?: string): HeliusClient {
 }
 
 /**
+ * Resolve API key, get SDK client, and update the spinner.
+ * Shared setup for commands that follow the standard resolve → client → fetch pattern.
+ */
+export async function setupClient(
+  spinner: { start(text: string): void } | null | undefined,
+  options: ResolveOptions,
+  message: string,
+): Promise<HeliusClient> {
+  spinner?.start("Resolving API key...");
+  const apiKey = await resolveApiKey(options);
+  const network = resolveNetwork(options);
+  debug(`setupClient: api-key=${maskKey(apiKey)}, network=${network}`);
+  const helius = getClient(apiKey, network);
+  spinner?.start(message);
+  return helius;
+}
+
+/**
  * REST request helper for Wallet API endpoints (not in SDK).
  * Throws HeliusHttpError on non-2xx so classifyError() gets an exact status code.
  */
 export async function restRequest(endpoint: string, apiKey: string, options: RequestInit = {}): Promise<any> {
   const separator = endpoint.includes("?") ? "&" : "?";
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
+  const method = (options.method || "GET").toUpperCase();
+  const debugUrl = `https://api.helius.xyz${endpoint}${separator}api-key=${maskKey(apiKey)}`;
 
   const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   if (options.body) {
     headers["Content-Type"] ??= "application/json";
   }
 
+  const start = Date.now();
+  debug(`${method} ${debugUrl}`);
   const response = await fetch(url, { ...options, headers });
+  const elapsed = Date.now() - start;
 
   if (!response.ok) {
     const text = await response.text();
+    debug(`${method} ${debugUrl} → ${response.status} (${elapsed}ms)`);
     throw new HeliusHttpError(response.status, `HTTP ${response.status}: ${text}`);
   }
 
+  debug(`${method} ${debugUrl} → ${response.status} (${elapsed}ms)`);
   const text = await response.text();
   if (!text || text === "null") return null;
   return JSON.parse(text);

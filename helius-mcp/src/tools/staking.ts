@@ -1,9 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createKeyPairSignerFromBytes, address } from '@solana/kit';
-import { getHeliusClient, hasApiKey, loadSignerOrFail, getSessionWalletAddress } from '../utils/helius.js';
+import { address } from '@solana/kit';
+import { getHeliusClient, hasApiKey, getSessionWalletAddress } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError, isValidAddressFormat, missingParamError } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
+import { resolveOwsOrKeypairSigner } from '../utils/ows.js';
 
 // ── Tool Registration ──
 
@@ -24,26 +25,20 @@ export function registerStakingTools(server: McpServer) {
       amount: z.number().positive().describe(
         'Amount of SOL to stake (e.g., 1.0 for one SOL). This is the delegation amount; a small rent-exempt reserve (~0.00228 SOL) is added automatically.'
       ),
+      owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed).'),
     },
-    async ({ amount }) => {
+    async ({ amount, owsWallet }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        // Load keypair
-        let signerData: { secretKey: Uint8Array; walletAddress: string };
-        try {
-          signerData = await loadSignerOrFail();
-        } catch {
-          return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet, then fund it before staking.',
-            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call generateKeypair to create a wallet.' }
-          );
-        }
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        if (!resolved.ok) return resolved.error;
+        const { signer, walletAddress } = resolved;
 
         const helius = getHeliusClient();
 
         // Pre-flight balance check — need amount + ~0.01 SOL for rent + fees
-        const balanceResult = await helius.getBalance(signerData.walletAddress);
+        const balanceResult = await helius.getBalance(walletAddress);
         const balanceLamports = BigInt(balanceResult.value);
         const stakeLamports = BigInt(Math.round(amount * 1_000_000_000));
         const reserveLamports = 10_000_000n; // ~0.01 SOL for rent-exempt reserve + fees
@@ -51,27 +46,25 @@ export function registerStakingTools(server: McpServer) {
           const available = Number(balanceLamports) / 1_000_000_000;
           return mcpError(
             `Insufficient SOL balance. You have ${available} SOL but need ${amount} SOL plus ~0.01 SOL for rent-exempt reserve and transaction fees.\n\n` +
-            `Wallet: \`${signerData.walletAddress}\``,
+            `Wallet: \`${walletAddress}\``,
             { type: 'INSUFFICIENT_FUNDS', code: 'LOW_SOL', retryable: false, recovery: 'Fund the wallet with more SOL.' }
           );
         }
 
-        // Create signer from keypair bytes
-        const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
-
         // Get stake instructions (async — fetches rent-exempt minimum from RPC)
-        const { instructions, stakeAccount } = await helius.stake.getStakeInstructions(signer, amount);
+        const { instructions, stakeAccount } = await helius.stake.getStakeInstructions(signer as any, amount);
 
         // Send transaction — stakeAccount is a generated keypair that must co-sign
         const signature = await helius.tx.sendTransactionWithSender({
-          signers: [signer, stakeAccount],
+          signers: [signer as any, stakeAccount],
           instructions: [...instructions],
           region: 'Default',
         });
 
+        const signerLabel = owsWallet ? `\`${walletAddress}\` (OWS: ${owsWallet})` : `\`${walletAddress}\``;
         return mcpText(
           `**SOL Staked to Helius Validator**\n\n` +
-          `- **From:** \`${signerData.walletAddress}\`\n` +
+          `- **From:** ${signerLabel}\n` +
           `- **Stake Account:** \`${stakeAccount.address}\`\n` +
           `- **Amount:** ${amount} SOL\n` +
           `- **Signature:** \`${signature}\`\n` +
@@ -101,21 +94,15 @@ export function registerStakingTools(server: McpServer) {
       stakeAccount: z.string().describe(
         'Address of the stake account to deactivate (base58 encoded). Use getStakeAccounts to find your Helius stake accounts.'
       ),
+      owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed).'),
     },
-    async ({ stakeAccount: stakeAccountAddress }) => {
+    async ({ stakeAccount: stakeAccountAddress, owsWallet }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        // Load keypair
-        let signerData: { secretKey: Uint8Array; walletAddress: string };
-        try {
-          signerData = await loadSignerOrFail();
-        } catch {
-          return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet.',
-            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call generateKeypair to create a wallet.' }
-          );
-        }
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        if (!resolved.ok) return resolved.error;
+        const { signer, walletAddress } = resolved;
 
         // Validate address
         if (!isValidAddressFormat(stakeAccountAddress)) {
@@ -126,22 +113,22 @@ export function registerStakingTools(server: McpServer) {
         }
 
         const helius = getHeliusClient();
-        const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
 
         // Get deactivation instruction (synchronous)
-        const ix = helius.stake.getUnstakeInstruction(signer, address(stakeAccountAddress));
+        const ix = helius.stake.getUnstakeInstruction(signer as any, address(stakeAccountAddress));
 
         // Send transaction
         const signature = await helius.tx.sendTransactionWithSender({
-          signers: [signer],
+          signers: [signer as any],
           instructions: [ix],
           region: 'Default',
         });
 
+        const signerLabel = owsWallet ? `\`${walletAddress}\` (OWS: ${owsWallet})` : `\`${walletAddress}\``;
         return mcpText(
           `**Stake Account Deactivated**\n\n` +
           `- **Stake Account:** \`${stakeAccountAddress}\`\n` +
-          `- **Authority:** \`${signerData.walletAddress}\`\n` +
+          `- **Authority:** ${signerLabel}\n` +
           `- **Signature:** \`${signature}\`\n` +
           `- **Explorer:** https://orbmarkets.io/tx/${signature}\n\n` +
           `The stake account is now deactivating. Funds will become withdrawable after the cooldown period (~1 full epoch / 2-3 days). ` +
@@ -174,21 +161,15 @@ export function registerStakingTools(server: McpServer) {
       amount: z.number().positive().optional().describe(
         'Amount of SOL to withdraw. If omitted, withdraws the entire withdrawable balance (including rent-exempt reserve, which closes the account).'
       ),
+      owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed).'),
     },
-    async ({ stakeAccount: stakeAccountAddress, destination, amount }) => {
+    async ({ stakeAccount: stakeAccountAddress, destination, amount, owsWallet }) => {
       if (!hasApiKey()) return noApiKeyResponse();
 
       try {
-        // Load keypair
-        let signerData: { secretKey: Uint8Array; walletAddress: string };
-        try {
-          signerData = await loadSignerOrFail();
-        } catch {
-          return mcpError(
-            'No keypair found. Call `generateKeypair` first to create a wallet.',
-            { type: 'AUTH', code: 'NO_KEYPAIR', retryable: false, recovery: 'Call generateKeypair to create a wallet.' }
-          );
-        }
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        if (!resolved.ok) return resolved.error;
+        const { signer, walletAddress } = resolved;
 
         // Validate addresses
         if (!isValidAddressFormat(stakeAccountAddress)) {
@@ -205,8 +186,7 @@ export function registerStakingTools(server: McpServer) {
         }
 
         const helius = getHeliusClient();
-        const signer = await createKeyPairSignerFromBytes(signerData.secretKey);
-        const dest = destination || signerData.walletAddress;
+        const dest = destination || walletAddress;
 
         // Determine lamports to withdraw
         let lamports: number;
@@ -227,11 +207,11 @@ export function registerStakingTools(server: McpServer) {
         }
 
         // Get withdraw instruction (synchronous)
-        const ix = helius.stake.getWithdrawInstruction(signer, address(stakeAccountAddress), address(dest), lamports);
+        const ix = helius.stake.getWithdrawInstruction(signer as any, address(stakeAccountAddress), address(dest), lamports);
 
         // Send transaction
         const signature = await helius.tx.sendTransactionWithSender({
-          signers: [signer],
+          signers: [signer as any],
           instructions: [ix],
           region: 'Default',
         });

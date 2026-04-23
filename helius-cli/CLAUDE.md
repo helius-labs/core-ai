@@ -88,9 +88,11 @@ WebSocket commands (`ws.ts`) use a variant that preserves the AbortError early-r
 
 The `retryable` field in `--json` error output reflects this directly.
 
+JSON error output also includes a `category` field (`"auth" | "balance" | "project" | "api" | "input" | "network" | "general"`), derived per-errorCode via `getCategory()` in `src/lib/output.ts`. Categories don't map cleanly to exit code ranges — the 50-59 range spans `auth` (INVALID_API_KEY, NO_API_KEY), `input` (INVALID_ADDRESS, INVALID_INPUT), and `network` (NETWORK_ERROR). Both `handleCommandError()` and `exitWithError()` emit it.
+
 ## Error Classification
 
-`classifyError(error)` in `src/lib/output.ts` returns `{ exitCode, errorCode, retryable }` using three tiers:
+`classifyError(error)` in `src/lib/output.ts` returns `{ exitCode, errorCode, retryable }` using three tiers (the `category` string is derived separately via `getCategory(errorCode)` at output time):
 
 1. **`HeliusHttpError`** (from `restRequest()` — wallet.ts REST path): exact `status` property → precise code
 2. **Status in message** (enhanced TX: `"Helius HTTP 429: ..."`, webhooks: `"HTTP error! status: 429 - ..."`): regex extracts status → same mapping
@@ -114,10 +116,17 @@ pnpm dev            # tsx bin/helius.ts (runs directly)
 node dist/bin/helius.js --help
 ```
 
+## Common Pitfalls
+
+- **`exitWithError()` json parameter**: The 4th param defaults to `true`. Always pass `!!options.json` — bare `options.json` is `undefined` when the flag is absent, which falls through to the `true` default and outputs JSON in terminal mode.
+- **Network display**: When displaying the resolved network in output, always use `resolveNetwork(options)` — never `options.network || "mainnet"`. The Commander `--network` flag has a default, but `resolveNetwork()` also checks `HELIUS_NETWORK` env var and config file.
+- **Removing local variables during refactors**: When extracting inline code into a shared helper (e.g., replacing `const network = resolveNetwork(options)` with `setupClient()`), grep the rest of the function for references to the removed variable before deleting it.
+- **Type annotations on generic wrappers**: When wrapping SDK calls with generic utilities like `withRetry<T>()`, let TypeScript infer the return type. Only add `as any` at call sites where the SDK returns `unknown` through the generic — not as `const result: any` on every call.
+
 ## Adding a New Command
 
 1. Create `src/commands/mycommand.ts` exporting async handler(s)
-2. Use `resolveApiKey(options)` + `getClient(apiKey, network)` from `src/lib/helius.ts`
+2. Use `setupClient(spinner, options, "Loading message...")` from `src/lib/helius.js` for the standard resolve → client → spinner pattern
 3. Support `--json` via `outputJson()` / formatted chalk output
 4. Use `handleCommandError(error, options, spinner)` in the catch block — import from `../lib/output.js`
 5. Register in `bin/helius.ts` with Commander.js

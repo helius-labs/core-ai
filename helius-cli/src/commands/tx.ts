@@ -1,20 +1,20 @@
 import chalk from "chalk";
-import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
+import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
+import { validateAddress, validateSignature } from "../lib/validation.js";
 
-interface TxOptions extends OutputOptions, ResolveOptions {}
+interface TxOptions extends OutputOptions, ResolveOptions, RetryOptions {}
 
 export async function txParseCommand(signatures: string[], options: TxOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
-
-    spinner?.start(`Parsing ${signatures.length} transaction(s)...`);
-    const result = await helius.enhanced.getTransactions({ transactions: signatures });
+    for (const sig of signatures) {
+      const sigErr = validateSignature(sig);
+      if (sigErr) exitWithError("INVALID_INPUT", sigErr, undefined, !!options.json);
+    }
+    const helius = await setupClient(spinner, options, `Parsing ${signatures.length} transaction(s)...`);
+    const result = await withRetry(() => helius.enhanced.getTransactions({ transactions: signatures }), options, spinner);
     spinner?.stop();
 
     if (options.json) {
@@ -60,17 +60,14 @@ export async function txParseCommand(signatures: string[], options: TxOptions = 
 export async function txHistoryCommand(address: string, options: TxOptions & { limit?: string; before?: string; type?: string } = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
-
-    spinner?.start("Fetching transaction history...");
+    const addrErr = validateAddress(address);
+    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    const helius = await setupClient(spinner, options, "Fetching transaction history...");
     const params: any = { address };
     if (options.limit) params.limit = parseInt(options.limit, 10);
     if (options.before) params.before = options.before;
     if (options.type) params.type = options.type;
-    const result = await helius.enhanced.getTransactionsByAddress(params);
+    const result = await withRetry(() => helius.enhanced.getTransactionsByAddress(params), options, spinner);
     spinner?.stop();
 
     if (options.json) {
@@ -104,17 +101,12 @@ export async function txHistoryCommand(address: string, options: TxOptions & { l
 export async function txFeesCommand(options: TxOptions & { accounts?: string } = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
-
-    spinner?.start("Fetching priority fee estimate...");
+    const helius = await setupClient(spinner, options, "Fetching priority fee estimate...");
     const params: any = { options: { includeAllPriorityFeeLevels: true } };
     if (options.accounts) {
       params.accountKeys = options.accounts.split(",").map((s: string) => s.trim());
     }
-    const result = await helius.getPriorityFeeEstimate(params);
+    const result = await withRetry(() => helius.getPriorityFeeEstimate(params), options, spinner);
     spinner?.stop();
 
     if (options.json) {

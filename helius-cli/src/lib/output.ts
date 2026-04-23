@@ -1,6 +1,7 @@
 // Output utilities for JSON mode
 import chalk from "chalk";
 import ora from "ora";
+import readline from "readline";
 import { sendCommandEvent, getCurrentCommand } from "./feedback.js";
 
 export interface OutputOptions {
@@ -9,6 +10,25 @@ export interface OutputOptions {
 
 /** True when the caller is a non-human agent (NO_DNA convention). */
 export const isAgent = !!process.env.NO_DNA;
+
+/** Global debug flag — set by --debug CLI option. */
+let _debugEnabled = false;
+
+export function setDebugEnabled(enabled: boolean): void {
+  _debugEnabled = enabled;
+}
+
+/** Log a debug message to stderr (never pollutes --json stdout). */
+export function debug(msg: string): void {
+  if (_debugEnabled) {
+    console.error(chalk.gray(`[DEBUG] ${msg}`));
+  }
+}
+
+/** Mask an API key for debug output: show first 4 chars + dots. */
+export function maskKey(key: string): string {
+  return key.length > 4 ? key.slice(0, 4) + "••••" : "••••";
+}
 
 /** Create a spinner, suppressed when --json is set or NO_DNA is detected. */
 export function createSpinner(options: OutputOptions = {}): ReturnType<typeof ora> | null {
@@ -68,8 +88,33 @@ const RETRYABLE_CODES = new Set<ExitCodeType>([
   ExitCode.NETWORK_ERROR,
 ]);
 
+// Known error code strings. Used as the key type for errorToExitCode and
+// categoryForErrorCode so the compiler enforces matching coverage in both.
+export type ErrorCode =
+  | "NOT_LOGGED_IN"
+  | "KEYPAIR_NOT_FOUND"
+  | "AUTH_FAILED"
+  | "INSUFFICIENT_SOL"
+  | "INSUFFICIENT_USDC"
+  | "PAYMENT_FAILED"
+  | "NO_PROJECTS"
+  | "PROJECT_NOT_FOUND"
+  | "MULTIPLE_PROJECTS"
+  | "PROJECT_EXISTS"
+  | "API_ERROR"
+  | "NO_API_KEYS"
+  | "NO_API_KEY"
+  | "SDK_ERROR"
+  | "INVALID_ADDRESS"
+  | "INVALID_INPUT"
+  | "INVALID_API_KEY"
+  | "NOT_FOUND"
+  | "RATE_LIMITED"
+  | "SERVER_ERROR"
+  | "NETWORK_ERROR";
+
 // Map error code strings to exit codes
-const errorToExitCode: Record<string, ExitCodeType> = {
+const errorToExitCode: Record<ErrorCode, ExitCodeType> = {
   NOT_LOGGED_IN: ExitCode.NOT_LOGGED_IN,
   KEYPAIR_NOT_FOUND: ExitCode.KEYPAIR_NOT_FOUND,
   AUTH_FAILED: ExitCode.AUTH_FAILED,
@@ -94,7 +139,53 @@ const errorToExitCode: Record<string, ExitCodeType> = {
 };
 
 export function getExitCode(errorCode: string): ExitCodeType {
-  return errorToExitCode[errorCode] || ExitCode.GENERAL_ERROR;
+  // Cast to ErrorCode to index the tightly-typed map; runtime misses fall
+  // through to GENERAL_ERROR via `||`.
+  return errorToExitCode[errorCode as ErrorCode] || ExitCode.GENERAL_ERROR;
+}
+
+// Error categories for JSON output. Agents can branch on `category` without
+// needing to memorize the exit code range for a given errorCode.
+//
+// Note: the 50-59 range (SDK/data errors) spans multiple categories — e.g.
+// INVALID_API_KEY is "auth", INVALID_ADDRESS is "input", NETWORK_ERROR is
+// "network" — so category is derived per-errorCode, not per exit-code-range.
+export type ErrorCategory =
+  | "auth"
+  | "balance"
+  | "project"
+  | "api"
+  | "input"
+  | "network"
+  | "general";
+
+const categoryForErrorCode: Record<ErrorCode, ErrorCategory> = {
+  NOT_LOGGED_IN: "auth",
+  KEYPAIR_NOT_FOUND: "auth",
+  AUTH_FAILED: "auth",
+  NO_API_KEY: "auth",
+  INVALID_API_KEY: "auth",
+  INSUFFICIENT_SOL: "balance",
+  INSUFFICIENT_USDC: "balance",
+  PAYMENT_FAILED: "balance",
+  NO_PROJECTS: "project",
+  PROJECT_NOT_FOUND: "project",
+  MULTIPLE_PROJECTS: "project",
+  PROJECT_EXISTS: "project",
+  API_ERROR: "api",
+  NO_API_KEYS: "api",
+  SDK_ERROR: "api",
+  NOT_FOUND: "api",
+  RATE_LIMITED: "api",
+  SERVER_ERROR: "api",
+  INVALID_ADDRESS: "input",
+  INVALID_INPUT: "input",
+  NETWORK_ERROR: "network",
+};
+
+export function getCategory(errorCode: string): ErrorCategory {
+  // Cast mirrors getExitCode; runtime misses fall through to "general".
+  return categoryForErrorCode[errorCode as ErrorCode] || "general";
 }
 
 // Classification result returned by classifyError()
@@ -213,7 +304,7 @@ export function classifyError(error: unknown): ErrorClassification {
  *
  *   handleCommandError(error, options, spinner, "AUTH_FAILED");
  */
-const CLI_GUIDANCE: Record<string, string> = {
+export const CLI_GUIDANCE: Record<string, string> = {
   INVALID_API_KEY: 'Run `helius config set-api-key <key>` with a valid key, or `helius usage` to check your current plan and credits.',
   RATE_LIMITED: 'Run `helius usage` to check remaining credits. Back off and retry, or upgrade your plan for higher limits.',
   NO_API_KEY: 'Run `helius config set-api-key <key>` or set HELIUS_API_KEY env var. Get a key at https://dashboard.helius.dev.',
@@ -255,7 +346,8 @@ export function handleCommandError(
   sendCommandEvent(cmdName, { exitCode, success: false });
 
   if (options.json) {
-    outputJson({ error: errorCode, message, retryable, ...(guidance ? { guidance } : {}) });
+    const category = getCategory(errorCode);
+    outputJson({ error: errorCode, message, category, retryable, ...(guidance ? { guidance } : {}) });
   } else {
     const hint = retryable ? chalk.gray(" (transient — safe to retry)") : "";
     spinner?.fail(`${message}${hint}`);
@@ -303,7 +395,10 @@ export function exitWithError(
 
   if (json) {
     const retryable = RETRYABLE_CODES.has(exitCode);
-    outputJson({ error: errorCode, message, retryable, ...details });
+    const category = getCategory(errorCode);
+    // Spread details first so canonical fields (error, message, category,
+    // retryable) can't be accidentally overridden by a caller.
+    outputJson({ ...details, error: errorCode, message, category, retryable });
   } else {
     console.error(chalk.red(message));
     const guidance = CLI_GUIDANCE[errorCode];
@@ -313,4 +408,56 @@ export function exitWithError(
   }
 
   process.exit(exitCode);
+}
+
+export interface RetryOptions {
+  retry?: string | number;
+}
+
+/**
+ * Wrap an async function with exponential backoff retry on transient errors.
+ * Only retries errors classified as retryable (429, 5xx, network).
+ * Non-retryable errors are re-thrown immediately.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions,
+  spinner?: { start(text: string): void } | null,
+): Promise<T> {
+  const maxRetries = Math.max(0, parseInt(String(options.retry ?? 0), 10) || 0);
+  let attempt = 0;
+
+  while (true) {
+    const start = Date.now();
+    try {
+      const result = await fn();
+      debug(`SDK call → OK (${Date.now() - start}ms)`);
+      return result;
+    } catch (error) {
+      const elapsed = Date.now() - start;
+      const { retryable, errorCode } = classifyError(error);
+      debug(`SDK call → ${errorCode} (${elapsed}ms)${retryable ? " [retryable]" : ""}`);
+      if (!retryable || attempt >= maxRetries) {
+        throw error;
+      }
+
+      attempt++;
+      const delay = Math.min(1000 * 2 ** (attempt - 1), 30_000);
+      const message = error instanceof Error ? error.message : String(error);
+      debug(`Retry ${attempt}/${maxRetries} in ${delay / 1000}s...`);
+      spinner?.start(`${message} — retrying in ${delay / 1000}s (${attempt}/${maxRetries})...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+/** Prompt the user for yes/no confirmation. Returns true if they answer y/yes. */
+export function confirm(question: string): Promise<boolean> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+    });
+  });
 }

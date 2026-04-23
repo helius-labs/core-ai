@@ -1,19 +1,24 @@
 import chalk from "chalk";
-import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
-import { outputJson, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
+import { setupClient, type ResolveOptions } from "../lib/helius.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
+import { validateSignature } from "../lib/validation.js";
 
-interface SendOptions extends OutputOptions, ResolveOptions {}
+interface SendOptions extends OutputOptions, ResolveOptions, RetryOptions {
+  dryRun?: boolean;
+}
 
 export async function sendBroadcastCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
+    if (options.dryRun) {
+      spinner?.succeed("Dry run — transaction not submitted");
+      if (options.json) { outputJson({ dryRun: true, transaction: base64Tx }); return; }
+      console.log(chalk.yellow("\n  Dry run — transaction would be broadcast but was not submitted."));
+      return;
+    }
 
-    spinner?.start("Broadcasting transaction...");
-    const signature = await helius.tx.broadcastTransaction(base64Tx);
+    const helius = await setupClient(spinner, options, "Broadcasting transaction...");
+    const signature = await withRetry(() => helius.tx.broadcastTransaction(base64Tx), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ signature }); return; }
@@ -27,13 +32,15 @@ export async function sendBroadcastCommand(base64Tx: string, options: SendOption
 export async function sendRawCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
+    if (options.dryRun) {
+      spinner?.succeed("Dry run — transaction not submitted");
+      if (options.json) { outputJson({ dryRun: true, transaction: base64Tx }); return; }
+      console.log(chalk.yellow("\n  Dry run — transaction would be sent but was not submitted."));
+      return;
+    }
 
-    spinner?.start("Sending transaction...");
-    const signature = await helius.tx.sendTransaction({ base64: base64Tx });
+    const helius = await setupClient(spinner, options, "Sending transaction...");
+    const signature = await withRetry(() => helius.tx.sendTransaction({ base64: base64Tx }), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ signature: String(signature) }); return; }
@@ -47,17 +54,22 @@ export async function sendRawCommand(base64Tx: string, options: SendOptions = {}
 export async function sendSenderCommand(base64Tx: string, options: SendOptions & { region?: string } = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
+    if (options.dryRun) {
+      const region = options.region || "Default";
+      spinner?.succeed("Dry run — transaction not submitted");
+      if (options.json) { outputJson({ dryRun: true, transaction: base64Tx, region }); return; }
+      console.log(chalk.yellow(`\n  Dry run — transaction would be sent via Helius Sender (${region}) but was not submitted.`));
+      return;
+    }
+
+    const helius = await setupClient(spinner, options, "Resolving API key...");
 
     const region = (options.region || "Default") as any;
     spinner?.start(`Sending via Helius Sender (${region})...`);
-    const signature = await helius.tx.sendTransaction({
+    const signature = await withRetry(() => helius.tx.sendTransaction({
       base64: base64Tx,
       sendOptions: { region },
-    } as any);
+    } as any), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ signature }); return; }
@@ -71,13 +83,10 @@ export async function sendSenderCommand(base64Tx: string, options: SendOptions &
 export async function sendPollCommand(signature: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
-
-    spinner?.start("Polling for confirmation...");
-    const result = await helius.tx.pollTransactionConfirmation(signature as any);
+    const sigErr = validateSignature(signature);
+    if (sigErr) exitWithError("INVALID_INPUT", sigErr, undefined, !!options.json);
+    const helius = await setupClient(spinner, options, "Polling for confirmation...");
+    const result = await withRetry(() => helius.tx.pollTransactionConfirmation(signature as any), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ signature: String(result), confirmed: true }); return; }
@@ -91,13 +100,8 @@ export async function sendPollCommand(signature: string, options: SendOptions = 
 export async function sendComputeUnitsCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    spinner?.start("Resolving API key...");
-    const apiKey = await resolveApiKey(options);
-    const network = resolveNetwork(options);
-    const helius = getClient(apiKey, network);
-
-    spinner?.start("Simulating for compute units...");
-    const result = await helius.tx.getComputeUnits(base64Tx as any);
+    const helius = await setupClient(spinner, options, "Simulating for compute units...");
+    const result = await withRetry(() => helius.tx.getComputeUnits(base64Tx as any), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ computeUnits: result }); return; }

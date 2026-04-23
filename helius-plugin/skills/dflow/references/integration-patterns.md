@@ -407,7 +407,7 @@ await subscribe(
 | Data | Raw on-chain (transactions, accounts) | Market-level (prices, orderbook, trades) |
 | Latency | Shred-level (lowest possible) | Market-level |
 | Use case | Detecting on-chain events, HFT, bots | Price feeds, trading UIs |
-| Plan required | Professional ($999/mo) | DFlow API key |
+| Plan required | Business+ ($499+/mo) | DFlow API key |
 
 **Use both together** for the most competitive trading systems: LaserStream for on-chain signals and fill detection, DFlow WebSockets for market data and orderbook state.
 
@@ -465,6 +465,74 @@ LaserStream ────────> Fill Confirmation ────────
 - For prediction markets, ensure Proof KYC is completed before first trade
 - Implement circuit breakers (max loss, max trades per period)
 - Handle the Thursday 3-5 AM ET maintenance window for prediction markets
+
+---
+
+## Pattern 7: Autonomous Agent Trading via DFlow Agent CLI
+
+For AI agents that need to execute trades without custom code. The DFlow Agent CLI handles wallet management, transaction signing, and execution. Pair it with Helius MCP tools for data queries.
+
+### Architecture
+
+```
+Helius MCP (DAS/Wallet API) ──> Portfolio Data ──> Agent Decision
+                                                        │
+                                              DFlow Agent CLI
+                                                        │
+                                              dflow trade ──> Execution
+```
+
+### Setup
+
+```bash
+# 1. Install CLI
+curl -fsS https://cli.dflow.net | sh
+
+# 2. Configure with Helius RPC for optimal performance
+dflow setup
+# When prompted for RPC, enter: https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_KEY
+
+# 3. Set guardrails BEFORE giving the agent access
+dflow guardrails set max_trade_size_usd 5000000
+dflow guardrails set max_daily_volume_usd 50000000
+dflow guardrails set allowed_tokens SOL,USDC,BONK
+
+# 4. Register the agent model (optional, for attribution)
+dflow agent --model claude-sonnet-4.6
+```
+
+### Agent Workflow
+
+```bash
+# Agent checks its own constraints
+dflow guardrails show
+
+# Agent checks portfolio via Helius MCP tools (getAssetsByOwner, getWalletBalances)
+# then decides on a trade
+
+# Get a quote first
+dflow quote 1000000 USDC SOL
+
+# Execute (--confirm skips interactive prompt)
+dflow trade 1000000 USDC SOL --confirm
+
+# Check status if needed
+dflow status <signature>
+
+# Prediction market trade
+dflow trade 5000000 USDC --market <MARKET_MINT> --side yes --confirm
+```
+
+### Key Points
+
+- Configure Helius RPC URL during `dflow setup` — the CLI uses it for all Solana interactions
+- Set guardrails before agent access — HMAC-signed, agents cannot override them
+- Use `--confirm` flag for non-interactive execution
+- Agent can read guardrails (`dflow guardrails show`) to self-constrain
+- All output is structured JSON with `ok`, `error_code`, `recoverable`, and `suggestion` fields
+- Use Helius MCP tools alongside the CLI for portfolio data, token metadata, and transaction history
+- The CLI handles wallet encryption via Open Wallet Standard — private keys never exposed to the agent
+- For headless environments, set `DFLOW_PASSPHRASE` env var for vault password (read once, cleared from memory)
 
 ---
 

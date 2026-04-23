@@ -77,21 +77,22 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     // Validate plan and period upfront
     if (options.plan) {
       const planErr = validateSignupPlan(options.plan);
-      if (planErr) exitWithError("INVALID_INPUT", planErr, undefined, options.json);
+      if (planErr) exitWithError("INVALID_INPUT", planErr, undefined, !!options.json);
     }
     if (options.period) {
       const periodErr = validatePeriod(options.period);
-      if (periodErr) exitWithError("INVALID_INPUT", periodErr, undefined, options.json);
+      if (periodErr) exitWithError("INVALID_INPUT", periodErr, undefined, !!options.json);
     }
     if (options.email) {
       const emailErr = validateEmail(options.email);
-      if (emailErr) exitWithError("INVALID_INPUT", emailErr, undefined, options.json);
+      if (emailErr) exitWithError("INVALID_INPUT", emailErr, undefined, !!options.json);
     }
 
     // Auto-generate keypair if none exists
     if (!keypairExists(options.keypair)) {
       if (options.json) {
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, options.json);
+        // In JSON mode, don't do interactive keygen — just error
+        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, !!options.json);
       }
       console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
       await keygenCommand({ output: options.keypair, qr: options.qr });
@@ -217,7 +218,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
           exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing}`, {
             wallet: walletAddress,
             required: { usdc: requiredUsdcLabel },
-          }, options.json);
+          }, !!options.json);
         }
         console.error(chalk.red(`\nInsufficient USDC. Send the following to ${chalk.cyan(walletAddress)}:`));
         console.error(`  • ${missing}`);

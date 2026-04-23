@@ -10,8 +10,8 @@ LaserStream is a next-generation gRPC streaming service for Solana data. It is a
 - **Multi-node failover**: redundant node clusters with automatic load balancing
 - **40x faster** than JavaScript Yellowstone clients (Rust core with zero-copy NAPI bindings)
 - **9 global regions** for minimal latency
-- **Mainnet requires Professional plan** ($999/mo); Devnet available on Developer+ plans
-- 3 credits per 0.1 MB of streamed data (uncompressed)
+- **Mainnet requires Business+ plan** ($499+/mo); Devnet available on Developer+ plans
+- 2 credits per 0.1 MB of streamed data (uncompressed)
 
 ## MCP Tools and SDK Workflow
 
@@ -26,7 +26,7 @@ LaserStream has two MCP tools that work together with the SDK:
 2. Use `laserstreamSubscribe` with the user's requirements to generate the correct subscription config and SDK code
 3. The generated code uses the `helius-laserstream` SDK — place it in the user's application code where the actual gRPC stream will run
 
-ALWAYS use the MCP tools first to generate correct configs, then embed the SDK code they produce into the user's project.
+If MCP tools are available, use them first to generate correct configs, then embed the SDK code they produce into the user's project. Otherwise, follow the patterns in this file to build configs directly.
 
 ## Endpoints
 
@@ -209,7 +209,7 @@ LaserStream also provides standard gRPC utility methods:
 | Latency | Lowest (shred-level) | Low (1.5-2x faster than standard WS) |
 | Historical replay | Yes (24 hours) | No |
 | Auto-reconnect | Built-in with replay | Manual |
-| Plan required | Professional (mainnet) | Business+ |
+| Plan required | Business+ (mainnet) | Developer+ |
 | Max pubkeys | 10M | 50K |
 | Best for | Indexers, bots, high-throughput pipelines | Real-time UIs, dashboards, monitoring |
 | SDK | `helius-laserstream` | Raw WebSocket |
@@ -284,7 +284,7 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 
 ## Best Practices
 
-- ALWAYS use the `laserstreamSubscribe` MCP tool to generate subscription configs — it validates parameters and produces correct SDK code
+- If MCP is available, use the `laserstreamSubscribe` tool to generate subscription configs — it validates parameters and produces correct SDK code
 - Choose the closest regional endpoint to minimize latency
 - Use the LaserStream SDK (`helius-laserstream`) — it handles reconnection and replay automatically
 - Filter aggressively — only subscribe to accounts/transactions you need to minimize data transfer and credit usage
@@ -298,6 +298,6 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 - Using LaserStream for simple real-time features that Enhanced WebSockets can handle (unnecessary complexity)
 - Not setting `from_slot` after reconnection (misses data during the disconnect gap)
 - Subscribing to all transactions without filters (massive data volume and credit burn)
-- Forgetting that mainnet requires the Professional plan
+- Forgetting that mainnet requires at least a Business plan
 - Using `PROCESSED` commitment for financial decisions (can be rolled back)
 - Not choosing the closest regional endpoint (adds unnecessary latency)

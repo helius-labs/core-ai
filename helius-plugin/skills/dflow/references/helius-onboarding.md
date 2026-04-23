@@ -10,8 +10,8 @@ Getting users set up with Helius: creating accounts, obtaining API keys, underst
 |---|---|
 | `setHeliusApiKey` | Configure an existing API key for the session (validates against `getBlockHeight`) |
 | `generateKeypair` | Generate or load a Solana keypair for agentic signup (persists to `~/.helius-cli/keypair.json`) |
-| `checkSignupBalance` | Check wallet balance — pass `plan`/`period` for exact USDC checking, shows scannable QR code. SOL fees are automatically sponsored by Helius. Only USDC required. |
-| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key. SOL fees are automatically sponsored by Helius. Only USDC required. |
+| `checkSignupBalance` | Check if the signup wallet has sufficient SOL + USDC |
+| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key |
 | `getAccountStatus` | Check current plan, credits remaining, rate limits, billing cycle, burn-rate projections |
 | `getHeliusPlanInfo` | View plan details — pricing, credits, rate limits, features |
 | `compareHeliusPlans` | Compare plans side-by-side by category (rates, features, connections, pricing, support) |
@@ -36,8 +36,8 @@ If the environment variable `HELIUS_API_KEY` is already set, no action is needed
 The fully autonomous signup flow, no browser needed:
 
 1. **`generateKeypair`** — generates a new Solana keypair (or loads an existing one from `~/.helius-cli/keypair.json`). Returns the wallet address.
-2. **`checkSignupBalance`** — pass `plan` (and optionally `period`) to check exact USDC requirement. Shows a **scannable QR code** encoding the exact USDC amount — user scans to fund. SOL fees are automatically sponsored by Helius. Only USDC required.
-3. **User funds the wallet** by scanning the QR code or sending USDC manually
+2. **User funds the wallet** with 10 USDC. SOL fees are sponsored by Helius — no SOL required.
+3. **`checkSignupBalance`** — verifies USDC balance is sufficient and surfaces a wallet-funding QR when it isn't
 4. **`agenticSignup`** — creates the account, processes USDC payment, returns API key + RPC endpoints + project ID
    - API key is automatically configured for the session and saved to shared config
    - If the wallet already has an account, the SDK routes through the upgrade flow for paid plans. When the existing plan matches the requested one, the CLI's pre-signup fast-path returns the existing API key without triggering a new purchase.
@@ -76,6 +76,7 @@ helius rpc <project-id> --json
 - `0`: success
 - `10`: not logged in (run `helius login`)
 - `11`: keypair not found (run `helius keygen`)
+- `20`: insufficient SOL
 - `21`: insufficient USDC
 
 Always use the `--json` flag for machine-readable output when scripting.
@@ -114,18 +115,18 @@ The agentic signup flow uses these plan tiers (all paid in USDC):
 | **RPC RPS** | 10 | 50 | 200 | 500 |
 | **sendTransaction** | 1/s | 5/s | 50/s | 100/s |
 | **DAS** | 2/s | 10/s | 50/s | 100/s |
-| **WS connections** | 5 | 150 | 250 | 250 |
-| **Enhanced WS** | No | No | 100 conn | 100 conn |
-| **LaserStream** | No | Devnet | Devnet | Full (mainnet + devnet) |
+| **WS connections** | 5 | 150 | 250 | 1,000 |
+| **Enhanced WS** | No | 150 conn | 250 conn | 1,000 conn |
+| **LaserStream** | No | Devnet | Devnet + Mainnet | Devnet + Mainnet |
 | **Support** | Discord | Chat (24hr) | Priority (12hr) | Slack + Telegram (8hr) |
 
-The `agent` plan is the default for CLI/MCP signups: $10 USDC one-time gets a project with 1,000,000 starting credits and a working API key immediately. When starting credits run out, `helius credits buy --tier=10_USDC` (or the `purchaseCredits` MCP tool) adds 1,000,000 credits per 10 USDC, with sponsored SOL fees. Existing-user upgrades to agent plan are supported but require SOL in the wallet for fees — sponsored mode is signup-only.
+
 
 ### Credit Costs
 
 - **0 credits**: Helius Sender (sendSmartTransaction, sendJitoBundle)
 - **1 credit**: Standard RPC calls, sendTransaction, Priority Fee API, webhook events
-- **3 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets)
+- **2 credits**: per 0.1 MB streamed (LaserStream, Enhanced WebSockets, Standard WebSockets)
 - **10 credits**: getProgramAccounts, DAS API, historical data
 - **100 credits**: Enhanced Transactions API, Wallet API, webhook management
 
@@ -135,10 +136,10 @@ The `agent` plan is the default for CLI/MCP signups: $10 USDC one-time gets a pr
 |---|---|
 | Standard RPC, DAS, Webhooks, Sender | Agent |
 | Standard WebSockets | Agent |
-| Enhanced WebSockets | Business |
+| Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
-| LaserStream (mainnet) | Professional |
-| LaserStream data add-ons | Professional ($500+/mo) |
+| LaserStream (mainnet) | Business |
+| LaserStream data add-ons | Business+ ($400+/mo) |
 
 Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current details.
 

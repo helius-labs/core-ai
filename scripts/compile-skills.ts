@@ -63,6 +63,27 @@ const SKILLS: SkillConfig[] = [
   optimizing priority fees for trading. Requires helius-mcp MCP server.`,
   },
   {
+    dir: "helius-jupiter",
+    pluginDir: "jupiter",
+    enhancedDescription: `Build Solana DeFi applications combining Jupiter APIs with Helius
+  infrastructure. Use this skill when: building token swap UIs or trading terminals,
+  integrating lending/borrowing via Jupiter Lend, setting up limit orders or DCA,
+  querying token prices and metadata, checking token safety via Token Shield,
+  embedding a drop-in swap widget, submitting transactions via Helius Sender, or
+  optimizing priority fees for DeFi operations. Requires helius-mcp MCP server.`,
+  },
+  {
+    dir: "helius-okx",
+    pluginDir: "okx",
+    enhancedDescription: `Build Solana trading and intelligence applications combining OKX DEX aggregation
+  with Helius infrastructure. Use this skill when: executing swaps via OKX's 500+
+  liquidity source aggregator, discovering trending tokens, tracking smart money
+  signals, analyzing meme tokens (pump.fun scanning, dev reputation, bundle
+  detection), fetching market data and charts, submitting transactions via Helius
+  Sender, or building trading bots with LaserStream signals. Requires helius-mcp
+  MCP server and onchainos CLI.`,
+  },
+  {
     dir: "helius-phantom",
     pluginDir: "phantom",
     enhancedDescription: `Build frontend Solana applications with Phantom Connect SDK and Helius

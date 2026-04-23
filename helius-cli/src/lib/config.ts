@@ -13,6 +13,7 @@ interface Config {
   apiKey?: string;
   network?: "mainnet" | "devnet";
   projectId?: string;
+  owsWallet?: string;
 }
 
 function ensureDir(): void {
@@ -21,16 +22,58 @@ function ensureDir(): void {
   }
 }
 
-export function load(): Config {
-  try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, "utf-8");
-      return JSON.parse(data);
+/** Try to extract known config fields from corrupted JSON via regex. */
+function recoverConfig(raw: string): Config {
+  const recovered: Config = {};
+
+  const patterns: { key: keyof Config; regex: RegExp }[] = [
+    { key: "jwt", regex: /"jwt"\s*:\s*"([^"]+)"/ },
+    { key: "apiKey", regex: /"apiKey"\s*:\s*"([^"]+)"/ },
+    { key: "network", regex: /"network"\s*:\s*"(mainnet|devnet)"/ },
+    { key: "projectId", regex: /"projectId"\s*:\s*"([^"]+)"/ },
+    { key: "owsWallet", regex: /"owsWallet"\s*:\s*"([^"]+)"/ },
+  ];
+
+  for (const { key, regex } of patterns) {
+    const match = raw.match(regex);
+    if (match) {
+      (recovered as any)[key] = match[1];
     }
-  } catch {
-    // Return empty config on error
   }
-  return {};
+
+  return recovered;
+}
+
+export function load(): Config {
+  if (!fs.existsSync(CONFIG_FILE)) {
+    return {};
+  }
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(CONFIG_FILE, "utf-8");
+  } catch {
+    console.error(`Warning: ${CONFIG_FILE} exists but could not be read.`);
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const recovered = recoverConfig(raw);
+    const recoveredKeys = Object.keys(recovered);
+
+    if (recoveredKeys.length > 0) {
+      console.error(`Warning: ${CONFIG_FILE} is corrupted. Recovered: ${recoveredKeys.join(", ")}.`);
+      save(recovered);
+      console.error(`Repaired config saved. Other fields may have been lost.`);
+      return recovered;
+    }
+
+    console.error(`Warning: ${CONFIG_FILE} is corrupted and could not be read.`);
+    console.error(`Run "helius config clear" to reset, or fix the file manually.`);
+    return {};
+  }
 }
 
 export function save(data: Config): void {
@@ -75,6 +118,22 @@ export function getProjectId(): string | undefined {
 export function setProjectId(projectId: string): void {
   const config = load();
   config.projectId = projectId;
+  save(config);
+}
+
+export function getOwsWallet(): string | undefined {
+  return load().owsWallet;
+}
+
+export function setOwsWallet(name: string): void {
+  const config = load();
+  config.owsWallet = name;
+  save(config);
+}
+
+export function clearOwsWallet(): void {
+  const config = load();
+  delete config.owsWallet;
   save(config);
 }
 

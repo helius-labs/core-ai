@@ -18,14 +18,14 @@ All Wallet API endpoints have direct MCP tools. ALWAYS use these instead of gene
 
 | MCP Tool | Endpoint | What It Does |
 |---|---|---|
-| `getWalletIdentity` | `GET /v1/wallet/{wallet}/identity` | Identify known wallets (exchanges, protocols, institutions) |
-| `batchWalletIdentity` | `POST /v1/wallet/batch-identity` | Bulk lookup up to 100 addresses in one request |
+| `getWalletIdentity` | `GET /v1/wallet/{wallet}/identity` | Identify known wallets (exchanges, protocols, institutions). Accepts an address or an SNS/ANS domain (mainnet only). |
+| `batchWalletIdentity` | `POST /v1/wallet/batch-identity` | Bulk lookup up to 100 entries in one request. Entries may be addresses or SNS/ANS domains (mainnet only). |
 | `getWalletBalances` | `GET /v1/wallet/{wallet}/balances` | Token + NFT balances with USD values, sorted by value |
 | `getWalletHistory` | `GET /v1/wallet/{wallet}/history` | Transaction history with balance changes per tx |
 | `getWalletTransfers` | `GET /v1/wallet/{wallet}/transfers` | Token transfers with direction (in/out) and counterparty |
 | `getWalletFundedBy` | `GET /v1/wallet/{wallet}/funded-by` | Original funding source (first incoming SOL transfer) |
 
-When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these MCP tools directly. Only generate raw API code when the user is building an application that needs to call these endpoints programmatically.
+When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these endpoints via MCP tools (if available), SDK, or REST API. For live queries, MCP tools handle auth and pagination automatically; for application code, use the SDK or REST API directly.
 
 ## Choosing the Right Tool
 
@@ -50,11 +50,39 @@ The identity endpoint identifies known wallets powered by Orb's tagging. Returns
 
 **Covers**: Binance, Coinbase, Kraken, OKX, Bybit, Jupiter, Raydium, Marinade, Jito, Kamino, Jump Trading, Wintermute, notable KOLs, bridges, validators, treasuries, stake pools, and known exploiters/scammers.
 
+### Domain Resolution (SNS + ANS)
+
+Both identity endpoints accept domain names in addition to base58 addresses:
+
+- **SNS** — `.sol` domains (e.g., `toly.sol`, `my_wallet.sol`, `sub.toly.sol`)
+- **ANS** — custom TLDs (e.g., `helius.bonk`, `miester.poor`, `degen.superteam`)
+
+Semantics:
+
+- **Single endpoint (`getWalletIdentity`)**: unresolvable domain → HTTP 404; invalid input (neither address nor domain) → 400; non-mainnet request with a domain → 400 ("Domain resolution is only available on mainnet"). Valid addresses with no identity in the tagging DB still return 200 with `type: "unknown"` — unchanged behavior.
+- **Batch endpoint (`batchWalletIdentity`)**: non-fail-fast. Each entry returns its own row. Resolved domain rows gain `inputDomain: "<domain>"`. Unresolvable domain rows come back as `{ address: null, type: "unknown", inputDomain: "<domain>", unresolved: true }`. On non-mainnet all domain entries are returned as `unresolved: true`.
+
+Response type (identity endpoints):
+
+```ts
+interface IdentityResponse {
+  address: string | null;   // null only for unresolved domains in batch
+  type: AccountType;
+  name?: string;
+  category?: string;
+  tags?: string[];
+  inputDomain?: string;     // present when input was a domain
+  unresolved?: boolean;     // true only in batch when a domain could not be resolved
+  // ...other tagging fields
+}
+```
+
 ### When to use batch vs single
 
 - Investigating one wallet: `getWalletIdentity`
 - Enriching a transaction list with counterparty names: `batchWalletIdentity` (collect all unique addresses, batch in chunks of 100)
 - Building a UI that shows human-readable names: `batchWalletIdentity`
+- Accepting user-typed inputs (domains or addresses): `getWalletIdentity` (single) or `batchWalletIdentity` (mixed list)
 
 ## Funding Source Tracking
 

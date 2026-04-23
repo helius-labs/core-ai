@@ -7,7 +7,9 @@
     "helius": "./dist/bin/helius.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "llms.txt",
+    "README.md"
   ],
   "scripts": {
     "prebuild": "node -p \"'export const version = \\'' + require('./package.json').version + '\\';'\" > src/version.ts",
