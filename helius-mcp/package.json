@@ -45,7 +45,7 @@
     "@solana-program/token": "^0.9.0",
     "@solana/kit": "^5.0.0",
     "bs58": "^6.0.0",
-    "helius-sdk": "link:/Users/nathan/Desktop/dev/helius-sdk",
+    "helius-sdk": "github:helius-labs/helius-sdk#a28b7c1",
     "qrcode": "^1.5.4",
     "zod": "^3.23.0"
   },
@@ -62,5 +62,8 @@
     "CHANGELOG.md",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "pnpm": {
+    "onlyBuiltDependencies": ["helius-sdk"]
+  }
 }
