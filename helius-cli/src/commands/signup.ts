@@ -12,6 +12,7 @@ import { sendDiscoveryEvent } from "../lib/feedback.js";
 import { validateSignupPlan, validatePeriod, validateEmail } from "../lib/validation.js";
 import { signAuthMessage } from "helius-sdk/auth/signAuthMessage";
 import { walletSignup } from "helius-sdk/auth/walletSignup";
+import { PLAN_TO_USAGE_PLAN } from "helius-sdk/auth/constants";
 import { CLI_USER_AGENT } from "../constants.js";
 
 interface SignupOptions extends OutputOptions {
@@ -116,14 +117,23 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
     const refId = auth.refId;
     spinner?.succeed("Authenticated");
 
-    // Recovery fast-path: returning users with existing project(s) and no
-    // explicit plan should land on their existing API key instead of being
-    // asked to pay for a fresh agent-plan signup. Only short-circuits when
-    // no plan was specified — if the user explicitly passed --plan=<X>
-    // they're asking to upgrade, so fall through to agenticSignup.
-    if (!options.plan) {
-      const existing = await listProjects(jwt);
-      if (existing.length > 0) {
+    // Recovery fast-path: if the wallet already has a project on the
+    // requested plan, hand back the existing API key instead of charging
+    // again. Without --plan we treat any existing project as a match
+    // (default behavior). With --plan=<X> we only short-circuit when the
+    // existing project is already on that plan; mismatches fall through
+    // so the user can upgrade.
+    {
+      const requestedUsagePlan = options.plan
+        ? PLAN_TO_USAGE_PLAN[options.plan.toLowerCase()]
+        : null;
+      const allProjects = await listProjects(jwt);
+      const matchedProject = !options.plan
+        ? allProjects[0]
+        : allProjects.find((p) => p.subscription?.plan === requestedUsagePlan);
+      if (matchedProject) {
+        // Surface the matched project first so the existing render keys off it.
+        const existing = [matchedProject, ...allProjects.filter((p) => p.id !== matchedProject.id)];
         const project = existing[0];
         const projectDetails = await getProject(jwt, project.id);
         const apiKey = projectDetails.apiKeys?.[0]?.keyId || null;
