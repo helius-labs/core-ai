@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
-import { signup, listProjects, getProject } from "../lib/api.js";
+import { walletSignup, listProjects, getProject } from "../lib/api.js";
 import { getCheckoutPreview, executeCheckout, PLAN_CATALOG } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists, getDefaultKeypairPath } from "./keygen.js";
@@ -59,7 +59,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
 
     spinner?.start("Authenticating...");
     const { message, signature } = await signAuthMessage(keypair.secretKey);
-    const authResult = await signup(message, signature, walletAddress);
+    const authResult = await walletSignup(message, signature, walletAddress);
     setJwt(authResult.token);
     spinner?.succeed("Authenticated");
 

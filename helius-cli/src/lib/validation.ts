@@ -1,7 +1,12 @@
 import { PLAN_CATALOG } from "../lib/checkout.js";
 
-// Valid plans for signup (includes "basic" which isn't in PLAN_CATALOG)
-const SIGNUP_PLANS = new Set(["basic", ...Object.keys(PLAN_CATALOG)]);
+// Valid plans for signup. "basic" was the legacy $1 entry plan; Phase 1 of the
+// crypto-checkout revamp replaces it with "agent" ($10 one-time, 1M credits).
+// `--plan basic` is explicitly rejected with a hint to use `--plan agent`.
+//
+// `agent` lives outside PLAN_CATALOG (which only models monthly/yearly
+// subscription tiers); we list it here explicitly.
+const SIGNUP_PLANS = new Set(["agent", ...Object.keys(PLAN_CATALOG)]);
 const UPGRADE_PLANS = new Set(Object.keys(PLAN_CATALOG));
 const VALID_PERIODS = new Set(["monthly", "yearly"]);
 
@@ -15,7 +20,11 @@ const DOMAIN_RE = /^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]+)+$/;
 const DOMAIN_MAX_LEN = 255;
 
 export function validateSignupPlan(plan: string): string | null {
-  if (!SIGNUP_PLANS.has(plan.toLowerCase())) {
+  const normalized = plan.toLowerCase();
+  if (normalized === "basic") {
+    return "The 'basic' plan was retired. Use --plan agent ($10 USDC one-time, 1,000,000 starting credits).";
+  }
+  if (!SIGNUP_PLANS.has(normalized)) {
     const available = [...SIGNUP_PLANS].join(", ");
     return `Unknown plan: ${plan}. Available: ${available}`;
   }

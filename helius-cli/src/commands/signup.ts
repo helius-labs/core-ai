@@ -1,14 +1,42 @@
 import chalk from "chalk";
 import { loadKeypairFromFile, getAddress } from "../lib/wallet.js";
-import { agenticSignup, listProjects } from "../lib/api.js";
-import { setJwt, setApiKey, setSharedApiKey, setProjectId, getSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
+import {
+  signup as sdkSignup,
+  payPaymentLink,
+  getPaymentStatus,
+  listProjects,
+  getProject,
+  createApiKey,
+  type PaymentLink,
+} from "../lib/api.js";
+import {
+  setJwt,
+  setApiKey,
+  setSharedApiKey,
+  setProjectId,
+  getPendingSignup,
+  setPendingSignup,
+  updatePendingSignup,
+  clearPendingSignup,
+  SHARED_CONFIG_PATH,
+  type PendingSignup,
+} from "../lib/config.js";
 import { keypairExists, keygenCommand } from "./keygen.js";
-import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, ExitCode, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
+import {
+  outputJson,
+  exitWithError,
+  ExitCode,
+  handleCommandError,
+  createSpinner,
+  type OutputOptions,
+} from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
-import { PLAN_CATALOG } from "../lib/checkout.js";
 import { sendDiscoveryEvent } from "../lib/feedback.js";
-import { validateSignupPlan, validatePeriod, validateEmail } from "../lib/validation.js";
+import {
+  validateSignupPlan,
+  validatePeriod,
+  validateEmail,
+} from "../lib/validation.js";
 
 interface SignupOptions extends OutputOptions {
   keypair: string;
@@ -20,71 +48,45 @@ interface SignupOptions extends OutputOptions {
   lastName?: string;
   discoveryPath?: string;
   frictionPoints?: string;
-  wait?: boolean;
+  pay?: boolean;
+  resume?: boolean;
+  restart?: boolean;
 }
 
-const POLL_INTERVAL_MS = 5_000;
-const POLL_TIMEOUT_MS = 5 * 60 * 1_000; // 5 minutes
+/** USDC has 6 decimals; intent.amount is in cents. cents × 10_000 = raw. */
+const CENTS_TO_USDC_RAW = 10_000n;
+const SOL_FEE_THRESHOLD = 1_000_000n; // ~0.001 SOL
+const TX_EXPLORER = "https://orbmarkets.io/tx";
 
-interface FundingResult {
-  funded: boolean;
-  solFunded: boolean;
-  usdcFunded: boolean;
-}
+const buildEndpoints = (apiKey: string) => ({
+  mainnet: `https://mainnet.helius-rpc.com/?api-key=${apiKey}`,
+  devnet: `https://devnet.helius-rpc.com/?api-key=${apiKey}`,
+});
 
 /**
- * Polls SOL and USDC balances until both meet the required thresholds.
- * Returns which assets were funded so the caller can report accurate timeout status.
+ * Phase 1 signup. Three modes:
+ *  - Default (link mode): print payment URL, save full pendingSignup, exit.
+ *  - --pay: send USDC + memo from local keypair, poll, provision API key.
+ *  - --resume: poll the stored intent (no keypair load, no contact args).
+ *
+ * Pending-intent reuse: if config has a non-expired pendingSignup and the user
+ * does not pass --restart, the default and --pay paths reuse it instead of
+ * creating a new intent.
+ *
+ * Local expiresAt does NOT auto-clear pendingSignup. Cleanup only on:
+ * backend-reported expired/failed, successful provisioning, or --restart.
  */
-async function waitForFunding(
-  walletAddress: string,
-  requiredUsdcRaw: bigint,
-  spinner?: { start(text: string): void; succeed(text: string): void } | null,
-): Promise<FundingResult> {
-  const start = Date.now();
-  let solFunded = false;
-  let usdcFunded = false;
-
-  while (Date.now() - start < POLL_TIMEOUT_MS) {
-    const waiting = [!solFunded && "SOL", !usdcFunded && "USDC"].filter(Boolean).join(" + ");
-    spinner?.start(`Waiting for ${waiting}...`);
-
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-
-    try {
-      if (!solFunded) {
-        const solBalance = await checkSolBalance(walletAddress);
-        if (solBalance >= 1_000_000n) {
-          solFunded = true;
-          spinner?.succeed(`SOL received (${(Number(solBalance) / 1_000_000_000).toFixed(4)} SOL)`);
-        }
-      }
-
-      if (!usdcFunded) {
-        const usdcBalance = await checkUsdcBalance(walletAddress);
-        if (usdcBalance >= requiredUsdcRaw) {
-          usdcFunded = true;
-          spinner?.succeed(`USDC received (${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC)`);
-        }
-      }
-    } catch {
-      // Network blip — keep polling, don't abort the wait
-    }
-
-    if (solFunded && usdcFunded) {
-      return { funded: true, solFunded, usdcFunded };
-    }
-  }
-
-  console.error(chalk.red("\nTimed out waiting for funds (5 minutes). Please fund and run `helius signup --wait` again."));
-  return { funded: false, solFunded, usdcFunded };
-}
-
 export async function signupCommand(options: SignupOptions): Promise<void> {
   const spinner = createSpinner(options);
 
   try {
-    // Validate plan and period upfront
+    if (options.resume) {
+      await runResume(options, spinner);
+      return;
+    }
+
+    // ── Validation (skipped on --resume, runs for default + --pay) ──
+
     if (options.plan) {
       const planErr = validateSignupPlan(options.plan);
       if (planErr) exitWithError("INVALID_INPUT", planErr, undefined, !!options.json);
@@ -98,101 +100,94 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       if (emailErr) exitWithError("INVALID_INPUT", emailErr, undefined, !!options.json);
     }
 
-    // Auto-generate keypair if none exists
+    // ── Pending-intent reuse runs first ──
+
+    if (options.restart) {
+      clearPendingSignup();
+    }
+
+    let stored = getPendingSignup();
+    if (stored && !options.restart) {
+      // --pay: idempotent reuse path (handles its own status check).
+      if (options.pay) {
+        await runPayWithStored(stored, options, spinner);
+        return;
+      }
+
+      // Default link mode. If the local `expiresAt` is past, the link in
+      // config might be stale — but local clocks lie, and a user could pay
+      // just before backend expiry yet return after. Source of truth is the
+      // backend; query it before deciding.
+      const now = Date.now();
+      const localExpired = Date.parse(stored.expiresAt) <= now;
+      if (localExpired) {
+        const refreshed = await refreshStoredFromBackend(stored, spinner, options);
+        if (refreshed === "cleared") {
+          // Backend says expired/failed (or 410). Stored intent has been
+          // cleared. Fall through to the fresh signup path below.
+          stored = undefined;
+        } else if (refreshed === "provisioned") {
+          // Backend reported activation already complete; provisioning
+          // completed inside refreshStoredFromBackend. Done.
+          return;
+        } else {
+          // Still payable on the backend. Re-print the link.
+          emitPaymentRequired(stored, true, options);
+          return;
+        }
+      } else {
+        emitPaymentRequired(stored, true, options);
+        return;
+      }
+    }
+
+    // ── Fresh signup path ──
+    //
+    // Contact-info validation lives in the SDK's no-project branch — that
+    // way already_subscribed / upgrade_required short-circuits don't demand
+    // --email/--first-name/--last-name when they're not needed.
+
+    const plan = (options.plan?.toLowerCase() || "agent") as
+      | "agent"
+      | "developer"
+      | "business"
+      | "professional";
+
+    // Auto-generate keypair if none exists (skipped in JSON mode)
     if (!keypairExists(options.keypair)) {
       if (options.json) {
-        // In JSON mode, don't do interactive keygen — just error
-        exitWithError("KEYPAIR_NOT_FOUND", `Keypair not found at ${options.keypair}`, undefined, !!options.json);
+        exitWithError(
+          "KEYPAIR_NOT_FOUND",
+          `Keypair not found at ${options.keypair}`,
+          undefined,
+          !!options.json,
+        );
       }
       console.log(chalk.yellow("No keypair found. Generating one automatically...\n"));
       await keygenCommand({ output: options.keypair });
       console.log();
     }
 
-    // Load keypair
     spinner?.start("Loading keypair...");
     const keypair = await loadKeypairFromFile(options.keypair);
     const walletAddress = await getAddress(keypair);
     spinner?.succeed(`Wallet loaded: ${walletAddress}`);
 
-    // Check balance before attempting payment
-    spinner?.start("Checking wallet balance...");
-    const solBalance = await checkSolBalance(walletAddress);
-    const usdcBalance = await checkUsdcBalance(walletAddress);
-    const solAmount = Number(solBalance) / 1_000_000_000;
-    const usdcAmount = Number(usdcBalance) / 1_000_000;
-    const solOk = solBalance >= 1_000_000n;    // ~0.001 SOL
-
-    // Compute required USDC based on selected plan
-    const planKey = options.plan?.toLowerCase();
-    const catalogEntry = planKey ? PLAN_CATALOG[planKey] : null;
-    let requiredUsdcRaw: bigint;
-    let requiredUsdcLabel: string;
-    if (catalogEntry) {
-      const period = options.period?.toLowerCase();
-      const priceInCents = period === "yearly" ? catalogEntry.yearlyPrice : catalogEntry.monthlyPrice;
-      requiredUsdcRaw = BigInt(priceInCents) * 10_000n; // cents → USDC raw (6 decimals)
-      requiredUsdcLabel = `${priceInCents / 100} USDC`;
-    } else {
-      requiredUsdcRaw = 1_000_000n; // $1 basic plan
-      requiredUsdcLabel = "1 USDC";
-    }
-    const usdcOk = usdcBalance >= requiredUsdcRaw;
-
-    if (!solOk || !usdcOk) {
-      spinner?.fail("Insufficient balance");
-      const missing: string[] = [];
-      if (!solOk) missing.push(`~0.001 SOL (have ${solAmount.toFixed(6)})`);
-      if (!usdcOk) missing.push(`${requiredUsdcLabel} (have ${usdcAmount.toFixed(2)})`);
-
-      if (!options.wait) {
-        // No polling — exit immediately
-        if (options.json) {
-          exitWithError("INSUFFICIENT_FUNDS", `Need more funds: ${missing.join(", ")}`, {
-            wallet: walletAddress,
-            required: { sol: solOk ? undefined : "~0.001 SOL", usdc: usdcOk ? undefined : requiredUsdcLabel },
-          }, !!options.json);
-        }
-        console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
-        for (const m of missing) {
-          console.error(`  • ${m}`);
-        }
-        console.error(chalk.gray("\nThen run `helius signup` again, or use `helius signup --wait` to poll until funded."));
-        process.exit(!solOk ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
-      }
-
-      // --wait: poll until wallet is funded
-      console.error(chalk.red(`\nInsufficient funds. Send the following to ${chalk.cyan(walletAddress)}:`));
-      for (const m of missing) {
-        console.error(`  • ${m}`);
-      }
-      console.log(chalk.gray("\nWaiting for funds... (Ctrl+C to cancel)\n"));
-      const result = await waitForFunding(walletAddress, requiredUsdcRaw, spinner);
-      if (!result.funded) {
-        process.exit(!result.solFunded ? ExitCode.INSUFFICIENT_SOL : ExitCode.INSUFFICIENT_USDC);
-      }
-    } else {
-      spinner?.succeed(`Balance OK: ${solAmount.toFixed(4)} SOL, ${usdcAmount.toFixed(2)} USDC`);
-    }
-
-    // Snapshot local config state before signup — used to detect recovery vs. duplicate
-    const hadLocalApiKey = !!getSharedApiKey();
-
-    // Run agenticSignup (handles all plan paths)
-    const planLabel = options.plan || "basic";
-    spinner?.start(`Signing up (${planLabel} plan)...`);
-
-    const result = await agenticSignup({
+    spinner?.start("Authenticating + creating payment intent...");
+    const result = await sdkSignup({
       secretKey: keypair.secretKey,
-      plan: options.plan,
+      plan,
       period: (options.period as "monthly" | "yearly") || undefined,
-      couponCode: options.coupon,
       email: options.email,
       firstName: options.firstName,
       lastName: options.lastName,
+      couponCode: options.coupon,
     });
+    spinner?.succeed("Signup ready");
 
-    spinner?.succeed("Signup complete");
+    // Top-level JWT is set so subsequent commands (helius login, etc.) reuse it,
+    // but pendingSignup carries its own JWT to survive top-level rotations.
+    setJwt(result.jwt);
 
     if (options.discoveryPath || options.frictionPoints) {
       sendDiscoveryEvent({
@@ -201,119 +196,479 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       });
     }
 
-    // Save config
-    if (result.jwt) {
-      setJwt(result.jwt);
-    }
-    if (result.apiKey) {
-      setApiKey(result.apiKey);
-      setSharedApiKey(result.apiKey);
-    }
-    if (result.projectId) {
-      setProjectId(result.projectId);
-    }
-
-    // Handle result statuses
-    if (result.status === "existing_project") {
-      // No prior local key = interrupted signup being recovered; otherwise a genuine re-run
-      const isRecovery = !hadLocalApiKey;
-      const allProjects = await listProjects(result.jwt);
-
-      if (options.json) {
-        outputJson({
-          status: isRecovery ? "RECOVERED" : "EXISTING_PROJECT",
-          wallet: result.walletAddress,
-          projectId: result.projectId,
-          apiKey: result.apiKey,
-          configPath: result.apiKey ? SHARED_CONFIG_PATH : null,
-          endpoints: result.endpoints,
-          credits: result.credits,
-          projects: allProjects.map((p) => ({ id: p.id, name: p.name })),
-        });
+    switch (result.kind) {
+      case "already_subscribed": {
+        // Persist the existing API key so other commands can use it.
+        setApiKey(result.apiKey);
+        setSharedApiKey(result.apiKey);
+        setProjectId(result.projectId);
+        emitAlreadySubscribed(result, options);
         return;
       }
-
-      if (isRecovery) {
-        console.log("\n" + chalk.green("Resuming previous signup — your account was already created."));
-      } else {
-        console.log("\n" + chalk.yellow("You already have project(s):"));
+      case "upgrade_required": {
+        emitUpgradeRequired(result, options);
+        return;
       }
-      for (const p of allProjects) {
-        console.log(`  ${chalk.cyan(p.id)} - ${p.name}`);
-        if (p.subscription) {
-          console.log(`    Plan: ${formatEnumLabel(p.subscription.plan)}`);
+      case "payment_required": {
+        const pending: PendingSignup = {
+          paymentIntentId: result.paymentLink.paymentIntentId,
+          paymentUrl: result.paymentLink.paymentUrl,
+          planName: result.paymentLink.planName,
+          amountCents: result.paymentLink.amountCents,
+          destinationWallet: result.paymentLink.destinationWallet,
+          solanaPayUrl: result.paymentLink.solanaPayUrl,
+          memo: result.paymentLink.memo,
+          expiresAt: result.paymentLink.expiresAt,
+          walletAddress: result.walletAddress,
+          refId: result.refId,
+          jwt: result.jwt,
+          createdAt: new Date().toISOString(),
+        };
+        // CRITICAL: write pendingSignup BEFORE attempting any USDC transfer so
+        // a crash mid-send is recoverable via --resume.
+        setPendingSignup(pending);
+
+        if (options.pay) {
+          await runPayWithStored(pending, options, spinner, keypair.secretKey);
+        } else {
+          emitPaymentRequired(pending, false, options);
         }
-      }
-      if (result.apiKey) {
-        console.log(`\nAPI Key: ${chalk.cyan(result.apiKey)}`);
-        console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
-      }
-      if (result.endpoints) {
-        console.log(chalk.bold("\nRPC Endpoints:"));
-        console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
-        console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
-      }
-      if (!isRecovery) {
-        console.log(chalk.gray("\nNo payment required. Use `helius projects` to view details."));
-      }
-      return;
-    }
-
-    if (result.status === "upgraded") {
-      if (options.json) {
-        outputJson({
-          status: "UPGRADED",
-          wallet: result.walletAddress,
-          projectId: result.projectId,
-          apiKey: result.apiKey,
-          plan: planLabel,
-          transaction: result.txSignature || null,
-        });
         return;
       }
-
-      console.log("\n" + chalk.green(`Plan upgraded to ${planLabel}!`));
-      console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
-      if (result.txSignature) {
-        console.log(
-          `Transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`
-        );
-      }
-      return;
-    }
-
-    // status === "success"
-    if (options.json) {
-      outputJson({
-        status: "SUCCESS",
-        wallet: result.walletAddress,
-        projectId: result.projectId,
-        apiKey: result.apiKey,
-        configPath: result.apiKey ? SHARED_CONFIG_PATH : null,
-        endpoints: result.endpoints,
-        credits: result.credits,
-        transaction: result.txSignature || null,
-      });
-      return;
-    }
-
-    console.log("\n" + chalk.green("Signup complete!"));
-    console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
-    if (result.apiKey) {
-      console.log(`API Key: ${chalk.cyan(result.apiKey)}`);
-      console.log(chalk.green(`API key saved to ${SHARED_CONFIG_PATH}`));
-    }
-    if (result.endpoints) {
-      console.log(chalk.bold("\nRPC Endpoints:"));
-      console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
-      console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
-    }
-    if (result.txSignature) {
-      console.log(
-        `\nView transaction: ${chalk.blue(`https://orbmarkets.io/tx/${result.txSignature}`)}`
-      );
     }
   } catch (error) {
     handleCommandError(error, options, spinner);
   }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// --pay path
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pay against a stored pending signup. Idempotent:
+ *   1. If pendingSignup.txSignature is already set → skip the send, just poll.
+ *   2. Else fetch backend status:
+ *        - readyToRedirect → skip send, provision.
+ *        - completed && !readyToRedirect → skip send, poll until ready.
+ *        - pending → send USDC, then poll.
+ *        - expired/failed → clear and exit with the matching status.
+ */
+async function runPayWithStored(
+  stored: PendingSignup,
+  options: SignupOptions,
+  spinner: ReturnType<typeof createSpinner>,
+  freshSecretKey?: Uint8Array,
+): Promise<void> {
+  const link: PaymentLink = {
+    kind: "payment_required",
+    paymentIntentId: stored.paymentIntentId,
+    amountCents: stored.amountCents,
+    destinationWallet: stored.destinationWallet,
+    memo: stored.memo,
+    expiresAt: stored.expiresAt,
+    paymentUrl: stored.paymentUrl,
+    solanaPayUrl: stored.solanaPayUrl,
+    planName: stored.planName,
+  };
+
+  // 1. Already-paid short-circuit.
+  if (stored.txSignature) {
+    spinner?.start("Resuming payment polling (USDC already sent)...");
+    await pollAndProvision(stored, stored.txSignature, options, spinner);
+    return;
+  }
+
+  // 2. Check backend status before sending.
+  spinner?.start("Checking payment status...");
+  let status;
+  try {
+    status = await getPaymentStatus(stored.jwt, stored.paymentIntentId);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("410")) {
+      clearPendingSignup();
+      emitExpired(stored, options);
+      return;
+    }
+    throw error;
+  }
+  spinner?.succeed(`Status: ${status.phase}`);
+
+  if (status.readyToRedirect) {
+    await provisionAndEmit(stored, undefined, options, spinner);
+    return;
+  }
+  if (status.phase === "expired") {
+    clearPendingSignup();
+    emitExpired(stored, options);
+    return;
+  }
+  if (status.phase === "failed") {
+    clearPendingSignup();
+    emitFailed(stored, status.message, options);
+    return;
+  }
+  if (status.status === "completed" && !status.readyToRedirect) {
+    // Payment already settled; just keep polling.
+    await pollAndProvision(stored, undefined, options, spinner);
+    return;
+  }
+
+  // 3. status === "pending" → send USDC.
+  const secretKey = freshSecretKey ?? (await loadSecretKey(options));
+  const walletAddress = stored.walletAddress;
+
+  spinner?.start("Checking wallet balance...");
+  const solBalance = await checkSolBalance(walletAddress);
+  const usdcBalance = await checkUsdcBalance(walletAddress);
+  const requiredUsdcRaw = BigInt(stored.amountCents) * CENTS_TO_USDC_RAW;
+  if (solBalance < SOL_FEE_THRESHOLD) {
+    spinner?.fail("Insufficient SOL for transaction fees");
+    exitWithError(
+      "INSUFFICIENT_SOL",
+      `Wallet ${walletAddress} needs ~0.001 SOL for fees (have ${(Number(solBalance) / 1e9).toFixed(6)}).`,
+      undefined,
+      !!options.json,
+    );
+  }
+  if (usdcBalance < requiredUsdcRaw) {
+    spinner?.fail("Insufficient USDC");
+    exitWithError(
+      "INSUFFICIENT_USDC",
+      `Wallet ${walletAddress} needs ${stored.amountCents / 100} USDC (have ${(Number(usdcBalance) / 1e6).toFixed(2)}).`,
+      undefined,
+      !!options.json,
+    );
+  }
+  spinner?.succeed("Balance OK");
+
+  spinner?.start(`Sending ${stored.amountCents / 100} USDC + memo...`);
+  const { txSignature } = await payPaymentLink(secretKey, link);
+  spinner?.succeed(`Sent: ${txSignature}`);
+
+  // Persist txSignature before activation polling so a crash here doesn't lose it.
+  updatePendingSignup({ txSignature });
+
+  await pollAndProvision(stored, txSignature, options, spinner);
+}
+
+async function pollAndProvision(
+  stored: PendingSignup,
+  txSignature: string | undefined,
+  options: SignupOptions,
+  spinner: ReturnType<typeof createSpinner>,
+): Promise<void> {
+  const deadline = Date.now() + 60_000;
+  spinner?.start("Waiting for activation...");
+
+  while (Date.now() < deadline) {
+    let status;
+    try {
+      status = await getPaymentStatus(stored.jwt, stored.paymentIntentId);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("410")) {
+        clearPendingSignup();
+        emitExpired(stored, options);
+        return;
+      }
+      throw error;
+    }
+
+    if (status.readyToRedirect) {
+      spinner?.succeed("Activated");
+      await provisionAndEmit(stored, txSignature, options, spinner);
+      return;
+    }
+    if (status.phase === "failed") {
+      clearPendingSignup();
+      emitFailed(stored, status.message, options);
+      return;
+    }
+    if (status.phase === "expired") {
+      clearPendingSignup();
+      emitExpired(stored, options);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 1_000));
+  }
+
+  spinner?.warn("Activation polling timed out");
+  emitPending(stored, txSignature, options);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// --resume path — never loads the keypair, never accepts contact args
+// ────────────────────────────────────────────────────────────────────────────
+
+async function runResume(
+  options: SignupOptions,
+  spinner: ReturnType<typeof createSpinner>,
+): Promise<void> {
+  const stored = getPendingSignup();
+  if (!stored) {
+    if (options.json) {
+      outputJson({ status: "MISSING_PENDING_INTENT" });
+      return;
+    }
+    exitWithError(
+      "MISSING_PENDING_INTENT",
+      "No pending signup found in config. Run `helius signup` first.",
+      undefined,
+      !!options.json,
+    );
+  }
+
+  spinner?.start("Polling payment status...");
+  await pollAndProvision(stored!, stored!.txSignature, options, spinner);
+}
+
+/**
+ * Default link-mode helper for the case where the locally-stored intent's
+ * `expiresAt` is already past. Queries the backend (the only source of
+ * truth) and reacts:
+ *
+ * - `expired` / `failed` / 410 Gone → clear stored intent, return "cleared"
+ *   so the caller can fall through to the fresh-signup path.
+ * - `completed` (whether or not `readyToRedirect` is true yet) → drive the
+ *   normal poll-and-provision flow; return "provisioned" so the caller
+ *   doesn't also re-print a link.
+ * - `pending` → return "still_payable"; the caller re-prints the existing
+ *   link (the backend is happy to accept payment despite the local clock).
+ */
+async function refreshStoredFromBackend(
+  stored: PendingSignup,
+  spinner: ReturnType<typeof createSpinner>,
+  options: SignupOptions,
+): Promise<"cleared" | "provisioned" | "still_payable"> {
+  spinner?.start("Stored payment link is past its local expiry — checking backend...");
+  let status;
+  try {
+    status = await getPaymentStatus(stored.jwt, stored.paymentIntentId);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("410")) {
+      clearPendingSignup();
+      spinner?.succeed("Stored intent expired on the backend; starting fresh");
+      return "cleared";
+    }
+    throw error;
+  }
+  spinner?.succeed(`Backend status: ${status.phase}`);
+
+  if (status.phase === "expired" || status.phase === "failed") {
+    clearPendingSignup();
+    return "cleared";
+  }
+  if (status.status === "completed" || status.readyToRedirect) {
+    await pollAndProvision(stored, stored.txSignature, options, spinner);
+    return "provisioned";
+  }
+  return "still_payable";
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Provisioning + output emitters
+// ────────────────────────────────────────────────────────────────────────────
+
+async function provisionAndEmit(
+  stored: PendingSignup,
+  txSignature: string | undefined,
+  options: SignupOptions,
+  spinner: ReturnType<typeof createSpinner>,
+): Promise<void> {
+  spinner?.start("Provisioning API key...");
+  const projects = await listProjects(stored.jwt);
+  if (projects.length === 0) {
+    spinner?.fail("No project provisioned yet — re-run --resume in a moment.");
+    emitPending(stored, txSignature, options);
+    return;
+  }
+  const projectId = projects[0].id;
+  const details = await getProject(stored.jwt, projectId);
+  let apiKey = details.apiKeys?.[0]?.keyId;
+  if (!apiKey) {
+    apiKey = (await createApiKey(stored.jwt, projectId, stored.walletAddress)).keyId;
+  }
+  spinner?.succeed("Provisioned");
+
+  setApiKey(apiKey);
+  setSharedApiKey(apiKey);
+  setProjectId(projectId);
+  clearPendingSignup();
+
+  const endpoints = buildEndpoints(apiKey);
+
+  if (options.json) {
+    outputJson({
+      status: "SUCCESS",
+      walletAddress: stored.walletAddress,
+      projectId,
+      apiKey,
+      endpoints,
+      paymentIntentId: stored.paymentIntentId,
+      txSignature: txSignature ?? null,
+    });
+    return;
+  }
+
+  console.log("\n" + chalk.green("Signup complete!"));
+  console.log(`\nProject ID: ${chalk.cyan(projectId)}`);
+  console.log(`API Key: ${chalk.cyan(apiKey)}`);
+  console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+  console.log(chalk.bold("\nRPC Endpoints:"));
+  console.log(`  Mainnet: ${chalk.blue(endpoints.mainnet)}`);
+  console.log(`  Devnet:  ${chalk.blue(endpoints.devnet)}`);
+  if (txSignature) {
+    console.log(`\nTransaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
+  }
+}
+
+function emitPaymentRequired(
+  stored: PendingSignup,
+  reused: boolean,
+  options: SignupOptions,
+): void {
+  if (options.json) {
+    outputJson({
+      status: "PAYMENT_REQUIRED",
+      paymentUrl: stored.paymentUrl,
+      paymentIntentId: stored.paymentIntentId,
+      walletAddress: stored.walletAddress,
+      refId: stored.refId,
+      expiresAt: stored.expiresAt,
+      amountCents: stored.amountCents,
+      planName: stored.planName,
+      destinationWallet: stored.destinationWallet,
+      memo: stored.memo,
+      solanaPayUrl: stored.solanaPayUrl,
+      ...(reused && { reused: true }),
+    });
+    return;
+  }
+
+  console.log();
+  if (reused) {
+    console.log(chalk.gray("(Resuming previous signup — re-run with --restart to start over.)"));
+  }
+  console.log(chalk.bold(`Pay ${stored.amountCents / 100} USDC to activate ${stored.planName}:`));
+  console.log();
+  console.log(`  ${chalk.cyan(stored.paymentUrl)}`);
+  console.log();
+  console.log(chalk.gray("Or send USDC directly to:"));
+  console.log(chalk.gray(`  Treasury: ${stored.destinationWallet}`));
+  console.log(chalk.gray(`  Memo:     ${stored.memo}`));
+  console.log();
+  console.log(chalk.gray(`Once paid, run \`helius signup --resume\` to finish setup.`));
+}
+
+function emitAlreadySubscribed(
+  result: Extract<
+    Awaited<ReturnType<typeof sdkSignup>>,
+    { kind: "already_subscribed" }
+  >,
+  options: SignupOptions,
+): void {
+  if (options.json) {
+    outputJson({
+      status: "ALREADY_SUBSCRIBED",
+      walletAddress: result.walletAddress,
+      projectId: result.projectId,
+      apiKey: result.apiKey,
+      endpoints: result.endpoints,
+    });
+    return;
+  }
+  console.log("\n" + chalk.green("Wallet already has a project on this plan."));
+  console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
+  console.log(`API Key: ${chalk.cyan(result.apiKey)}`);
+  console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+  console.log(chalk.bold("\nRPC Endpoints:"));
+  console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
+  console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
+}
+
+function emitUpgradeRequired(
+  result: Extract<
+    Awaited<ReturnType<typeof sdkSignup>>,
+    { kind: "upgrade_required" }
+  >,
+  options: SignupOptions,
+): void {
+  const message = `Wallet is already on plan "${result.currentPlan}". Plan changes go through \`helius upgrade\`.`;
+  if (options.json) {
+    outputJson({
+      status: "UPGRADE_REQUIRED",
+      walletAddress: result.walletAddress,
+      currentPlan: result.currentPlan,
+      requestedPlan: result.requestedPlan,
+      message,
+    });
+    return;
+  }
+  console.error("\n" + chalk.yellow(message));
+  process.exit(ExitCode.GENERAL_ERROR);
+}
+
+function emitPending(
+  stored: PendingSignup,
+  txSignature: string | undefined,
+  options: SignupOptions,
+): void {
+  if (options.json) {
+    outputJson({
+      status: "PENDING",
+      paymentIntentId: stored.paymentIntentId,
+      paymentUrl: stored.paymentUrl,
+      expiresAt: stored.expiresAt,
+      ...(txSignature && { txSignature }),
+    });
+    return;
+  }
+  console.log();
+  console.log(chalk.yellow("Payment is still being confirmed."));
+  console.log(`\n  Payment URL: ${chalk.cyan(stored.paymentUrl)}`);
+  if (txSignature) {
+    console.log(`  Transaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
+  }
+  console.log(chalk.gray(`\nRun \`helius signup --resume\` again in a moment.`));
+}
+
+function emitExpired(stored: PendingSignup, options: SignupOptions): void {
+  if (options.json) {
+    outputJson({ status: "EXPIRED", paymentIntentId: stored.paymentIntentId });
+    return;
+  }
+  console.error("\n" + chalk.red("Payment intent expired."));
+  console.error(chalk.gray("Run `helius signup` to start a fresh signup."));
+  process.exit(ExitCode.GENERAL_ERROR);
+}
+
+function emitFailed(
+  stored: PendingSignup,
+  reason: string | undefined,
+  options: SignupOptions,
+): void {
+  if (options.json) {
+    outputJson({
+      status: "FAILED",
+      paymentIntentId: stored.paymentIntentId,
+      ...(reason && { reason }),
+    });
+    return;
+  }
+  console.error("\n" + chalk.red("Payment failed."));
+  if (reason) console.error(chalk.gray(reason));
+  process.exit(ExitCode.GENERAL_ERROR);
+}
+
+async function loadSecretKey(options: SignupOptions): Promise<Uint8Array> {
+  if (!keypairExists(options.keypair)) {
+    exitWithError(
+      "KEYPAIR_NOT_FOUND",
+      `Keypair not found at ${options.keypair}`,
+      undefined,
+      !!options.json,
+    );
+  }
+  const keypair = await loadKeypairFromFile(options.keypair);
+  return keypair.secretKey;
 }

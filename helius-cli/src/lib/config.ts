@@ -8,12 +8,55 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 // Alias for backwards compatibility (used by signup.ts)
 export const SHARED_CONFIG_PATH = CONFIG_FILE;
 
+/**
+ * Stored state for an in-flight signup that returned a payment link. Lets
+ * subsequent invocations of `helius signup` (default link mode), `signup
+ * --resume`, and `signup --pay` operate against the existing intent without
+ * a backend roundtrip and without re-deriving the wallet from the keypair
+ * (`--resume` is forbidden from loading the keypair).
+ *
+ * Carries the full PaymentLink so `--pay` can pay it, plus the JWT used to
+ * create it (kept here, not at the top level, so a later `helius login` that
+ * rotates the top-level JWT does not corrupt the resume path).
+ *
+ * Cleanup rules — DO NOT auto-clear on local `expiresAt`:
+ *   - Backend reports `expired` / `failed` → cleared
+ *   - Provisioning succeeds (SUCCESS) → cleared
+ *   - User passes `--restart` → cleared
+ * The user can pay just before expiry but return to the terminal after, and
+ * we must not delete a still-valid resume state.
+ */
+export interface PendingSignup {
+  // PaymentLink fields
+  paymentIntentId: string;
+  paymentUrl: string;
+  planName: string;
+  amountCents: number;
+  destinationWallet: string;
+  solanaPayUrl: string;
+  /** Always equal to `paymentIntentId`. */
+  memo: string;
+  expiresAt: string;
+
+  // Auth + identity for --resume
+  walletAddress: string;
+  refId: string;
+  jwt: string;
+
+  /** Set by `--pay` after USDC has been sent but before activation polling lands. */
+  txSignature?: string;
+
+  /** ISO timestamp of when the pending intent was first stored. */
+  createdAt: string;
+}
+
 interface Config {
   jwt?: string;
   apiKey?: string;
   network?: "mainnet" | "devnet";
   projectId?: string;
   owsWallet?: string;
+  pendingSignup?: PendingSignup;
 }
 
 function ensureDir(): void {
@@ -139,6 +182,29 @@ export function clearOwsWallet(): void {
 
 export function clearConfig(): void {
   save({});
+}
+
+export function getPendingSignup(): PendingSignup | undefined {
+  return load().pendingSignup;
+}
+
+export function setPendingSignup(pending: PendingSignup): void {
+  const config = load();
+  config.pendingSignup = pending;
+  save(config);
+}
+
+export function updatePendingSignup(patch: Partial<PendingSignup>): void {
+  const config = load();
+  if (!config.pendingSignup) return;
+  config.pendingSignup = { ...config.pendingSignup, ...patch };
+  save(config);
+}
+
+export function clearPendingSignup(): void {
+  const config = load();
+  delete config.pendingSignup;
+  save(config);
 }
 
 // Delegates to main config (shared and main are now the same)

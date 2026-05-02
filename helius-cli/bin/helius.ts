@@ -127,24 +127,44 @@ Examples:
 
 program
   .command("signup")
-  .description("Create a Helius account (default: $1 basic plan, or specify a paid plan)")
+  .description("Create a Helius account via crypto checkout (default plan: agent — $10 USDC one-time, 1M starting credits)")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
-  .option("--plan <plan>", "Plan: basic ($1), developer ($49/mo), business ($499/mo), professional ($999/mo)")
-  .option("--period <period>", "Billing period: monthly or yearly (paid plans only)", "monthly")
-  .option("--coupon <code>", "Coupon code (paid plans only)")
-  .option("--email <email>", "Email address (required for paid plans)")
-  .option("--first-name <name>", "First name (required for paid plans)")
-  .option("--last-name <name>", "Last name (required for paid plans)")
+  .option(
+    "--plan <plan>",
+    "Plan: agent ($10 one-time, default), developer ($49/mo), business ($499/mo), professional ($999/mo)",
+    "agent",
+  )
+  .option("--period <period>", "Billing period: monthly or yearly (subscription plans only)", "monthly")
+  .option("--coupon <code>", "Coupon code")
+  .option("--email <email>", "Email address (required for fresh signup)")
+  .option("--first-name <name>", "First name (required for fresh signup)")
+  .option("--last-name <name>", "Last name (required for fresh signup)")
   .option("--discovery-path <text>", "How did you discover Helius?")
   .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
-  .option("--wait", "Poll for funds if balance is insufficient, then continue signup automatically")
+  .option("--pay", "Auto-pay USDC + memo from the local keypair instead of printing only the link")
+  .option("--resume", "Poll an existing pending signup intent stored in config, then provision the API key")
+  .option("--restart", "Discard any stored pending signup and start a fresh one")
   .option("--json", "Output in JSON format")
-  .addHelpText('after', `
+  .addHelpText("after", `
 Examples:
-  $ helius signup
-  $ helius signup --plan developer --email you@example.com --first-name Jane --last-name Doe
-  $ helius signup --wait`)
-  .action(signupCommand);
+  $ helius signup --email you@example.com --first-name Jane --last-name Doe
+      Default link mode — prints a hosted-checkout URL and exits.
+      Open the URL in a browser, pay USDC, then run \`helius signup --resume\`
+      to finish setup. Re-running this command without --restart re-prints the
+      stored link instead of creating a duplicate intent.
+
+  $ helius signup --pay --email you@example.com --first-name Jane --last-name Doe
+      Auto-pay flow — the CLI keypair sends USDC + memo to the treasury and
+      polls activation. On poll timeout, prints PENDING with the txSignature
+      so you can resume later.
+
+  $ helius signup --resume
+      Polls the stored intent and provisions the API key when the backend
+      reports the subscription is active. Does NOT load the keypair.
+
+  $ helius signup --restart --plan developer --period yearly ...
+      Discards the stored pending intent and starts a fresh signup.`)
+  .action(function (this: any) { signupCommand(opts(this)); });
 
 program
   .command("upgrade")

@@ -35,23 +35,38 @@ Get your key from [dashboard.helius.dev](https://dashboard.helius.dev).
 
 ### New users — create an account
 
+The default flow returns a hosted-checkout link. Open it in a browser, pay USDC, then resume the CLI to provision your API key.
+
 ```bash
-# 1. Generate a keypair
+# 1. Generate a keypair (auto-runs on first signup if missing)
 helius keygen
 
-# 2. Fund the wallet address shown above:
-#    - ~0.001 SOL for transaction fees
-#    - 1 USDC for the basic plan ($1 one-time)
+# 2. Start signup — prints a payment URL and exits.
+helius signup --email you@example.com --first-name Jane --last-name Doe
 
-# 3. Create account
-helius signup
+# 3. Open the URL in a browser, pay USDC. Then back in the terminal:
+helius signup --resume
 
 # 4. Start querying
 helius balance <wallet-address>
 helius tx parse <signature>
 ```
 
-Paid plans: add `--plan developer` ($49/mo), `--plan business` ($499/mo), or `--plan professional` ($999/mo) to `helius signup`, with `--email`, `--first-name`, `--last-name` required.
+Default plan: `agent` — $10 USDC one-time, 1,000,000 starting credits. Pass `--plan developer` ($49/mo), `--plan business` ($499/mo), or `--plan professional` ($999/mo) for subscription tiers (with optional `--period yearly`).
+
+#### Auto-pay (CLI keypair pays for itself)
+
+Skip the browser — let the CLI keypair send USDC + memo directly to the treasury and poll activation:
+
+```bash
+helius signup --pay --email you@example.com --first-name Jane --last-name Doe
+```
+
+The wallet needs ~0.001 SOL for fees and the plan amount in USDC. On poll timeout the CLI prints `PENDING` with the `txSignature` so you can resume later.
+
+#### Pending intent reuse
+
+Re-running `helius signup` after starting a signup re-prints the same payment link — no duplicate intents are created. To start over, pass `--restart`. To keep polling without sending another USDC tx, pass `--resume` (does not load the keypair, does not require contact args).
 
 ## Configuration
 
@@ -84,7 +99,7 @@ helius config clear               # Reset config
 | Command | Description |
 |---|---|
 | `helius keygen` | Generate a new Solana keypair |
-| `helius signup` | Create a Helius account (default: basic $1; use `--plan` for paid) |
+| `helius signup` | Create a Helius account via crypto checkout (default: agent $10 one-time; `--pay` for autopay, `--resume` to finish) |
 | `helius login` | Authenticate with an existing wallet |
 | `helius upgrade --plan <name>` | Upgrade to a paid plan |
 | `helius pay <payment-intent-id>` | Pay a renewal or pending payment intent |

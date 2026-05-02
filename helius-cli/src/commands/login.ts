@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
-import { signup } from "../lib/api.js";
+import { walletSignup } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
@@ -31,7 +31,7 @@ export async function loginCommand(options: LoginOptions): Promise<void> {
 
     // Call login API
     spinner?.start("Authenticating...");
-    const authResult = await signup(message, signature, walletAddress);
+    const authResult = await walletSignup(message, signature, walletAddress);
     setJwt(authResult.token);
     spinner?.succeed("Authenticated");
 

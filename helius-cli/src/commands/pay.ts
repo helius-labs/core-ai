@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { loadKeypairFromFile, signAuthMessage, getAddress } from "../lib/wallet.js";
-import { signup } from "../lib/api.js";
+import { walletSignup } from "../lib/api.js";
 import { getPaymentIntent, executeRenewal } from "../lib/checkout.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
@@ -29,7 +29,7 @@ export async function payCommand(paymentIntentId: string, options: PayOptions): 
 
     spinner?.start("Authenticating...");
     const { message, signature } = await signAuthMessage(keypair.secretKey);
-    const authResult = await signup(message, signature, walletAddress);
+    const authResult = await walletSignup(message, signature, walletAddress);
     setJwt(authResult.token);
     spinner?.succeed("Authenticated");
 
