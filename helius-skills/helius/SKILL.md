@@ -36,9 +36,9 @@ If using MCP and a tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Agentic signup:** `generateKeypair` → user funds wallet with **~0.001 SOL** for fees + **USDC** (USDC mint: `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`) — **1 USDC** basic, **$49** Developer, **$499** Business, **$999** Professional → `checkSignupBalance` → `agenticSignup`. **Do NOT skip steps** — on-chain payment required.
+**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$1** Agent, **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
 
-**Path C — CLI:** `npx helius-cli@latest keygen` → fund wallet → `npx helius-cli@latest signup`
+**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume`. Or autopay: `... signup --plan agent --pay`.
 
 ## Routing
 
@@ -103,7 +103,7 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 ### Getting Started / Onboarding
 **Read**: `references/onboarding.md`
 **APIs**: Account API, CLI (`npx helius-cli@latest`)
-**MCP tools** (if available): `setHeliusApiKey`, `generateKeypair`, `checkSignupBalance`, `agenticSignup`, `getAccountStatus`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`
+**MCP tools** (if available): `setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`, `purchaseCredits`
 **When**: account creation, API key management, plan/credits/usage checks, billing
 
 ### Documentation & Troubleshooting

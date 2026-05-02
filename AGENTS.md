@@ -51,9 +51,9 @@ Most tools require a Helius API key. Three paths:
 
 **Path A — Existing key:** Set the `HELIUS_API_KEY` environment variable, or call the `setHeliusApiKey` MCP tool.
 
-**Path B — Agentic signup:** Call `generateKeypair` → fund the wallet with ~0.001 SOL + 1 USDC → `checkSignupBalance` → `agenticSignup`. The API key is configured automatically.
+**Path B — Signup:** Call `generateKeypair` → `signup` with `mode: "link"` (returns a hosted `paymentUrl` the user opens in a browser) → after payment, `signup` with `mode: "resume"`. Or `mode: "autopay"` to pay USDC from the local keypair (wallet must hold ~0.001 SOL + the plan amount in USDC). API key is configured automatically.
 
-**Path C — CLI:** `npx helius-cli@latest keygen` → fund wallet → `npx helius-cli@latest signup`
+**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link) → user pays in browser → `npx helius-cli@latest signup --resume`. Or `--pay` to autopay.
 
 Get keys from https://dashboard.helius.dev.
 

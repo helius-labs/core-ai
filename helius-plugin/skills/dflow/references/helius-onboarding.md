@@ -9,15 +9,15 @@ Getting users set up with Helius: creating accounts, obtaining API keys, underst
 | MCP Tool | What It Does |
 |---|---|
 | `setHeliusApiKey` | Configure an existing API key for the session (validates against `getBlockHeight`) |
-| `generateKeypair` | Generate or load a Solana keypair for agentic signup (persists to `~/.helius-cli/keypair.json`) |
-| `checkSignupBalance` | Check if the signup wallet has sufficient SOL + USDC |
-| `agenticSignup` | Create a Helius account, pay with USDC, auto-configure API key |
+| `generateKeypair` | Generate or load a Solana keypair for signup (persists to `~/.helius-cli/keypair.json`) |
+| `signup` | Create a Helius account via hosted payment link (`mode: "link"`), or pay USDC directly from the local keypair (`mode: "autopay"`), or finalize a previously-created intent (`mode: "resume"`) |
 | `getAccountStatus` | Check current plan, credits remaining, rate limits, billing cycle, burn-rate projections |
 | `getHeliusPlanInfo` | View plan details — pricing, credits, rate limits, features |
 | `compareHeliusPlans` | Compare plans side-by-side by category (rates, features, connections, pricing, support) |
 | `previewUpgrade` | Preview upgrade pricing with proration before committing |
-| `upgradePlan` | Execute a plan upgrade (processes USDC payment) |
+| `upgradePlan` | Execute a plan upgrade (returns a hosted payment link or pays USDC directly) |
 | `payRenewal` | Pay a renewal payment intent |
+| `purchaseCredits` | Buy prepaid credits (link or autopay) |
 
 ## Getting an API Key
 
@@ -31,37 +31,50 @@ If the user already has a Helius API key from the dashboard:
 
 If the environment variable `HELIUS_API_KEY` is already set, no action is needed — tools auto-detect it.
 
-### Path B: MCP Agentic Signup (For AI Agents)
+### Path B: MCP Signup (For AI Agents)
 
-The fully autonomous signup flow, no browser needed:
+Two modes — pick based on whether the user wants to pay in a browser or have the agent pay USDC from a local keypair.
 
-1. **`generateKeypair`** — generates a new Solana keypair (or loads an existing one from `~/.helius-cli/keypair.json`). Returns the wallet address.
-2. **User funds the wallet** with:
-   - ~0.001 SOL for transaction fees
-   - 1 USDC for the basic plan (or more for paid plans: $49 Developer, $499 Business, $999 Professional)
-3. **`checkSignupBalance`** — verifies SOL and USDC balances are sufficient
-4. **`agenticSignup`** — creates the account, processes USDC payment, returns API key + RPC endpoints + project ID
-   - API key is automatically configured for the session and saved to shared config
-   - If the wallet already has an account, it detects and returns existing credentials (no double payment)
+**Link mode (default — pay in browser):**
 
-**Parameters for `agenticSignup`:**
-- `plan`: `"basic"` (default, $1), `"developer"`, `"business"`, or `"professional"`
+1. **`generateKeypair`** — generates or loads a Solana keypair. Returns the wallet address.
+2. **`signup`** with `mode: "link"` — creates a payment intent and returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`). The user opens that URL in any browser and pays with any wallet. The pending intent is persisted to shared config.
+3. **`signup`** with `mode: "resume"` — polls the intent, finalizes account provisioning, and configures the API key automatically once payment settles.
+
+**Autopay mode (agent pays USDC from local keypair):**
+
+1. **`generateKeypair`** — same as above.
+2. **User funds the wallet** with ~0.001 SOL (transaction fees) + the plan amount in USDC ($1 Agent, $49 Developer, $499 Business, $999 Professional).
+3. **`signup`** with `mode: "autopay"` — sends USDC + memo from the local keypair, polls until the subscription is provisioned, returns API key + RPC endpoints + project ID.
+
+If the wallet already has an account on the same plan, `signup` detects it and returns existing credentials (no double payment). If it's on a different plan, `signup` returns `kind: "upgrade_required"` — use `upgradePlan` instead.
+
+**Parameters for `signup`:**
+- `mode`: `"link"` (default), `"autopay"`, or `"resume"`
+- `plan`: `"agent"` (default, $1), `"developer"`, `"business"`, or `"professional"`
 - `period`: `"monthly"` (default) or `"yearly"` (paid plans only)
-- `email`, `firstName`, `lastName`: required for paid plans
+- `email`, `firstName`, `lastName`: required for every new signup
 - `couponCode`: optional discount code
-
-Here, paid plans refers to `"developer"`, `"business"`, and `"professional"`
 
 ### Path C: Helius CLI
 
-The `helius-cli` provides the same autonomous signup from the terminal:
+The `helius-cli` provides the same flow from the terminal:
 
 ```bash
 # Generate keypair (saved to ~/.helius-cli/keypair.json)
 helius keygen
 
-# Fund the wallet, then sign up (pays 1 USDC for basic plan)
-helius signup --json
+# Print a hosted payment link (default)
+helius signup --plan agent --email me@example.com --first-name Ada --last-name Lovelace --json
+
+# Pay in the browser, then finalize:
+helius signup --resume --json
+
+# Or autopay USDC directly from the local keypair:
+helius signup --plan agent --email me@example.com --first-name Ada --last-name Lovelace --pay --json
+
+# Discard a stuck pending intent and start over:
+helius signup --restart --plan agent ...
 
 # List projects and get API keys
 helius projects --json
@@ -75,8 +88,8 @@ helius rpc <project-id> --json
 - `0`: success
 - `10`: not logged in (run `helius login`)
 - `11`: keypair not found (run `helius keygen`)
-- `20`: insufficient SOL
-- `21`: insufficient USDC
+- `20`: insufficient SOL (autopay only)
+- `21`: insufficient USDC (autopay only)
 
 Always use the `--json` flag for machine-readable output when scripting.
 
@@ -85,28 +98,38 @@ Always use the `--json` flag for machine-readable output when scripting.
 For applications that need to create Helius accounts programmatically:
 
 ```typescript
-const helius = createHelius({ apiKey: '' }); // No key yet — signing up
+import { makeAuthClient } from "helius-sdk/auth/client";
+const auth = makeAuthClient();
 
-const keypair = await helius.auth.generateKeypair();
-const address = await helius.auth.getAddress(keypair);
+const keypair = await auth.generateKeypair();
 
-// Fund the wallet (user action), then sign up
-const result = await helius.auth.agenticSignup({
+// Hosted-link signup (returns a paymentUrl the user opens in a browser):
+const link = await auth.signup({
   secretKey: keypair.secretKey,
-  plan: 'developer',
-  period: 'monthly',
-  email: 'user@example.com',
-  firstName: 'Jane',
-  lastName: 'Doe',
+  plan: "developer",
+  period: "monthly",
+  email: "user@example.com",
+  firstName: "Jane",
+  lastName: "Doe",
 });
-// result.apiKey, result.projectId, result.endpoints, result.jwt
+// link.paymentLink.paymentUrl — open this in a browser
+
+// Or pay USDC directly from the local keypair:
+const result = await auth.signupAndPay({
+  secretKey: keypair.secretKey,
+  plan: "developer",
+  period: "monthly",
+  email: "user@example.com",
+  firstName: "Jane",
+  lastName: "Doe",
+});
+// result.kind: "completed" | "pending" | "expired" | "failed" | "already_subscribed" | "upgrade_required"
+// On "completed": result has { jwt, walletAddress, projectId, apiKey, endpoints, txSignature }
 ```
 
 ## Plans and Pricing
 
-The agentic signup flow uses these plan tiers (all paid in USDC):
-
-| | Basic | Developer | Business | Professional |
+| | Agent | Developer | Business | Professional |
 |---|---|---|---|---|
 | **Price** | $1 USDC | $49/mo | $499/mo | $999/mo |
 | **Credits** | 1M | 10M | 100M | 200M |
@@ -118,8 +141,6 @@ The agentic signup flow uses these plan tiers (all paid in USDC):
 | **Enhanced WS** | No | 150 conn | 250 conn | 1,000 conn |
 | **LaserStream** | No | Devnet | Devnet + Mainnet | Devnet + Mainnet |
 | **Support** | Discord | Chat (24hr) | Priority (12hr) | Slack + Telegram (8hr) |
-
-The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but agentic signup charges $1 USDC to create the account on-chain.
 
 ### Credit Costs
 
@@ -133,8 +154,8 @@ The dashboard shows a "Free" tier at $0 — that is the same plan as Basic, but 
 
 | Feature | Minimum Plan |
 |---|---|
-| Standard RPC, DAS, Webhooks, Sender | Basic |
-| Standard WebSockets | Basic |
+| Standard RPC, DAS, Webhooks, Sender | Agent |
+| Standard WebSockets | Agent |
 | Enhanced WebSockets | Developer |
 | LaserStream (devnet) | Developer |
 | LaserStream (mainnet) | Business |
@@ -149,7 +170,7 @@ Use the `getHeliusPlanInfo` or `compareHeliusPlans` MCP tools for current detail
 The `getAccountStatus` tool provides three tiers of information:
 
 1. **No auth**: Tells the user how to get started (set key or sign up)
-2. **API key only** (no JWT): Confirms auth but can't show credit usage — suggests calling `agenticSignup` to detect existing account
+2. **API key only** (no JWT): Confirms auth but can't show credit usage — suggests calling `signup` to detect existing account
 3. **Full JWT session**: Shows plan, rate limits, credit usage breakdown (API/RPC/webhooks/overage), billing cycle with days remaining, and burn-rate projections with warnings
 
 Call `getAccountStatus` before bulk operations to verify sufficient credits.
@@ -157,13 +178,13 @@ Call `getAccountStatus` before bulk operations to verify sufficient credits.
 ### Upgrade Plans
 
 1. **`previewUpgrade`** — shows pricing breakdown: subtotal, prorated credits, discounts, coupon status, amount due today
-2. **`upgradePlan`** — executes the upgrade, processes USDC payment from the signup wallet
+2. **`upgradePlan`** — returns a hosted payment link by default, or pays USDC directly with `mode: "autopay"`
    - Requires `email`, `firstName`, `lastName` for first-time upgrades (all three or none)
    - Supports `couponCode` for discounts
 
 ### Pay Renewals
 
-`payRenewal` takes a `paymentIntentId` from a renewal notification and processes the USDC payment.
+`payRenewal` takes a `paymentIntentId` from a renewal notification and either prints a payment link or pays USDC directly.
 
 ## Environment Configuration
 
@@ -171,10 +192,11 @@ Call `getAccountStatus` before bulk operations to verify sufficient credits.
 # Required — set one of these:
 HELIUS_API_KEY=your-api-key          # Environment variable
 # OR use setHeliusApiKey MCP tool    # Session + shared config
-# OR use agenticSignup               # Auto-configures
+# OR use signup                      # Auto-configures
 
 # Optional
 HELIUS_NETWORK=mainnet-beta          # or devnet (default: mainnet-beta)
+HELIUS_PAYMENT_HOST=https://dashboard.helius.dev   # override hosted-link host (e.g. staging)
 ```
 
 ### Shared Config
@@ -183,6 +205,7 @@ The MCP persists API keys and JWTs to shared config files so they survive across
 - **API key**: saved to shared config path (accessible by both MCP and CLI)
 - **Keypair**: saved to `~/.helius-cli/keypair.json`
 - **JWT**: saved to shared config for authenticated session features
+- **Pending payment intent**: link-mode signup persists the pending intent so `mode: "resume"` (or `helius signup --resume`) can finalize after the user pays in the browser
 
 ### Installing the MCP
 
@@ -196,16 +219,19 @@ claude mcp add helius npx helius-mcp@latest
 |---|---|
 | User has a Helius API key | `setHeliusApiKey` (Path A) |
 | User has `HELIUS_API_KEY` env var set | No action needed — auto-detected |
-| AI agent needs to sign up autonomously | `generateKeypair` -> fund -> `agenticSignup` (Path B) |
-| Script/CI needs to sign up | `helius keygen` -> fund -> `helius signup --json` (Path C) |
-| Application needs programmatic signup | SDK `agenticSignup()` function |
-| User wants full account visibility | `agenticSignup` (detects existing accounts) then `getAccountStatus` |
+| AI agent + user wants to pay in browser | `generateKeypair` -> `signup` (link) -> user pays -> `signup` (resume) (Path B) |
+| AI agent + agent pays USDC from local keypair | `generateKeypair` -> fund wallet -> `signup` (autopay) (Path B) |
+| Script/CI link-mode signup | `helius keygen` -> `helius signup --json` -> user pays -> `helius signup --resume --json` (Path C) |
+| Script/CI autopay signup | `helius keygen` -> fund -> `helius signup --pay --json` (Path C) |
+| Application needs programmatic signup | SDK `signup()` / `signupAndPay()` |
+| User wants full account visibility | `signup` (detects existing accounts) then `getAccountStatus` |
 | User needs a higher plan | `previewUpgrade` then `upgradePlan` |
 
 ## Common Mistakes
 
-- Calling `agenticSignup` without first calling `generateKeypair` — there's no wallet to sign with
-- Not funding the wallet before calling `agenticSignup` — the USDC payment will fail
-- Assuming `agenticSignup` charges twice for existing accounts — it detects and returns existing credentials
-- Using `getAccountStatus` without a JWT session — call `agenticSignup` first to establish the session (it detects existing accounts for free)
-- Forgetting that paid plan signup requires `email`, `firstName`, and `lastName` — all three are required together
+- Calling `signup` without first calling `generateKeypair` — there's no wallet to sign with
+- Calling `signup` with `mode: "autopay"` before funding the wallet — the USDC payment will fail
+- Assuming `signup` charges twice for existing accounts — it detects and returns existing credentials
+- Using `getAccountStatus` without a JWT session — call `signup` first to establish the session (it detects existing accounts for free)
+- Forgetting that every new signup requires `email`, `firstName`, and `lastName` — all three are required together
+- After a link-mode signup, forgetting to call `mode: "resume"` (or `helius signup --resume`) — the account isn't provisioned until polling completes

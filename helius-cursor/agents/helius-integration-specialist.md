@@ -31,7 +31,7 @@ When helping with a Helius integration:
 
 2. **Check MCP availability** — Verify Helius MCP tools are available before proceeding. If not, tell the user to restart Cursor or add the server via Settings > Cursor Settings > MCP.
 
-3. **Check API key** — If any Helius MCP tool returns "API key not configured", guide through setup: `setHeliusApiKey` for existing keys, or `generateKeypair` → fund → `agenticSignup` for new accounts.
+3. **Check API key** — If any Helius MCP tool returns "API key not configured", guide through setup: `setHeliusApiKey` for existing keys, or `generateKeypair` → `signup` (link or autopay) → optional `signup` with `mode: "resume"` for new accounts.
 
 4. **Read references before writing code** — Always read the relevant reference file(s) before implementing. Never write code based on assumptions about API shapes.
 

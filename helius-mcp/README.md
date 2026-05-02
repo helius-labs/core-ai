@@ -41,21 +41,24 @@ Or set it from your AI assistant by calling the `setHeliusApiKey` tool.
 
 **If you need a new account:**
 
-The MCP includes a fully autonomous signup flow — no browser needed:
+The MCP includes a `signup` tool with three modes:
 
 1. Call the `generateKeypair` tool — it creates a Solana wallet and returns the address
-2. Fund the wallet with **~0.001 SOL** (transaction fees) + **1 USDC** (basic plan costs $1)
-3. Call `checkSignupBalance` to verify funds arrived
-4. Call `agenticSignup` to create your account — API key is configured automatically
+2. Call `signup` with `mode: "link"` — returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) you open in any browser to pay with any wallet
+3. After paying in the browser, call `signup` with `mode: "resume"` — finalizes provisioning and configures the API key automatically
+4. Or skip the browser: call `signup` with `mode: "autopay"` to pay USDC from the local keypair (wallet must hold ~0.001 SOL + the plan amount in USDC)
 
-> **Paid plans (developer/business/professional):** `agenticSignup` and `upgradePlan` require `email`, `firstName`, and `lastName`. Basic plan does not.
+> **All paid plans:** `signup` and `upgradePlan` require `email`, `firstName`, and `lastName` for new signups (every plan, including Agent).
 
 Or do the same from the terminal:
 
 ```bash
-npx helius-cli@latest keygen     # Generate keypair
-# Fund the wallet address shown above with ~0.001 SOL + 1 USDC
-npx helius-cli@latest signup      # Verify balance + create account
+npx helius-cli@latest keygen                  # Generate keypair
+npx helius-cli@latest signup --plan agent     # Print hosted payment link
+# (pay in browser, then:)
+npx helius-cli@latest signup --resume         # Finalize account
+# Or autopay USDC from the local keypair:
+npx helius-cli@latest signup --plan agent --pay
 ```
 
 ### 3. Start using tools

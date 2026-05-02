@@ -235,13 +235,10 @@ async function runPayWithStored(
   }
 
   const secretKey = freshSecretKey ?? (await loadSecretKey(options));
-
-  spinner?.start("Checking wallet balance...");
-  const sol = await checkSolBalance(stored.destinationWallet);
-  void sol; // The destinationWallet is the treasury, not the payer; check payer instead.
-  // (Keypair-derived wallet pays; just sanity-check fees are present on it.)
   const keypair = await loadKeypairFromFile(options.keypair);
   const payerAddress = await getAddress(keypair);
+
+  spinner?.start("Checking wallet balance...");
   const payerSol = await checkSolBalance(payerAddress);
   const payerUsdc = await checkUsdcBalance(payerAddress);
   const required = BigInt(stored.amountCents) * CENTS_TO_USDC_RAW;
