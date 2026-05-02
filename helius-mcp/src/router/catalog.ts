@@ -147,7 +147,6 @@ const professionalLaserstreamGate = gate(
 
 const scalarActions: ActionName[] = [
   'getBalance',
-  'checkSignupBalance',
   'getAccountPlan',
   'getNetworkStatus',
   'getPriorityFeeEstimate',
@@ -302,9 +301,17 @@ catalog.getStarted = makeEntry('getStarted', {
   handleEligibility: false,
 });
 
-catalog.agenticSignup = makeEntry('agenticSignup', {
+catalog.signup = makeEntry('signup', {
   authRequirement: 'signer',
-  capabilityGate: gate('free', 'Agentic signup flow'),
+  capabilityGate: gate('free', 'Signup flow'),
+  responseFamily: 'record',
+  defaultDetail: 'standard',
+  handleEligibility: false,
+});
+
+catalog.purchaseCredits = makeEntry('purchaseCredits', {
+  authRequirement: 'jwt',
+  capabilityGate: gate('free', 'Prepaid credits top-up'),
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,

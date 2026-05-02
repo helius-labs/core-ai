@@ -7,18 +7,18 @@ import {
 import {
   walletSignup,
   listProjects,
-  getPaymentStatus,
+  purchaseCredits as sdkPurchaseCredits,
   payPaymentLink,
-  upgradePlan as sdkUpgradePlan,
+  getPaymentStatus,
   type PaymentLink,
 } from "../lib/api.js";
 import {
   setJwt,
-  getPendingUpgrade,
-  setPendingUpgrade,
-  updatePendingUpgrade,
-  clearPendingUpgrade,
-  type PendingUpgrade,
+  getPendingCredits,
+  setPendingCredits,
+  updatePendingCredits,
+  clearPendingCredits,
+  type PendingCredits,
 } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
 import {
@@ -30,16 +30,11 @@ import {
   type OutputOptions,
 } from "../lib/output.js";
 import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
-import { validateUpgradePlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
-interface UpgradeOptions extends OutputOptions {
+interface CreditsOptions extends OutputOptions {
   keypair: string;
-  plan?: string;
-  period?: string;
+  qty?: string;
   coupon?: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
   pay?: boolean;
   resume?: boolean;
   restart?: boolean;
@@ -50,12 +45,12 @@ const SOL_FEE_THRESHOLD = 1_000_000n;
 const TX_EXPLORER = "https://orbmarkets.io/tx";
 
 /**
- * Phase 2 — `helius upgrade`. Mirrors `helius signup` with three modes:
- *   - default (link): print payment URL + save pendingUpgrade, exit.
- *   - --pay: autopay USDC + memo from local keypair, poll, surface SUCCESS / PENDING.
- *   - --resume: poll stored pendingUpgrade (no keypair load), provision on SUCCESS.
+ * Phase 2 — `helius credits` to top up prepaid credits on an agent-plan
+ * project. Mirrors signup/upgrade with three modes (default / --pay / --resume).
+ *
+ * Each unit of `--qty` grants 1,000,000 credits ($10 USDC each).
  */
-export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
+export async function creditsCommand(options: CreditsOptions): Promise<void> {
   const spinner = createSpinner(options);
 
   try {
@@ -64,22 +59,11 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       return;
     }
 
-    if (options.plan) {
-      const planErr = validateUpgradePlan(options.plan);
-      if (planErr) exitWithError("INVALID_INPUT", planErr, undefined, !!options.json);
-    }
-    if (options.period) {
-      const periodErr = validatePeriod(options.period);
-      if (periodErr) exitWithError("INVALID_INPUT", periodErr, undefined, !!options.json);
-    }
-    if (options.email) {
-      const emailErr = validateEmail(options.email);
-      if (emailErr) exitWithError("INVALID_INPUT", emailErr, undefined, !!options.json);
-    }
+    const qty = parseQty(options.qty);
 
-    if (options.restart) clearPendingUpgrade();
+    if (options.restart) clearPendingCredits();
 
-    const stored = getPendingUpgrade();
+    const stored = getPendingCredits();
     if (stored && !options.restart) {
       if (options.pay) {
         await runPayWithStored(stored, options, spinner);
@@ -87,15 +71,6 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
         emitPaymentRequired(stored, true, options);
       }
       return;
-    }
-
-    if (!options.plan) {
-      exitWithError(
-        "INVALID_INPUT",
-        "--plan is required for upgrade (e.g. --plan business --period yearly).",
-        undefined,
-        !!options.json,
-      );
     }
 
     if (!keypairExists(options.keypair)) {
@@ -117,35 +92,24 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     setJwt(auth.token);
     spinner?.succeed("Authenticated");
 
-    spinner?.start("Locating project to upgrade...");
+    spinner?.start("Locating project...");
     const projects = await listProjects(auth.token);
     if (projects.length === 0) {
-      exitWithError("NO_PROJECTS", "No projects found for this wallet.", undefined, !!options.json);
+      exitWithError("NO_PROJECTS", "No projects found.", undefined, !!options.json);
     }
     const project = projects[0];
     spinner?.succeed(`Project: ${project.id}`);
 
-    const period = (options.period as "monthly" | "yearly") || "monthly";
-    const targetPlan = options.plan!.toLowerCase() as
-      | "agent"
-      | "developer"
-      | "business"
-      | "professional";
-
-    spinner?.start("Creating upgrade payment intent...");
-    const result = await sdkUpgradePlan({
+    spinner?.start("Creating credits payment intent...");
+    const result = await sdkPurchaseCredits({
       jwt: auth.token,
       projectId: project.id,
-      plan: targetPlan,
-      period,
+      qty,
       couponCode: options.coupon,
-      email: options.email,
-      firstName: options.firstName,
-      lastName: options.lastName,
     });
-    spinner?.succeed("Upgrade ready");
+    spinner?.succeed("Credits link ready");
 
-    const pending: PendingUpgrade = {
+    const pending: PendingCredits = {
       paymentIntentId: result.paymentLink.paymentIntentId,
       paymentUrl: result.paymentLink.paymentUrl,
       planName: result.paymentLink.planName,
@@ -156,11 +120,10 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       expiresAt: result.paymentLink.expiresAt,
       jwt: auth.token,
       projectId: project.id,
-      targetPlan,
-      period,
+      qty,
       createdAt: new Date().toISOString(),
     };
-    setPendingUpgrade(pending);
+    setPendingCredits(pending);
 
     if (options.pay) {
       await runPayWithStored(pending, options, spinner, keypair.secretKey);
@@ -172,13 +135,22 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
   }
 }
 
+function parseQty(input: string | undefined): number {
+  if (input === undefined) return 1;
+  const n = Number(input);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`--qty must be a positive integer, got "${input}".`);
+  }
+  return n;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // --pay path
 // ────────────────────────────────────────────────────────────────────────────
 
 async function runPayWithStored(
-  stored: PendingUpgrade,
-  options: UpgradeOptions,
+  stored: PendingCredits,
+  options: CreditsOptions,
   spinner: ReturnType<typeof createSpinner>,
   freshSecretKey?: Uint8Array,
 ): Promise<void> {
@@ -206,7 +178,7 @@ async function runPayWithStored(
     status = await getPaymentStatus(stored.jwt, stored.paymentIntentId);
   } catch (error) {
     if (error instanceof Error && error.message.includes("410")) {
-      clearPendingUpgrade();
+      clearPendingCredits();
       emitExpired(stored, options);
       return;
     }
@@ -215,17 +187,17 @@ async function runPayWithStored(
   spinner?.succeed(`Status: ${status.phase}`);
 
   if (status.readyToRedirect) {
-    clearPendingUpgrade();
+    clearPendingCredits();
     emitSuccess(stored, undefined, options);
     return;
   }
   if (status.phase === "expired") {
-    clearPendingUpgrade();
+    clearPendingCredits();
     emitExpired(stored, options);
     return;
   }
   if (status.phase === "failed") {
-    clearPendingUpgrade();
+    clearPendingCredits();
     emitFailed(stored, status.message, options);
     return;
   }
@@ -235,30 +207,27 @@ async function runPayWithStored(
   }
 
   const secretKey = freshSecretKey ?? (await loadSecretKey(options));
-
-  spinner?.start("Checking wallet balance...");
-  const sol = await checkSolBalance(stored.destinationWallet);
-  void sol; // The destinationWallet is the treasury, not the payer; check payer instead.
-  // (Keypair-derived wallet pays; just sanity-check fees are present on it.)
   const keypair = await loadKeypairFromFile(options.keypair);
   const payerAddress = await getAddress(keypair);
-  const payerSol = await checkSolBalance(payerAddress);
-  const payerUsdc = await checkUsdcBalance(payerAddress);
+
+  spinner?.start("Checking wallet balance...");
+  const sol = await checkSolBalance(payerAddress);
+  const usdc = await checkUsdcBalance(payerAddress);
   const required = BigInt(stored.amountCents) * CENTS_TO_USDC_RAW;
-  if (payerSol < SOL_FEE_THRESHOLD) {
+  if (sol < SOL_FEE_THRESHOLD) {
     spinner?.fail("Insufficient SOL for fees");
     exitWithError(
       "INSUFFICIENT_SOL",
-      `Wallet ${payerAddress} needs ~0.001 SOL (have ${(Number(payerSol) / 1e9).toFixed(6)}).`,
+      `Wallet ${payerAddress} needs ~0.001 SOL (have ${(Number(sol) / 1e9).toFixed(6)}).`,
       undefined,
       !!options.json,
     );
   }
-  if (payerUsdc < required) {
+  if (usdc < required) {
     spinner?.fail("Insufficient USDC");
     exitWithError(
       "INSUFFICIENT_USDC",
-      `Wallet ${payerAddress} needs ${stored.amountCents / 100} USDC (have ${(Number(payerUsdc) / 1e6).toFixed(2)}).`,
+      `Wallet ${payerAddress} needs ${stored.amountCents / 100} USDC (have ${(Number(usdc) / 1e6).toFixed(2)}).`,
       undefined,
       !!options.json,
     );
@@ -268,15 +237,15 @@ async function runPayWithStored(
   spinner?.start(`Sending ${stored.amountCents / 100} USDC + memo...`);
   const { txSignature } = await payPaymentLink(secretKey, link);
   spinner?.succeed(`Sent: ${txSignature}`);
-  updatePendingUpgrade({ txSignature });
+  updatePendingCredits({ txSignature });
 
   await pollAndEmit(stored, txSignature, options, spinner);
 }
 
 async function pollAndEmit(
-  stored: PendingUpgrade,
+  stored: PendingCredits,
   txSignature: string | undefined,
-  options: UpgradeOptions,
+  options: CreditsOptions,
   spinner: ReturnType<typeof createSpinner>,
 ): Promise<void> {
   const deadline = Date.now() + 60_000;
@@ -288,26 +257,25 @@ async function pollAndEmit(
       status = await getPaymentStatus(stored.jwt, stored.paymentIntentId);
     } catch (error) {
       if (error instanceof Error && error.message.includes("410")) {
-        clearPendingUpgrade();
+        clearPendingCredits();
         emitExpired(stored, options);
         return;
       }
       throw error;
     }
-
     if (status.readyToRedirect) {
-      spinner?.succeed("Upgraded");
-      clearPendingUpgrade();
+      spinner?.succeed("Credits added");
+      clearPendingCredits();
       emitSuccess(stored, txSignature, options);
       return;
     }
     if (status.phase === "failed") {
-      clearPendingUpgrade();
+      clearPendingCredits();
       emitFailed(stored, status.message, options);
       return;
     }
     if (status.phase === "expired") {
-      clearPendingUpgrade();
+      clearPendingCredits();
       emitExpired(stored, options);
       return;
     }
@@ -323,23 +291,23 @@ async function pollAndEmit(
 // ────────────────────────────────────────────────────────────────────────────
 
 async function runResume(
-  options: UpgradeOptions,
+  options: CreditsOptions,
   spinner: ReturnType<typeof createSpinner>,
 ): Promise<void> {
-  const stored = getPendingUpgrade();
+  const stored = getPendingCredits();
   if (!stored) {
     if (options.json) {
-      outputJson({ status: "MISSING_PENDING_UPGRADE" });
+      outputJson({ status: "MISSING_PENDING_CREDITS" });
       return;
     }
     exitWithError(
-      "MISSING_PENDING_UPGRADE",
-      "No pending upgrade found in config. Run `helius upgrade --plan ...` first.",
+      "MISSING_PENDING_CREDITS",
+      "No pending credits purchase. Run `helius credits` first.",
       undefined,
       !!options.json,
     );
   }
-  spinner?.start("Polling upgrade status...");
+  spinner?.start("Polling credits status...");
   await pollAndEmit(stored!, stored!.txSignature, options, spinner);
 }
 
@@ -348,9 +316,9 @@ async function runResume(
 // ────────────────────────────────────────────────────────────────────────────
 
 function emitPaymentRequired(
-  stored: PendingUpgrade,
+  stored: PendingCredits,
   reused: boolean,
-  options: UpgradeOptions,
+  options: CreditsOptions,
 ): void {
   if (options.json) {
     outputJson({
@@ -358,8 +326,7 @@ function emitPaymentRequired(
       paymentUrl: stored.paymentUrl,
       paymentIntentId: stored.paymentIntentId,
       projectId: stored.projectId,
-      targetPlan: stored.targetPlan,
-      period: stored.period,
+      qty: stored.qty,
       expiresAt: stored.expiresAt,
       amountCents: stored.amountCents,
       planName: stored.planName,
@@ -372,9 +339,15 @@ function emitPaymentRequired(
   }
   console.log();
   if (reused) {
-    console.log(chalk.gray("(Resuming previous upgrade — re-run with --restart to start over.)"));
+    console.log(
+      chalk.gray("(Resuming previous credits purchase — re-run with --restart to start over.)"),
+    );
   }
-  console.log(chalk.bold(`Pay ${stored.amountCents / 100} USDC to upgrade to ${stored.planName}:`));
+  console.log(
+    chalk.bold(
+      `Pay ${stored.amountCents / 100} USDC to top up ${stored.qty.toLocaleString()} × 1M credits:`,
+    ),
+  );
   console.log();
   console.log(`  ${chalk.cyan(stored.paymentUrl)}`);
   console.log();
@@ -382,36 +355,34 @@ function emitPaymentRequired(
   console.log(chalk.gray(`  Treasury: ${stored.destinationWallet}`));
   console.log(chalk.gray(`  Memo:     ${stored.memo}`));
   console.log();
-  console.log(chalk.gray("Once paid, run `helius upgrade --resume` to confirm locally."));
+  console.log(chalk.gray("Once paid, run `helius credits --resume` to confirm locally."));
 }
 
 function emitSuccess(
-  stored: PendingUpgrade,
+  stored: PendingCredits,
   txSignature: string | undefined,
-  options: UpgradeOptions,
+  options: CreditsOptions,
 ): void {
   if (options.json) {
     outputJson({
       status: "SUCCESS",
       projectId: stored.projectId,
-      newPlan: stored.targetPlan,
-      period: stored.period,
+      qty: stored.qty,
       paymentIntentId: stored.paymentIntentId,
       txSignature: txSignature ?? null,
     });
     return;
   }
-  console.log("\n" + chalk.green(`Upgraded to ${stored.planName}!`));
-  console.log(`\nProject ID: ${chalk.cyan(stored.projectId)}`);
+  console.log("\n" + chalk.green(`Topped up ${(stored.qty * 1_000_000).toLocaleString()} credits!`));
   if (txSignature) {
     console.log(`Transaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
   }
 }
 
 function emitPending(
-  stored: PendingUpgrade,
+  stored: PendingCredits,
   txSignature: string | undefined,
-  options: UpgradeOptions,
+  options: CreditsOptions,
 ): void {
   if (options.json) {
     outputJson({
@@ -423,28 +394,27 @@ function emitPending(
     });
     return;
   }
-  console.log("\n" + chalk.yellow("Upgrade still being confirmed."));
+  console.log("\n" + chalk.yellow("Credits purchase still being confirmed."));
   console.log(`\n  Payment URL: ${chalk.cyan(stored.paymentUrl)}`);
   if (txSignature) {
     console.log(`  Transaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
   }
-  console.log(chalk.gray(`\nRun \`helius upgrade --resume\` again in a moment.`));
+  console.log(chalk.gray(`\nRun \`helius credits --resume\` again in a moment.`));
 }
 
-function emitExpired(stored: PendingUpgrade, options: UpgradeOptions): void {
+function emitExpired(stored: PendingCredits, options: CreditsOptions): void {
   if (options.json) {
     outputJson({ status: "EXPIRED", paymentIntentId: stored.paymentIntentId });
     return;
   }
-  console.error("\n" + chalk.red("Upgrade payment intent expired."));
-  console.error(chalk.gray("Run `helius upgrade --plan ...` to start fresh."));
+  console.error("\n" + chalk.red("Credits payment intent expired."));
   process.exit(ExitCode.GENERAL_ERROR);
 }
 
 function emitFailed(
-  stored: PendingUpgrade,
+  stored: PendingCredits,
   reason: string | undefined,
-  options: UpgradeOptions,
+  options: CreditsOptions,
 ): void {
   if (options.json) {
     outputJson({
@@ -454,12 +424,12 @@ function emitFailed(
     });
     return;
   }
-  console.error("\n" + chalk.red("Upgrade payment failed."));
+  console.error("\n" + chalk.red("Credits payment failed."));
   if (reason) console.error(chalk.gray(reason));
   process.exit(ExitCode.GENERAL_ERROR);
 }
 
-async function loadSecretKey(options: UpgradeOptions): Promise<Uint8Array> {
+async function loadSecretKey(options: CreditsOptions): Promise<Uint8Array> {
   if (!keypairExists(options.keypair)) {
     exitWithError(
       "KEYPAIR_NOT_FOUND",

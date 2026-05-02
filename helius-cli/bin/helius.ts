@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { signupCommand } from "../src/commands/signup.js";
 import { upgradeCommand } from "../src/commands/upgrade.js";
 import { payCommand } from "../src/commands/pay.js";
+import { creditsCommand } from "../src/commands/credits.js";
 import { loginCommand } from "../src/commands/login.js";
 import { projectsCommand } from "../src/commands/projects.js";
 import { projectCommand } from "../src/commands/project.js";
@@ -168,32 +169,71 @@ Examples:
 
 program
   .command("upgrade")
-  .description("Upgrade your Helius plan")
-  .requiredOption("--plan <name>", "Target plan: developer, business, professional")
+  .description("Upgrade your Helius plan via crypto checkout")
+  .option("--plan <name>", "Target plan: developer, business, professional")
   .option("--period <period>", "Billing period: monthly or yearly", "monthly")
   .option("--coupon <code>", "Coupon code")
-  .option("--email <email>", "Email address (required for first-time upgrades)")
-  .option("--first-name <name>", "First name (required for first-time upgrades)")
-  .option("--last-name <name>", "Last name (required for first-time upgrades)")
+  .option("--email <email>", "Email (only needed for first-time upgrades; backend auto-fetches otherwise)")
+  .option("--first-name <name>", "First name (only needed for first-time upgrades)")
+  .option("--last-name <name>", "Last name (only needed for first-time upgrades)")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
-  .option("-y, --yes", "Skip confirmation prompt")
+  .option("--pay", "Auto-pay USDC + memo from the local keypair")
+  .option("--resume", "Poll an existing pending upgrade stored in config")
+  .option("--restart", "Discard any stored pending upgrade and start fresh")
   .option("--json", "Output in JSON format")
-  .addHelpText('after', `
+  .addHelpText("after", `
 Examples:
-  $ helius upgrade --plan developer
-  $ helius upgrade --plan business --period yearly --yes`)
-  .action(function(this: any) { upgradeCommand(opts(this)); });
+  $ helius upgrade --plan business --period yearly
+      Print the upgrade payment URL and exit. Open it in a browser, pay USDC,
+      then run \`helius upgrade --resume\` to confirm locally.
+
+  $ helius upgrade --plan developer --pay
+      Auto-pay from the local keypair, poll activation, surface SUCCESS / PENDING.
+
+  $ helius upgrade --resume
+      Poll the stored pending upgrade and confirm activation.`)
+  .action(function (this: any) { upgradeCommand(opts(this)); });
 
 program
   .command("pay <payment-intent-id>")
-  .description("Pay an existing payment intent (e.g., renewal)")
+  .description("Pay an existing renewal payment intent (e.g., from email)")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
-  .option("-y, --yes", "Skip confirmation prompt")
+  .option("--pay", "Auto-pay USDC + memo from the local keypair")
+  .option("--resume", "Poll status of an in-flight payment")
   .option("--json", "Output in JSON format")
-  .addHelpText('after', `
+  .addHelpText("after", `
 Examples:
-  $ helius pay pi_abc123 --yes`)
-  .action(function(this: any, id: string) { payCommand(id, opts(this)); });
+  $ helius pay pi_abc123
+      Print the renewal payment URL and exit. Open it in a browser to pay.
+
+  $ helius pay pi_abc123 --pay
+      Auto-pay USDC + memo from the local keypair, poll until confirmed.
+
+  $ helius pay pi_abc123 --resume
+      Poll status of an already-sent payment.`)
+  .action(function (this: any, id: string) { payCommand(id, opts(this)); });
+
+program
+  .command("credits")
+  .description("Top up prepaid credits on an agent-plan project")
+  .option("--qty <n>", "Quantity multiplier (each unit = 1,000,000 credits)", "1")
+  .option("--coupon <code>", "Coupon code")
+  .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
+  .option("--pay", "Auto-pay USDC + memo from the local keypair")
+  .option("--resume", "Poll an existing pending credits purchase")
+  .option("--restart", "Discard any stored pending credits purchase and start fresh")
+  .option("--json", "Output in JSON format")
+  .addHelpText("after", `
+Examples:
+  $ helius credits --qty 2
+      Print the payment URL for 2 × 1M credits ($20 USDC). Open in browser.
+
+  $ helius credits --pay
+      Auto-pay 1 × 1M credits from the local keypair.
+
+  $ helius credits --resume
+      Poll the stored pending credits purchase.`)
+  .action(function (this: any) { creditsCommand(opts(this)); });
 
 program
   .command("login")

@@ -10,6 +10,18 @@ import { signup as sdkSignup } from "helius-sdk/auth/signup";
 import { signupAndPay as sdkSignupAndPay } from "helius-sdk/auth/signupAndPay";
 import { payPaymentLink as sdkPayPaymentLink } from "helius-sdk/auth/payPaymentLink";
 import { getPaymentStatus as sdkGetPaymentStatus } from "helius-sdk/auth/checkout";
+import {
+  upgradePlan as sdkUpgradePlan,
+  upgradePlanAndPay as sdkUpgradePlanAndPay,
+} from "helius-sdk/auth/upgradePlan";
+import {
+  purchaseCredits as sdkPurchaseCredits,
+  purchaseCreditsAndPay as sdkPurchaseCreditsAndPay,
+} from "helius-sdk/auth/purchaseCredits";
+import {
+  payRenewal as sdkPayRenewal,
+  payRenewalAndPay as sdkPayRenewalAndPay,
+} from "helius-sdk/auth/payRenewal";
 import type {
   SignupResponse,
   Project,
@@ -24,6 +36,16 @@ import type {
   SignupAndPayResult,
   PaymentLink,
   CheckoutStatusResponse,
+  UpgradePlanOptions,
+  UpgradePlanResult,
+  UpgradePlanAndPayOptions,
+  UpgradePlanAndPayResult,
+  PurchaseCreditsLinkOptions,
+  PurchaseCreditsLinkResult,
+  PurchaseCreditsAndPayOptions,
+  PurchaseCreditsAndPayResult,
+  PayRenewalResult,
+  PayRenewalAndPayResult,
 } from "helius-sdk/auth/types";
 
 // Wrap SDK functions to pass CLI user agent.
@@ -91,6 +113,43 @@ export async function getPaymentStatus(
   return sdkGetPaymentStatus(jwt, paymentIntentId, CLI_USER_AGENT);
 }
 
+// Phase 2 helpers — pass-through to the SDK.
+export async function upgradePlan(
+  options: UpgradePlanOptions,
+): Promise<UpgradePlanResult> {
+  return sdkUpgradePlan(options);
+}
+export async function upgradePlanAndPay(
+  options: UpgradePlanAndPayOptions,
+): Promise<UpgradePlanAndPayResult> {
+  return sdkUpgradePlanAndPay(options);
+}
+export async function purchaseCredits(
+  options: PurchaseCreditsLinkOptions,
+): Promise<PurchaseCreditsLinkResult> {
+  return sdkPurchaseCredits(options);
+}
+export async function purchaseCreditsAndPay(
+  options: PurchaseCreditsAndPayOptions,
+): Promise<PurchaseCreditsAndPayResult> {
+  return sdkPurchaseCreditsAndPay(options);
+}
+export async function payRenewal(
+  jwt: string,
+  paymentIntentId: string,
+  options: { paymentHost?: string } = {},
+): Promise<PayRenewalResult> {
+  return sdkPayRenewal(jwt, paymentIntentId, options);
+}
+export async function payRenewalAndPay(
+  secretKey: Uint8Array,
+  jwt: string,
+  paymentIntentId: string,
+  options: { paymentHost?: string } = {},
+): Promise<PayRenewalAndPayResult> {
+  return sdkPayRenewalAndPay(secretKey, jwt, paymentIntentId, options);
+}
+
 export type {
   Project,
   ProjectListItem,
@@ -108,4 +167,14 @@ export type {
   SignupAndPayResult,
   PaymentLink,
   CheckoutStatusResponse,
+  UpgradePlanOptions,
+  UpgradePlanResult,
+  UpgradePlanAndPayOptions,
+  UpgradePlanAndPayResult,
+  PurchaseCreditsLinkOptions,
+  PurchaseCreditsLinkResult,
+  PurchaseCreditsAndPayOptions,
+  PurchaseCreditsAndPayResult,
+  PayRenewalResult,
+  PayRenewalAndPayResult,
 } from "helius-sdk/auth/types";

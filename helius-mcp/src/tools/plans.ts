@@ -191,7 +191,7 @@ export function registerPlanTools(server: McpServer) {
           `**Auth:** Not authenticated\n\n` +
           `No API key or session found. To get started:\n` +
           `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
-          `- If you need an account: use \`generateKeypair\` → fund wallet → \`agenticSignup\``
+          `- If you need an account: use \`generateKeypair\` → fund wallet → \`signup\``
         );
       }
 
@@ -201,7 +201,7 @@ export function registerPlanTools(server: McpServer) {
         return mcpText(
           `## Account Plan\n\n` +
           `**Auth:** API key configured, plan unknown\n\n` +
-          `To see your plan and tool eligibility, call \`agenticSignup\`.\n` +
+          `To see your plan and tool eligibility, call \`signup\`.\n` +
           `Your existing account will be detected automatically — no payment needed.`
         );
       }
@@ -210,7 +210,7 @@ export function registerPlanTools(server: McpServer) {
       try {
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `agenticSignup` to create an account first.');
+          return mcpError('No projects found. Call `signup` to create an account first.');
         }
 
         const projectId = projects[0].id;

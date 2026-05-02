@@ -2,8 +2,7 @@ export const HELIUS_ACCOUNT_ACTIONS = [
   'getStarted',
   'setHeliusApiKey',
   'generateKeypair',
-  'checkSignupBalance',
-  'agenticSignup',
+  'signup',
   'getAccountStatus',
   'getAccountPlan',
   'getHeliusPlanInfo',
@@ -11,6 +10,7 @@ export const HELIUS_ACCOUNT_ACTIONS = [
   'previewUpgrade',
   'upgradePlan',
   'payRenewal',
+  'purchaseCredits',
 ] as const;
 
 export const HELIUS_WALLET_ACTIONS = [

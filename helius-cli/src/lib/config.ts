@@ -9,25 +9,20 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 export const SHARED_CONFIG_PATH = CONFIG_FILE;
 
 /**
- * Stored state for an in-flight signup that returned a payment link. Lets
- * subsequent invocations of `helius signup` (default link mode), `signup
- * --resume`, and `signup --pay` operate against the existing intent without
- * a backend roundtrip and without re-deriving the wallet from the keypair
- * (`--resume` is forbidden from loading the keypair).
+ * Shared shape for any in-flight checkout pending local resume. Each
+ * caller (signup / upgrade / credits) extends with flow-specific identity
+ * fields (wallet address, project id, qty, etc.).
  *
  * Carries the full PaymentLink so `--pay` can pay it, plus the JWT used to
- * create it (kept here, not at the top level, so a later `helius login` that
- * rotates the top-level JWT does not corrupt the resume path).
+ * create it (kept here, not at the top level, so a later `helius login`
+ * rotating top-level JWT can't corrupt --resume).
  *
  * Cleanup rules — DO NOT auto-clear on local `expiresAt`:
  *   - Backend reports `expired` / `failed` → cleared
  *   - Provisioning succeeds (SUCCESS) → cleared
  *   - User passes `--restart` → cleared
- * The user can pay just before expiry but return to the terminal after, and
- * we must not delete a still-valid resume state.
  */
-export interface PendingSignup {
-  // PaymentLink fields
+export interface PendingPaymentBase {
   paymentIntentId: string;
   paymentUrl: string;
   planName: string;
@@ -37,17 +32,27 @@ export interface PendingSignup {
   /** Always equal to `paymentIntentId`. */
   memo: string;
   expiresAt: string;
-
-  // Auth + identity for --resume
-  walletAddress: string;
-  refId: string;
   jwt: string;
-
   /** Set by `--pay` after USDC has been sent but before activation polling lands. */
   txSignature?: string;
-
   /** ISO timestamp of when the pending intent was first stored. */
   createdAt: string;
+}
+
+export interface PendingSignup extends PendingPaymentBase {
+  walletAddress: string;
+  refId: string;
+}
+
+export interface PendingUpgrade extends PendingPaymentBase {
+  projectId: string;
+  targetPlan: string;
+  period?: "monthly" | "yearly";
+}
+
+export interface PendingCredits extends PendingPaymentBase {
+  projectId: string;
+  qty: number;
 }
 
 interface Config {
@@ -57,6 +62,8 @@ interface Config {
   projectId?: string;
   owsWallet?: string;
   pendingSignup?: PendingSignup;
+  pendingUpgrade?: PendingUpgrade;
+  pendingCredits?: PendingCredits;
 }
 
 function ensureDir(): void {
@@ -204,6 +211,52 @@ export function updatePendingSignup(patch: Partial<PendingSignup>): void {
 export function clearPendingSignup(): void {
   const config = load();
   delete config.pendingSignup;
+  save(config);
+}
+
+export function getPendingUpgrade(): PendingUpgrade | undefined {
+  return load().pendingUpgrade;
+}
+
+export function setPendingUpgrade(pending: PendingUpgrade): void {
+  const config = load();
+  config.pendingUpgrade = pending;
+  save(config);
+}
+
+export function updatePendingUpgrade(patch: Partial<PendingUpgrade>): void {
+  const config = load();
+  if (!config.pendingUpgrade) return;
+  config.pendingUpgrade = { ...config.pendingUpgrade, ...patch };
+  save(config);
+}
+
+export function clearPendingUpgrade(): void {
+  const config = load();
+  delete config.pendingUpgrade;
+  save(config);
+}
+
+export function getPendingCredits(): PendingCredits | undefined {
+  return load().pendingCredits;
+}
+
+export function setPendingCredits(pending: PendingCredits): void {
+  const config = load();
+  config.pendingCredits = pending;
+  save(config);
+}
+
+export function updatePendingCredits(patch: Partial<PendingCredits>): void {
+  const config = load();
+  if (!config.pendingCredits) return;
+  config.pendingCredits = { ...config.pendingCredits, ...patch };
+  save(config);
+}
+
+export function clearPendingCredits(): void {
+  const config = load();
+  delete config.pendingCredits;
   save(config);
 }
 
