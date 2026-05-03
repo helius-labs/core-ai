@@ -4,6 +4,7 @@ import {
   signup as sdkSignup,
   payPaymentLink,
   getPaymentStatus,
+  getPaymentIntent,
   listProjects,
   getProject,
   createApiKey,
@@ -493,6 +494,21 @@ async function provisionAndEmit(
   setApiKey(apiKey);
   setSharedApiKey(apiKey);
   setProjectId(projectId);
+
+  // Backfill txSignature from the backend for browser-pay flows where the
+  // SDK never saw the on-chain signature (the user paid via wallet-connect
+  // in the hosted page). The backend persists txSignature on the intent
+  // when payment-service confirms the memo'd transfer.
+  let resolvedTxSignature = txSignature ?? undefined;
+  if (!resolvedTxSignature) {
+    try {
+      const intent = await getPaymentIntent(stored.jwt, stored.paymentIntentId);
+      resolvedTxSignature = intent.txSignature;
+    } catch {
+      // Best-effort — don't block SUCCESS on this lookup.
+    }
+  }
+
   clearPendingSignup();
 
   const endpoints = buildEndpoints(apiKey);
@@ -505,7 +521,7 @@ async function provisionAndEmit(
       apiKey,
       endpoints,
       paymentIntentId: stored.paymentIntentId,
-      txSignature: txSignature ?? null,
+      txSignature: resolvedTxSignature ?? null,
     });
     return;
   }

@@ -8,7 +8,10 @@ import { createApiKey as sdkCreateApiKey } from "helius-sdk/auth/createApiKey";
 import { signup as sdkSignup } from "helius-sdk/auth/signup";
 import { signupAndPay as sdkSignupAndPay } from "helius-sdk/auth/signupAndPay";
 import { payPaymentLink as sdkPayPaymentLink } from "helius-sdk/auth/payPaymentLink";
-import { getPaymentStatus as sdkGetPaymentStatus } from "helius-sdk/auth/checkout";
+import {
+  getPaymentStatus as sdkGetPaymentStatus,
+  getPaymentIntent as sdkGetPaymentIntent,
+} from "helius-sdk/auth/checkout";
 import {
   upgradePlan as sdkUpgradePlan,
   upgradePlanAndPay as sdkUpgradePlanAndPay,
@@ -32,6 +35,7 @@ import type {
   SignupAndPayOptions,
   SignupAndPayResult,
   PaymentLink,
+  CheckoutInitializeResponse,
   CheckoutStatusResponse,
   UpgradePlanOptions,
   UpgradePlanResult,
@@ -100,6 +104,13 @@ export async function getPaymentStatus(
   paymentIntentId: string,
 ): Promise<CheckoutStatusResponse> {
   return sdkGetPaymentStatus(jwt, paymentIntentId, CLI_USER_AGENT);
+}
+
+export async function getPaymentIntent(
+  jwt: string,
+  paymentIntentId: string,
+): Promise<CheckoutInitializeResponse> {
+  return sdkGetPaymentIntent(jwt, paymentIntentId, CLI_USER_AGENT);
 }
 
 // Phase 2 helpers — pass-through to the SDK.

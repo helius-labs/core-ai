@@ -10,6 +10,7 @@ import {
   purchaseCredits as sdkPurchaseCredits,
   payPaymentLink,
   getPaymentStatus,
+  getPaymentIntent,
   type PaymentLink,
 } from "../lib/api.js";
 import {
@@ -188,7 +189,7 @@ async function runPayWithStored(
 
   if (status.readyToRedirect) {
     clearPendingCredits();
-    emitSuccess(stored, undefined, options);
+    await emitSuccess(stored, undefined, options);
     return;
   }
   if (status.phase === "expired") {
@@ -266,7 +267,7 @@ async function pollAndEmit(
     if (status.readyToRedirect) {
       spinner?.succeed("Credits added");
       clearPendingCredits();
-      emitSuccess(stored, txSignature, options);
+      await emitSuccess(stored, txSignature, options);
       return;
     }
     if (status.phase === "failed") {
@@ -358,24 +359,36 @@ function emitPaymentRequired(
   console.log(chalk.gray("Once paid, run `helius credits --resume` to confirm locally."));
 }
 
-function emitSuccess(
+async function emitSuccess(
   stored: PendingCredits,
   txSignature: string | undefined,
   options: CreditsOptions,
-): void {
+): Promise<void> {
+  // Backfill txSignature from the backend for browser-pay flows where the
+  // SDK never saw the on-chain signature.
+  let resolvedTxSignature = txSignature;
+  if (!resolvedTxSignature) {
+    try {
+      const intent = await getPaymentIntent(stored.jwt, stored.paymentIntentId);
+      resolvedTxSignature = intent.txSignature;
+    } catch {
+      // Best-effort.
+    }
+  }
+
   if (options.json) {
     outputJson({
       status: "SUCCESS",
       projectId: stored.projectId,
       qty: stored.qty,
       paymentIntentId: stored.paymentIntentId,
-      txSignature: txSignature ?? null,
+      txSignature: resolvedTxSignature ?? null,
     });
     return;
   }
   console.log("\n" + chalk.green(`Topped up ${(stored.qty * 1_000_000).toLocaleString()} credits!`));
-  if (txSignature) {
-    console.log(`Transaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
+  if (resolvedTxSignature) {
+    console.log(`Transaction: ${chalk.blue(`${TX_EXPLORER}/${resolvedTxSignature}`)}`);
   }
 }
 

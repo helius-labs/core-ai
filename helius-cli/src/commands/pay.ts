@@ -9,6 +9,7 @@ import {
   payRenewal as sdkPayRenewal,
   payPaymentLink,
   getPaymentStatus,
+  getPaymentIntent,
 } from "../lib/api.js";
 import { setJwt } from "../lib/config.js";
 import { keypairExists } from "./keygen.js";
@@ -200,7 +201,7 @@ async function pollAndEmit(
     }
     if (status.readyToRedirect) {
       spinner?.succeed("Renewal complete");
-      emitSuccess(paymentIntentId, txSignature, options);
+      await emitSuccess(jwt, paymentIntentId, txSignature, options);
       return;
     }
     if (status.phase === "failed") {
@@ -218,22 +219,35 @@ async function pollAndEmit(
   emitPending(paymentIntentId, txSignature, options);
 }
 
-function emitSuccess(
+async function emitSuccess(
+  jwt: string,
   paymentIntentId: string,
   txSignature: string | undefined,
   options: PayOptions,
-): void {
+): Promise<void> {
+  // Backfill txSignature from the backend for browser-pay flows where the
+  // SDK never saw the on-chain signature.
+  let resolvedTxSignature = txSignature;
+  if (!resolvedTxSignature) {
+    try {
+      const intent = await getPaymentIntent(jwt, paymentIntentId);
+      resolvedTxSignature = intent.txSignature;
+    } catch {
+      // Best-effort.
+    }
+  }
+
   if (options.json) {
     outputJson({
       status: "SUCCESS",
       paymentIntentId,
-      txSignature: txSignature ?? null,
+      txSignature: resolvedTxSignature ?? null,
     });
     return;
   }
   console.log("\n" + chalk.green("Renewal payment complete!"));
-  if (txSignature) {
-    console.log(`Transaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
+  if (resolvedTxSignature) {
+    console.log(`Transaction: ${chalk.blue(`${TX_EXPLORER}/${resolvedTxSignature}`)}`);
   }
 }
 
