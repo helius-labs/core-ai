@@ -533,8 +533,8 @@ async function provisionAndEmit(
   console.log(chalk.bold("\nRPC Endpoints:"));
   console.log(`  Mainnet: ${chalk.blue(endpoints.mainnet)}`);
   console.log(`  Devnet:  ${chalk.blue(endpoints.devnet)}`);
-  if (txSignature) {
-    console.log(`\nTransaction: ${chalk.blue(`${TX_EXPLORER}/${txSignature}`)}`);
+  if (resolvedTxSignature) {
+    console.log(`\nTransaction: ${chalk.blue(`${TX_EXPLORER}/${resolvedTxSignature}`)}`);
   }
 }
 
