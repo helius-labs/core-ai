@@ -57,8 +57,8 @@ const TIER_MAP: Record<string, 'budget' | 'standard' | 'production'> = {
   professional: 'production',
 };
 
-const TIER_DISPLAY: Record<string, string> = { budget: 'Free', standard: 'Developer', production: 'Business / Professional' };
-const TIER_PLANS: Record<string, string> = { budget: 'free', standard: 'developer', production: 'business' };
+const TIER_DISPLAY: Record<string, string> = { budget: 'Agent', standard: 'Developer', production: 'Business / Professional' };
+const TIER_PLANS: Record<string, string> = { budget: 'agent', standard: 'developer', production: 'business' };
 
 function groupCatalogByTier(): CatalogTier[] {
   const groups: Record<string, CatalogProduct[]> = { budget: [], standard: [], production: [] };
@@ -69,7 +69,7 @@ function groupCatalogByTier(): CatalogTier[] {
   }
 
   const tiers: CatalogTier[] = [];
-  if (groups.budget.length > 0) tiers.push({ tier: 'budget', tierPlan: 'free', products: groups.budget });
+  if (groups.budget.length > 0) tiers.push({ tier: 'budget', tierPlan: 'agent', products: groups.budget });
   if (groups.standard.length > 0) tiers.push({ tier: 'standard', tierPlan: 'developer', products: groups.standard });
   if (groups.production.length > 0) tiers.push({ tier: 'production', tierPlan: 'business', products: groups.production });
 
@@ -159,7 +159,7 @@ function formatCatalog(
   lines.push('---', '');
 
   if (complexity) {
-    const label: Record<string, string> = { low: 'free tier only', medium: 'free + developer tiers', high: 'all tiers' };
+    const label: Record<string, string> = { low: 'agent tier only', medium: 'agent + developer tiers', high: 'all tiers' };
     lines.push(`_Showing ${label[complexity]}_`, '', '---', '');
   }
 
@@ -215,7 +215,7 @@ export function registerRecommendTools(server: McpServer) {
     'BEST FOR: project architecture when user describes a Solana app to build. PREFER getHeliusPlanInfo for pricing-only, lookupHeliusDocs for API docs. Get tiered architecture recommendations. Returns Helius products, MCP tools, credit costs, minimum plan, and reference files.',
     {
       description: z.string().describe('What the user wants to build, in their own words'),
-      budget: z.enum(['free', 'developer', 'business', 'professional']).optional(),
+      budget: z.enum(['agent', 'developer', 'business', 'professional']).optional(),
       complexity: z.enum(['low', 'medium', 'high']).optional(),
       scale: z.enum(['budget', 'standard', 'production', 'all']).optional().default('all'),
       remember: z.boolean().optional().describe('Save budget/complexity preferences for future sessions'),

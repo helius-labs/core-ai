@@ -12,7 +12,7 @@ interface HeliusConfig {
   network?: string;
   projectId?: string;
   preferences?: {
-    budget?: 'free' | 'developer' | 'business' | 'professional';
+    budget?: 'agent' | 'developer' | 'business' | 'professional';
     complexity?: 'low' | 'medium' | 'high';
   };
 }

@@ -59,7 +59,7 @@ function makeEntry(
     publicTool,
     aliases: overrides.aliases ?? [],
     authRequirement: overrides.authRequirement ?? 'apiKey',
-    capabilityGate: overrides.capabilityGate ?? gate('free', 'Available on free plan'),
+    capabilityGate: overrides.capabilityGate ?? gate('agent', 'Available on every plan'),
     mutability: overrides.mutability ?? (publicTool === 'heliusWrite' ? 'write' : 'read'),
     responseFamily,
     defaultDetail,
@@ -83,50 +83,50 @@ const catalog: Partial<Record<ActionName, ActionCatalogEntry>> = {};
 
 addEntries(catalog, HELIUS_ACCOUNT_ACTIONS, {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Account setup and plan metadata'),
+  capabilityGate: gate('agent', 'Account setup and plan metadata'),
   responseFamily: 'record',
 });
 
 addEntries(catalog, HELIUS_WALLET_ACTIONS, {
-  capabilityGate: gate('free', 'Wallet data'),
+  capabilityGate: gate('agent', 'Wallet data'),
   responseFamily: 'record',
 });
 
 addEntries(catalog, HELIUS_ASSET_ACTIONS, {
-  capabilityGate: gate('free', 'Asset and DAS queries'),
+  capabilityGate: gate('agent', 'Asset and DAS queries'),
   responseFamily: 'record',
 });
 
 addEntries(catalog, HELIUS_TRANSACTION_ACTIONS, {
-  capabilityGate: gate('free', 'Transaction parsing and history'),
+  capabilityGate: gate('agent', 'Transaction parsing and history'),
   responseFamily: 'history',
 });
 
 addEntries(catalog, HELIUS_CHAIN_ACTIONS, {
-  capabilityGate: gate('free', 'Core chain state'),
+  capabilityGate: gate('agent', 'Core chain state'),
   responseFamily: 'record',
 });
 
 addEntries(catalog, HELIUS_STREAMING_ACTIONS, {
-  capabilityGate: gate('free', 'Streaming and webhook operations'),
+  capabilityGate: gate('agent', 'Streaming and webhook operations'),
   responseFamily: 'record',
 });
 
 addEntries(catalog, HELIUS_KNOWLEDGE_ACTIONS, {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Documentation and knowledge'),
+  capabilityGate: gate('agent', 'Documentation and knowledge'),
   responseFamily: 'document',
 });
 
 addEntries(catalog, HELIUS_WRITE_ACTIONS, {
   authRequirement: 'signer',
-  capabilityGate: gate('free', 'Transaction sending and staking'),
+  capabilityGate: gate('agent', 'Transaction sending and staking'),
   mutability: 'write',
   responseFamily: 'mutationReceipt',
 });
 
 addEntries(catalog, HELIUS_COMPRESSION_ACTIONS, {
-  capabilityGate: gate('free', 'Compression state queries'),
+  capabilityGate: gate('agent', 'Compression state queries'),
   responseFamily: 'record',
 });
 
@@ -279,7 +279,7 @@ for (const action of ['transactionSubscribe', 'accountSubscribe', 'laserstreamSu
 
 catalog.setHeliusApiKey = makeEntry('setHeliusApiKey', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'API key configuration'),
+  capabilityGate: gate('agent', 'API key configuration'),
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -287,7 +287,7 @@ catalog.setHeliusApiKey = makeEntry('setHeliusApiKey', {
 
 catalog.generateKeypair = makeEntry('generateKeypair', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Local keypair generation'),
+  capabilityGate: gate('agent', 'Local keypair generation'),
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -295,7 +295,7 @@ catalog.generateKeypair = makeEntry('generateKeypair', {
 
 catalog.getStarted = makeEntry('getStarted', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Setup instructions'),
+  capabilityGate: gate('agent', 'Setup instructions'),
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -303,7 +303,7 @@ catalog.getStarted = makeEntry('getStarted', {
 
 catalog.signup = makeEntry('signup', {
   authRequirement: 'signer',
-  capabilityGate: gate('free', 'Signup flow'),
+  capabilityGate: gate('agent', 'Signup flow'),
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -311,7 +311,7 @@ catalog.signup = makeEntry('signup', {
 
 catalog.purchaseCredits = makeEntry('purchaseCredits', {
   authRequirement: 'jwt',
-  capabilityGate: gate('free', 'Prepaid credits top-up'),
+  capabilityGate: gate('agent', 'Prepaid credits top-up'),
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -319,20 +319,20 @@ catalog.purchaseCredits = makeEntry('purchaseCredits', {
 
 catalog.getAccountStatus = makeEntry('getAccountStatus', {
   authRequirement: 'jwt',
-  capabilityGate: gate('free', 'Authenticated account status'),
+  capabilityGate: gate('agent', 'Authenticated account status'),
   responseFamily: 'record',
 });
 
 catalog.previewUpgrade = makeEntry('previewUpgrade', {
   authRequirement: 'jwt',
-  capabilityGate: gate('free', 'Upgrade preview'),
+  capabilityGate: gate('agent', 'Upgrade preview'),
   responseFamily: 'record',
   handleEligibility: false,
 });
 
 catalog.upgradePlan = makeEntry('upgradePlan', {
   authRequirement: 'jwtAndSigner',
-  capabilityGate: gate('free', 'Upgrade checkout'),
+  capabilityGate: gate('agent', 'Upgrade checkout'),
   mutability: 'write',
   responseFamily: 'mutationReceipt',
   handleEligibility: false,
@@ -340,7 +340,7 @@ catalog.upgradePlan = makeEntry('upgradePlan', {
 
 catalog.payRenewal = makeEntry('payRenewal', {
   authRequirement: 'jwtAndSigner',
-  capabilityGate: gate('free', 'Renewal checkout'),
+  capabilityGate: gate('agent', 'Renewal checkout'),
   mutability: 'write',
   responseFamily: 'mutationReceipt',
   handleEligibility: false,
@@ -348,14 +348,14 @@ catalog.payRenewal = makeEntry('payRenewal', {
 
 catalog.compareHeliusPlans = makeEntry('compareHeliusPlans', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Plan comparison'),
+  capabilityGate: gate('agent', 'Plan comparison'),
   responseFamily: 'catalog',
   defaultDetail: 'summary',
 });
 
 catalog.getHeliusPlanInfo = makeEntry('getHeliusPlanInfo', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Plan details'),
+  capabilityGate: gate('agent', 'Plan details'),
   responseFamily: 'catalog',
   defaultDetail: 'summary',
 });
@@ -418,7 +418,7 @@ catalog.laserstreamSubscribe = makeEntry('laserstreamSubscribe', {
 
 catalog.getEnhancedWebSocketInfo = makeEntry('getEnhancedWebSocketInfo', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Enhanced WebSocket info', [
+  capabilityGate: gate('agent', 'Enhanced WebSocket info', [
     {
       id: 'business:enhanced-websockets',
       minimumPlan: 'business',
@@ -432,7 +432,7 @@ catalog.getEnhancedWebSocketInfo = makeEntry('getEnhancedWebSocketInfo', {
 
 catalog.getLaserstreamInfo = makeEntry('getLaserstreamInfo', {
   authRequirement: 'none',
-  capabilityGate: gate('free', 'Laserstream info', [
+  capabilityGate: gate('agent', 'Laserstream info', [
     {
       id: 'developer:laserstream-devnet',
       minimumPlan: 'developer',

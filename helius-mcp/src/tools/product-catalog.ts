@@ -17,14 +17,16 @@ export interface CatalogProduct {
 // ─── Plan Ranking ───
 // Pure data constant — lives here (zero imports) to avoid circular dependencies.
 
-export const PLAN_RANK: Record<string, number> = { free: 0, developer: 1, business: 2, professional: 3 };
+// Plan tiers, lowest to highest. The MCP/CLI signup flow uses Agent as the
+// entry tier (the dashboard's Free tier is not reachable through this surface).
+export const PLAN_RANK: Record<string, number> = { agent: 0, developer: 1, business: 2, professional: 3 };
 
 export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'das-api': {
     name: 'DAS API',
     mcpTools: ['getAssetsByOwner', 'getAssetsByGroup', 'searchAssets', 'getAsset', 'getTokenBalances', 'getTokenAccounts'],
     creditCostPerCall: '10 credits',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'das',
     referenceFile: 'references/das.md',
     description: 'Query tokens, NFTs, collections, and digital assets. Fetches wallet token holdings with names, symbols, and prices. Browse NFT collections, search assets by creator/authority/owner.',
@@ -33,7 +35,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Standard RPC',
     mcpTools: ['getBalance', 'getAccountInfo', 'getBlock', 'getNetworkStatus'],
     creditCostPerCall: '1-10 credits',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'rpc',
     description: 'Core Solana RPC for native SOL balances, account data, block info, and network status. Foundation for any Solana app.',
   },
@@ -41,7 +43,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Enhanced Transactions API',
     mcpTools: ['parseTransactions', 'getTransactionHistory'],
     creditCostPerCall: '100 credits',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'enhanced-transactions',
     referenceFile: 'references/enhanced-transactions.md',
     description: 'Parse any transaction into human-readable format with types (SWAP, TRANSFER, NFT_SALE), descriptions, token transfers, and fees. Powers transaction history views and trade verification.',
@@ -59,7 +61,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Webhooks',
     mcpTools: ['createWebhook', 'getAllWebhooks', 'getWebhookByID', 'updateWebhook', 'deleteWebhook'],
     creditCostPerCall: '100 credits to create, 1 credit per event',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'webhooks',
     referenceFile: 'references/webhooks.md',
     description: 'HTTP POST notifications when monitored addresses have on-chain activity. Event-driven architecture without polling. Monitor up to 100k addresses per webhook. Filter by 150+ transaction types (SWAP, NFT_SALE, TRANSFER, etc.).',
@@ -77,7 +79,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Helius Sender',
     mcpTools: ['getSenderInfo'],
     creditCostPerCall: '0 credits',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'sender',
     referenceFile: 'references/sender.md',
     description: 'Submit transactions with SWQoS routing, staked connections, and Jito tip integration for optimal landing rates. Essential for trading bots, token launches, and any app that sends transactions.',
@@ -86,7 +88,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Priority Fee API',
     mcpTools: ['getPriorityFeeEstimate'],
     creditCostPerCall: '1 credit',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'priority-fee',
     referenceFile: 'references/priority-fees.md',
     description: 'Real-time fee estimates for transaction prioritization during network congestion. Returns recommended fees at multiple priority levels (Min, Low, Medium, High, VeryHigh).',
@@ -95,7 +97,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Standard WebSockets',
     mcpTools: ['transactionSubscribe'],
     creditCostPerCall: '2 credits per 0.1 MB streamed',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'websocket',
     referenceFile: 'references/websockets.md',
     description: 'Persistent connection for real-time transaction and account updates using standard Solana WebSocket subscriptions. Good for confirmation tracking and basic streaming.',
@@ -122,7 +124,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Token Transfers',
     mcpTools: ['transferSol', 'transferToken'],
     creditCostPerCall: '~3-13 credits + on-chain fees',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'sender',
     referenceFile: 'references/sender.md',
     description: 'Send native SOL or SPL tokens from the MCP keypair to any Solana address. Uses Helius Sender for optimal landing rates. Requires a configured keypair.',
@@ -143,7 +145,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
       'getIndexerHealth', 'getIndexerSlot',
     ],
     creditCostPerCall: '10 credits',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'zk-compression',
     referenceFile: 'references/zk-compression.md',
     description: 'Query compressed accounts, token balances, Merkle proofs, validity proofs, and compression transaction history via the ZK Compression / Light Protocol indexer. Powers state compression for cost-efficient on-chain data storage.',
@@ -152,7 +154,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Native Staking',
     mcpTools: ['stakeSOL', 'unstakeSOL', 'withdrawStake', 'getStakeAccounts', 'getWithdrawableAmount'],
     creditCostPerCall: '~3-10 credits + on-chain fees',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'sender',
     referenceFile: 'references/sender.md',
     description: 'Stake, unstake, and withdraw native SOL via the Helius validator. Earn staking yield with one-click delegation. Query stake accounts and withdrawable amounts.',
@@ -161,7 +163,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     name: 'Token Holders',
     mcpTools: ['getTokenHolders'],
     creditCostPerCall: '20 credits',
-    minimumPlan: 'free',
+    minimumPlan: 'agent',
     docKey: 'das',
     referenceFile: 'references/das.md',
     description: 'Top 20 holders of any SPL token. Check token distribution, find whale wallets, verify decentralization. Useful for token launches and analytics.',

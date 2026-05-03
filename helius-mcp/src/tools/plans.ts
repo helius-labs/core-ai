@@ -25,8 +25,8 @@ export const HELIUS_PLANS: Record<string, {
   name: string;
   features: Record<string, boolean | string>;
 }> = {
-  free: {
-    name: 'Free',
+  agent: {
+    name: 'Agent',
     features: { webhooks: true, standardWebSockets: true, enhancedWebSockets: false, laserstream: false, stakedConnections: true, archivalData: true },
   },
   developer: {
@@ -60,6 +60,19 @@ const BILLING_FETCH_META: ErrorMeta = {
  * Returns the plan key (e.g. "developer") or undefined if unavailable.
  * Best-effort — never throws.
  */
+/**
+ * Normalize backend plan keys (e.g. `agent_v4`, `developer_v4`) to the
+ * canonical short keys used in HELIUS_PLANS / PLAN_RANK / PRODUCT_CATALOG.
+ * Backend appends `_v4` for current-generation plans; the MCP/CLI surface
+ * uses the short form throughout.
+ */
+function normalizePlanKey(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim().toLowerCase();
+  // Strip `_v4` (and any future `_v<N>`) suffix.
+  return trimmed.replace(/_v\d+$/, '');
+}
+
 export async function detectCurrentPlan(): Promise<string | undefined> {
   const jwt = getJwt();
   if (!jwt) return undefined;
@@ -67,8 +80,8 @@ export async function detectCurrentPlan(): Promise<string | undefined> {
     const projects = await listProjects(jwt, MCP_USER_AGENT);
     if (projects.length > 0) {
       const details = await getProject(jwt, projects[0].id, MCP_USER_AGENT);
-      const raw = details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase();
-      if (raw && raw in HELIUS_PLANS) return raw;
+      const normalized = normalizePlanKey(details.subscriptionPlanDetails?.currentPlan);
+      if (normalized && normalized in HELIUS_PLANS) return normalized;
     }
   } catch {
     // Best-effort — don't block the response
@@ -81,7 +94,7 @@ export function registerPlanTools(server: McpServer) {
     'getHeliusPlanInfo',
     'BEST FOR: pricing and plan questions. PREFER compareHeliusPlans for side-by-side category comparisons, getRateLimitInfo for per-method credit costs. Get Helius plan pricing, credits, rate limits, and feature availability. Fetches live from billing docs.',
     {
-      plan: z.enum(['free', 'developer', 'business', 'professional', 'all']).optional().default('all').describe('Specific plan to show details for, or "all" for comparison'),
+      plan: z.enum(['agent', 'developer', 'business', 'professional', 'all']).optional().default('all').describe('Specific plan to show details for, or "all" for comparison. Note: the MCP/CLI signup flow uses Agent ($10 one-time) as the entry tier; the dashboard\'s Free tier is not available through this path.'),
     },
     async ({ plan }) => {
       let billingDoc: string;
@@ -127,7 +140,8 @@ export function registerPlanTools(server: McpServer) {
         '',
         '## Actions',
         '',
-        '- To upgrade, use the `upgradePlan` tool with a plan name (developer, business, professional)',
+        '- To sign up for the Agent plan ($10 one-time, 1M credits), use the `signup` tool',
+        '- To upgrade an existing account, use the `upgradePlan` tool with a plan name (developer, business, professional)',
         '- To preview pricing before upgrading, use the `previewUpgrade` tool',
         '',
         'Source: https://www.helius.dev/docs/billing (fetched live)',
@@ -216,7 +230,7 @@ export function registerPlanTools(server: McpServer) {
         const projectId = projects[0].id;
         const details = await getProject(jwt, projectId, MCP_USER_AGENT);
 
-        const planKey = (details.subscriptionPlanDetails?.currentPlan?.trim().toLowerCase()) ?? 'unknown';
+        const planKey = normalizePlanKey(details.subscriptionPlanDetails?.currentPlan) ?? 'unknown';
         const planInfo = HELIUS_PLANS[planKey];
         if (!planInfo) {
           console.warn(`[getAccountPlan] Unrecognized plan "${planKey}" — tool eligibility may be inaccurate`);
@@ -241,7 +255,7 @@ export function registerPlanTools(server: McpServer) {
           `- **Remaining:** ${remainingCredits.toLocaleString()} / ${totalCredits.toLocaleString()} (${usedPct}% used)`,
           ``,
           `### Gated Tool Eligibility`,
-          `All Free-tier tools are available on every plan.`,
+          `All Agent-tier tools are available on every plan.`,
           ``,
         ];
 
@@ -290,7 +304,7 @@ function computeToolEligibility(planKey: string): ToolEligibilityEntry[] {
   const toolProducts: Record<string, { productName: string; minimumPlan: string }[]> = {};
 
   for (const product of Object.values(PRODUCT_CATALOG)) {
-    if (product.minimumPlan === 'free') continue;
+    if (product.minimumPlan === 'agent') continue;
     for (const tool of product.mcpTools) {
       if (!toolProducts[tool]) toolProducts[tool] = [];
       toolProducts[tool].push({ productName: product.name, minimumPlan: product.minimumPlan });
@@ -300,9 +314,9 @@ function computeToolEligibility(planKey: string): ToolEligibilityEntry[] {
   const results: ToolEligibilityEntry[] = [];
 
   for (const [tool, products] of Object.entries(toolProducts)) {
-    // Also check if this tool appears in any free product (e.g. transactionSubscribe in standard-websockets)
-    const inFreeToo = Object.values(PRODUCT_CATALOG).some(
-      p => p.minimumPlan === 'free' && p.mcpTools.includes(tool)
+    // Also check if this tool appears in any baseline product (Agent tier)
+    const inBaselineToo = Object.values(PRODUCT_CATALOG).some(
+      p => p.minimumPlan === 'agent' && p.mcpTools.includes(tool)
     );
 
     if (products.length === 1) {
@@ -310,17 +324,17 @@ function computeToolEligibility(planKey: string): ToolEligibilityEntry[] {
       const available = userRank >= (PLAN_RANK[p.minimumPlan] ?? 99);
       const planDisplay = HELIUS_PLANS[p.minimumPlan]?.name ?? p.minimumPlan;
 
-      if (inFreeToo && available) {
-        // Tool is available at free tier AND at this gated tier — show available
+      if (inBaselineToo && available) {
+        // Tool is available at baseline tier AND at this gated tier — show available
         results.push({ tool, status: 'AVAILABLE', requires: planDisplay });
-      } else if (inFreeToo && !available) {
-        // Tool works at free tier but the enhanced version needs upgrade
+      } else if (inBaselineToo && !available) {
+        // Tool works at baseline tier but the enhanced version needs upgrade
         results.push({ tool, status: `AVAILABLE (basic) / UPGRADE REQUIRED (${p.productName})`, requires: planDisplay });
       } else {
         results.push({ tool, status: available ? 'AVAILABLE' : 'UPGRADE REQUIRED', requires: planDisplay });
       }
     } else {
-      // Multiple non-free products (e.g. laserstreamSubscribe in devnet + mainnet)
+      // Multiple gated products (e.g. laserstreamSubscribe in devnet + mainnet)
       const statuses: string[] = [];
       const requires: string[] = [];
 

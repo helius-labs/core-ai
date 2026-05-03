@@ -25,7 +25,7 @@ export type GatePredicate =
 
 export type CapabilityVariant = {
   id: string;
-  minimumPlan: 'free' | 'developer' | 'business' | 'professional';
+  minimumPlan: 'agent' | 'developer' | 'business' | 'professional';
   predicate: GatePredicate;
   label: string;
 };
