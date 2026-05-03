@@ -5,7 +5,6 @@ import { createProject as sdkCreateProject } from "helius-sdk/auth/createProject
 import { listProjects as sdkListProjects } from "helius-sdk/auth/listProjects";
 import { getProject as sdkGetProject } from "helius-sdk/auth/getProject";
 import { createApiKey as sdkCreateApiKey } from "helius-sdk/auth/createApiKey";
-import { agenticSignup as sdkAgenticSignup } from "helius-sdk/auth/agenticSignup";
 import { signup as sdkSignup } from "helius-sdk/auth/signup";
 import { signupAndPay as sdkSignupAndPay } from "helius-sdk/auth/signupAndPay";
 import { payPaymentLink as sdkPayPaymentLink } from "helius-sdk/auth/payPaymentLink";
@@ -28,8 +27,6 @@ import type {
   ProjectListItem,
   ProjectDetails,
   ApiKey,
-  AgenticSignupOptions,
-  AgenticSignupResult,
   SignupOptions,
   SignupResult,
   SignupAndPayOptions,
@@ -81,14 +78,6 @@ export async function createApiKey(
   return sdkCreateApiKey(jwt, projectId, walletAddress, CLI_USER_AGENT);
 }
 
-export async function agenticSignup(
-  options: Omit<AgenticSignupOptions, "userAgent">,
-): Promise<AgenticSignupResult> {
-  return sdkAgenticSignup({ ...options, userAgent: CLI_USER_AGENT });
-}
-
-// New Phase 1 signup surface — pass-through with no userAgent (the SDK doesn't
-// thread one through these helpers yet; that's a Phase 2 cleanup).
 export async function signup(options: SignupOptions): Promise<SignupResult> {
   return sdkSignup(options);
 }

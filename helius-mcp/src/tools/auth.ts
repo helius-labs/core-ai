@@ -118,16 +118,17 @@ export function registerAuthTools(server: McpServer) {
         '',
         '## Path B — Create a new account via crypto checkout',
         '',
-        '1. Call `signup` with your email/name. By default it returns a hosted-checkout link the user can open in a browser to pay.',
-        '2. After the user pays, call `signup` again with `mode: "resume"` (or just `signup` again — it picks up the pending intent) to provision the API key.',
+        '1. Call `generateKeypair` to create (or load) a Solana wallet — required for every signup mode, including link mode (the wallet address is bound to the payment intent).',
+        '2. Call `signup` with your email/name. By default (`mode: "link"`) it returns a hosted-checkout URL the user can open in a browser to pay with any wallet.',
+        '3. After the user pays, call `signup` again with `mode: "resume"` to poll the intent and provision the API key.',
         '',
-        'For an autopay flow that pays directly from a local Solana keypair, pass `mode: "autopay"` to `signup`. The MCP will generate a keypair for you (`generateKeypair`), and you must ensure the wallet has ~0.001 SOL for fees and the plan amount in USDC.',
+        'For an autopay flow that pays USDC directly from the local keypair, pass `mode: "autopay"` to `signup`. The wallet must hold ~0.001 SOL for fees and the plan amount in USDC.',
         '',
       );
 
       if (hasKeypair) {
         lines.push(
-          `_(A keypair already exists at \`${KEYPAIR_PATH}\` — autopay mode will reuse it.)_`,
+          `_(A keypair already exists at \`${KEYPAIR_PATH}\` — \`signup\` will reuse it; you can skip step 1.)_`,
           '',
         );
       }
@@ -140,7 +141,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'generateKeypair',
-    'Generate a new Solana keypair (or load the existing one from disk). Returns the wallet address. Used by the `signup` autopay path; not needed for default link mode.',
+    'Generate a new Solana keypair (or load the existing one from disk). Returns the wallet address. Required before any `signup` call — the wallet address is bound to the payment intent in both link and autopay modes.',
     {},
     async () => {
       try {
@@ -182,7 +183,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'signup',
-    'Create a Helius account via crypto checkout. Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair (the MCP will load/generate one if needed). `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser.',
+    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser.',
     {
       mode: z
         .enum(['link', 'autopay', 'resume'])
