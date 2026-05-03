@@ -530,10 +530,10 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'purchaseCredits',
-    'Top up prepaid credits on an agent-plan project. Default `mode: "link"` returns a hosted-checkout URL. `mode: "autopay"` pays USDC from the local keypair and polls. Each unit of `qty` grants 1,000,000 credits.',
+    'Buy prepaid credits as a one-time USDC top-up. AGENT PLAN ONLY: each unit of `qty` is 1,000,000 credits at $10 USDC, no recurring sub. Subscription plans (Developer / Business / Professional) get monthly allotments and overage is auto-billed at $5/M on the next invoice — they can NOT use this tool; this tool will reject the call with UNSUPPORTED_PLAN. Default `mode: "link"` returns a hosted-checkout URL; `mode: "autopay"` pays USDC from the local keypair and polls.',
     {
       mode: z.enum(['link', 'autopay']).default('link').describe('link (default) or autopay'),
-      qty: z.number().int().min(1).default(1).describe('Quantity multiplier (each unit = 1M credits)'),
+      qty: z.number().int().min(1).default(1).describe('Quantity multiplier (each unit = 1M credits at $10 USDC)'),
       couponCode: z.string().optional().describe('Optional coupon code'),
     },
     async ({ mode, qty, couponCode }) => {
@@ -558,6 +558,26 @@ export function registerAuthTools(server: McpServer) {
           });
         }
         const projectId = projects[0].id;
+
+        // Pre-flight plan check. SDK will reject non-Agent plans, but its
+        // error path surfaces as a generic SDK_ERROR; intercepting here gives
+        // the agent a clean, structured error with the correct semantics.
+        const projectPlan = projects[0].subscription?.plan;
+        const normalizedPlan = projectPlan?.replace(/_v\d+$/, '');
+        if (normalizedPlan && normalizedPlan !== 'agent') {
+          return mcpError(
+            `Prepaid credits via \`purchaseCredits\` are only available on the Agent plan. ` +
+              `Project ${projectId} is on the ${normalizedPlan} plan, where credit overage ` +
+              `is auto-billed at $5 per 1,000,000 credits on the next invoice — there's no ` +
+              `manual top-up flow. To preview your usage, call \`getAccountStatus\`.`,
+            {
+              type: 'UNSUPPORTED',
+              code: 'UNSUPPORTED_PLAN',
+              retryable: false,
+              recovery: 'Use the dashboard to manage subscription overage, or call `getAccountStatus` to inspect usage.',
+            },
+          );
+        }
 
         if (mode === 'autopay') {
           let signerData: { secretKey: Uint8Array; walletAddress: string };

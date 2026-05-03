@@ -215,8 +215,8 @@ Examples:
 
 program
   .command("credits")
-  .description("Top up prepaid credits on an agent-plan project")
-  .option("--qty <n>", "Quantity multiplier (each unit = 1,000,000 credits)", "1")
+  .description("Buy prepaid credits as a one-time USDC top-up. Agent plan only ($10 per 1M credits). Subscription plans (developer/business/professional) handle overage at $5/M auto-billed on the subscription — they cannot use this command.")
+  .option("--qty <n>", "Quantity multiplier (each unit = 1M credits at $10 USDC)", "1")
   .option("--coupon <code>", "Coupon code")
   .option("-k, --keypair <path>", "Path to Solana keypair file", getDefaultKeypairPath())
   .option("--pay", "Auto-pay USDC + memo from the local keypair")
