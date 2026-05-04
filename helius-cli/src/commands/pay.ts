@@ -95,6 +95,23 @@ export async function payCommand(
     const result = await sdkPayRenewal(auth.token, paymentIntentId);
     spinner?.succeed("Renewal link ready");
 
+    // Defensive narrowing: today PayRenewalResult is a single-variant union
+    // (kind: "payment_required"). The exhaustive default keeps this correct
+    // if the SDK adds new variants without forcing a TS error today.
+    switch (result.kind) {
+      case "payment_required":
+        break;
+      default: {
+        const _exhaustive: never = result.kind;
+        exitWithError(
+          "API_ERROR",
+          `Unexpected payRenewal result kind: ${String(_exhaustive)}`,
+          undefined,
+          !!options.json,
+        );
+      }
+    }
+
     if (options.json) {
       outputJson({
         status: "PAYMENT_REQUIRED",
@@ -143,6 +160,19 @@ async function runPay(
 ): Promise<void> {
   spinner?.start("Fetching renewal intent...");
   const result = await sdkPayRenewal(jwt, paymentIntentId);
+  switch (result.kind) {
+    case "payment_required":
+      break;
+    default: {
+      const _exhaustive: never = result.kind;
+      exitWithError(
+        "API_ERROR",
+        `Unexpected payRenewal result kind: ${String(_exhaustive)}`,
+        undefined,
+        !!options.json,
+      );
+    }
+  }
   const link = result.paymentLink;
   spinner?.succeed(`Renewal: ${link.amountCents / 100} USDC`);
 

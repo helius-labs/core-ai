@@ -205,7 +205,7 @@ export function registerPlanTools(server: McpServer) {
           `**Auth:** Not authenticated\n\n` +
           `No API key or session found. To get started:\n` +
           `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
-          `- If you need an account: use \`generateKeypair\` → fund wallet → \`signup\``
+          `- If you need an account: use \`generateKeypair\` → \`signup\` (link mode prints a payment URL)`
         );
       }
 

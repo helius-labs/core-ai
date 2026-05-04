@@ -48,11 +48,17 @@ export interface PendingUpgrade extends PendingPaymentBase {
   projectId: string;
   targetPlan: string;
   period?: "monthly" | "yearly";
+  /** Wallet that authenticated and created the intent. Optional for backwards
+   * compatibility with intents stored before this field was introduced —
+   * when undefined, the wallet-mismatch check is skipped. */
+  payerWallet?: string;
 }
 
 export interface PendingCredits extends PendingPaymentBase {
   projectId: string;
   qty: number;
+  /** Wallet that authenticated and created the intent. See `PendingUpgrade.payerWallet`. */
+  payerWallet?: string;
 }
 
 interface Config {

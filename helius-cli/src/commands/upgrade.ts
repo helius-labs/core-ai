@@ -30,7 +30,7 @@ import {
   createSpinner,
   type OutputOptions,
 } from "../lib/output.js";
-import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
+import { checkSolBalance, checkUsdcBalance, checkBackendForRefresh } from "../lib/payment.js";
 import { validateUpgradePlan, validatePeriod, validateEmail } from "../lib/validation.js";
 
 interface UpgradeOptions extends OutputOptions {
@@ -84,10 +84,34 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
     if (stored && !options.restart) {
       if (options.pay) {
         await runPayWithStored(stored, options, spinner);
+        return;
+      }
+
+      // Local expiry past → query backend (source of truth) before
+      // reprinting a stale URL. See `checkBackendForRefresh`.
+      const localExpired = Date.parse(stored.expiresAt) <= Date.now();
+      if (localExpired) {
+        const { verdict } = await checkBackendForRefresh(
+          stored.jwt,
+          stored.paymentIntentId,
+          spinner,
+        );
+        if (verdict === "completed") {
+          await pollAndEmit(stored, stored.txSignature, options, spinner);
+          return;
+        }
+        if (verdict === "cleared") {
+          clearPendingUpgrade();
+          // Fall through to fresh upgrade path. Requires --plan; the existing
+          // INVALID_INPUT check below handles the missing-flag case.
+        } else {
+          emitPaymentRequired(stored, true, options);
+          return;
+        }
       } else {
         emitPaymentRequired(stored, true, options);
+        return;
       }
-      return;
     }
 
     if (!options.plan) {
@@ -159,6 +183,7 @@ export async function upgradeCommand(options: UpgradeOptions): Promise<void> {
       projectId: project.id,
       targetPlan,
       period,
+      payerWallet: walletAddress,
       createdAt: new Date().toISOString(),
     };
     setPendingUpgrade(pending);
@@ -238,6 +263,18 @@ async function runPayWithStored(
   const secretKey = freshSecretKey ?? (await loadSecretKey(options));
   const keypair = await loadKeypairFromFile(options.keypair);
   const payerAddress = await getAddress(keypair);
+
+  // Guard against keypair rotation between intent creation and --pay.
+  // `payerWallet` is undefined for intents stored before this field was
+  // introduced; skip the check in that case (one-version migration window).
+  if (stored.payerWallet && payerAddress !== stored.payerWallet) {
+    exitWithError(
+      "INVALID_INPUT",
+      `Local keypair wallet (${payerAddress}) does not match the wallet that created this upgrade intent (${stored.payerWallet}). Run \`helius upgrade --restart\` to start over.`,
+      undefined,
+      !!options.json,
+    );
+  }
 
   spinner?.start("Checking wallet balance...");
   const payerSol = await checkSolBalance(payerAddress);

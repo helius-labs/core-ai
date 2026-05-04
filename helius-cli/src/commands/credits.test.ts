@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockPurchaseCredits = vi.fn();
 const mockPayPaymentLink = vi.fn();
 const mockGetPaymentStatus = vi.fn();
+const mockGetPaymentIntent = vi.fn();
 const mockListProjects = vi.fn();
 const mockWalletSignup = vi.fn();
 
@@ -10,6 +11,7 @@ vi.mock("../lib/api.js", () => ({
   walletSignup: (...args: unknown[]) => mockWalletSignup(...args),
   listProjects: (...args: unknown[]) => mockListProjects(...args),
   getPaymentStatus: (...args: unknown[]) => mockGetPaymentStatus(...args),
+  getPaymentIntent: (...args: unknown[]) => mockGetPaymentIntent(...args),
   payPaymentLink: (...args: unknown[]) => mockPayPaymentLink(...args),
   purchaseCredits: (...args: unknown[]) => mockPurchaseCredits(...args),
 }));
@@ -187,6 +189,23 @@ describe("credits command", () => {
     const { json } = await captureStdout(() => creditsCommand({ ...baseOpts, resume: true } as any));
     expect(json?.data.status).toBe("SUCCESS");
     expect(json?.data.qty).toBe(1);
+    expect(mockClearPendingCredits).toHaveBeenCalled();
+  });
+
+  it("--resume SUCCESS without stored txSignature backfills it from getPaymentIntent", async () => {
+    mockGetPendingCredits.mockReturnValue({ ...samplePending });
+    mockGetPaymentStatus.mockResolvedValue({
+      status: "completed",
+      phase: "complete",
+      subscriptionActive: true,
+      readyToRedirect: true,
+      message: "ok",
+    });
+    mockGetPaymentIntent.mockResolvedValue({ txSignature: "tx-from-intent" });
+    const { json } = await captureStdout(() => creditsCommand({ ...baseOpts, resume: true } as any));
+    expect(json?.data.status).toBe("SUCCESS");
+    expect(json?.data.txSignature).toBe("tx-from-intent");
+    expect(mockGetPaymentIntent).toHaveBeenCalledWith(samplePending.jwt, samplePending.paymentIntentId);
     expect(mockClearPendingCredits).toHaveBeenCalled();
   });
 

@@ -30,7 +30,7 @@ import {
   createSpinner,
   type OutputOptions,
 } from "../lib/output.js";
-import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
+import { checkSolBalance, checkUsdcBalance, checkBackendForRefresh } from "../lib/payment.js";
 
 interface CreditsOptions extends OutputOptions {
   keypair: string;
@@ -68,10 +68,34 @@ export async function creditsCommand(options: CreditsOptions): Promise<void> {
     if (stored && !options.restart) {
       if (options.pay) {
         await runPayWithStored(stored, options, spinner);
+        return;
+      }
+
+      // Local expiry past → query backend before reprinting a stale URL.
+      // `qty` is already validated above and stays in scope for the
+      // fall-through-to-fresh path on `cleared`.
+      const localExpired = Date.parse(stored.expiresAt) <= Date.now();
+      if (localExpired) {
+        const { verdict } = await checkBackendForRefresh(
+          stored.jwt,
+          stored.paymentIntentId,
+          spinner,
+        );
+        if (verdict === "completed") {
+          await pollAndEmit(stored, stored.txSignature, options, spinner);
+          return;
+        }
+        if (verdict === "cleared") {
+          clearPendingCredits();
+          // Fall through to fresh credits path.
+        } else {
+          emitPaymentRequired(stored, true, options);
+          return;
+        }
       } else {
         emitPaymentRequired(stored, true, options);
+        return;
       }
-      return;
     }
 
     if (!keypairExists(options.keypair)) {
@@ -122,6 +146,7 @@ export async function creditsCommand(options: CreditsOptions): Promise<void> {
       jwt: auth.token,
       projectId: project.id,
       qty,
+      payerWallet: walletAddress,
       createdAt: new Date().toISOString(),
     };
     setPendingCredits(pending);
@@ -210,6 +235,18 @@ async function runPayWithStored(
   const secretKey = freshSecretKey ?? (await loadSecretKey(options));
   const keypair = await loadKeypairFromFile(options.keypair);
   const payerAddress = await getAddress(keypair);
+
+  // Guard against keypair rotation between intent creation and --pay.
+  // `payerWallet` is undefined for intents stored before this field was
+  // introduced; skip the check in that case.
+  if (stored.payerWallet && payerAddress !== stored.payerWallet) {
+    exitWithError(
+      "INVALID_INPUT",
+      `Local keypair wallet (${payerAddress}) does not match the wallet that created this credits intent (${stored.payerWallet}). Run \`helius credits --restart\` to start over.`,
+      undefined,
+      !!options.json,
+    );
+  }
 
   spinner?.start("Checking wallet balance...");
   const sol = await checkSolBalance(payerAddress);

@@ -31,7 +31,7 @@ import {
   createSpinner,
   type OutputOptions,
 } from "../lib/output.js";
-import { checkSolBalance, checkUsdcBalance } from "../lib/payment.js";
+import { checkSolBalance, checkUsdcBalance, checkBackendForRefresh } from "../lib/payment.js";
 import { sendDiscoveryEvent } from "../lib/feedback.js";
 import {
   validateSignupPlan,
@@ -316,7 +316,37 @@ async function runPayWithStored(
   }
 
   // 3. status === "pending" → send USDC.
-  const secretKey = freshSecretKey ?? (await loadSecretKey(options));
+  // Load the full keypair (not just secretKey) so we can verify the local
+  // wallet still matches the wallet that created the intent. If the user
+  // rotated `id.json` between `helius signup` (link) and `helius signup --pay`,
+  // the new keypair would send USDC from a wallet the backend doesn't
+  // associate with this intent and memo binding would fail server-side.
+  let secretKey: Uint8Array;
+  let payerAddress: string;
+  if (freshSecretKey) {
+    secretKey = freshSecretKey;
+    payerAddress = stored.walletAddress;
+  } else {
+    if (!keypairExists(options.keypair)) {
+      exitWithError(
+        "KEYPAIR_NOT_FOUND",
+        `Keypair not found at ${options.keypair}`,
+        undefined,
+        !!options.json,
+      );
+    }
+    const keypair = await loadKeypairFromFile(options.keypair);
+    secretKey = keypair.secretKey;
+    payerAddress = await getAddress(keypair);
+  }
+  if (payerAddress !== stored.walletAddress) {
+    exitWithError(
+      "INVALID_INPUT",
+      `Local keypair wallet (${payerAddress}) does not match the wallet that created this payment intent (${stored.walletAddress}). Run \`helius signup --restart\` to start over.`,
+      undefined,
+      !!options.json,
+    );
+  }
   const walletAddress = stored.walletAddress;
 
   spinner?.start("Checking wallet balance...");
@@ -441,25 +471,16 @@ async function refreshStoredFromBackend(
   spinner: ReturnType<typeof createSpinner>,
   options: SignupOptions,
 ): Promise<"cleared" | "provisioned" | "still_payable"> {
-  spinner?.start("Stored payment link is past its local expiry — checking backend...");
-  let status;
-  try {
-    status = await getPaymentStatus(stored.jwt, stored.paymentIntentId);
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("410")) {
-      clearPendingSignup();
-      spinner?.succeed("Stored intent expired on the backend; starting fresh");
-      return "cleared";
-    }
-    throw error;
-  }
-  spinner?.succeed(`Backend status: ${status.phase}`);
-
-  if (status.phase === "expired" || status.phase === "failed") {
+  const { verdict } = await checkBackendForRefresh(
+    stored.jwt,
+    stored.paymentIntentId,
+    spinner,
+  );
+  if (verdict === "cleared") {
     clearPendingSignup();
     return "cleared";
   }
-  if (status.status === "completed" || status.readyToRedirect) {
+  if (verdict === "completed") {
     await pollAndProvision(stored, stored.txSignature, options, spinner);
     return "provisioned";
   }
