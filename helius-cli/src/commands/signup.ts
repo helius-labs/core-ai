@@ -696,16 +696,3 @@ function emitFailed(
   if (reason) console.error(chalk.gray(reason));
   process.exit(ExitCode.GENERAL_ERROR);
 }
-
-async function loadSecretKey(options: SignupOptions): Promise<Uint8Array> {
-  if (!keypairExists(options.keypair)) {
-    exitWithError(
-      "KEYPAIR_NOT_FOUND",
-      `Keypair not found at ${options.keypair}`,
-      undefined,
-      !!options.json,
-    );
-  }
-  const keypair = await loadKeypairFromFile(options.keypair);
-  return keypair.secretKey;
-}

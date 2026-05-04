@@ -50,14 +50,19 @@ export interface PendingUpgrade extends PendingPaymentBase {
   period?: "monthly" | "yearly";
   /** Wallet that authenticated and created the intent. Optional for backwards
    * compatibility with intents stored before this field was introduced —
-   * when undefined, the wallet-mismatch check is skipped. */
+   * when undefined, the wallet-mismatch check is skipped.
+   * TODO(payerWallet-migration): once enough release cycles have passed that
+   * any in-flight intent has either been resumed or expired, flip this to
+   * required and have the runPayWithStored guard treat absence as an error
+   * pointing at --restart. Same for `PendingCredits.payerWallet`. */
   payerWallet?: string;
 }
 
 export interface PendingCredits extends PendingPaymentBase {
   projectId: string;
   qty: number;
-  /** Wallet that authenticated and created the intent. See `PendingUpgrade.payerWallet`. */
+  /** Wallet that authenticated and created the intent. See `PendingUpgrade.payerWallet`
+   * (including the migration TODO). */
   payerWallet?: string;
 }
 
