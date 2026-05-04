@@ -326,10 +326,10 @@ export function registerWalletTools(server: McpServer) {
   // ─── Score Wallet ───
   server.tool(
     'scoreWallet',
-    'BEST FOR: ranking wallets by quality (smart-money discovery, copy-trading watchlists). Computes a deterministic 0-100 quality score from on-chain primitives — activity, diversification, recency, volume, and hold age. NOT a P&L estimate; a quality classifier. Credit cost: ~400 credits (composes getWalletHistory + getWalletBalances + getWalletTransfers).',
+    'BEST FOR: ranking wallets by quality (smart-money discovery, copy-trading watchlists). Computes a deterministic 0-100 quality score from on-chain primitives: activity, diversification, recency, hold-age. NOT a P&L estimate; a quality classifier. Credit cost: ~300 credits (composes getWalletHistory + getWalletBalances + getWalletFundedBy).',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
-      lookbackDays: z.number().optional().default(30).describe('Window for activity/volume/recency scoring (default 30)'),
+      lookbackDays: z.number().optional().default(30).describe('Window for activity/recency scoring (default 30)'),
     },
     async ({ address, lookbackDays }) => {
       if (!hasApiKey()) return noApiKeyResponse();
@@ -338,52 +338,58 @@ export function registerWalletTools(server: McpServer) {
         const client = getHeliusClient();
         const fetchLimit = Math.min(100, Math.max(20, lookbackDays * 3));
 
-        const [historyRes, balancesRes, transfersRes] = await Promise.all([
+        // Fetch in parallel; getFundedBy may legitimately 404 for some wallets
+        const [historyRes, balancesRes, fundedRes] = await Promise.all([
           client.wallet.getHistory({ wallet: address, limit: fetchLimit }),
           client.wallet.getBalances({ wallet: address, limit: 100, showNative: true }),
-          client.wallet.getTransfers({ wallet: address, limit: fetchLimit }),
+          client.wallet.getFundedBy({ wallet: address }).catch(() => null),
         ]);
 
         const history = (historyRes.data ?? []) as Array<HistoryTransaction>;
-        const balances = (balancesRes.balances ?? []) as Array<{ usdValue?: number }>;
-        const transfers = (transfersRes.data ?? []) as Array<Transfer & { amountUsd?: number }>;
+        const balances = (balancesRes.balances ?? []) as Array<{ usdValue?: number | null }>;
 
         const flags: string[] = [];
+        const nowSec = Date.now() / 1000;
 
-        // 1. Activity — caps at 2 tx/day = 100
-        const txCount = history.length;
+        // 1. Activity — txs in lookback window only (not all returned txs)
+        // Caps at 2 tx/day in window = 100
+        const lookbackCutoff = nowSec - lookbackDays * 86400;
+        const recentTxs = history.filter(tx => tx.timestamp != null && tx.timestamp >= lookbackCutoff);
+        const txCount = recentTxs.length;
         const activity = Math.min(100, (txCount * 100) / Math.max(1, lookbackDays * 2));
 
-        // 2. Diversification — caps at 20 distinct $1+ tokens = 100
+        // 2. Diversification — distinct priced tokens >= $1
+        // Caps at 20 = 100
         const distinctTokens = balances.filter(t => (t.usdValue ?? 0) >= 1).length;
         const diversification = Math.min(100, distinctTokens * 5);
         if (distinctTokens === 0) flags.push('EMPTY_WALLET');
 
-        // 3. Recency — 0 days = 100, 20 days = 0
-        const nowSec = Date.now() / 1000;
-        const lastTx = history[0];
-        const lastTs = lastTx?.timestamp;
-        const daysSince = lastTs ? (nowSec - lastTs) / 86400 : 365;
-        const recency = Math.max(0, 100 - daysSince * 5);
+        // 3. Recency — 0 days since last tx = 100, 20 days = 0
+        const lastTs = history[0]?.timestamp ?? null;
+        const daysSince = lastTs != null ? (nowSec - lastTs) / 86400 : Infinity;
+        const recency = isFinite(daysSince) ? Math.max(0, 100 - daysSince * 5) : 0;
         if (txCount === 0) flags.push('NO_RECENT_ACTIVITY');
 
-        // 4. Volume — log10 scale, $100k = 100
-        const totalUsd = transfers.reduce((sum, t) => sum + (t.amountUsd ?? 0), 0);
-        const volume = Math.min(100, Math.log10(Math.max(1, totalUsd)) * 20);
-
-        // 5. Hold age — 1 year = 100. Approximated from oldest tx in current page.
-        const oldestTs = history[history.length - 1]?.timestamp;
-        const ageDays = oldestTs ? (nowSec - oldestTs) / 86400 : 0;
+        // 4. Hold age — true wallet age from first funding tx (via getWalletFundedBy)
+        // Fallback: oldest tx in current history page (will under-estimate for old wallets).
+        // 1 year = 100.
+        let ageDays = 0;
+        if (fundedRes && fundedRes.timestamp) {
+          ageDays = (nowSec - fundedRes.timestamp) / 86400;
+        } else {
+          const oldestTs = history[history.length - 1]?.timestamp;
+          if (oldestTs) ageDays = (nowSec - oldestTs) / 86400;
+        }
         const holdAge = Math.min(100, ageDays / 3.65);
         if (ageDays > 0 && ageDays < 7) flags.push('NEW_WALLET');
 
-        // Composite (default weights: activity 0.25, diversification 0.20, recency 0.20, volume 0.20, holdAge 0.15)
+        // Composite — 4 components, weights sum to 1.0
+        // activity 0.30, diversification 0.25, recency 0.25, holdAge 0.20
         const score = Math.round(
-          activity * 0.25 +
-          diversification * 0.20 +
-          recency * 0.20 +
-          volume * 0.20 +
-          holdAge * 0.15
+          activity * 0.30 +
+          diversification * 0.25 +
+          recency * 0.25 +
+          holdAge * 0.20
         );
 
         const lines = [
@@ -392,11 +398,10 @@ export function registerWalletTools(server: McpServer) {
           `**Lookback:** ${lookbackDays} days`,
           '',
           `**Components**`,
-          `- Activity: ${Math.round(activity)}/100 (${txCount} txs)`,
+          `- Activity: ${Math.round(activity)}/100 (${txCount} txs in last ${lookbackDays}d)`,
           `- Diversification: ${Math.round(diversification)}/100 (${distinctTokens} tokens ≥ $1)`,
-          `- Recency: ${Math.round(recency)}/100 (${Math.round(daysSince)}d since last tx)`,
-          `- Volume: ${Math.round(volume)}/100 ($${Math.round(totalUsd).toLocaleString()} transferred)`,
-          `- Hold age: ${Math.round(holdAge)}/100 (${Math.round(ageDays)}d oldest in window)`,
+          `- Recency: ${Math.round(recency)}/100 (${isFinite(daysSince) ? Math.round(daysSince) + 'd' : 'never'} since last tx)`,
+          `- Hold age: ${Math.round(holdAge)}/100 (${Math.round(ageDays)}d since first funding${fundedRes?.timestamp ? '' : ', est. from history'})`,
         ];
         if (flags.length > 0) {
           lines.push('', `**Flags:** ${flags.join(', ')}`);

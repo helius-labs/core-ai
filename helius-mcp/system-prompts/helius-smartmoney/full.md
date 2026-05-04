@@ -110,7 +110,7 @@ heliusWallet({
   address: "...",
   lookbackDays: 30  // default
 })
-// → { score, components: { activity, diversification, recency, volume, holdAge }, ... }
+// → { score, components: { activity, diversification, recency, holdAge }, ... }
 ```
 
 For batch scoring (ranking N candidates), call `scoreWallet` for each in parallel — there is no batch variant yet.
@@ -207,30 +207,34 @@ The score is **not a P&L estimate** — Helius doesn't have historical price ora
 ## Formula (v1)
 
 ```
-score = 0.25 * activity
-      + 0.20 * diversification
-      + 0.20 * recency
-      + 0.20 * volume
-      + 0.15 * holdAge
+score = 0.30 * activity
+      + 0.25 * diversification
+      + 0.25 * recency
+      + 0.20 * holdAge
 ```
 
 All components are 0-100. Composite is 0-100. Weights sum to 1.0.
 
 This formula is **deterministic** — same inputs always yield the same score. It's also exposed via the routed MCP action `scoreWallet({ address, lookbackDays })`.
 
+A USD-volume component is intentionally absent in v1: the Helius `Transfer` schema does not carry per-transfer USD values, so a meaningful `volume` score would require a separate price oracle integration. We considered SOL-only volume as a proxy and rejected it as misleading for non-SOL traders. v2 may add it once prices are sourced reliably.
+
 ## Components
 
 ### activity (0-100)
 
-How many transactions in the lookback window?
+How many transactions **inside the lookback window**?
 
 ```
-txCount = getWalletHistory(addr, lookbackDays).length
+recent = getWalletHistory(addr).filter(tx => tx.timestamp >= now - lookbackDays * 86400)
+txCount = recent.length
 activity = min(100, txCount * 100 / (lookbackDays * 2))
 // caps at 2 tx/day = 100
 ```
 
-Captures: is this wallet an active trader vs a passive holder vs dormant?
+Important: filter to the window before counting. The default `getWalletHistory` page returns whatever fits in `limit`, which for old wallets covers far more than `lookbackDays`. If you count the whole page you over-credit dormant wallets that were active 6 months ago.
+
+Captures: is this wallet an active trader **right now** vs a passive holder vs dormant?
 
 ### diversification (0-100)
 
@@ -259,31 +263,18 @@ recency = max(0, 100 - daysSince * 5)
 
 Captures: still active or dormant? Stale wallets earn high activity scores from old behavior; recency is the dampener.
 
-### volume (0-100)
-
-Cumulative USD volume in lookback window, log-scaled.
-
-```
-transfers = getWalletTransfers(addr, lookbackDays)
-totalUsd = sum(transfers.map(t => t.amountUsd))
-volume = min(100, log10(max(1, totalUsd)) * 20)
-// $1     → 0
-// $1k    → 60
-// $100k  → 100
-```
-
-Captures: meaningful capital deployment vs micro-volume noise. Log scale so $10k and $1M aren't 100x apart in the score.
-
 ### holdAge (0-100)
 
-How long has this wallet existed?
+How long has this wallet existed? Use `getWalletFundedBy` to get the timestamp of the wallet's first funding transaction — that's its true birth date.
 
 ```
-firstSig = getWalletHistory(addr, limit=1, order=asc)[0].slot
-ageDays = (currentSlot - firstSig) * 0.4 / 86400
+funded = getWalletFundedBy(addr)
+ageDays = funded?.timestamp ? (now - funded.timestamp) / 86400 : 0
 holdAge = min(100, ageDays / 3.65)
 // 1 year = 100
 ```
+
+If `getWalletFundedBy` 404s (wallet's funding source can't be traced), fall back to the oldest tx in the current `getWalletHistory` page — but note that this **under-estimates** for wallets older than the page covers.
 
 Captures: not a brand-new wallet that might be a one-shot disposable. Established wallets have skin in the game.
 
@@ -291,7 +282,7 @@ Captures: not a brand-new wallet that might be a one-shot disposable. Establishe
 
 1. **Deterministic and auditable.** No opaque ML model. Users can recompute it themselves and challenge the score.
 2. **Resilient to gaming.** Each component requires real on-chain activity costing real fees. Hard to fake.
-3. **Composes well.** Each component is independently meaningful, so users can re-weight for their use case (e.g., "I only care about recency × volume").
+3. **Composes well.** Each component is independently meaningful, so users can re-weight for their use case (e.g., "I only care about recency × activity").
 4. **No price oracle dependency.** All inputs come from Helius primitives.
 
 ## Variations
@@ -304,7 +295,7 @@ Different users want different definitions. Expose the weights as parameters:
 scoreWallet({
   address,
   lookbackDays: 30,
-  weights: { activity: 0.4, recency: 0.4, volume: 0.2 } // mostly active+recent
+  weights: { activity: 0.5, recency: 0.5 } // mostly active+recent
 })
 ```
 
@@ -339,12 +330,14 @@ Detect wallets that game the score:
 
 ### Wash trading
 
-If a wallet's `volume` is high but the same set of counterparties appears repeatedly in its `getWalletTransfers`, the volume may be wash. Flag if:
+The base score doesn't include volume, so direct wash-trading detection requires a separate pass over `getWalletTransfers`. If the same set of counterparties appears repeatedly, the activity may be circular. Flag if:
 
 ```
-top3CounterpartiesShare > 0.6 // 60%+ of volume to same 3 wallets
-&& sumOfRoundTrips > 0.3 // and lots of back-and-forth
+top3CounterpartiesShare > 0.6 // 60%+ of transfers to same 3 wallets
+&& sumOfRoundTrips > 0.3      // and lots of back-and-forth
 ```
+
+Run this as an out-of-band check on top candidates only — it doesn't fit cleanly into the deterministic 4-component score.
 
 ### Coordinated cluster gaming
 
@@ -362,7 +355,7 @@ A wallet with `activity = 100` but a 50-day-old last tx is gaming activity by co
 
 ### Empty wallet (zero balances)
 
-`getWalletBalances` returns no tokens → `diversification = 0` and `volume` may be low. The wallet might still have history; still compute, but flag `flags: ["EMPTY_WALLET"]`.
+`getWalletBalances` returns no tokens → `diversification = 0`. The wallet might still have history; still compute, but flag `flags: ["EMPTY_WALLET"]`.
 
 ### Bot-like activity
 
@@ -381,7 +374,6 @@ interface ScoreComponents {
   activity: number;
   diversification: number;
   recency: number;
-  volume: number;
   holdAge: number;
 }
 
@@ -396,62 +388,54 @@ interface ScoreResult {
 async function scoreWallet(
   address: string,
   lookbackDays: number = 30,
-  weights: Partial<ScoreComponents> = {}
 ): Promise<ScoreResult> {
   const helius = createHelius({ apiKey: process.env.HELIUS_API_KEY! });
   const flags: string[] = [];
+  const nowSec = Date.now() / 1000;
 
-  // Pull primitives in parallel
-  const [history, balances, transfers, oldestTx] = await Promise.all([
-    helius.wallet.getWalletHistory({ address, limit: lookbackDays * 5 }),
-    helius.wallet.getWalletBalances({ address }),
-    helius.wallet.getWalletTransfers({ address, limit: lookbackDays * 5 }),
-    helius.wallet.getWalletHistory({ address, limit: 1, order: 'asc' }),
+  const fetchLimit = Math.min(100, Math.max(20, lookbackDays * 3));
+  const [history, balances, funded] = await Promise.all([
+    helius.wallet.getHistory({ wallet: address, limit: fetchLimit }),
+    helius.wallet.getBalances({ wallet: address, limit: 100, showNative: true }),
+    helius.wallet.getFundedBy({ wallet: address }).catch(() => null),
   ]);
 
-  // Compute components (per the formulas above)
-  const txCount = history.length;
-  const activity = Math.min(100, (txCount * 100) / (lookbackDays * 2));
+  // 1. Activity — txs in window
+  const cutoff = nowSec - lookbackDays * 86400;
+  const recent = history.data.filter(tx => tx.timestamp != null && tx.timestamp >= cutoff);
+  const activity = Math.min(100, (recent.length * 100) / Math.max(1, lookbackDays * 2));
 
-  const distinctTokens = balances.tokens?.filter(t => t.balanceUsd >= 1).length ?? 0;
-  const diversification = Math.min(100, distinctTokens * 5);
-  if (distinctTokens === 0) flags.push('EMPTY_WALLET');
+  // 2. Diversification
+  const distinct = balances.balances.filter(t => (t.usdValue ?? 0) >= 1).length;
+  const diversification = Math.min(100, distinct * 5);
+  if (distinct === 0) flags.push('EMPTY_WALLET');
 
-  const lastSlot = history[0]?.slot ?? 0;
-  const slotsSince = balances.currentSlot - lastSlot;
-  const daysSince = (slotsSince * 0.4) / 86400;
-  const recency = Math.max(0, 100 - daysSince * 5);
+  // 3. Recency
+  const lastTs = history.data[0]?.timestamp ?? null;
+  const daysSince = lastTs != null ? (nowSec - lastTs) / 86400 : Infinity;
+  const recency = isFinite(daysSince) ? Math.max(0, 100 - daysSince * 5) : 0;
+  if (recent.length === 0) flags.push('NO_RECENT_ACTIVITY');
 
-  const totalUsd = transfers.reduce((sum, t) => sum + (t.amountUsd ?? 0), 0);
-  const volume = Math.min(100, Math.log10(Math.max(1, totalUsd)) * 20);
-
-  const firstSlot = oldestTx[0]?.slot ?? balances.currentSlot;
-  const ageDays = ((balances.currentSlot - firstSlot) * 0.4) / 86400;
+  // 4. Hold age — from first funding tx (true wallet birth)
+  let ageDays = 0;
+  if (funded?.timestamp) {
+    ageDays = (nowSec - funded.timestamp) / 86400;
+  } else {
+    const oldest = history.data[history.data.length - 1]?.timestamp;
+    if (oldest) ageDays = (nowSec - oldest) / 86400;
+  }
   const holdAge = Math.min(100, ageDays / 3.65);
-  if (ageDays < 7) flags.push('NEW_WALLET');
+  if (ageDays > 0 && ageDays < 7) flags.push('NEW_WALLET');
 
-  const components: ScoreComponents = { activity, diversification, recency, volume, holdAge };
+  const components = { activity, diversification, recency, holdAge };
+  const score = Math.round(
+    activity * 0.30 +
+    diversification * 0.25 +
+    recency * 0.25 +
+    holdAge * 0.20
+  );
 
-  // Apply weights
-  const defaultWeights: ScoreComponents = {
-    activity: 0.25, diversification: 0.20, recency: 0.20, volume: 0.20, holdAge: 0.15,
-  };
-  const w = { ...defaultWeights, ...weights };
-  const wSum = Object.values(w).reduce((a, b) => a + b, 0);
-  const normalized = Object.fromEntries(
-    Object.entries(w).map(([k, v]) => [k, v / wSum])
-  ) as ScoreComponents;
-
-  const score = (Object.keys(components) as Array<keyof ScoreComponents>)
-    .reduce((sum, k) => sum + components[k] * normalized[k], 0);
-
-  return {
-    address,
-    score: Math.round(score),
-    components,
-    flags,
-    asOf: new Date().toISOString(),
-  };
+  return { address, score, components, flags, asOf: new Date().toISOString() };
 }
 ```
 
@@ -459,19 +443,18 @@ async function scoreWallet(
 
 | Primitive | Calls | Credits |
 |-----------|-------|---------|
-| getWalletHistory (recent) | 1 | ~110 |
+| getWalletHistory | 1 | ~110 |
 | getWalletBalances | 1 | ~100 |
-| getWalletTransfers | 1 | ~100 |
-| getWalletHistory (oldest) | 1 | ~110 |
-| **Total per score** | 4 | ~420 |
+| getWalletFundedBy | 1 | ~100 |
+| **Total per score** | 3 | ~310 |
 
-For 100 candidates: ~42k credits. On Developer plan (~10k credits/sec rate limit), about 4 seconds wall time when calls are parallelized.
+For 100 candidates: ~31k credits. On Developer plan (~10k credits/sec rate limit), about 3 seconds wall time when calls are parallelized.
 
 ## Common pitfalls
 
 - **Don't compare absolute scores across very different wallet types.** A score of 60 means very different things for an NFT-only wallet vs a memecoin trader. Use the score for relative ranking within a comparable cohort, not absolute classification.
 - **The score lags real-time.** It uses lookback data; a wallet that just became hot won't show that yet. Use recency-weighted variants for "is this wallet hot RIGHT NOW".
-- **Components are correlated.** activity and volume tend to move together; diversification and concentration are inversely related. The composite still ranks well, but don't double-count by adding redundant custom components.
+- **Components are correlated.** activity and recency move together; diversification and concentration are inversely related. The composite still ranks well, but don't double-count by adding redundant custom components.
 - **Outliers exist.** A wallet that scores 95 may still rug your trade — score is statistical, not deterministic about the next trade. Always present the score with components so users see *why*.
 
 
@@ -771,7 +754,7 @@ Cielo's 70 + Nansen's 70 ≠ "really good wallet." Each provider's score has its
 
 ### ❌ "Rank by a single component"
 
-A wallet with `volume = 100` but `recency = 0` and `diversification = 5` is a former-active whale, not smart money. Always use composite or surface all components.
+A wallet with `holdAge = 100` but `recency = 0` and `diversification = 5` is a former-active whale, not smart money. Always use composite or surface all components.
 
 ### ❌ "Auto-execute on signal"
 
@@ -916,7 +899,6 @@ Helius score: {score}/100
   - activity: {n}/100
   - diversification: {n}/100
   - recency: {n}/100
-  - volume: {n}/100
   - holdAge: {n}/100
 Identity: {labels}, {domain}
 Top holdings: {top5}
@@ -1059,11 +1041,15 @@ const transfers = await heliusWallet({
   limit: 200
 });
 
-// Recipients that received SOL or USDC, large enough to be a wallet seed
+// Recipients that received SOL or USDC, large enough to be a wallet seed.
+// Note: Transfer.amount is in human-readable units. For SOL: ≥ 0.5 SOL.
+// For USD-denominated thresholds, look up price via Jupiter price API or
+// cache spot prices once per cohort.
 const candidateSiblings = transfers
-  .filter(t => ["SOL", "USDC"].includes(t.token))
-  .filter(t => t.amountUsd >= 50)  // funding-tier transfers
-  .map(t => t.toAddress);
+  .filter(t => t.direction === "out")
+  .filter(t => (t.symbol === "SOL" && t.amount >= 0.5) ||
+               (t.symbol === "USDC" && t.amount >= 50))  // funding-tier
+  .map(t => t.counterparty);
 ```
 
 Dedupe and remove the original seed. These are **fund siblings**.

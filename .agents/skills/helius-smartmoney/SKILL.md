@@ -122,7 +122,7 @@ heliusWallet({
   address: "...",
   lookbackDays: 30  // default
 })
-// → { score, components: { activity, diversification, recency, volume, holdAge }, ... }
+// → { score, components: { activity, diversification, recency, holdAge }, ... }
 ```
 
 For batch scoring (ranking N candidates), call `scoreWallet` for each in parallel — there is no batch variant yet.

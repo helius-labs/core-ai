@@ -290,7 +290,7 @@ Cielo's 70 + Nansen's 70 ≠ "really good wallet." Each provider's score has its
 
 ### ❌ "Rank by a single component"
 
-A wallet with `volume = 100` but `recency = 0` and `diversification = 5` is a former-active whale, not smart money. Always use composite or surface all components.
+A wallet with `holdAge = 100` but `recency = 0` and `diversification = 5` is a former-active whale, not smart money. Always use composite or surface all components.
 
 ### ❌ "Auto-execute on signal"
 

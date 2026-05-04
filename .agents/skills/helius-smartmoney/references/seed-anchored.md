@@ -75,11 +75,15 @@ const transfers = await heliusWallet({
   limit: 200
 });
 
-// Recipients that received SOL or USDC, large enough to be a wallet seed
+// Recipients that received SOL or USDC, large enough to be a wallet seed.
+// Note: Transfer.amount is in human-readable units. For SOL: ≥ 0.5 SOL.
+// For USD-denominated thresholds, look up price via Jupiter price API or
+// cache spot prices once per cohort.
 const candidateSiblings = transfers
-  .filter(t => ["SOL", "USDC"].includes(t.token))
-  .filter(t => t.amountUsd >= 50)  // funding-tier transfers
-  .map(t => t.toAddress);
+  .filter(t => t.direction === "out")
+  .filter(t => (t.symbol === "SOL" && t.amount >= 0.5) ||
+               (t.symbol === "USDC" && t.amount >= 50))  // funding-tier
+  .map(t => t.counterparty);
 ```
 
 Dedupe and remove the original seed. These are **fund siblings**.

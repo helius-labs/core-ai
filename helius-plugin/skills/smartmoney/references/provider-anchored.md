@@ -128,7 +128,6 @@ Helius score: {score}/100
   - activity: {n}/100
   - diversification: {n}/100
   - recency: {n}/100
-  - volume: {n}/100
   - holdAge: {n}/100
 Identity: {labels}, {domain}
 Top holdings: {top5}
