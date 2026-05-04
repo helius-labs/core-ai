@@ -8,88 +8,25 @@ Monorepo containing Helius developer tools distributed as independent packages:
 - `helius-cursor/` — Cursor plugin (all-in-one: bundles skill + auto-starts MCP)
 - `helius-cli/` — CLI for account setup (npm: `helius-cli`)
 
-## Shared Content: Reference Files
+## Compiler-managed sync
 
-The reference files in `helius-skills/helius/references/` and `helius-plugin/skills/build/references/` **must be kept in sync**. These are the canonical Helius API reference docs used by Claude to route and compose tool calls.
+The compiler (`npx tsx scripts/compile-skills.ts`) is the source of truth for everything generated from `helius-skills/`. It writes:
 
-- **Canonical source**: `helius-skills/helius/references/`
-- **Copies**: `helius-plugin/skills/build/references/`, `helius-cursor/skills/build/references/`
-- When updating any reference file, update it in `helius-skills/` first, then copy the change to both `helius-plugin/` and `helius-cursor/`.
-- CI will fail if these directories diverge.
+1. `helius-skills/<skill>/SKILL.md` frontmatter version (re-injected from `versions.json`)
+2. `.agents/skills/<skill>/` — Codex-native SKILL.md + 3 prompt variants (`openai.developer.md`, `claude.system.md`, `full.md`)
+3. `helius-mcp/system-prompts/<skill>/` — same prompt variants, npm-shipped
+4. `helius-plugin/skills/<dir>/references/` and `helius-plugin/skills/<dir>/SKILL.md` (refs bytewise from canonical; SKILL.md gets version re-injected)
+5. `helius-cursor/skills/<dir>/references/` and `helius-cursor/skills/<dir>/SKILL.md` (same)
 
-### DFlow Skill References
+Run `npx tsx scripts/compile-skills.ts` after any change in `helius-skills/`. CI runs `--check` mode and fails on drift.
 
-The DFlow skill (`helius-skills/helius-dflow/`, `helius-plugin/skills/dflow/`, and `helius-cursor/skills/dflow/`) has its own reference files that **must also be kept in sync**.
+**Reference files** are byte-identical across all destinations — never hand-edit `helius-plugin/` or `helius-cursor/` references; only edit the canonical copy in `helius-skills/<skill>/references/`.
 
-- **Canonical source**: `helius-skills/helius-dflow/references/`
-- **Copies**: `helius-plugin/skills/dflow/references/`, `helius-cursor/skills/dflow/references/`
-- The DFlow skill contains 12 reference files: 7 Helius copies (prefixed with `helius-`), 4 DFlow-specific files, and 1 integration-patterns file.
-- The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside DFlow files in the same directory.
-- When updating DFlow reference files, update in `helius-skills/helius-dflow/references/` first, then copy to both `helius-plugin/skills/dflow/references/` and `helius-cursor/skills/dflow/references/`.
-
-### Phantom Skill References
-
-The Phantom skill (`helius-skills/helius-phantom/`, `helius-plugin/skills/phantom/`, and `helius-cursor/skills/phantom/`) has its own reference files that **must also be kept in sync**.
-
-- **Canonical source**: `helius-skills/helius-phantom/references/`
-- **Copies**: `helius-plugin/skills/phantom/references/`, `helius-cursor/skills/phantom/references/`
-- The Phantom skill contains 16 reference files: 7 Helius copies (prefixed with `helius-`), 8 Phantom-specific files (react-sdk, browser-sdk, react-native-sdk, transactions, token-gating, nft-minting, payments, frontend-security), and 1 integration-patterns file.
-- The Helius copies have modified cross-references (e.g., LaserStream and Webhooks point to `docs.helius.dev` instead of local references, since those are excluded from the frontend skill).
-- When updating Phantom reference files, update in `helius-skills/helius-phantom/references/` first, then copy to both `helius-plugin/skills/phantom/references/` and `helius-cursor/skills/phantom/references/`.
-
-### Jupiter Skill References
-
-The Jupiter skill (`helius-skills/helius-jupiter/`, `helius-plugin/skills/jupiter/`, and `helius-cursor/skills/jupiter/`) has its own reference files that **must also be kept in sync**.
-
-- **Canonical source**: `helius-skills/helius-jupiter/references/`
-- **Copies**: `helius-plugin/skills/jupiter/references/`, `helius-cursor/skills/jupiter/references/`
-- The Jupiter skill contains 16 reference files: 7 Helius copies (prefixed with `helius-`), 8 Jupiter-specific files (swap, lend, trigger, recurring, tokens-price, perps-predictions, plugin, portal), and 1 integration-patterns file.
-- The Helius copies have modified cross-references (e.g., `references/helius-laserstream.md` instead of `references/laserstream.md`) to work alongside Jupiter files in the same directory.
-- When updating Jupiter reference files, update in `helius-skills/helius-jupiter/references/` first, then copy to both `helius-plugin/skills/jupiter/references/` and `helius-cursor/skills/jupiter/references/`.
-
-### OKX Skill References
-
-The OKX skill (`helius-skills/helius-okx/`, `helius-plugin/skills/okx/`, and `helius-cursor/skills/okx/`) is an **integration-only layer** that describes how to compose OKX tools with Helius tools. It does not duplicate OKX's own documentation — users install the OKX skill library (`onchainos-skills`) separately.
-
-- **Canonical source**: `helius-skills/helius-okx/references/`
-- **Copies**: `helius-plugin/skills/okx/references/`, `helius-cursor/skills/okx/references/`
-- The OKX skill contains 1 reference file: `integration-patterns.md` (6 end-to-end Helius + OKX composition patterns).
-- When updating OKX reference files, update in `helius-skills/helius-okx/references/` first, then copy to both `helius-plugin/skills/okx/references/` and `helius-cursor/skills/okx/references/`.
-
-### SVM Skill References
-
-The SVM skill (`helius-skills/svm/`, `helius-plugin/skills/svm/`, and `helius-cursor/skills/svm/`) has its own reference files that **must also be kept in sync**.
-
-- **Canonical source**: `helius-skills/svm/references/`
-- **Copies**: `helius-plugin/skills/svm/references/`, `helius-cursor/skills/svm/references/`
-- The SVM skill contains 10 reference files: compilation, programs, execution, accounts, transactions, consensus, validators, data, development, tokens.
-- When updating SVM reference files, update in `helius-skills/svm/references/` first, then copy to both `helius-plugin/skills/svm/references/` and `helius-cursor/skills/svm/references/`.
+**SKILL.md bodies** in `helius-plugin/` and `helius-cursor/` are intentionally **not identical** to canonical (different MCP prerequisite messaging, condensed router surface section). They are hand-managed in those packages. Only the frontmatter version is auto-synced from `versions.json`.
 
 ## Skill Versioning
 
-Skill versions are managed via `versions.json` at the repo root (single source of truth). The compiler reads this file and injects versions into all SKILL.md copies and prompt variants.
-
-- **To bump a version**: edit `versions.json`, then run `npx tsx scripts/compile-skills.ts`
-- The compiler updates: canonical `helius-skills/*/SKILL.md`, plugin/cursor copies, Codex SKILL.md, and all prompt variants (openai/claude/full)
-- Versions follow semver (`major.minor.patch`)
-
-## Generated Output
-
-The following directories are **generated** by `npx tsx scripts/compile-skills.ts` from canonical sources in `helius-skills/`. Do not edit them directly.
-
-- `.agents/skills/` — Codex-native skills + prompt variants
-- `helius-mcp/system-prompts/` — npm-shipped prompt copies
-
-### Sync Paths from Canonical Source
-
-All skill content flows from `helius-skills/` to four destinations:
-
-1. `helius-skills/` → `helius-plugin/skills/` (manual copy — Claude Code plugin)
-2. `helius-skills/` → `helius-cursor/skills/` (manual copy — Cursor plugin)
-3. `helius-skills/` → `.agents/skills/` (compiler-generated)
-4. `helius-skills/` → `helius-mcp/system-prompts/` (compiler-generated)
-
-CI validates all sync paths. After modifying any `SKILL.md` or reference file in `helius-skills/`, run `npx tsx scripts/compile-skills.ts` to regenerate output.
+Skill versions are managed via `versions.json` at the repo root (single source of truth). To bump a version, edit `versions.json` and re-run the compiler. Versions follow semver.
 
 ## Router Surface Maintenance
 
@@ -109,12 +46,58 @@ If you change the router surface, routed tool descriptions, action-routing guida
 
 Do not leave router/runtime changes documented in only one layer.
 
-## SKILL.md Files
 
-The SKILL.md files in each package are intentionally **not identical** — they share most content but differ in:
+---
 
-- Skill name (`helius` vs `build`, `helius-dflow` vs `dflow`, `helius-jupiter` vs `jupiter`, `helius-okx` vs `okx`, `helius-phantom` vs `phantom`, `svm` vs `svm`)
-- Metadata/frontmatter
-- MCP prerequisite messaging (manual install vs plugin auto-start, Cursor vs Claude Code restart instructions)
+## Workflow Preferences (TEST — added 2026-05-03)
 
-When making content changes to SKILL.md (e.g., adding rules, updating routing logic, new pitfalls), apply the change to `helius-plugin/`, `helius-cursor/`, and `helius-skills/` manually.
+> Pilot of autonomous-with-guardrails workflow. If this works well it gets promoted to global config. If it misfires, delete this entire section.
+
+### Self-answered planning (not user-answered)
+For non-trivial work, generate the planning questions you would normally ask me, then answer them yourself based on context, codebase signals, and reasonable defaults. Format as a visible Q&A block so I can scan and correct assumptions before implementation begins.
+
+Format:
+```
+**Plan**
+- Q: <question> → A: <your answer> *(assumed — correct me if wrong)*
+- Q: <question> → A: <your answer>
+- Q: <question> → A: <your answer>
+
+Proceeding unless you redirect.
+```
+
+Then implement immediately. Do not pause for user response.
+
+Escalate a question to me ONLY if:
+- The answer materially changes the downstream approach AND cannot be inferred from context
+- It concerns my taste, business intent, or a destructive/irreversible decision
+- I have not given you enough context to make a reasonable default
+
+### After a recommendation, just proceed
+- When you surface options and recommend one, **treat the recommendation as the chosen path and proceed**.
+- Do not write "Want me to spec X?", "Should I proceed?", "If yes, I'll start...", or similar approval-seeking phrasings. They are banned.
+- Pick → self-Q&A → execute. The user interrupts if they want to redirect; absence of objection is consent.
+
+### Never drip questions one at a time
+- If you have multiple clarifying questions, batch them ALL into the Plan block.
+- Never write "I'll ask one at a time" or "let me ask the first question first" — that is the exact anti-pattern this config exists to prevent.
+- One Plan block, all questions self-answered, then go.
+
+### Skills with built-in checkpoints — override their ceremony
+- `superpowers:writing-plans`, `superpowers:brainstorming`, `superpowers:executing-plans` and similar skills have approval gates built into their workflow. **The rules in this section override those gates.**
+- Use the skills' frameworks (the structure, the rigor, the verification discipline) but skip the "wait for user to confirm before each phase" parts.
+- A task list is fine; pausing between tasks for approval is not.
+
+### Execute plans straight through
+- Do not break execution into review checkpoints between phases.
+- Do not stop to ask "shall I proceed?" — keep going until the plan is done or you hit a real blocker (failing test, ambiguous spec, destructive op).
+- Save status updates for the end.
+
+### Plan mode is opt-in
+- Do not invoke `EnterPlanMode` for routine work. Proceed directly.
+- Use plan mode only for: destructive operations, schema migrations, or changes to shared infrastructure (CI/CD, prod configs, MCP server configs, ~/.claude/settings.json, the canonical sync sources at `helius-skills/`).
+
+### Accuracy gate (non-negotiable)
+- Before claiming any task is "done", "fixed", "passing", or "complete": invoke `superpowers:verification-before-completion`.
+- Show command output as evidence, not assertions. This rule applies even when other ceremony is skipped.
+- For this repo specifically, "done" requires: relevant tests pass, `npx tsx scripts/compile-skills.ts` succeeds if any `helius-skills/` files changed, and CI sync checks would pass.
