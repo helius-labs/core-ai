@@ -114,7 +114,10 @@ This package ships with pre-built system prompts that teach AI models how to use
 system-prompts/
 ├── helius/              # Core Helius skill
 ├── helius-dflow/        # DFlow trading skill
+├── helius-jupiter/      # Jupiter DeFi skill
+├── helius-okx/          # OKX integration skill
 ├── helius-phantom/      # Phantom frontend skill
+├── helius-smartmoney/   # Smart-money discovery skill
 └── svm/                 # SVM architecture skill
 ```
 

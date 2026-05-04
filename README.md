@@ -167,8 +167,11 @@ Standalone [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/s
 |---|---|---|
 | [`helius`](./helius-skills/helius) | `/helius` | Build Solana apps with Helius infrastructure — Sender, DAS API, WebSockets, Laserstream, webhooks, priority fees, and our Wallet API |
 | [`helius-dflow`](./helius-skills/helius-dflow) | `/helius-dflow` | Build Solana trading apps combining DFlow's trading APIs (spot swaps, prediction markets, Proof KYC) with Helius infrastructure |
+| [`helius-jupiter`](./helius-skills/helius-jupiter) | `/helius-jupiter` | Build DeFi apps combining Jupiter (Swap V2, Lend, Trigger, DCA) with Helius infrastructure |
+| [`helius-okx`](./helius-skills/helius-okx) | `/helius-okx` | Build trading and intelligence apps composing OKX DEX aggregation and smart-money signals with Helius |
+| [`helius-phantom`](./helius-skills/helius-phantom) | `/helius-phantom` | Build browser-based Solana apps with Phantom wallet + Helius — wallet connection, transaction signing, API key proxying, and secure URLs |
+| [`helius-smartmoney`](./helius-skills/helius-smartmoney) | `/helius-smartmoney` | Find and follow high-quality wallets — token-anchored, seed-anchored, provider-anchored, and behavioral scoring |
 | [`svm`](./helius-skills/svm) | `/svm` | Explore Solana's architecture and protocol internals — SVM execution engine, account model, consensus, validator economics, and token extensions |
-| `helius-phantom` | `/helius-phantom` | Build browser-based Solana apps with Phantom wallet + Helius — wallet connection, transaction signing, API key proxying, and secure URLs |
 
 ### Installation
 
@@ -220,8 +223,11 @@ An all-in-one [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-cod
 |---|---|---|
 | Build | `/helius:build` | Expert Solana developer — Helius APIs, routing logic, SDK patterns, and common-mistake prevention |
 | DFlow | `/helius:dflow` | Expert Solana trading apps — DFlow swaps, prediction markets, Proof KYC, combined with Helius infrastructure |
+| Jupiter | `/helius:jupiter` | DeFi apps — Jupiter Swap V2, Lend, Trigger, DCA, combined with Helius |
+| OKX | `/helius:okx` | Trading and intelligence — OKX DEX aggregation + smart-money signals composed with Helius |
+| Phantom | `/helius:phantom` | Expert frontend Solana dev — Phantom wallet integration, CORS handling, API proxying |
+| Smart Money | `/helius:smartmoney` | Find and follow high-quality wallets — token-anchored, seed-anchored, provider-anchored, and behavioral scoring |
 | SVM | `/helius:svm` | Solana protocol expert — architecture, internals, consensus, and validator economics |
-| Phantom *(coming soon)* | `/helius:phantom` | Expert frontend Solana dev — Phantom wallet integration, CORS handling, API proxying |
 
 ### API Key Setup
 

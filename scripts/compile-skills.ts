@@ -108,6 +108,18 @@ const SKILLS: SkillConfig[] = [
   up secure API key proxying. Requires helius-mcp MCP server.`,
   },
   {
+    dir: "helius-smartmoney",
+    pluginDir: "smartmoney",
+    enhancedDescription: `Find and follow high-quality Solana wallets ("smart money") by composing
+  Helius wallet, asset, and transaction primitives. Use this skill when: a user
+  asks who is profiting on a token, wants wallets similar to a known KOL or
+  trader, needs to verify a smart-money provider's list (OKX, Cielo, Nansen),
+  needs to score a wallet 0-100 on quality metrics, or is building a discovery
+  pipeline for copy-trading. Covers four discovery vectors — token-anchored,
+  seed-anchored, provider-anchored, behavioral-scoring — plus integration
+  patterns. Requires helius-mcp MCP server.`,
+  },
+  {
     dir: "svm",
     pluginDir: "svm",
     enhancedDescription: `Explore Solana's architecture and protocol internals. Use this skill when:
