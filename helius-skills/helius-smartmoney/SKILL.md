@@ -113,20 +113,25 @@ Given a wallet (or set of wallets), compute a deterministic quality score from o
 | "who bought $TOKEN in the first hour" | Token-anchored + time filter | `token-anchored.md` §"Early-entry filter" |
 | "find dev wallets / team-funded wallets" | Seed-anchored from treasury | `seed-anchored.md` §"Treasury seed" |
 
-### MCP action: `scoreWallet`
+### MCP actions
 
-`scoreWallet` is a routed Helius MCP action that returns a deterministic 0-100 quality score for one address, plus the component scores it was built from. Use it instead of running the behavioral-scoring formulas yourself when MCP is available.
+Two routed Helius MCP actions wrap this skill's workflows:
+
+**`scoreWallet({ address, lookbackDays? })`** — deterministic 0-100 score for one address. Use when you already have a candidate and want to rank it.
 
 ```ts
-heliusWallet({
-  action: "scoreWallet",
-  address: "...",
-  lookbackDays: 30  // default
-})
+heliusWallet({ action: "scoreWallet", address: "...", lookbackDays: 30 })
 // → { score, components: { activity, diversification, recency, holdAge }, ... }
 ```
 
-For batch scoring (ranking N candidates), call `scoreWallet` for each in parallel — there is no batch variant yet.
+**`searchTopWallets({ mint, limit?, lookbackDays? })`** — full token-anchored discovery in one call. Composes `getTokenHolders` → `batchWalletIdentity` (filter labeled CEX/programs) → `scoreWallet × N` → rank by score.
+
+```ts
+heliusWallet({ action: "searchTopWallets", mint: "<TOKEN_MINT>", limit: 5 })
+// → ranked top-N table with score + components per wallet
+```
+
+Use `searchTopWallets` when the user names a token. Use `scoreWallet` when they name a wallet. For seed-anchored or provider-anchored discovery, use the patterns in the corresponding reference files and call `scoreWallet` on each candidate.
 
 ## Composing across vectors
 

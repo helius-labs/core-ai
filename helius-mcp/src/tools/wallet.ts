@@ -336,79 +336,8 @@ export function registerWalletTools(server: McpServer) {
 
       try {
         const client = getHeliusClient();
-        const fetchLimit = Math.min(100, Math.max(20, lookbackDays * 3));
-
-        // Fetch in parallel; getFundedBy may legitimately 404 for some wallets
-        const [historyRes, balancesRes, fundedRes] = await Promise.all([
-          client.wallet.getHistory({ wallet: address, limit: fetchLimit }),
-          client.wallet.getBalances({ wallet: address, limit: 100, showNative: true }),
-          client.wallet.getFundedBy({ wallet: address }).catch(() => null),
-        ]);
-
-        const history = (historyRes.data ?? []) as Array<HistoryTransaction>;
-        const balances = (balancesRes.balances ?? []) as Array<{ usdValue?: number | null }>;
-
-        const flags: string[] = [];
-        const nowSec = Date.now() / 1000;
-
-        // 1. Activity — txs in lookback window only (not all returned txs)
-        // Caps at 2 tx/day in window = 100
-        const lookbackCutoff = nowSec - lookbackDays * 86400;
-        const recentTxs = history.filter(tx => tx.timestamp != null && tx.timestamp >= lookbackCutoff);
-        const txCount = recentTxs.length;
-        const activity = Math.min(100, (txCount * 100) / Math.max(1, lookbackDays * 2));
-
-        // 2. Diversification — distinct priced tokens >= $1
-        // Caps at 20 = 100
-        const distinctTokens = balances.filter(t => (t.usdValue ?? 0) >= 1).length;
-        const diversification = Math.min(100, distinctTokens * 5);
-        if (distinctTokens === 0) flags.push('EMPTY_WALLET');
-
-        // 3. Recency — 0 days since last tx = 100, 20 days = 0
-        const lastTs = history[0]?.timestamp ?? null;
-        const daysSince = lastTs != null ? (nowSec - lastTs) / 86400 : Infinity;
-        const recency = isFinite(daysSince) ? Math.max(0, 100 - daysSince * 5) : 0;
-        if (txCount === 0) flags.push('NO_RECENT_ACTIVITY');
-
-        // 4. Hold age — true wallet age from first funding tx (via getWalletFundedBy)
-        // Fallback: oldest tx in current history page (will under-estimate for old wallets).
-        // 1 year = 100.
-        let ageDays = 0;
-        if (fundedRes && fundedRes.timestamp) {
-          ageDays = (nowSec - fundedRes.timestamp) / 86400;
-        } else {
-          const oldestTs = history[history.length - 1]?.timestamp;
-          if (oldestTs) ageDays = (nowSec - oldestTs) / 86400;
-        }
-        const holdAge = Math.min(100, ageDays / 3.65);
-        if (ageDays > 0 && ageDays < 7) flags.push('NEW_WALLET');
-
-        // Composite — 4 components, weights sum to 1.0
-        // activity 0.30, diversification 0.25, recency 0.25, holdAge 0.20
-        const score = Math.round(
-          activity * 0.30 +
-          diversification * 0.25 +
-          recency * 0.25 +
-          holdAge * 0.20
-        );
-
-        const lines = [
-          `**Wallet Score: ${score}/100**`,
-          `**Address:** ${formatAddress(address)}`,
-          `**Lookback:** ${lookbackDays} days`,
-          '',
-          `**Components**`,
-          `- Activity: ${Math.round(activity)}/100 (${txCount} txs in last ${lookbackDays}d)`,
-          `- Diversification: ${Math.round(diversification)}/100 (${distinctTokens} tokens ≥ $1)`,
-          `- Recency: ${Math.round(recency)}/100 (${isFinite(daysSince) ? Math.round(daysSince) + 'd' : 'never'} since last tx)`,
-          `- Hold age: ${Math.round(holdAge)}/100 (${Math.round(ageDays)}d since first funding${fundedRes?.timestamp ? '' : ', est. from history'})`,
-        ];
-        if (flags.length > 0) {
-          lines.push('', `**Flags:** ${flags.join(', ')}`);
-        }
-        lines.push('', `*Score is a quality classifier, not a P&L estimate. See \`helius-smartmoney/references/behavioral-scoring.md\` for the formula and limitations.*`);
-
-        return mcpText(lines.join('\n'));
+        const result = await computeWalletScore(client, address, lookbackDays);
+        return mcpText(formatScoreResult(address, lookbackDays, result));
       } catch (err) {
         return handleToolError(err, 'Error scoring wallet', [
           addressError('Score Wallet'),
@@ -416,4 +345,235 @@ export function registerWalletTools(server: McpServer) {
       }
     }
   );
+
+  // ─── Search Top Wallets ───
+  server.tool(
+    'searchTopWallets',
+    'BEST FOR: finding good wallets to follow on a specific token (token-anchored smart-money discovery). Composes getTokenHolders + batchWalletIdentity + scoreWallet to return a ranked list of N candidates with full score components. Filters out CEX/program addresses automatically. Credit cost: ~50 + (limit * ~310). For limit=5, ~1.6k credits.',
+    {
+      mint: z.string().describe('Token mint address (base58 encoded) — discovery anchored on holders of this token'),
+      limit: z.number().optional().default(5).describe('Maximum number of wallets to score and return (default 5, max 20)'),
+      lookbackDays: z.number().optional().default(30).describe('Window for activity/recency scoring (default 30)'),
+    },
+    async ({ mint, limit, lookbackDays }) => {
+      if (!hasApiKey()) return noApiKeyResponse();
+
+      const cappedLimit = Math.min(20, Math.max(1, limit));
+
+      try {
+        const client = getHeliusClient();
+
+        // 1. Top holders (via SDK getTokenAccounts — same pattern as getTokenHolders tool)
+        const holdersRes = await (client as unknown as {
+          getTokenAccounts: (args: { mint: string; page: number; limit: number }) => Promise<{
+            token_accounts?: Array<{ owner: string; amount: number }>;
+          }>;
+        }).getTokenAccounts({ mint, page: 1, limit: 20 });
+        const holders = (holdersRes.token_accounts ?? [])
+          .sort((a, b) => Number(b.amount) - Number(a.amount))
+          .map(h => h.owner);
+
+        if (holders.length === 0) {
+          return mcpError(
+            `No holders found for mint "${mint}".`,
+            { type: 'NOT_FOUND', code: 'NO_HOLDERS', retryable: false, recovery: 'Verify the mint address is correct.' }
+          );
+        }
+
+        // 2. Batch identify and filter out labeled (CEX/exchange/program) wallets.
+        // A wallet is labeled when `name` is populated. The SDK returns `type` even
+        // for unknown wallets (default placeholder), so it's not a reliable discriminator.
+        const idResult: Array<{ address: string; name?: string }> = await client.wallet
+          .getBatchIdentity({ addresses: holders })
+          .catch(() => []);
+        const labeled = new Set(
+          idResult
+            .filter((i: { address: string; name?: string }) => i?.name && i.name.length > 0)
+            .map((i: { address: string }) => i.address)
+        );
+        const candidates = holders.filter(addr => !labeled.has(addr));
+
+        if (candidates.length === 0) {
+          return mcpText(`**Top Wallets for ${formatAddress(mint)}**\n\nAll ${holders.length} top holders are labeled (CEX/exchange/program); no candidates remain after filtering.`);
+        }
+
+        // 3. Score top N candidates in parallel
+        const toScore = candidates.slice(0, cappedLimit);
+        const scored = await Promise.all(
+          toScore.map(async addr => {
+            try {
+              const result = await computeWalletScore(client, addr, lookbackDays);
+              return { address: addr, ...result, error: null as string | null };
+            } catch (err) {
+              return {
+                address: addr,
+                score: 0,
+                components: { activity: 0, diversification: 0, recency: 0, holdAge: 0 },
+                flags: [] as string[],
+                ageDays: 0,
+                txCount: 0,
+                distinctTokens: 0,
+                daysSince: Infinity,
+                fundedFromTx: false,
+                error: err instanceof Error ? err.message : String(err),
+              };
+            }
+          })
+        );
+
+        // 4. Rank
+        const ranked = scored.sort((a, b) => b.score - a.score);
+
+        // 5. Format
+        const lines: string[] = [
+          `**Top ${ranked.length} Wallets — ${formatAddress(mint)}**`,
+          '',
+          `Discovery: token-anchored. Pool: ${holders.length} top holders, ${candidates.length} after CEX/program filter, scored top ${toScore.length}.`,
+          '',
+          '| # | Address | Score | A | D | R | H | Flags |',
+          '|---|---------|------:|---:|---:|---:|---:|---|',
+        ];
+        ranked.forEach((w, i) => {
+          const c = w.components;
+          const flags = w.error ? `ERR: ${w.error.slice(0, 40)}` : (w.flags.join(',') || '-');
+          lines.push(`| ${i + 1} | \`${formatAddress(w.address)}\` | ${w.score} | ${Math.round(c.activity)} | ${Math.round(c.diversification)} | ${Math.round(c.recency)} | ${Math.round(c.holdAge)} | ${flags} |`);
+        });
+        lines.push('');
+        lines.push('*Components: A=Activity, D=Diversification, R=Recency, H=HoldAge (each 0-100). Score weights: A 0.30, D 0.25, R 0.25, H 0.20.*');
+        lines.push('');
+        lines.push('*Note: A score < 70 typically indicates the wallet is NOT smart money — top holders of a token are often bag-holders, not active traders. See `helius-smartmoney/references/token-anchored.md`.*');
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error searching top wallets', []);
+      }
+    }
+  );
+}
+
+// ─── Internal: shared scoring helper ───
+
+export interface ScoreComputation {
+  score: number;
+  components: {
+    activity: number;
+    diversification: number;
+    recency: number;
+    holdAge: number;
+  };
+  flags: string[];
+  ageDays: number;
+  txCount: number;
+  distinctTokens: number;
+  daysSince: number;
+  fundedFromTx: boolean;  // true when holdAge fell back to oldest-tx (no funder data)
+}
+
+interface HeliusClientLike {
+  wallet: {
+    getHistory: (args: { wallet: string; limit?: number }) => Promise<{ data: Array<{ timestamp: number | null }> }>;
+    getBalances: (args: { wallet: string; limit?: number; showNative?: boolean }) => Promise<{ balances: Array<{ usdValue?: number | null }> }>;
+    getFundedBy: (args: { wallet: string }) => Promise<{ timestamp?: number } | null>;
+    getBatchIdentity?: (args: { addresses: string[] }) => Promise<Array<{ address: string; type: string }>>;
+  };
+}
+
+/**
+ * Compute the deterministic 0-100 wallet quality score.
+ *
+ * Composes getWalletHistory + getWalletBalances + getWalletFundedBy in parallel.
+ * Uses the lookbackDays window for activity/recency; uses funder timestamp for
+ * accurate hold-age (with fallback to oldest tx if funder is unknown).
+ */
+export async function computeWalletScore(
+  client: HeliusClientLike,
+  address: string,
+  lookbackDays: number,
+): Promise<ScoreComputation> {
+  const fetchLimit = Math.min(100, Math.max(20, lookbackDays * 3));
+  const nowSec = Date.now() / 1000;
+
+  const [historyRes, balancesRes, fundedRes] = await Promise.all([
+    client.wallet.getHistory({ wallet: address, limit: fetchLimit }),
+    client.wallet.getBalances({ wallet: address, limit: 100, showNative: true }),
+    client.wallet.getFundedBy({ wallet: address }).catch(() => null),
+  ]);
+
+  const history = historyRes?.data ?? [];
+  const balances = balancesRes?.balances ?? [];
+  const flags: string[] = [];
+
+  // 1. Activity — txs in window only
+  const lookbackCutoff = nowSec - lookbackDays * 86400;
+  const recentTxs = history.filter(tx => tx.timestamp != null && tx.timestamp >= lookbackCutoff);
+  const txCount = recentTxs.length;
+  const activity = Math.min(100, (txCount * 100) / Math.max(1, lookbackDays * 2));
+
+  // 2. Diversification — distinct priced tokens >= $1
+  const distinctTokens = balances.filter(t => (t.usdValue ?? 0) >= 1).length;
+  const diversification = Math.min(100, distinctTokens * 5);
+  if (distinctTokens === 0) flags.push('EMPTY_WALLET');
+
+  // 3. Recency
+  const lastTs = history[0]?.timestamp ?? null;
+  const daysSince = lastTs != null ? (nowSec - lastTs) / 86400 : Infinity;
+  const recency = isFinite(daysSince) ? Math.max(0, 100 - daysSince * 5) : 0;
+  if (txCount === 0) flags.push('NO_RECENT_ACTIVITY');
+
+  // 4. Hold age — funder timestamp, with oldest-tx fallback
+  let ageDays = 0;
+  let fundedFromTx = false;
+  if (fundedRes?.timestamp) {
+    ageDays = (nowSec - fundedRes.timestamp) / 86400;
+  } else {
+    const oldestTs = history[history.length - 1]?.timestamp;
+    if (oldestTs) {
+      ageDays = (nowSec - oldestTs) / 86400;
+      fundedFromTx = true;
+    }
+  }
+  const holdAge = Math.min(100, ageDays / 3.65);
+  if (ageDays > 0 && ageDays < 7) flags.push('NEW_WALLET');
+
+  const score = Math.round(
+    activity * 0.30 +
+    diversification * 0.25 +
+    recency * 0.25 +
+    holdAge * 0.20
+  );
+
+  return {
+    score,
+    components: { activity, diversification, recency, holdAge },
+    flags,
+    ageDays,
+    txCount,
+    distinctTokens,
+    daysSince,
+    fundedFromTx,
+  };
+}
+
+function formatScoreResult(
+  address: string,
+  lookbackDays: number,
+  result: ScoreComputation,
+): string {
+  const c = result.components;
+  const lines = [
+    `**Wallet Score: ${result.score}/100**`,
+    `**Address:** ${formatAddress(address)}`,
+    `**Lookback:** ${lookbackDays} days`,
+    '',
+    `**Components**`,
+    `- Activity: ${Math.round(c.activity)}/100 (${result.txCount} txs in last ${lookbackDays}d)`,
+    `- Diversification: ${Math.round(c.diversification)}/100 (${result.distinctTokens} tokens ≥ $1)`,
+    `- Recency: ${Math.round(c.recency)}/100 (${isFinite(result.daysSince) ? Math.round(result.daysSince) + 'd' : 'never'} since last tx)`,
+    `- Hold age: ${Math.round(c.holdAge)}/100 (${Math.round(result.ageDays)}d since first funding${result.fundedFromTx ? ', est. from history' : ''})`,
+  ];
+  if (result.flags.length > 0) {
+    lines.push('', `**Flags:** ${result.flags.join(', ')}`);
+  }
+  lines.push('', `*Score is a quality classifier, not a P&L estimate. See \`helius-smartmoney/references/behavioral-scoring.md\` for the formula and limitations.*`);
+  return lines.join('\n');
 }

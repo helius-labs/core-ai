@@ -61,6 +61,7 @@ export const HELIUS_WALLET_SCHEMA = withTelemetry({
   args: argsField,
   address: optionalString(),
   addresses: stringArray(),
+  mint: optionalString(),
   limit: optionalNumber(),
   page: optionalNumber(),
   cursor: optionalString(),
@@ -69,6 +70,7 @@ export const HELIUS_WALLET_SCHEMA = withTelemetry({
   showNfts: optionalBoolean(),
   showZeroBalance: optionalBoolean(),
   showNative: optionalBoolean(),
+  lookbackDays: optionalNumber(),
 });
 
 export const HELIUS_ASSET_SCHEMA = withTelemetry({
