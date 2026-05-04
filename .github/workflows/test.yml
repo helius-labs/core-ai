@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-mcp:
     name: Test helius-mcp
     runs-on: ubuntu-latest
     defaults:
@@ -27,4 +27,25 @@ jobs:
 
       - run: pnpm install
       - run: pnpm build
+      - run: pnpm test
+
+  test-cli:
+    name: Test helius-cli
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./helius-cli
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: pnpm install
       - run: pnpm test
