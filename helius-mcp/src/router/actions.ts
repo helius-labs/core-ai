@@ -22,6 +22,7 @@ export const HELIUS_WALLET_ACTIONS = [
   'getWalletIdentity',
   'batchWalletIdentity',
   'getWalletFundedBy',
+  'scoreWallet',
 ] as const;
 
 export const HELIUS_ASSET_ACTIONS = [

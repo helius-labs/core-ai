@@ -322,4 +322,93 @@ export function registerWalletTools(server: McpServer) {
       }
     }
   );
+
+  // ─── Score Wallet ───
+  server.tool(
+    'scoreWallet',
+    'BEST FOR: ranking wallets by quality (smart-money discovery, copy-trading watchlists). Computes a deterministic 0-100 quality score from on-chain primitives — activity, diversification, recency, volume, and hold age. NOT a P&L estimate; a quality classifier. Credit cost: ~400 credits (composes getWalletHistory + getWalletBalances + getWalletTransfers).',
+    {
+      address: z.string().describe('Solana wallet address (base58 encoded)'),
+      lookbackDays: z.number().optional().default(30).describe('Window for activity/volume/recency scoring (default 30)'),
+    },
+    async ({ address, lookbackDays }) => {
+      if (!hasApiKey()) return noApiKeyResponse();
+
+      try {
+        const client = getHeliusClient();
+        const fetchLimit = Math.min(100, Math.max(20, lookbackDays * 3));
+
+        const [historyRes, balancesRes, transfersRes] = await Promise.all([
+          client.wallet.getHistory({ wallet: address, limit: fetchLimit }),
+          client.wallet.getBalances({ wallet: address, limit: 100, showNative: true }),
+          client.wallet.getTransfers({ wallet: address, limit: fetchLimit }),
+        ]);
+
+        const history = (historyRes.data ?? []) as Array<HistoryTransaction>;
+        const balances = (balancesRes.balances ?? []) as Array<{ usdValue?: number }>;
+        const transfers = (transfersRes.data ?? []) as Array<Transfer & { amountUsd?: number }>;
+
+        const flags: string[] = [];
+
+        // 1. Activity — caps at 2 tx/day = 100
+        const txCount = history.length;
+        const activity = Math.min(100, (txCount * 100) / Math.max(1, lookbackDays * 2));
+
+        // 2. Diversification — caps at 20 distinct $1+ tokens = 100
+        const distinctTokens = balances.filter(t => (t.usdValue ?? 0) >= 1).length;
+        const diversification = Math.min(100, distinctTokens * 5);
+        if (distinctTokens === 0) flags.push('EMPTY_WALLET');
+
+        // 3. Recency — 0 days = 100, 20 days = 0
+        const nowSec = Date.now() / 1000;
+        const lastTx = history[0];
+        const lastTs = lastTx?.timestamp;
+        const daysSince = lastTs ? (nowSec - lastTs) / 86400 : 365;
+        const recency = Math.max(0, 100 - daysSince * 5);
+        if (txCount === 0) flags.push('NO_RECENT_ACTIVITY');
+
+        // 4. Volume — log10 scale, $100k = 100
+        const totalUsd = transfers.reduce((sum, t) => sum + (t.amountUsd ?? 0), 0);
+        const volume = Math.min(100, Math.log10(Math.max(1, totalUsd)) * 20);
+
+        // 5. Hold age — 1 year = 100. Approximated from oldest tx in current page.
+        const oldestTs = history[history.length - 1]?.timestamp;
+        const ageDays = oldestTs ? (nowSec - oldestTs) / 86400 : 0;
+        const holdAge = Math.min(100, ageDays / 3.65);
+        if (ageDays > 0 && ageDays < 7) flags.push('NEW_WALLET');
+
+        // Composite (default weights: activity 0.25, diversification 0.20, recency 0.20, volume 0.20, holdAge 0.15)
+        const score = Math.round(
+          activity * 0.25 +
+          diversification * 0.20 +
+          recency * 0.20 +
+          volume * 0.20 +
+          holdAge * 0.15
+        );
+
+        const lines = [
+          `**Wallet Score: ${score}/100**`,
+          `**Address:** ${formatAddress(address)}`,
+          `**Lookback:** ${lookbackDays} days`,
+          '',
+          `**Components**`,
+          `- Activity: ${Math.round(activity)}/100 (${txCount} txs)`,
+          `- Diversification: ${Math.round(diversification)}/100 (${distinctTokens} tokens ≥ $1)`,
+          `- Recency: ${Math.round(recency)}/100 (${Math.round(daysSince)}d since last tx)`,
+          `- Volume: ${Math.round(volume)}/100 ($${Math.round(totalUsd).toLocaleString()} transferred)`,
+          `- Hold age: ${Math.round(holdAge)}/100 (${Math.round(ageDays)}d oldest in window)`,
+        ];
+        if (flags.length > 0) {
+          lines.push('', `**Flags:** ${flags.join(', ')}`);
+        }
+        lines.push('', `*Score is a quality classifier, not a P&L estimate. See \`helius-smartmoney/references/behavioral-scoring.md\` for the formula and limitations.*`);
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error scoring wallet', [
+          addressError('Score Wallet'),
+        ]);
+      }
+    }
+  );
 }
