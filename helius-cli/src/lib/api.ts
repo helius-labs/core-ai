@@ -155,7 +155,6 @@ export type {
   ProjectListItem,
   ProjectDetails,
   ApiKey,
-  AgenticSignupResult,
   CreditsUsage,
   DnsRecord,
   Subscription,
