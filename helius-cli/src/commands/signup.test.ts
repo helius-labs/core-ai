@@ -55,10 +55,19 @@ vi.mock("../lib/wallet.js", () => ({
 
 const mockCheckSolBalance = vi.fn();
 const mockCheckUsdcBalance = vi.fn();
-vi.mock("../lib/payment.js", () => ({
-  checkSolBalance: (...args: unknown[]) => mockCheckSolBalance(...args),
-  checkUsdcBalance: (...args: unknown[]) => mockCheckUsdcBalance(...args),
-}));
+// Keep the real `checkBackendForRefresh` — it delegates to `getPaymentStatus`
+// (mocked above via api.js), so the expired-pending tests still assert against
+// `mockGetPaymentStatus`. Only the balance helpers are stubbed.
+vi.mock("../lib/payment.js", async () => {
+  const actual = await vi.importActual<typeof import("../lib/payment.js")>(
+    "../lib/payment.js",
+  );
+  return {
+    ...actual,
+    checkSolBalance: (...args: unknown[]) => mockCheckSolBalance(...args),
+    checkUsdcBalance: (...args: unknown[]) => mockCheckUsdcBalance(...args),
+  };
+});
 
 vi.mock("../lib/feedback.js", () => ({
   sendDiscoveryEvent: vi.fn(),

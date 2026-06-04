@@ -21,8 +21,8 @@ importers:
         specifier: ^12.0.0
         version: 12.1.0
       helius-sdk:
-        specifier: ^2.2.2
-        version: 2.2.2(typescript@5.9.3)
+        specifier: ^3.0.0
+        version: 3.0.0(@solana-program/compute-budget@0.11.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana-program/stake@0.5.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana-program/system@0.10.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana-program/token@0.9.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana/kit@5.5.1(typescript@5.9.3))
       ora:
         specifier: ^8.0.0
         version: 8.2.0
@@ -823,8 +823,15 @@ packages:
   get-tsconfig@4.13.6:
     resolution: {integrity: sha512-shZT/QMiSHc/YBLxxOkMtgSid5HFoauqCE3/exfsEcwg1WkeqjG+V40yBbBrsD+jW2HDXcs28xOfcbm2jI8Ddw==}
 
-  helius-sdk@2.2.2:
-    resolution: {integrity: sha512-T7H9fJOYAB9HUZomDQ47EnKYPE//SgweZz4PbWF6q0Y1/jA0J+7xY15kFpZLJHyAGd4AXXxDCSISRdABmpCjfQ==}
+  helius-sdk@3.0.0:
+    resolution: {integrity: sha512-fd6s8jtgs85qBRxRveEjnfsb8JjkJPydtM2Na5F5UdT9PKjrbcTkqKe9isr9Kh8rYW5sQ1WbZzGapgersTbrMg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@solana-program/compute-budget': ^0.15.0
+      '@solana-program/stake': ^0.6.1
+      '@solana-program/system': ^0.12.0
+      '@solana-program/token': ^0.13.0
+      '@solana/kit': ^6.9.0
 
   is-interactive@2.0.0:
     resolution: {integrity: sha512-qP1vozQRI+BMOPcjFzrjXuQvdak2pHNUMZoeG2eRbiSqyvbEf/wQtEOTOX1guk6E3t36RkaqiSt8A/6YElNxLQ==}
@@ -1868,7 +1875,7 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
-  helius-sdk@2.2.2(typescript@5.9.3):
+  helius-sdk@3.0.0(@solana-program/compute-budget@0.11.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana-program/stake@0.5.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana-program/system@0.10.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana-program/token@0.9.0(@solana/kit@5.5.1(typescript@5.9.3)))(@solana/kit@5.5.1(typescript@5.9.3)):
     dependencies:
       '@solana-program/compute-budget': 0.11.0(@solana/kit@5.5.1(typescript@5.9.3))
       '@solana-program/stake': 0.5.0(@solana/kit@5.5.1(typescript@5.9.3))
@@ -1877,11 +1884,6 @@ snapshots:
       '@solana/kit': 5.5.1(typescript@5.9.3)
       bs58: 6.0.0
       tslib: 2.8.1
-    transitivePeerDependencies:
-      - bufferutil
-      - fastestsmallesttextencoderdecoder
-      - typescript
-      - utf-8-validate
 
   is-interactive@2.0.0: {}
 
