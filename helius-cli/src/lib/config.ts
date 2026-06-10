@@ -8,6 +8,9 @@ const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 // Alias for backwards compatibility (used by signup.ts)
 export const SHARED_CONFIG_PATH = CONFIG_FILE;
 
+// Warn at most once per process if we can't lock down config permissions.
+let warnedConfigPerms = false;
+
 /**
  * Shared shape for any in-flight checkout pending local resume. Each
  * caller (signup / upgrade / credits) extends with flow-specific identity
@@ -140,13 +143,20 @@ export function load(): Config {
 
 export function save(data: Config): void {
   ensureDir();
-  // Owner-only. `mode` only applies on create, so chmod existing files too
-  // (best-effort: no-op on Windows, must not break save).
+  // Owner-only. `mode` only applies on create, so chmod existing files too.
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), { mode: 0o600 });
   try {
     fs.chmodSync(CONFIG_FILE, 0o600);
   } catch {
-    // Filesystem may not support POSIX permissions.
+    // Non-fatal (e.g. non-POSIX filesystem), but the file may stay readable by
+    // other users — warn once so credentials aren't silently left exposed.
+    if (!warnedConfigPerms) {
+      warnedConfigPerms = true;
+      console.error(
+        `Warning: could not restrict permissions on ${CONFIG_FILE}; it may be ` +
+          `readable by other users. If possible, run: chmod 600 ${CONFIG_FILE}`,
+      );
+    }
   }
 }
 
