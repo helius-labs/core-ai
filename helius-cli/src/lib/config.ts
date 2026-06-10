@@ -79,7 +79,8 @@ interface Config {
 
 function ensureDir(): void {
   if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    // Owner-only — the config holds a JWT and API key.
+    fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -139,7 +140,14 @@ export function load(): Config {
 
 export function save(data: Config): void {
   ensureDir();
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2));
+  // Owner-only. `mode` only applies on create, so chmod existing files too
+  // (best-effort: no-op on Windows, must not break save).
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), { mode: 0o600 });
+  try {
+    fs.chmodSync(CONFIG_FILE, 0o600);
+  } catch {
+    // Filesystem may not support POSIX permissions.
+  }
 }
 
 export function getJwt(): string | undefined {
