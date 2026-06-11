@@ -82,8 +82,15 @@ interface Config {
 
 function ensureDir(): void {
   if (!fs.existsSync(CONFIG_DIR)) {
-    // Owner-only — the config holds a JWT and API key.
     fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  }
+  // Owner-only — the dir holds a JWT and API key. chmod unconditionally: another
+  // path (feedback.ts at module load) may have created it modeless before we got
+  // here, and this also tightens existing installs. Best-effort like the file below.
+  try {
+    fs.chmodSync(CONFIG_DIR, 0o700);
+  } catch {
+    // Non-POSIX filesystem — the save() permission warning already covers this.
   }
 }
 
