@@ -10,6 +10,7 @@ The official Helius AI tooling repository — everything you need to interact wi
 | [`helius-mcp`](./helius-mcp) | MCP server with 10 public tools total: 9 routed domains plus `expandResult` | `claude mcp add helius npx helius-mcp@latest` |
 | [`helius-skills`](./helius-skills) | Standalone Claude Code skills for building on Solana | `./install.sh` |
 | [`helius-plugin`](./helius-plugin) | Claude Code plugin — bundles all skills and auto-starts the MCP server | `/plugin install helius@helius` |
+| [`helius-cursor`](./helius-cursor) | Cursor plugin — live blockchain tools and expert coding patterns | `/add-plugin` → search "Helius" |
 
 ---
 
@@ -167,8 +168,10 @@ Standalone [Claude Code skills](https://docs.anthropic.com/en/docs/claude-code/s
 |---|---|---|
 | [`helius`](./helius-skills/helius) | `/helius` | Build Solana apps with Helius infrastructure — Sender, DAS API, WebSockets, Laserstream, webhooks, priority fees, and our Wallet API |
 | [`helius-dflow`](./helius-skills/helius-dflow) | `/helius-dflow` | Build Solana trading apps combining DFlow's trading APIs (spot swaps, prediction markets, Proof KYC) with Helius infrastructure |
+| [`helius-jupiter`](./helius-skills/helius-jupiter) | `/helius-jupiter` | Build Solana DeFi apps combining Jupiter's APIs with Helius infrastructure — swaps, lending, limit orders, DCA, perps, and price data |
+| [`helius-okx`](./helius-skills/helius-okx) | `/helius-okx` | Compose OKX DEX aggregation and market data with Helius Solana infrastructure — swaps, token discovery, smart money signals, and portfolio intelligence |
+| [`helius-phantom`](./helius-skills/helius-phantom) | `/helius-phantom` | Build browser-based Solana apps with Phantom wallet + Helius — wallet connection, transaction signing, API key proxying, and secure URLs |
 | [`svm`](./helius-skills/svm) | `/svm` | Explore Solana's architecture and protocol internals — SVM execution engine, account model, consensus, validator economics, and token extensions |
-| `helius-phantom` | `/helius-phantom` | Build browser-based Solana apps with Phantom wallet + Helius — wallet connection, transaction signing, API key proxying, and secure URLs |
 
 ### Installation
 
@@ -220,8 +223,10 @@ An all-in-one [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-cod
 |---|---|---|
 | Build | `/helius:build` | Expert Solana developer — Helius APIs, routing logic, SDK patterns, and common-mistake prevention |
 | DFlow | `/helius:dflow` | Expert Solana trading apps — DFlow swaps, prediction markets, Proof KYC, combined with Helius infrastructure |
+| Jupiter | `/helius:jupiter` | Expert Solana DeFi apps — Jupiter swaps, lending, limit orders, DCA, perps, and price data combined with Helius infrastructure |
+| OKX | `/helius:okx` | Compose OKX DEX aggregation and market data with Helius Solana infrastructure |
+| Phantom | `/helius:phantom` | Expert frontend Solana dev — Phantom wallet integration, CORS handling, API proxying |
 | SVM | `/helius:svm` | Solana protocol expert — architecture, internals, consensus, and validator economics |
-| Phantom *(coming soon)* | `/helius:phantom` | Expert frontend Solana dev — Phantom wallet integration, CORS handling, API proxying |
 
 ### API Key Setup
 
