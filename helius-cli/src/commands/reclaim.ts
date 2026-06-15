@@ -9,6 +9,7 @@ import { formatSol } from "../lib/formatters.js";
 import {
   outputJson,
   exitWithError,
+  getExitCode,
   handleCommandError,
   createSpinner,
   withRetry,
@@ -400,21 +401,35 @@ export async function reclaimCommand(
       0,
     );
 
+    const summary = {
+      owner,
+      destination: String(destination),
+      region: options.region || "Default",
+      swqosOnly: !!options.swqosOnly,
+      batchSize,
+      totalBatches: batches.length,
+      closed: closedCount,
+      reclaimedLamports,
+      reclaimedSol: reclaimedLamports / 1_000_000_000,
+      successes,
+      failures,
+    };
+
     if (options.json) {
-      outputJson({
-        owner,
-        destination: String(destination),
-        region: options.region || "Default",
-        swqosOnly: !!options.swqosOnly,
-        batchSize,
-        totalBatches: batches.length,
-        closed: closedCount,
-        reclaimedLamports,
-        reclaimedSol: reclaimedLamports / 1_000_000_000,
-        successes,
-        failures,
-      });
-      return;
+      // A failed batch must never be reported as success: scripts and agents
+      // key off the exit code and the envelope `ok` flag. Emit a success
+      // envelope only when every batch landed; otherwise emit an error
+      // envelope (non-zero exit) that still carries the full breakdown under
+      // `details` so callers can see which batches are already on-chain.
+      if (failures.length === 0) {
+        outputJson(summary);
+        return;
+      }
+      exitWithError(
+        "PAYMENT_FAILED",
+        `${failures.length} of ${batches.length} reclaim batch(es) failed to land; ${closedCount} of ${toClose.length} account(s) closed.`,
+        summary,
+      );
     }
 
     console.log(chalk.bold("\nReclaim complete:\n"));
@@ -439,6 +454,9 @@ export async function reclaimCommand(
           "\n  Re-run the command to retry. Successful batches are already on-chain.",
         ),
       );
+      // Mirror the JSON path: a partial or total failure must exit non-zero so
+      // scripts wrapping the CLI don't treat it as a clean success.
+      process.exit(getExitCode("PAYMENT_FAILED"));
     }
   } catch (error) {
     handleCommandError(error, options, spinner);
