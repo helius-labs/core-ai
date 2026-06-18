@@ -8,6 +8,9 @@ jobs:
   publish:
     if: startsWith(github.event.release.tag_name, 'helius-mcp@')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance
     defaults:
       run:
         working-directory: ./helius-mcp
@@ -38,6 +41,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm publish --no-git-checks --access public
+      - run: pnpm publish --no-git-checks --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
