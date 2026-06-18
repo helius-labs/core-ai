@@ -1,14 +1,15 @@
-name: Tests
+name: Security Audit
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '0 9 * * 1' # Mondays 09:00 UTC
+  workflow_dispatch:
 
 jobs:
-  test:
-    name: Test ${{ matrix.package }}
+  audit:
+    name: Audit ${{ matrix.package }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -28,13 +29,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: pnpm
-          cache-dependency-path: ${{ matrix.package }}/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
 
-      # Explicit build so a typecheck/build break fails CI even when a
-      # package's `test` script does not build (e.g. helius-cli runs vitest only).
-      - run: pnpm build
-
-      - run: pnpm test
+      # Fail on HIGH/critical advisories in shipped (production) dependencies.
+      # Dev-only advisories are surfaced by Dependabot but do not block CI.
+      - run: pnpm audit --prod --audit-level high

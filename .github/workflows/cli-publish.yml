@@ -1,4 +1,4 @@
-name: MCP – Publish to npm
+name: CLI – Publish to npm
 
 on:
   release:
@@ -6,11 +6,11 @@ on:
 
 jobs:
   publish:
-    if: startsWith(github.event.release.tag_name, 'helius-mcp@')
+    if: startsWith(github.event.release.tag_name, 'helius-cli@')
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./helius-mcp
+        working-directory: ./helius-cli
 
     steps:
       - uses: actions/checkout@v4
@@ -22,19 +22,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Verify package.json version matches release tag
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          TAG_VERSION="${TAG#helius-mcp@}"
+          TAG_VERSION="${TAG#helius-cli@}"
           PKG_VERSION=$(node -p "require('./package.json').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "::error::Release tag ($TAG_VERSION) does not match helius-mcp/package.json version ($PKG_VERSION). Bump and merge the version before tagging."
+            echo "::error::Release tag ($TAG_VERSION) does not match helius-cli/package.json version ($PKG_VERSION). Bump and merge the version before tagging."
             exit 1
           fi
-          echo "Publishing helius-mcp@$PKG_VERSION"
+          echo "Publishing helius-cli@$PKG_VERSION"
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build

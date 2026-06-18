@@ -51,23 +51,40 @@ jobs:
 
       - name: Open changelog PR
         working-directory: .
+        # Commit via the GitHub Contents API (not `git commit`/`git push`) so the
+        # bot commit is automatically signed/verified by GitHub. A git-CLI commit
+        # from github-actions[bot] is unsigned and fails verify-signed-commits.yml.
         run: |
           BRANCH="chore/mcp-changelog-${{ github.ref_name }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add helius-mcp/CHANGELOG.md
-          if git diff --staged --quiet; then
+          REPO="${{ github.repository }}"
+
+          if git diff --quiet -- helius-mcp/CHANGELOG.md; then
             echo "No changelog changes, skipping PR"
-          else
-            git commit -m "chore: update CHANGELOG.md for ${{ github.ref_name }}"
-            git push origin "$BRANCH"
-            gh pr create \
-              --title "chore: update CHANGELOG.md for ${{ github.ref_name }}" \
-              --body "Automated changelog update for release ${{ github.ref_name }}. Merge before publishing the draft release to trigger npm publish." \
-              --base main \
-              --head "$BRANCH"
+            exit 0
           fi
+
+          # Create (or reset) the branch at the current main HEAD.
+          MAIN_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
+          gh api --method POST "repos/$REPO/git/refs" \
+            -f ref="refs/heads/$BRANCH" -f sha="$MAIN_SHA" \
+            || gh api --method PATCH "repos/$REPO/git/refs/heads/$BRANCH" \
+                 -f sha="$MAIN_SHA" -F force=true
+
+          # SHA of the file on the branch (required to update an existing file).
+          FILE_SHA=$(gh api "repos/$REPO/contents/helius-mcp/CHANGELOG.md?ref=$BRANCH" --jq '.sha')
+
+          # Commit the regenerated changelog via the API -> verified bot commit.
+          gh api --method PUT "repos/$REPO/contents/helius-mcp/CHANGELOG.md" \
+            -f message="chore: update CHANGELOG.md for ${{ github.ref_name }}" \
+            -f branch="$BRANCH" \
+            -f sha="$FILE_SHA" \
+            -f content="$(base64 -w0 helius-mcp/CHANGELOG.md)"
+
+          gh pr create \
+            --title "chore: update CHANGELOG.md for ${{ github.ref_name }}" \
+            --body "Automated changelog update for release ${{ github.ref_name }}. Merge before publishing the draft release to trigger npm publish." \
+            --base main \
+            --head "$BRANCH"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
