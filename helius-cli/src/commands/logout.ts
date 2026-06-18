@@ -5,11 +5,13 @@ import {
   outputJson,
   handleCommandError,
   createSpinner,
+  confirmDestructive,
   type OutputOptions,
 } from "../lib/output.js";
 
 interface LogoutOptions extends OutputOptions {
   all?: boolean;
+  yes?: boolean;
 }
 
 export async function logoutCommand(options: LogoutOptions): Promise<void> {
@@ -30,6 +32,13 @@ export async function logoutCommand(options: LogoutOptions): Promise<void> {
     }
 
     if (options.all) {
+      if (!(await confirmDestructive(
+        chalk.yellow("\n  Wipe the entire local config (jwt, apiKey, projectId, network, owsWallet)? (y/N) "),
+        options,
+      ))) {
+        console.log(chalk.gray("  Cancelled."));
+        return;
+      }
       clearConfig();
       spinner?.succeed("Cleared local config");
     } else {

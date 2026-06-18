@@ -1,11 +1,12 @@
 import chalk from "chalk";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatEnumLabel } from "../lib/formatters.js";
-import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
 import { validateSolanaAddresses } from "../lib/validation.js";
 
 interface WebhookOptions extends OutputOptions, ResolveOptions, RetryOptions {
   dryRun?: boolean;
+  yes?: boolean;
 }
 
 export async function webhookListCommand(options: WebhookOptions = {}): Promise<void> {
@@ -151,6 +152,14 @@ export async function webhookDeleteCommand(webhookId: string, options: WebhookOp
       spinner?.succeed("Dry run — webhook not deleted");
       if (options.json) { outputJson({ dryRun: true, webhookID: webhookId }); return; }
       console.log(chalk.yellow(`\n  Dry run — webhook ${webhookId} would be deleted.`));
+      return;
+    }
+
+    if (!(await confirmDestructive(
+      chalk.yellow(`\n  Delete webhook ${webhookId}? This cannot be undone. (y/N) `),
+      options,
+    ))) {
+      console.log(chalk.gray("  Cancelled."));
       return;
     }
 
