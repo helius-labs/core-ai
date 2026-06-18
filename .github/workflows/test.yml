@@ -8,23 +8,33 @@ on:
 
 jobs:
   test:
-    name: Test helius-mcp
+    name: Test ${{ matrix.package }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [helius-mcp, helius-cli]
     defaults:
       run:
-        working-directory: ./helius-mcp
+        working-directory: ./${{ matrix.package }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: ${{ matrix.package }}/pnpm-lock.yaml
 
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
+
+      # Explicit build so a typecheck/build break fails CI even when a
+      # package's `test` script does not build (e.g. helius-cli runs vitest only).
       - run: pnpm build
+
       - run: pnpm test
