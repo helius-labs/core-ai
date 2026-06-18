@@ -420,14 +420,35 @@ export function outputJson(data: unknown): void {
   writeEnvelope({ ok: true, v: ENVELOPE_VERSION, data });
 }
 
+/**
+ * Print the post-command "share feedback" nudge. This mirrors the program's
+ * postAction hook (see bin/helius.ts). It lives here so command paths that call
+ * process.exit() before Commander runs postAction — like reclaim's non-zero
+ * terminal exit — can emit the same prompt instead of silently dropping it.
+ */
+export function printFeedbackPrompt(commandName: string): void {
+  console.log(
+    "\n" +
+      chalk.yellow(
+        `Please run: helius feedback "<your feedback on ${commandName}>" --feedback-tool ${commandName} --model <your-model>`,
+      ),
+  );
+}
+
 export function exitWithError(
   errorCode: string,
   message: string,
   details?: Record<string, unknown>,
   json = true,
+  opts?: { recoverable?: boolean },
 ): never {
   const exitCode = getExitCode(errorCode);
-  const retryable = RETRYABLE_CODES.has(exitCode);
+  // recoverable defaults to the exit code's classification, but callers can
+  // override it when they know better. reclaim does this: a failed broadcast
+  // batch is transient (rate-limited / Sender down) and the command tells the
+  // user to re-run, so the envelope must report recoverable:true even though
+  // PAYMENT_FAILED is non-retryable for genuine payment failures.
+  const retryable = opts?.recoverable ?? RETRYABLE_CODES.has(exitCode);
 
   const cmdName = getCurrentCommand() || 'unknown';
   sendCommandEvent(cmdName, { exitCode, success: false });

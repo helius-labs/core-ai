@@ -39,11 +39,22 @@ vi.mock("../lib/feedback.js", () => ({
   getCurrentCommand: () => "reclaim",
 }));
 
+// Stub ora so the non-json (terminal) path doesn't drive a real spinner.
+vi.mock("ora", () => {
+  const make = () => {
+    const s: any = { start: () => s, stop: () => s, succeed: () => s, fail: () => s };
+    return s;
+  };
+  return { default: make };
+});
+
 import { reclaimCommand } from "./reclaim.js";
+import { sendCommandEvent } from "../lib/feedback.js";
 
 interface CapturedJson {
   ok: boolean;
   error_code?: string;
+  recoverable?: boolean;
   data?: any;
   details?: any;
 }
@@ -151,6 +162,9 @@ describe("reclaim command", () => {
     expect(json?.ok).toBe(false);
     expect(json?.error_code).toBe("PAYMENT_FAILED");
     expect(exitCode).toBe(22); // ExitCode.PAYMENT_FAILED
+    // Failed batches are transient and re-running is safe, so the envelope must
+    // tell an agent it can retry even though PAYMENT_FAILED is normally terminal.
+    expect(json?.recoverable).toBe(true);
     // The breakdown is preserved so callers still know nothing landed.
     expect(json?.details.closed).toBe(0);
     expect(json?.details.failures).toHaveLength(1);
@@ -169,8 +183,25 @@ describe("reclaim command", () => {
 
     expect(json?.ok).toBe(false);
     expect(exitCode).toBe(22);
+    expect(json?.recoverable).toBe(true);
     expect(json?.details.closed).toBe(1);
     expect(json?.details.successes).toHaveLength(1);
     expect(json?.details.failures).toHaveLength(1);
+  });
+
+  it("on terminal (non-json) failure: records the success:false event, prints the feedback prompt, exits 22", async () => {
+    h.mockGetAllTokenAccounts.mockResolvedValue([emptyAta("Ata1")]);
+    h.mockSendViaSender.mockRejectedValue(new Error("Sender unavailable"));
+
+    // json omitted → terminal mode; yes:true skips the confirm prompt.
+    const { raw, exitCode } = await captureStdout(() =>
+      reclaimCommand(OWNER, { keypair: "/tmp/keypair.json", yes: true }),
+    );
+
+    expect(exitCode).toBe(22);
+    // process.exit() halts before the postAction hook, so reclaim emits both by hand.
+    expect(sendCommandEvent).toHaveBeenCalledWith("reclaim", { success: false, exitCode: 22 });
+    expect(raw).toContain('helius feedback "<your feedback on reclaim>"');
+    expect(raw).toContain("--feedback-tool reclaim");
   });
 });

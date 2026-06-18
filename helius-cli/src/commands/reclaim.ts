@@ -15,9 +15,11 @@ import {
   withRetry,
   confirm,
   isAgent,
+  printFeedbackPrompt,
   type OutputOptions,
   type RetryOptions,
 } from "../lib/output.js";
+import { sendCommandEvent, getCurrentCommand } from "../lib/feedback.js";
 import { validateAddress } from "../lib/validation.js";
 
 const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -425,10 +427,17 @@ export async function reclaimCommand(
         outputJson(summary);
         return;
       }
+      // recoverable:true — re-running is safe (closed accounts are skipped on the
+      // next scan) and failed batches are usually transient (rate-limited / Sender
+      // down). Without the override the envelope would say recoverable:false while
+      // the message advises re-running, so an agent keying off `recoverable`
+      // wouldn't auto-retry. See exitWithError's default-classification note.
       exitWithError(
         "PAYMENT_FAILED",
         `${failures.length} of ${batches.length} reclaim batch(es) failed to land; ${closedCount} of ${toClose.length} account(s) closed.`,
         summary,
+        !!options.json,
+        { recoverable: true },
       );
     }
 
@@ -455,8 +464,15 @@ export async function reclaimCommand(
         ),
       );
       // Mirror the JSON path: a partial or total failure must exit non-zero so
-      // scripts wrapping the CLI don't treat it as a clean success.
-      process.exit(getExitCode("PAYMENT_FAILED"));
+      // scripts wrapping the CLI don't treat it as a clean success. process.exit()
+      // halts before Commander's postAction hook runs, so we record the
+      // success:false telemetry event (otherwise only the preAction success:true
+      // event lands) and print the feedback prompt by hand before exiting.
+      const exitCode = getExitCode("PAYMENT_FAILED");
+      const cmd = getCurrentCommand() ?? "reclaim";
+      sendCommandEvent(cmd, { success: false, exitCode });
+      printFeedbackPrompt(cmd);
+      process.exit(exitCode);
     }
   } catch (error) {
     handleCommandError(error, options, spinner);
