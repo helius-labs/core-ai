@@ -255,6 +255,7 @@ program
   .command("logout")
   .description("Sign out and clear the local session token (keeps API key by default)")
   .option("--all", "Wipe the entire local config (jwt, apiKey, projectId, network, owsWallet)")
+  .option("-y, --yes", "Skip confirmation prompt (only relevant with --all)")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
@@ -843,6 +844,7 @@ webhookCmd
   .command("delete <id>")
   .description("Delete a webhook")
   .option("--dry-run", "Preview which webhook would be deleted")
+  .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
@@ -911,6 +913,7 @@ stakeCmd
   .command("unstake <stake-account>")
   .description("Create an unstake transaction")
   .option("-k, --keypair <path>", "Path to Solana keypair file")
+  .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
@@ -921,6 +924,7 @@ stakeCmd
   .command("withdraw <stake-account>")
   .description("Create a withdraw transaction")
   .option("-k, --keypair <path>", "Path to Solana keypair file")
+  .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:

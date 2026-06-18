@@ -1,10 +1,12 @@
 import chalk from "chalk";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
-import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
 import { validateAddress } from "../lib/validation.js";
 
-interface StakeOptions extends OutputOptions, ResolveOptions, RetryOptions {}
+interface StakeOptions extends OutputOptions, ResolveOptions, RetryOptions {
+  yes?: boolean;
+}
 
 interface AmountOptions {
   amount?: string;     // --amount <sol> (human-readable, e.g. "1.5")
@@ -218,6 +220,13 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
   try {
     const addrErr = validateAddress(stakeAccount);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    if (!(await confirmDestructive(
+      chalk.yellow(`\n  Sign an unstake (deactivate) transaction for ${stakeAccount} with this keypair? (y/N) `),
+      options,
+    ))) {
+      console.log(chalk.gray("  Cancelled."));
+      return;
+    }
     const helius = await setupClient(spinner, options, "Creating unstake transaction...");
     const result = await withRetry(() => helius.stake.createUnstakeTransaction(stakeAccount as any), options, spinner);
     spinner?.stop();
@@ -239,6 +248,13 @@ export async function stakeWithdrawCommand(stakeAccount: string, options: StakeO
   try {
     const addrErr = validateAddress(stakeAccount);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    if (!(await confirmDestructive(
+      chalk.yellow(`\n  Sign a withdraw transaction for ${stakeAccount} with this keypair? (y/N) `),
+      options,
+    ))) {
+      console.log(chalk.gray("  Cancelled."));
+      return;
+    }
     const helius = await setupClient(spinner, options, "Creating withdraw transaction...");
     const result = await withRetry(() => helius.stake.createWithdrawTransaction(stakeAccount as any), options, spinner);
     spinner?.stop();

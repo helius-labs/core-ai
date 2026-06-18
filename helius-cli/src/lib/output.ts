@@ -496,3 +496,21 @@ export function confirm(question: string): Promise<boolean> {
     });
   });
 }
+
+/**
+ * Gate a destructive action behind an interactive y/N prompt.
+ * Returns `true` when the action should proceed.
+ *
+ * The prompt is skipped (and the action proceeds) when the user passed
+ * `--yes`, when output is `--json`, in agent mode (`NO_DNA`), or when stdin is
+ * not a TTY (CI / pipes). This preserves backward-compatible scriptability —
+ * these commands had no confirmation before — while protecting interactive
+ * users from accidental destructive actions.
+ */
+export async function confirmDestructive(
+  question: string,
+  options: { yes?: boolean; json?: boolean } = {},
+): Promise<boolean> {
+  if (options.yes || options.json || isAgent || !process.stdin.isTTY) return true;
+  return confirm(question);
+}
