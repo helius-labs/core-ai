@@ -1,10 +1,11 @@
 import chalk from "chalk";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
-import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
+import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
 import { validateSignature } from "../lib/validation.js";
 
 interface SendOptions extends OutputOptions, ResolveOptions, RetryOptions {
   dryRun?: boolean;
+  yes?: boolean;
 }
 
 export async function sendBroadcastCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
@@ -14,6 +15,14 @@ export async function sendBroadcastCommand(base64Tx: string, options: SendOption
       spinner?.succeed("Dry run — transaction not submitted");
       if (options.json) { outputJson({ dryRun: true, transaction: base64Tx }); return; }
       console.log(chalk.yellow("\n  Dry run — transaction would be broadcast but was not submitted."));
+      return;
+    }
+
+    if (!(await confirmDestructive(
+      chalk.yellow("\n  Broadcast this transaction to the network? (y/N) "),
+      options,
+    ))) {
+      console.log(chalk.gray("  Cancelled."));
       return;
     }
 
@@ -39,6 +48,14 @@ export async function sendRawCommand(base64Tx: string, options: SendOptions = {}
       return;
     }
 
+    if (!(await confirmDestructive(
+      chalk.yellow("\n  Send this transaction to the network? (y/N) "),
+      options,
+    ))) {
+      console.log(chalk.gray("  Cancelled."));
+      return;
+    }
+
     const helius = await setupClient(spinner, options, "Sending transaction...");
     const signature = await withRetry(() => helius.tx.sendTransaction({ base64: base64Tx }), options, spinner);
     spinner?.stop();
@@ -59,6 +76,14 @@ export async function sendSenderCommand(base64Tx: string, options: SendOptions &
       spinner?.succeed("Dry run — transaction not submitted");
       if (options.json) { outputJson({ dryRun: true, transaction: base64Tx, region }); return; }
       console.log(chalk.yellow(`\n  Dry run — transaction would be sent via Helius Sender (${region}) but was not submitted.`));
+      return;
+    }
+
+    if (!(await confirmDestructive(
+      chalk.yellow(`\n  Send this transaction via Helius Sender (${options.region || "Default"})? (y/N) `),
+      options,
+    ))) {
+      console.log(chalk.gray("  Cancelled."));
       return;
     }
 
