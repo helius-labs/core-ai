@@ -129,6 +129,11 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
   dataSize: optionalNumber(),
   owner: optionalString(),
   mint: optionalString(),
+  // simulateTransaction
+  transaction: optionalString(),
+  sigVerify: optionalBoolean(),
+  replaceRecentBlockhash: optionalBoolean(),
+  commitment: optionalString(),
 });
 
 export const HELIUS_STREAMING_SCHEMA = withTelemetry({

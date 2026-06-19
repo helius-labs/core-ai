@@ -125,6 +125,7 @@ Each skill has:
 - Always include `maxRetries: 0` when using Sender
 - Always include a Jito tip (minimum 0.0002 SOL) and priority fee
 - Use `heliusChain` + `getPriorityFeeEstimate` to get fee levels — never hardcode fees
+- Use `heliusChain` + `simulateTransaction` to dry-run a transaction before sending — checks success/failure, compute units, and logs without submitting on-chain
 
 ### Data Queries
 - Use `heliusTransaction` + `parseTransactions` over raw RPC for human-readable transaction data

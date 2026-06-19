@@ -20,7 +20,7 @@ import { normalizeTelemetry } from '../src/router/telemetry.js';
 import { clearStoredResults, getStoredResult, getStoredResultStats, putStoredResult } from '../src/results/store.js';
 import { getRouterContext } from '../src/router/context.js';
 import { registerTools } from '../src/tools/index.js';
-import { hasApiKey } from '../src/utils/helius.js';
+import { hasApiKey, getHeliusClient } from '../src/utils/helius.js';
 import { callActionHandler, type ActionHandlerResponse } from '../src/router/action-handlers.js';
 
 vi.mock('../src/router/action-handlers.js', async (importOriginal) => {
@@ -361,6 +361,83 @@ describe('Dispatch per routed tool', () => {
     );
     expect(result.isError).toBeFalsy();
     expect(result.content[0].text).toContain('Epoch');
+  });
+
+  it('heliusChain — simulateTransaction formats a successful simulation', async () => {
+    vi.mocked(getHeliusClient).mockReturnValueOnce({
+      simulateTransaction: async (_tx: string, _cfg: unknown) => ({
+        context: { slot: 250_000_000 },
+        value: { err: null, logs: ['Program log: hello'], unitsConsumed: 4200, returnData: null, accounts: null },
+      }),
+    } as unknown as ReturnType<typeof getHeliusClient>);
+
+    const result = await tools.heliusChain.handler(
+      { action: 'simulateTransaction', transaction: 'AQABz000base64', ...telemetry() },
+      {},
+    );
+
+    expect(result.isError).toBeFalsy();
+    const text = result.content[0].text;
+    expect(text).toContain('Would succeed');
+    expect(text).toContain('4,200');
+    expect(text).toContain('Program log: hello');
+  });
+
+  it('heliusChain — simulateTransaction surfaces a program error as "would fail"', async () => {
+    vi.mocked(getHeliusClient).mockReturnValueOnce({
+      simulateTransaction: async () => ({
+        context: { slot: 1 },
+        value: { err: { InstructionError: [0, 'Custom'] }, logs: [], unitsConsumed: 0 },
+      }),
+    } as unknown as ReturnType<typeof getHeliusClient>);
+
+    const result = await tools.heliusChain.handler(
+      { action: 'simulateTransaction', transaction: 'AQABz000base64', ...telemetry() },
+      {},
+    );
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0].text).toContain('Would fail');
+    expect(result.content[0].text).toContain('InstructionError');
+  });
+
+  it('heliusChain — simulateTransaction sends base64 encoding and enforces sigVerify/replaceRecentBlockhash exclusivity', async () => {
+    let captured: Record<string, unknown> = {};
+    const stub = {
+      simulateTransaction: async (_tx: string, cfg: Record<string, unknown>) => {
+        captured = cfg;
+        return { context: { slot: 1 }, value: { err: null, logs: [], unitsConsumed: 0 } };
+      },
+    } as unknown as ReturnType<typeof getHeliusClient>;
+    vi.mocked(getHeliusClient).mockReturnValueOnce(stub).mockReturnValueOnce(stub);
+
+    // Defaults: replace the blockhash, do not verify signatures.
+    await tools.heliusChain.handler(
+      { action: 'simulateTransaction', transaction: 'AQABbase64', ...telemetry() },
+      {},
+    );
+    expect(captured.encoding).toBe('base64');
+    expect(captured.sigVerify).toBe(false);
+    expect(captured.replaceRecentBlockhash).toBe(true);
+
+    // sigVerify=true forces replaceRecentBlockhash off (mutually exclusive at the RPC layer).
+    await tools.heliusChain.handler(
+      { action: 'simulateTransaction', transaction: 'AQABbase64', sigVerify: true, ...telemetry() },
+      {},
+    );
+    expect(captured.sigVerify).toBe(true);
+    expect(captured.replaceRecentBlockhash).toBe(false);
+  });
+
+  it('heliusChain — simulateTransaction requires the transaction param', async () => {
+    const result = await tools.heliusChain.handler(
+      { action: 'simulateTransaction', ...telemetry() },
+      {},
+    );
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Missing required parameter');
+    expect(result.content[0].text).toContain('transaction');
+    expect(result._meta?.code).toBe('MISSING_PARAMS');
   });
 
   it('heliusStreaming — getAllWebhooks dispatches successfully', async () => {

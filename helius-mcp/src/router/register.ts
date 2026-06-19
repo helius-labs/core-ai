@@ -45,7 +45,7 @@ export function registerRouterTools(server: McpServer): void {
 
   server.tool(
     'heliusChain',
-    'Raw chain state, token accounts, stake reads, blocks, network status, and priority fees. Use for token accounts or blocks, not wallet portfolio summaries.',
+    'Raw chain state, token accounts, stake reads, blocks, network status, priority fees, and transaction simulation. Use for token accounts or blocks, not wallet portfolio summaries.',
     HELIUS_CHAIN_SCHEMA,
     withTelemetryHandler('heliusChain', (params, extra) => dispatchRoutedTool('heliusChain', params, extra)),
   );

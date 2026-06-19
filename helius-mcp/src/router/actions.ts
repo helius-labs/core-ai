@@ -49,6 +49,7 @@ export const HELIUS_CHAIN_ACTIONS = [
   'getBlock',
   'getNetworkStatus',
   'getPriorityFeeEstimate',
+  'simulateTransaction',
   'getStakeAccounts',
   'getWithdrawableAmount',
 ] as const;

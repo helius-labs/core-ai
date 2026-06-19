@@ -35,6 +35,7 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getTokenHolders: ['mint'],
   getProgramAccounts: ['programId'],
   getBlock: ['slot'],
+  simulateTransaction: ['transaction'],
   getWithdrawableAmount: ['stakeAccount'],
 
   // Streaming

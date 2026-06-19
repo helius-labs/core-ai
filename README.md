@@ -120,7 +120,7 @@ The server exposes 10 public tools total: 9 routed domain tools plus `expandResu
 - `heliusWallet` — wallet balances, holdings, identity, wallet history
 - `heliusAsset` — assets, NFTs, collections, token holders
 - `heliusTransaction` — parsed transactions and wallet transaction history
-- `heliusChain` — raw chain state, token accounts, blocks, network status, stake reads, priority fees
+- `heliusChain` — raw chain state, token accounts, blocks, network status, stake reads, priority fees, transaction simulation
 - `heliusStreaming` — webhook CRUD and live subscription configuration
 - `heliusKnowledge` — docs, guides, pricing references, troubleshooting, source, blog, SIMDs
 - `heliusWrite` — SOL/token transfers and staking mutations
