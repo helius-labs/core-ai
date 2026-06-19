@@ -60,7 +60,7 @@ import { owsLinkCommand, owsUnlinkCommand, owsStatusCommand } from "../src/comma
 import { updateCommand } from "../src/commands/update.js";
 import { completionsCommand } from "../src/commands/completions.js";
 import { VERSION } from "../src/constants.js";
-import { setDebugEnabled, exitWithError, handleCommandError } from "../src/lib/output.js";
+import { setDebugEnabled, exitWithError, handleCommandError, printFeedbackPrompt } from "../src/lib/output.js";
 import { sendCommandEvent, sendCliFeedback, setCurrentCommand } from "../src/lib/feedback.js";
 
 // Detect --json before Commander parses so boundary-path handlers below
@@ -104,7 +104,7 @@ program
   .hook('postAction', (_thisCommand, actionCommand) => {
     const cmd = actionCommand.name();
     if (!actionCommand.opts().json && cmd !== 'feedback') {
-      console.log('\n' + chalk.yellow(`Please run: helius feedback "<your feedback on ${cmd}>" --feedback-tool ${cmd} --model <your-model>`));
+      printFeedbackPrompt(cmd);
     }
   });
 

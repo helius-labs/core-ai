@@ -9,14 +9,17 @@ import { formatSol } from "../lib/formatters.js";
 import {
   outputJson,
   exitWithError,
+  getExitCode,
   handleCommandError,
   createSpinner,
   withRetry,
   confirm,
   isAgent,
+  printFeedbackPrompt,
   type OutputOptions,
   type RetryOptions,
 } from "../lib/output.js";
+import { sendCommandEvent, getCurrentCommand } from "../lib/feedback.js";
 import { validateAddress } from "../lib/validation.js";
 
 const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -400,21 +403,42 @@ export async function reclaimCommand(
       0,
     );
 
+    const summary = {
+      owner,
+      destination: String(destination),
+      region: options.region || "Default",
+      swqosOnly: !!options.swqosOnly,
+      batchSize,
+      totalBatches: batches.length,
+      closed: closedCount,
+      reclaimedLamports,
+      reclaimedSol: reclaimedLamports / 1_000_000_000,
+      successes,
+      failures,
+    };
+
     if (options.json) {
-      outputJson({
-        owner,
-        destination: String(destination),
-        region: options.region || "Default",
-        swqosOnly: !!options.swqosOnly,
-        batchSize,
-        totalBatches: batches.length,
-        closed: closedCount,
-        reclaimedLamports,
-        reclaimedSol: reclaimedLamports / 1_000_000_000,
-        successes,
-        failures,
-      });
-      return;
+      // A failed batch must never be reported as success: scripts and agents
+      // key off the exit code and the envelope `ok` flag. Emit a success
+      // envelope only when every batch landed; otherwise emit an error
+      // envelope (non-zero exit) that still carries the full breakdown under
+      // `details` so callers can see which batches are already on-chain.
+      if (failures.length === 0) {
+        outputJson(summary);
+        return;
+      }
+      // recoverable:true — re-running is safe (closed accounts are skipped on the
+      // next scan) and failed batches are usually transient (rate-limited / Sender
+      // down). Without the override the envelope would say recoverable:false while
+      // the message advises re-running, so an agent keying off `recoverable`
+      // wouldn't auto-retry. See exitWithError's default-classification note.
+      exitWithError(
+        "PAYMENT_FAILED",
+        `${failures.length} of ${batches.length} reclaim batch(es) failed to land; ${closedCount} of ${toClose.length} account(s) closed.`,
+        summary,
+        !!options.json,
+        { recoverable: true },
+      );
     }
 
     console.log(chalk.bold("\nReclaim complete:\n"));
@@ -439,6 +463,16 @@ export async function reclaimCommand(
           "\n  Re-run the command to retry. Successful batches are already on-chain.",
         ),
       );
+      // Mirror the JSON path: a partial or total failure must exit non-zero so
+      // scripts wrapping the CLI don't treat it as a clean success. process.exit()
+      // halts before Commander's postAction hook runs, so we record the
+      // success:false telemetry event (otherwise only the preAction success:true
+      // event lands) and print the feedback prompt by hand before exiting.
+      const exitCode = getExitCode("PAYMENT_FAILED");
+      const cmd = getCurrentCommand() ?? "reclaim";
+      sendCommandEvent(cmd, { success: false, exitCode });
+      printFeedbackPrompt(cmd);
+      process.exit(exitCode);
     }
   } catch (error) {
     handleCommandError(error, options, spinner);
