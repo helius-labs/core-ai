@@ -1214,6 +1214,7 @@ sendCmd
   .command("broadcast <base64-tx>")
   .description("Broadcast a signed transaction and poll for confirmation")
   .option("--dry-run", "Preview without submitting the transaction")
+  .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
@@ -1224,6 +1225,7 @@ sendCmd
   .command("raw <base64-tx>")
   .description("Send a raw transaction")
   .option("--dry-run", "Preview without submitting the transaction")
+  .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
@@ -1235,6 +1237,7 @@ sendCmd
   .description("Send via Helius Sender for ultra-low latency")
   .option("--region <region>", "Sender region (Default, US_SLC, US_EAST, etc.)")
   .option("--dry-run", "Preview without submitting the transaction")
+  .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
