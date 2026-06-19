@@ -7,7 +7,7 @@ Routing:
 - Wallet-centric balances, holdings, identity, wallet history: \`heliusWallet\`
 - Assets, NFTs, collections, token holders: \`heliusAsset\`
 - Parsed transactions or wallet transaction history: \`heliusTransaction\`
-- Raw chain state, token accounts, stake reads, blocks, network status, priority fees: \`heliusChain\`
+- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction simulation: \`heliusChain\`
 - Webhook CRUD or live subscription configuration: \`heliusStreaming\`
 - Docs, guides, pricing references, troubleshooting, source, blog, SIMDs: \`heliusKnowledge\`
 - SOL/token transfers or staking mutations: \`heliusWrite\`

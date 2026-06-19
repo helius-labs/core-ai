@@ -499,6 +499,119 @@ export function registerTransactionTools(server: McpServer) {
     }
   );
 
+  // Simulate Transaction (preflight dry-run — does NOT submit on-chain)
+  server.tool(
+    'simulateTransaction',
+    'BEST FOR: dry-running a transaction before sending. Simulates a base64-encoded transaction against current chain state and returns whether it would succeed/fail, the program error (if any), compute units consumed, program logs, return data, and — when `addresses` are provided — post-simulation account state. Does NOT submit anything on-chain. Defaults: replaces the recent blockhash (so unsigned or stale-blockhash transactions can still be simulated) and skips signature verification. Set sigVerify=true to verify signatures (requires a valid recent blockhash; mutually exclusive with replaceRecentBlockhash). Credit cost: 1 credit/call.',
+    {
+      transaction: z.string().describe('Base64-encoded serialized transaction (not base58). Signed or unsigned.'),
+      sigVerify: z.boolean().optional().default(false).describe('Verify transaction signatures. Requires a valid recent blockhash. Mutually exclusive with replaceRecentBlockhash (sigVerify wins if both set).'),
+      replaceRecentBlockhash: z.boolean().optional().default(true).describe('Replace the recent blockhash with the latest before simulating (default true) so unsigned/stale transactions can be simulated. Ignored when sigVerify=true.'),
+      commitment: z.string().optional().describe('Commitment level: "processed" | "confirmed" | "finalized".'),
+      addresses: z.array(z.string()).optional().describe('Optional account addresses (base58) to return post-simulation state for.')
+    },
+    async ({ transaction, sigVerify, replaceRecentBlockhash, commitment, addresses }) => {
+      if (!hasApiKey()) return noApiKeyResponse();
+
+      if (typeof transaction !== 'string' || transaction.trim().length === 0) {
+        return mcpError('A base64-encoded transaction string is required.', {
+          type: 'VALIDATION',
+          code: 'INVALID_TRANSACTION',
+          retryable: false,
+          recovery: 'Pass the base64-encoded (not base58) serialized transaction in the `transaction` field.',
+        });
+      }
+
+      if (commitment) {
+        const err = validateEnum(commitment, ['processed', 'confirmed', 'finalized'], 'Simulate Transaction Error', 'commitment');
+        if (err) return err;
+      }
+
+      const helius = getHeliusClient();
+
+      // sigVerify and replaceRecentBlockhash are mutually exclusive at the RPC layer.
+      const verify = sigVerify === true;
+      const replaceBlockhash = verify ? false : replaceRecentBlockhash !== false;
+
+      const config: Record<string, unknown> = {
+        encoding: 'base64',
+        sigVerify: verify,
+        replaceRecentBlockhash: replaceBlockhash,
+      };
+      if (commitment) config.commitment = commitment;
+      if (addresses && addresses.length > 0) {
+        config.accounts = { encoding: 'base64', addresses };
+      }
+
+      type SimAccount = { lamports: number | bigint; owner: string; executable: boolean } | null;
+      type SimValue = {
+        err: unknown;
+        logs: string[] | null;
+        unitsConsumed?: number | bigint | null;
+        returnData?: { programId: string; data: [string, string] } | null;
+        accounts?: SimAccount[] | null;
+      };
+      type SimResult = { context?: { slot?: number | bigint }; value?: SimValue };
+
+      let result: SimResult;
+      try {
+        result = await (helius as any).simulateTransaction(transaction, config) as SimResult;
+      } catch (err) {
+        return handleToolError(err, 'Simulate Transaction Error', [
+          http400Error('Simulate Transaction Error'),
+        ]);
+      }
+
+      const value = result?.value;
+      if (!value) {
+        return mcpText('**Transaction Simulation**\n\nNo simulation result was returned by the RPC.');
+      }
+
+      const failed = value.err != null;
+      const lines: string[] = ['**Transaction Simulation**', ''];
+
+      if (result.context?.slot != null) {
+        lines.push(`**Simulated at slot:** ${Number(result.context.slot).toLocaleString()}`);
+      }
+      lines.push(`**Status:** ${failed ? '❌ Would fail' : '✅ Would succeed'}`);
+
+      if (failed) {
+        const errStr = typeof value.err === 'object' ? JSON.stringify(value.err) : String(value.err);
+        lines.push(`**Error:** ${errStr}`);
+      }
+      if (value.unitsConsumed != null) {
+        lines.push(`**Compute Units Consumed:** ${Number(value.unitsConsumed).toLocaleString()}`);
+      }
+      lines.push(`**Signature verification:** ${verify ? 'on' : 'off'} | **Replace blockhash:** ${replaceBlockhash ? 'on' : 'off'}`);
+
+      if (value.returnData?.data?.[0]) {
+        lines.push('', `**Return Data** (program \`${value.returnData.programId}\`):`, `\`${value.returnData.data[0]}\``);
+      }
+
+      if (value.logs && value.logs.length > 0) {
+        lines.push('', `**Program Logs (${value.logs.length}):**`, '```');
+        value.logs.forEach((log) => lines.push(log));
+        lines.push('```');
+      } else {
+        lines.push('', '_No program logs returned._');
+      }
+
+      if (config.accounts && Array.isArray(value.accounts)) {
+        lines.push('', '**Post-Simulation Account State:**');
+        (addresses as string[]).forEach((addr, i) => {
+          const acc = value.accounts![i];
+          if (!acc) {
+            lines.push(`- ${formatAddress(addr)}: (not found or empty)`);
+          } else {
+            lines.push(`- ${formatAddress(addr)}: ${formatSol(Number(acc.lamports))}, owner ${acc.owner}${acc.executable ? ' (executable)' : ''}`);
+          }
+        });
+      }
+
+      return mcpText(truncateResponse(lines.join('\n')));
+    }
+  );
+
   // Get Transaction History (unified: parsed, signatures, or raw mode)
   server.tool(
     'getTransactionHistory',
