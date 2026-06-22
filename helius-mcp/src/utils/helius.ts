@@ -1,6 +1,7 @@
 import { createHelius, type HeliusClient } from 'helius-sdk';
 import { MCP_USER_AGENT } from '../http.js';
 import { getSharedApiKey } from './config.js';
+import { wrapClientWithResilience, withResilience, READ_TIMEOUT_MS } from './resilience.js';
 
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
@@ -46,7 +47,9 @@ export function hasApiKey(): boolean {
 export function getHeliusClient(): HeliusClient {
   if (!heliusClient) {
     const apiKey = getApiKey();
-    heliusClient = createHelius({ apiKey, userAgent: MCP_USER_AGENT });
+    // Wrap so idempotent reads get a timeout + retry-with-backoff; writes,
+    // sends, and streaming pass through untouched. See utils/resilience.ts.
+    heliusClient = wrapClientWithResilience(createHelius({ apiKey, userAgent: MCP_USER_AGENT }));
   }
   return heliusClient;
 }
@@ -129,19 +132,26 @@ export async function restRequest(endpoint: string, options: RequestInit = {}): 
     headers['Content-Type'] ??= 'application/json';
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // Reads here are idempotent: retry transient failures, and abort (not just
+  // race) a hung request via AbortSignal so the socket is released.
+  return withResilience(async () => {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      const text = await response.text();
+      const error = new Error(`HTTP ${response.status}: ${text}`) as Error & { statusCode?: number };
+      error.statusCode = response.status;
+      throw error;
+    }
+
     const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
-  }
-
-  const text = await response.text();
-  if (!text || text === 'null') {
-    return null;
-  }
-  return JSON.parse(text);
+    if (!text || text === 'null') {
+      return null;
+    }
+    return JSON.parse(text);
+  }, `restRequest ${endpoint}`, { timeoutMs: 0 });
 }
