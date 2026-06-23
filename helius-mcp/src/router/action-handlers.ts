@@ -24,11 +24,14 @@ import { registerTransferTools } from '../tools/transfers.js';
 import { registerZkCompressionTools } from '../tools/zk-compression.js';
 import { registerStakingTools } from '../tools/staking.js';
 import type { ActionName } from './actions.js';
+import type { ContinuationHint } from '../results/types.js';
 
 export type ActionHandlerResponse = {
   content?: Array<{ type?: string; text?: string }>;
   isError?: boolean;
   structuredContent?: unknown;
+  /** Structured next-page metadata; the router uses it to build continuation state. */
+  continuation?: ContinuationHint;
 };
 
 export type ActionHandler = (

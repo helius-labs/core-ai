@@ -707,7 +707,10 @@ export function registerTransactionTools(server: McpServer) {
               }
             });
 
-            return mcpText(lines.join('\n'));
+            const lastSignature = sigs[sigs.length - 1]?.signature as string | undefined;
+            return mcpText(lines.join('\n'), lastSignature
+              ? { continuation: { kind: 'signaturesQuick', lastSignature, until: typeof until === 'string' ? until : undefined } }
+              : undefined);
           } catch (err) {
             return handleToolError(err, 'Error fetching signatures');
           }
@@ -745,7 +748,9 @@ export function registerTransactionTools(server: McpServer) {
             lines.push('', `**Next Page Token:** \`${result.paginationToken}\``);
           }
 
-          return mcpText(lines.join('\n'));
+          return mcpText(lines.join('\n'), result.paginationToken
+            ? { continuation: { kind: 'paginationToken', api: 'history', token: result.paginationToken } }
+            : undefined);
         } catch (err) {
           return handleToolError(err, 'Error fetching signatures');
         }
@@ -812,7 +817,9 @@ export function registerTransactionTools(server: McpServer) {
             lines.push('', `**Next Page Token:** \`${result.paginationToken}\``);
           }
 
-          return mcpText(lines.join('\n'));
+          return mcpText(lines.join('\n'), result.paginationToken
+            ? { continuation: { kind: 'paginationToken', api: 'raw', token: result.paginationToken } }
+            : undefined);
         } catch (err) {
           return handleToolError(err, 'Error fetching transactions');
         }
@@ -906,7 +913,9 @@ export function registerTransactionTools(server: McpServer) {
         }
 
         const fullText = lines.join('\n');
-        return mcpText(truncateResponse(fullText));
+        return mcpText(truncateResponse(fullText), sigResult.paginationToken
+          ? { continuation: { kind: 'paginationToken', api: 'history', token: sigResult.paginationToken } }
+          : undefined);
       } catch (err) {
         return handleToolError(err, 'Error fetching transaction history');
       }
@@ -1114,7 +1123,9 @@ export function registerTransactionTools(server: McpServer) {
         lines.push(`**Next Page Token:** \`${result.paginationToken}\``);
       }
 
-      return mcpText(truncateResponse(lines.join('\n')));
+      return mcpText(truncateResponse(lines.join('\n')), result.paginationToken
+        ? { continuation: { kind: 'paginationToken', api: 'raw', token: result.paginationToken } }
+        : undefined);
     }
   );
 }

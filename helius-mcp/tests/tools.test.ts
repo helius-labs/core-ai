@@ -527,6 +527,82 @@ describe('Dispatch per routed tool', () => {
   });
 });
 
+describe('Structured continuation', () => {
+  let tools: RegisteredToolMap;
+  const mockedCallHandler = vi.mocked(callActionHandler);
+
+  beforeEach(() => {
+    clearStoredResults();
+    vi.mocked(hasApiKey).mockReturnValue(true);
+    mockedCallHandler.mockReset();
+    ({ tools } = createServer());
+  });
+
+  function resultIdFrom(text: string): string {
+    const match = text.match(/resultId:\s+([^\n]+)/);
+    expect(match, 'response should carry a resultId').toBeTruthy();
+    return match![1].trim();
+  }
+
+  it('threads a paginationToken hint into the expandResult continuation', async () => {
+    mockedCallHandler.mockResolvedValueOnce({
+      content: [{ type: 'text', text: 'page 1' }],
+      continuation: { kind: 'paginationToken', api: 'history', token: 'TKN1' },
+    });
+    const initial = await tools.heliusTransaction.handler(
+      { action: 'getTransactionHistory', address: '11111111111111111111111111111111', detail: 'summary', ...telemetry() },
+      {},
+    );
+    const resultId = resultIdFrom(initial.content[0].text);
+
+    mockedCallHandler.mockResolvedValueOnce({ content: [{ type: 'text', text: 'page 2' }] });
+    await tools.expandResult.handler({ resultId, continuation: 'next', ...telemetry() }, {});
+
+    expect(mockedCallHandler).toHaveBeenLastCalledWith(
+      'getTransactionHistory',
+      expect.objectContaining({ paginationToken: 'TKN1' }),
+      expect.anything(),
+    );
+  });
+
+  it('threads a signaturesQuick hint into the before cursor', async () => {
+    mockedCallHandler.mockResolvedValueOnce({
+      content: [{ type: 'text', text: 'sigs' }],
+      continuation: { kind: 'signaturesQuick', lastSignature: 'SIG_LAST' },
+    });
+    const initial = await tools.heliusTransaction.handler(
+      { action: 'getTransactionHistory', address: '11111111111111111111111111111111', mode: 'signatures', detail: 'summary', ...telemetry() },
+      {},
+    );
+    const resultId = resultIdFrom(initial.content[0].text);
+
+    mockedCallHandler.mockResolvedValueOnce({ content: [{ type: 'text', text: 'more sigs' }] });
+    await tools.expandResult.handler({ resultId, continuation: 'next', ...telemetry() }, {});
+
+    expect(mockedCallHandler).toHaveBeenLastCalledWith(
+      'getTransactionHistory',
+      expect.objectContaining({ before: 'SIG_LAST' }),
+      expect.anything(),
+    );
+  });
+
+  it('adds no cursor when the handler omits the continuation hint', async () => {
+    mockedCallHandler.mockResolvedValueOnce({ content: [{ type: 'text', text: 'last page' }] });
+    const initial = await tools.heliusTransaction.handler(
+      { action: 'getTransactionHistory', address: '11111111111111111111111111111111', detail: 'summary', ...telemetry() },
+      {},
+    );
+    const resultId = resultIdFrom(initial.content[0].text);
+
+    mockedCallHandler.mockResolvedValueOnce({ content: [{ type: 'text', text: 'same page' }] });
+    await tools.expandResult.handler({ resultId, continuation: 'next', ...telemetry() }, {});
+
+    const lastParams = mockedCallHandler.mock.calls.at(-1)![1];
+    expect(lastParams).not.toHaveProperty('paginationToken');
+    expect(lastParams).not.toHaveProperty('before');
+  });
+});
+
 describe('Result Store', () => {
   beforeEach(() => {
     clearStoredResults();
