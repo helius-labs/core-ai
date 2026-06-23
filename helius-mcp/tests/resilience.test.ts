@@ -105,6 +105,16 @@ describe('wrapClientWithResilience', () => {
         getComputeUnits: flaky(1, err({ statusCode: 429 }), 4200),
         sendTransactionWithSender: flaky(1, err({ statusCode: 429 }), 'sig'),
       },
+      // wallet/zk are pure-read namespaces; the second method in each is a
+      // synthetic non-read that guards the prefix gate within the namespace.
+      wallet: {
+        getBalances: flaky(1, err({ statusCode: 429 }), 'wallet-read'),
+        updateLabel: flaky(1, err({ statusCode: 429 }), 'wallet-write'),
+      },
+      zk: {
+        getCompressedAccount: flaky(1, err({ statusCode: 429 }), 'zk-read'),
+        sendCompressed: flaky(1, err({ statusCode: 429 }), 'zk-write'),
+      },
       ws: {
         // Streaming: must NOT be wrapped.
         logsNotifications: flaky(1, err({ statusCode: 429 }), 'sub'),
@@ -134,6 +144,26 @@ describe('wrapClientWithResilience', () => {
 
     await expect(wrapped.tx.sendTransactionWithSender()).rejects.toMatchObject({ statusCode: 429 });
     expect(c.tx.sendTransactionWithSender).toHaveBeenCalledTimes(1);
+  });
+
+  it('recurses into the wallet namespace: getBalances retried, non-read not', async () => {
+    const c = makeClient();
+    const wrapped = wrapClientWithResilience(c, FAST);
+    await expect(wrapped.wallet.getBalances()).resolves.toBe('wallet-read');
+    expect(c.wallet.getBalances).toHaveBeenCalledTimes(2);
+
+    await expect(wrapped.wallet.updateLabel()).rejects.toMatchObject({ statusCode: 429 });
+    expect(c.wallet.updateLabel).toHaveBeenCalledTimes(1);
+  });
+
+  it('recurses into the zk namespace: getCompressedAccount retried, non-read not', async () => {
+    const c = makeClient();
+    const wrapped = wrapClientWithResilience(c, FAST);
+    await expect(wrapped.zk.getCompressedAccount()).resolves.toBe('zk-read');
+    expect(c.zk.getCompressedAccount).toHaveBeenCalledTimes(2);
+
+    await expect(wrapped.zk.sendCompressed()).rejects.toMatchObject({ statusCode: 429 });
+    expect(c.zk.sendCompressed).toHaveBeenCalledTimes(1);
   });
 
   it('leaves the ws namespace untouched (no retry on streaming)', async () => {

@@ -14,7 +14,7 @@
  */
 
 const READ_METHOD_RE = /^(get|search|simulate)/;
-const WRAPPED_NAMESPACES = new Set(['enhanced', 'webhooks', 'tx']);
+const WRAPPED_NAMESPACES = new Set(['enhanced', 'webhooks', 'tx', 'wallet', 'zk']);
 const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const NETWORK_ERROR_CODES = new Set([
   'ECONNRESET',
@@ -113,8 +113,8 @@ export async function withResilience<T>(fn: () => Promise<T>, label = '', opts: 
 
 /**
  * Wrap a Helius client so idempotent reads get timeout + retry. Recurses into the
- * `enhanced`/`webhooks`/`tx` namespaces; leaves `ws` (streaming) and all
- * non-read methods (sends, webhook mutations) untouched.
+ * `enhanced`/`webhooks`/`tx`/`wallet`/`zk` namespaces; leaves `ws` (streaming) and
+ * all non-read methods (sends, webhook mutations) untouched.
  */
 export function wrapClientWithResilience<T extends object>(client: T, opts: ResilienceOptions = {}): T {
   const makeHandler = (prefix: string): ProxyHandler<Record<string | symbol, unknown>> => ({
