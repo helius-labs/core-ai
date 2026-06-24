@@ -1,9 +1,14 @@
 # Changelog
 
-## 2.1.0 — Historical token balance
+## 2.1.0 — Historical token balance & safer transactions
 
 ### New
 - **`helius wallet balance-at <address>`** — query a wallet's exact balance of a token (or native SOL) at a past point in time. Requires `--mint` and exactly one of `--time` (Unix seconds), `--datetime` (UTC unless a timezone is given), or `--slot`. Validates inputs locally and supports `--json`. Wallet API, 100 credits, Developer plan or higher. (#138)
+- **Confirmation prompt before submitting transactions.** Transaction-sending commands now show a summary and prompt before broadcasting. (#134)
+- **Confirmation prompts for destructive commands.** Commands that move funds or close accounts now confirm before proceeding. Pass `-y`/`--yes` to skip the prompt in scripts and agent runs. (#133)
+
+### Fixed
+- **`helius reclaim` now exits non-zero when batches fail to land.** Failed batches are recorded in telemetry and marked `recoverable` in the JSON error envelope, so automation can detect partial failures instead of seeing a false success. (#126)
 
 ## 2.0.0 — Breaking change: OAuth/PKCE login
 
