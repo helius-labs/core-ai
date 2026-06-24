@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import { resolveApiKey, restRequest, type ResolveOptions } from "../lib/helius.js";
-import { formatAddress, formatTable, formatEnumLabel, type TableColumn } from "../lib/formatters.js";
+import { formatAddress, formatTable, formatEnumLabel, formatTimestamp, type TableColumn } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
-import { validateAddress, validateAddressOrDomain, validateAddressesOrDomains } from "../lib/validation.js";
+import { validateAddress, validateAddressOrDomain, validateAddressesOrDomains, validateSlot } from "../lib/validation.js";
 
 interface WalletOptions extends OutputOptions, ResolveOptions, RetryOptions {}
 
@@ -118,6 +118,56 @@ export async function walletBalancesCommand(address: string, options: WalletOpti
         mint: t.mint || "",
       }));
       console.log(formatTable(rows, columns));
+    }
+  } catch (error) {
+    handleCommandError(error, options, spinner);
+  }
+}
+
+export async function walletBalanceAtCommand(address: string, options: WalletOptions & { mint?: string; time?: string; datetime?: string; slot?: string } = {}): Promise<void> {
+  const spinner = createSpinner(options);
+  try {
+    const addrErr = validateAddress(address);
+    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    if (!options.mint) {
+      exitWithError("INVALID_INPUT", "Missing --mint. Pass a token mint address, or So11111111111111111111111111111111111111111 for native SOL.", undefined, !!options.json);
+    }
+    const mintErr = validateAddress(options.mint!);
+    if (mintErr) exitWithError("INVALID_ADDRESS", mintErr.replace("address", "mint address"), undefined, !!options.json);
+    const selectors = [options.time, options.datetime, options.slot].filter((v) => v !== undefined);
+    if (selectors.length !== 1) {
+      exitWithError("INVALID_INPUT", "Provide exactly one of --time, --datetime, or --slot.", undefined, !!options.json);
+    }
+    if (options.slot !== undefined) {
+      const slotErr = validateSlot(options.slot);
+      if (slotErr) exitWithError("INVALID_INPUT", slotErr, undefined, !!options.json);
+    }
+    if (options.time !== undefined && !/^\d+$/.test(options.time)) {
+      exitWithError("INVALID_INPUT", `Invalid --time: ${options.time}. Must be a Unix timestamp in seconds (integer).`, undefined, !!options.json);
+    }
+    spinner?.start("Resolving API key...");
+    const apiKey = await resolveApiKey(options);
+    const params = new URLSearchParams({ mint: options.mint! });
+    if (options.time !== undefined) params.set("time", options.time);
+    if (options.datetime !== undefined) params.set("datetime", options.datetime);
+    if (options.slot !== undefined) params.set("slot", options.slot);
+    spinner?.start("Fetching historical balance...");
+    const result = await withRetry(() => restRequest(`/v1/wallet/${address}/balance-at?${params.toString()}`, apiKey), options, spinner);
+    spinner?.stop();
+    if (options.json) { outputJson(result); return; }
+    const symbol = result?.isNative ? "SOL" : formatAddress(result?.mint || options.mint!);
+    console.log(chalk.bold(`\nHistorical Balance for ${chalk.cyan(address)}:\n`));
+    console.log(`  ${chalk.gray("Token:")}    ${result?.isNative ? chalk.green("SOL") : chalk.cyan(result?.mint || options.mint)}`);
+    console.log(`  ${chalk.gray("Balance:")}  ${chalk.green(`${result?.balance ?? "0"} ${symbol}`)}`);
+    console.log(`  ${chalk.gray("Raw:")}      ${result?.balanceRaw ?? "0"} (decimals: ${result?.decimals ?? "?"})`);
+    if (options.datetime !== undefined && result?.requested?.time != null) {
+      console.log(`  ${chalk.gray("Resolved:")} ${result.requested.time} (${formatTimestamp(result.requested.time)})`);
+    }
+    if (result?.asOf) {
+      console.log(`  ${chalk.gray("As of:")}    slot ${result.asOf.slot}${result.asOf.blockTime ? ` (${formatTimestamp(result.asOf.blockTime)})` : ""}`);
+      console.log(`  ${chalk.gray("Signature:")} ${result.asOf.signature}`);
+    } else {
+      console.log(chalk.yellow("\n  No activity at or before the requested point — balance is genuinely 0."));
     }
   } catch (error) {
     handleCommandError(error, options, spinner);

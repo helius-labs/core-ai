@@ -17,6 +17,7 @@ export const HELIUS_WALLET_ACTIONS = [
   'getBalance',
   'getTokenBalances',
   'getWalletBalances',
+  'getWalletBalanceAt',
   'getWalletHistory',
   'getWalletTransfers',
   'getWalletIdentity',

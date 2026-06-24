@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { callActionHandler } from '../src/router/action-handlers.js';
+import { restRequest } from '../src/utils/helius.js';
 
 const getTransactionsForAddress = vi.fn(async () => ({
   data: [],
@@ -39,6 +40,7 @@ describe('action handler bridge', () => {
     getTransfersByAddress.mockClear();
     getAssetBatch.mockClear();
     getAsset.mockClear();
+    vi.mocked(restRequest).mockClear();
   });
 
   it('applies action-schema defaults before invoking getTransactionHistory', async () => {
@@ -182,5 +184,110 @@ describe('action handler bridge', () => {
       ),
     ).rejects.toThrow('Invalid parameters for getTransfersByAddress: address Required');
     expect(getTransfersByAddress).not.toHaveBeenCalled();
+  });
+
+  it('builds the balance-at REST query and renders the historical balance', async () => {
+    vi.mocked(restRequest).mockResolvedValueOnce({
+      wallet: 'BenchWallet11111111111111111111111111111111',
+      mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      isNative: false,
+      balance: '284961463.392936',
+      balanceRaw: '284961463392936',
+      decimals: 6,
+      requested: { time: null, slot: 313000000, datetime: null },
+      asOf: { slot: 313000000, blockTime: 1736536794, signature: '5Cyy7Mh9nVgFq3T8wJp2sKxR4dE6bA1uZoNcLrXmYqUpon' },
+    });
+
+    const result = await callActionHandler(
+      'getWalletBalanceAt',
+      {
+        address: 'BenchWallet11111111111111111111111111111111',
+        mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        slot: 313000000,
+      },
+      {},
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(restRequest).toHaveBeenCalledWith(
+      '/v1/wallet/BenchWallet11111111111111111111111111111111/balance-at?mint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&slot=313000000',
+    );
+    expect(result.content?.[0]?.text).toContain('Historical Token Balance');
+    expect(result.content?.[0]?.text).toContain('284961463.392936');
+    expect(result.content?.[0]?.text).toContain('slot 313000000');
+  });
+
+  it('echoes the resolved epoch and encodes datetime for a datetime query', async () => {
+    vi.mocked(restRequest).mockResolvedValueOnce({
+      wallet: 'BenchWallet11111111111111111111111111111111',
+      mint: 'So11111111111111111111111111111111111111111',
+      isNative: true,
+      balance: '1.5',
+      balanceRaw: '1500000000',
+      decimals: 9,
+      requested: { time: 1736536800, slot: null, datetime: '2025-01-10 19:20:00' },
+      asOf: { slot: 313000000, blockTime: 1736536794, signature: '5Cyy7Mh' },
+    });
+
+    const result = await callActionHandler(
+      'getWalletBalanceAt',
+      {
+        address: 'BenchWallet11111111111111111111111111111111',
+        mint: 'So11111111111111111111111111111111111111111',
+        datetime: '2025-01-10 19:20:00',
+      },
+      {},
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(restRequest).toHaveBeenCalledWith(
+      '/v1/wallet/BenchWallet11111111111111111111111111111111/balance-at?mint=So11111111111111111111111111111111111111111&datetime=2025-01-10+19%3A20%3A00',
+    );
+    expect(result.content?.[0]?.text).toContain('Resolved:');
+  });
+
+  it('reports a genuine zero balance when balance-at returns asOf: null', async () => {
+    vi.mocked(restRequest).mockResolvedValueOnce({
+      wallet: 'BenchWallet11111111111111111111111111111111',
+      mint: 'So11111111111111111111111111111111111111111',
+      isNative: true,
+      balance: '0',
+      balanceRaw: '0',
+      decimals: 9,
+      requested: { time: 1736536800, slot: null, datetime: null },
+      asOf: null,
+    });
+
+    const result = await callActionHandler(
+      'getWalletBalanceAt',
+      {
+        address: 'BenchWallet11111111111111111111111111111111',
+        mint: 'So11111111111111111111111111111111111111111',
+        time: 1736536800,
+      },
+      {},
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(result.content?.[0]?.text).toContain('genuinely 0');
+    expect(result.content?.[0]?.text).toContain('SOL');
+  });
+
+  it('rejects balance-at when not exactly one of time/datetime/slot is given', async () => {
+    const none = await callActionHandler(
+      'getWalletBalanceAt',
+      { address: 'BenchWallet11111111111111111111111111111111', mint: 'So11111111111111111111111111111111111111111' },
+      {},
+    );
+    expect(none.isError).toBe(true);
+    expect(none.content?.[0]?.text).toContain('exactly one');
+
+    const both = await callActionHandler(
+      'getWalletBalanceAt',
+      { address: 'BenchWallet11111111111111111111111111111111', mint: 'So11111111111111111111111111111111111111111', time: 1, slot: 2 },
+      {},
+    );
+    expect(both.isError).toBe(true);
+    expect(both.content?.[0]?.text).toContain('exactly one');
   });
 });
