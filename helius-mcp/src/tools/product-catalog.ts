@@ -50,7 +50,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'wallet-api': {
     name: 'Wallet API',
-    mcpTools: ['getWalletBalances', 'getWalletHistory', 'getWalletTransfers', 'getWalletIdentity', 'batchWalletIdentity', 'getWalletFundedBy'],
+    mcpTools: ['getWalletBalances', 'getWalletBalanceAt', 'getWalletHistory', 'getWalletTransfers', 'getWalletIdentity', 'batchWalletIdentity', 'getWalletFundedBy'],
     creditCostPerCall: '100 credits',
     minimumPlan: 'developer',
     docKey: 'wallet-api',

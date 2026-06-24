@@ -30,7 +30,7 @@ import { networkStatusCommand } from "../src/commands/network-status.js";
 import { blockCommand } from "../src/commands/block.js";
 import {
   walletIdentityCommand, walletIdentityBatchCommand, walletBalancesCommand,
-  walletHistoryCommand, walletTransfersCommand, walletFundedByCommand,
+  walletBalanceAtCommand, walletHistoryCommand, walletTransfersCommand, walletFundedByCommand,
 } from "../src/commands/wallet.js";
 import {
   webhookListCommand, webhookGetCommand, webhookCreateCommand,
@@ -725,6 +725,22 @@ Examples:
   $ helius wallet balances 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY
   $ helius wallet balances 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY --show-nfts --json`)
   .action(function(this: any, address: string) { walletBalancesCommand(address, opts(this)); });
+
+walletCmd
+  .command("balance-at <address>")
+  .description("Get a wallet's historical balance of a token (or SOL) at a past time, datetime, or slot")
+  .option("--mint <mint>", "Token mint address (use So11111111111111111111111111111111111111111 for native SOL)")
+  .option("--time <unix>", "Unix timestamp in seconds")
+  .option("--datetime <datetime>", "Datetime string, e.g. 2025-01-10 or 2025-01-10T19:20:00Z (UTC unless tz given)")
+  .option("--slot <slot>", "Slot number (exact and deterministic)")
+  .option("--json", "Output in JSON format")
+  .addHelpText('after', `
+Provide exactly one of --time, --datetime, or --slot.
+
+Examples:
+  $ helius wallet balance-at 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --slot 313000000
+  $ helius wallet balance-at 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY --mint So11111111111111111111111111111111111111111 --datetime "2025-01-10 19:20:00" --json`)
+  .action(function(this: any, address: string) { walletBalanceAtCommand(address, opts(this)); });
 
 walletCmd
   .command("history <address>")

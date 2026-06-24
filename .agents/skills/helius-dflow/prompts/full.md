@@ -2992,6 +2992,7 @@ All Wallet API endpoints have direct MCP tools. ALWAYS use these instead of gene
 | `getWalletIdentity` | `GET /v1/wallet/{wallet}/identity` | Identify known wallets (exchanges, protocols, institutions). Accepts an address or an SNS/ANS domain (mainnet only). |
 | `batchWalletIdentity` | `POST /v1/wallet/batch-identity` | Bulk lookup up to 100 entries in one request. Entries may be addresses or SNS/ANS domains (mainnet only). |
 | `getWalletBalances` | `GET /v1/wallet/{wallet}/balances` | Token + NFT balances with USD values, sorted by value |
+| `getWalletBalanceAt` | `GET /v1/wallet/{wallet}/balance-at` | Exact historical balance of a single token (or SOL) at a past time, datetime, or slot |
 | `getWalletHistory` | `GET /v1/wallet/{wallet}/history` | Transaction history with balance changes per tx |
 | `getWalletTransfers` | `GET /v1/wallet/{wallet}/transfers` | Token transfers with direction (in/out) and counterparty |
 | `getWalletFundedBy` | `GET /v1/wallet/{wallet}/funded-by` | Original funding source (first incoming SOL transfer) |
@@ -3005,6 +3006,7 @@ When the user asks to investigate a wallet, identify an address, check balances,
 | Check if a wallet is a known entity | `getWalletIdentity` |
 | Label many addresses at once | `batchWalletIdentity` (up to 100) |
 | See token holdings with USD values | `getWalletBalances` |
+| Know a token/SOL balance at a past time or slot | `getWalletBalanceAt` |
 | View recent transaction activity | `getWalletHistory` |
 | Track incoming/outgoing transfers | `getWalletTransfers` |
 | Find who funded a wallet | `getWalletFundedBy` |
@@ -3085,6 +3087,28 @@ Response includes:
 - `showNative` (default: true) — include native SOL
 
 **Pricing notes**: USD values sourced from DAS, updated hourly, covers top 10K tokens. `pricePerToken` and `usdValue` may be `null` for unlisted tokens. These are estimates, not real-time market rates.
+
+## Historical Token Balance
+
+`getWalletBalanceAt` returns a wallet's exact balance of a **single** token (or native SOL) at a past point in time. The balance is read from the wallet's most recent transaction involving the token **at or before** the requested point — its post-transaction balance, which held until the wallet's next transaction. This is an exact value, not an estimate. Like the other Wallet API endpoints, it costs 100 credits and requires a Developer plan or higher.
+
+**Parameters**:
+- `mint` (required) — token mint address. For native SOL use the pseudo-mint `So11111111111111111111111111111111111111111`.
+- **Exactly one** of:
+  - `time` — Unix timestamp in **seconds**
+  - `datetime` — datetime string (`2025-01-10`, `2025-01-10 19:20:00`, `2025-01-10T19:20:00Z`, `...+02:00`). Interpreted as **UTC** unless an explicit timezone is included.
+  - `slot` — slot number. Exact and deterministic; prefer this since validator block times can drift by a few seconds.
+
+**Response** (`balance` and `balanceRaw` are strings to avoid precision loss):
+- `balance` — human-readable amount (trailing zeros trimmed)
+- `balanceRaw` — exact amount in smallest unit (lamports for SOL)
+- `decimals`, `isNative`
+- `requested` — echo of the query (when `datetime` is used, `time` is also populated with the resolved epoch seconds)
+- `asOf` — the transaction the balance was read from (`slot`, `blockTime`, `signature`), or **`null`** when the wallet had no matching transaction at or before the requested point. `asOf: null` is **not an error** — it means the balance is genuinely `0` (the wallet had not held the token by then).
+
+**Notes**:
+- Providing zero or more than one of `time`/`datetime`/`slot` is a 400 error.
+- `502` indicates an upstream RPC error/timeout — retryable with exponential backoff.
 
 ## Transaction History
 

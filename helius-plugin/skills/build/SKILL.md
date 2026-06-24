@@ -74,9 +74,9 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 
 ### Wallet Analysis
 **Read**: `references/wallet-api.md`
-**APIs**: Wallet API (`getWalletIdentity`, `getWalletBalances`, `getWalletHistory`, `getWalletTransfers`, `getWalletFundedBy`)
-**MCP tools** (if available): `getWalletIdentity`, `batchWalletIdentity`, `getWalletBalances`, `getWalletHistory`, `getWalletTransfers`, `getWalletFundedBy`
-**When**: wallet identity lookup, portfolio/balance breakdowns, fund flow tracing, wallet analytics, tax reporting, investigation tools
+**APIs**: Wallet API (`getWalletIdentity`, `getWalletBalances`, `getWalletBalanceAt`, `getWalletHistory`, `getWalletTransfers`, `getWalletFundedBy`)
+**MCP tools** (if available): `getWalletIdentity`, `batchWalletIdentity`, `getWalletBalances`, `getWalletBalanceAt`, `getWalletHistory`, `getWalletTransfers`, `getWalletFundedBy`
+**When**: wallet identity lookup, portfolio/balance breakdowns, historical balance at a past time/slot, fund flow tracing, wallet analytics, tax reporting, investigation tools
 
 ### Account & Token Data
 **APIs**: Standard RPC (`getBalance`, `getAccountInfo`, `getBlock`), Token API (`getTokenBalances`, `getTokenAccounts`, `getTokenHolders`)

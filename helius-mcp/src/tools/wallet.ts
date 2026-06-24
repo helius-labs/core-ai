@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { HistoryTransaction, Transfer } from 'helius-sdk/wallet/types';
-import { getHeliusClient, hasApiKey } from '../utils/helius.js';
+import { getHeliusClient, hasApiKey, restRequest } from '../utils/helius.js';
 import { formatAddress, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
@@ -163,6 +163,65 @@ export function registerWalletTools(server: McpServer) {
       } catch (err) {
         return handleToolError(err, 'Error fetching wallet balances', [
           addressError('Wallet Balances'),
+        ]);
+      }
+    }
+  );
+
+  // ─── Get Historical Token Balance ───
+  server.tool(
+    'getWalletBalanceAt',
+    'BEST FOR: a wallet\'s exact balance of a specific token (or native SOL) at a past timestamp, datetime, or slot. PREFER getWalletBalances for current holdings. Reads the post-transaction balance from the wallet\'s most recent transaction at or before the requested point — an exact value, not an estimate. Provide exactly ONE of time, datetime, or slot. For native SOL pass mint=So11111111111111111111111111111111111111111. Credit cost: 100 credits. Requires Developer+ plan.',
+    {
+      address: z.string().describe('Solana wallet address (base58 encoded)'),
+      mint: z.string().describe('Token mint address. For native SOL use So11111111111111111111111111111111111111111'),
+      time: z.number().optional().describe('Unix timestamp in seconds. Provide exactly one of time, datetime, or slot'),
+      datetime: z.string().optional().describe('Datetime string (e.g. "2025-01-10" or "2025-01-10T19:20:00Z"). Interpreted as UTC unless an explicit timezone is included. Provide exactly one of time, datetime, or slot'),
+      slot: z.number().optional().describe('Slot number — exact and deterministic. Provide exactly one of time, datetime, or slot')
+    },
+    async ({ address, mint, time, datetime, slot }) => {
+      if (!hasApiKey()) return noApiKeyResponse();
+
+      const provided = [time !== undefined, datetime !== undefined, slot !== undefined].filter(Boolean).length;
+      if (provided !== 1) {
+        return mcpError(
+          'Provide exactly one of `time`, `datetime`, or `slot`.',
+          { type: 'VALIDATION', code: 'INVALID_TIME_SELECTOR', retryable: false, recovery: 'Pass a single point in time: a Unix timestamp (time), a datetime string (datetime), or a slot number (slot).' }
+        );
+      }
+
+      try {
+        const params = new URLSearchParams({ mint });
+        if (time !== undefined) params.set('time', String(time));
+        if (datetime !== undefined) params.set('datetime', datetime);
+        if (slot !== undefined) params.set('slot', String(slot));
+
+        const data = await restRequest(`/v1/wallet/${address}/balance-at?${params.toString()}`);
+
+        const symbol = data.isNative ? 'SOL' : formatAddress(data.mint || mint);
+        const lines = ['**Historical Token Balance**', ''];
+        lines.push(`**Wallet:** ${formatAddress(data.wallet || address)}`);
+        lines.push(`**Token:** ${symbol}${data.isNative ? '' : ` (\`${data.mint || mint}\`)`}`);
+        lines.push(`**Balance:** ${data.balance} ${symbol}`);
+        lines.push(`**Raw:** ${data.balanceRaw} (decimals: ${data.decimals})`);
+
+        // For datetime queries, echo the resolved epoch so the UTC interpretation is visible.
+        if (datetime !== undefined && data.requested?.time != null) {
+          lines.push('', `**Resolved:** \`${datetime}\` → ${formatTimestamp(data.requested.time)} (epoch ${data.requested.time})`);
+        }
+
+        if (data.asOf) {
+          const asOfTime = data.asOf.blockTime ? formatTimestamp(data.asOf.blockTime) : 'N/A';
+          lines.push('', `**As of:** slot ${data.asOf.slot} — ${asOfTime}`);
+          lines.push(`Signature: \`${data.asOf.signature}\``);
+        } else {
+          lines.push('', '*No matching activity at or before the requested point — the wallet had not held this token yet, so the balance is genuinely 0.*');
+        }
+
+        return mcpText(lines.join('\n'));
+      } catch (err) {
+        return handleToolError(err, 'Error fetching historical balance', [
+          addressError('Historical Balance'),
         ]);
       }
     }

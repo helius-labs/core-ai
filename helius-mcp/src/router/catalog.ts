@@ -366,6 +366,13 @@ catalog.getWalletBalances = makeEntry('getWalletBalances', {
   defaultDetail: 'standard',
 });
 
+catalog.getWalletBalanceAt = makeEntry('getWalletBalanceAt', {
+  capabilityGate: developerWalletGate,
+  responseFamily: 'record',
+  defaultDetail: 'standard',
+  handleEligibility: false,
+});
+
 catalog.getWalletHistory = makeEntry('getWalletHistory', {
   capabilityGate: developerWalletGate,
   responseFamily: 'history',

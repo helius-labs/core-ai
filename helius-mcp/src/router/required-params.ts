@@ -12,6 +12,7 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getBalance: ['address'],
   getTokenBalances: ['address'],
   getWalletBalances: ['address'],
+  getWalletBalanceAt: ['address', 'mint'],
   getWalletHistory: ['address'],
   getWalletTransfers: ['address'],
   getWalletIdentity: ['address'],
