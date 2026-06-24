@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0 — Historical token balance
+
+### New
+- **`helius wallet balance-at <address>`** — query a wallet's exact balance of a token (or native SOL) at a past point in time. Requires `--mint` and exactly one of `--time` (Unix seconds), `--datetime` (UTC unless a timezone is given), or `--slot`. Validates inputs locally and supports `--json`. Wallet API, 100 credits, Developer plan or higher. (#138)
+
 ## 2.0.0 — Breaking change: OAuth/PKCE login
 
 `helius login` now opens your browser to authenticate via dashboard.helius.dev, instead of signing a message with a local Solana keypair.
