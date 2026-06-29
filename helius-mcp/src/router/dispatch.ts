@@ -1,5 +1,5 @@
 import { getStoredResult, putStoredResult } from '../results/store.js';
-import type { ContinuationState, StoredResult, TransactionHistoryContinuation } from '../results/types.js';
+import type { ContinuationHint, ContinuationState, StoredResult } from '../results/types.js';
 import { callActionHandler, type ActionHandlerResponse } from './action-handlers.js';
 import { getActionCatalogEntry } from './catalog.js';
 import { getRouterContext } from './context.js';
@@ -54,60 +54,31 @@ function buildActionParams(input: Record<string, unknown>): Record<string, unkno
   return merged;
 }
 
-function detectContinuation(action: ActionName, params: Record<string, unknown>, text: string): ContinuationState {
-  if (action === 'getTransactionHistory') {
-    // Fragile: depends on handler markdown format "**Next Page Token:** `<token>`"
-    const tokenMatch = text.match(/\*\*Next Page Token:\*\*\s+`([^`]+)`/);
-    if (tokenMatch) {
-      const mode = typeof params.mode === 'string' ? params.mode : 'parsed';
-      const next: TransactionHistoryContinuation = mode === 'raw'
-        ? { kind: 'rawApi', paginationToken: tokenMatch[1] }
-        : { kind: 'historyApi', paginationToken: tokenMatch[1] };
-      return { model: 'transactionHistory', next };
-    }
-
-    const hasFilters = [
-      'paginationToken',
-      'status',
-      'tokenAccounts',
-      'blockTimeGte',
-      'blockTimeLte',
-      'slotGte',
-      'slotLte',
-    ].some((key) => params[key] !== undefined);
-    const mode = typeof params.mode === 'string' ? params.mode : 'parsed';
-    const sortOrder = typeof params.sortOrder === 'string' ? params.sortOrder : 'desc';
-    if (mode === 'signatures' && sortOrder === 'desc' && !hasFilters) {
-      // Fragile: depends on handler "✅/❌ <base58sig>" line format for signature extraction
-      const signatures = Array.from(
-        text.matchAll(/^[^\S\r\n]*[✅❌]\s+([1-9A-HJ-NP-Za-km-z]{86,88})$/gm),
-      ).map((match) => match[1]);
-      const lastSignature = signatures.at(-1);
-      if (lastSignature) {
-        return {
-          model: 'transactionHistory',
-          next: {
-            kind: 'signaturesQuick',
-            nextBefore: lastSignature,
-            lastSeenSignature: lastSignature,
-            until: typeof params.until === 'string' ? params.until : undefined,
-          },
-        };
-      }
-    }
-  }
-
-  if (action === 'getTransfersByAddress') {
-    // Fragile: depends on handler markdown format "**Next Page Token:** `<token>`" (mirrors getTransactionHistory)
-    const tokenMatch = text.match(/\*\*Next Page Token:\*\*\s+`([^`]+)`/);
-    if (tokenMatch) {
+function detectContinuation(params: Record<string, unknown>, hint?: ContinuationHint): ContinuationState {
+  // Prefer structured metadata emitted by the handler over parsing its output.
+  if (hint) {
+    if (hint.kind === 'paginationToken') {
       return {
         model: 'transactionHistory',
-        next: { kind: 'rawApi', paginationToken: tokenMatch[1] },
+        next: hint.api === 'raw'
+          ? { kind: 'rawApi', paginationToken: hint.token }
+          : { kind: 'historyApi', paginationToken: hint.token },
+      };
+    }
+    if (hint.kind === 'signaturesQuick') {
+      return {
+        model: 'transactionHistory',
+        next: {
+          kind: 'signaturesQuick',
+          nextBefore: hint.lastSignature,
+          lastSeenSignature: hint.lastSignature,
+          until: hint.until,
+        },
       };
     }
   }
 
+  // Page-based pagination is param-driven (not output-parsed), so it stays here.
   if (typeof params.page === 'number') {
     return { model: 'page', nextPage: params.page + 1 };
   }
@@ -148,9 +119,10 @@ function buildStoredResult(
   params: Record<string, unknown>,
   summary: string,
   text: string,
+  hint?: ContinuationHint,
 ): StoredResult {
   const context = getRouterContext();
-  const continuation = detectContinuation(entry.action, params, text);
+  const continuation = detectContinuation(params, hint);
   const sectionHints = collectSectionHints(text);
   const stored = putStoredResult({
     kind: entry.responseFamily,
@@ -180,6 +152,7 @@ function normalizeSuccessResponse(
   text: string,
   requestedDetail: DetailLevel,
   allowHandles: boolean,
+  hint?: ContinuationHint,
 ): RouterResponse {
   const baseText = text.trim();
   const summaryText = buildTextVariant(entry.responseFamily, 'summary', baseText);
@@ -199,7 +172,7 @@ function normalizeSuccessResponse(
     && (requestedDetail === 'summary' || size > limit);
 
   if (needsHandle) {
-    const stored = buildStoredResult(entry, publicTool, params, summaryText, fullText);
+    const stored = buildStoredResult(entry, publicTool, params, summaryText, fullText, hint);
     return mcpResultHandle(summaryText, stored.resultId, stored.availableExpansions, {
       family: entry.responseFamily,
       action: entry.action,
@@ -232,7 +205,7 @@ function normalizeActionResponse(
     });
   }
 
-  return normalizeSuccessResponse(entry, publicTool, params, text, requestedDetail, allowHandles);
+  return normalizeSuccessResponse(entry, publicTool, params, text, requestedDetail, allowHandles, result.continuation);
 }
 
 async function executeActionViaRouter(
@@ -375,6 +348,7 @@ export async function expandStoredResult(
         selected,
         requestedDetail,
         true,
+        rawResponse.continuation,
       );
     }
 

@@ -1,8 +1,12 @@
 // ─── MCP Response Builders ───
 
+import type { ContinuationHint } from '../results/types.js';
+
 type McpToolResponse = {
   content: [{ type: 'text'; text: string }];
   isError?: boolean;
+  /** Structured next-page metadata the router reads to enable expandResult continuation. */
+  continuation?: ContinuationHint;
 };
 
 export type ErrorMeta = {
@@ -12,8 +16,11 @@ export type ErrorMeta = {
   recovery: string;
 };
 
-export function mcpText(text: string): McpToolResponse {
-  return { content: [{ type: 'text', text }] };
+export function mcpText(text: string, opts?: { continuation?: ContinuationHint }): McpToolResponse {
+  return {
+    content: [{ type: 'text', text }],
+    ...(opts?.continuation ? { continuation: opts.continuation } : {}),
+  };
 }
 
 export function mcpError(text: string, meta?: ErrorMeta): McpToolResponse {

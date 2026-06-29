@@ -7,6 +7,15 @@ export type TransactionHistoryContinuation =
   | { kind: 'historyApi'; paginationToken?: string }
   | { kind: 'rawApi'; paginationToken?: string };
 
+/**
+ * Structured continuation metadata emitted by an action handler on its response,
+ * describing how to fetch the next page. The router reads this directly instead
+ * of regex-parsing the handler's human-readable output.
+ */
+export type ContinuationHint =
+  | { kind: 'paginationToken'; api: 'history' | 'raw'; token: string }
+  | { kind: 'signaturesQuick'; lastSignature: string; until?: string };
+
 export type ContinuationState =
   | { model: 'none' }
   | { model: 'page'; nextPage?: number }
