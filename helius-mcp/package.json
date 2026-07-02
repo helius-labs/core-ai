@@ -46,7 +46,7 @@
     "@solana/kit": "^5.0.0",
     "bs58": "^6.0.0",
     "helius-sdk": "^3.0.0",
-    "zod": "^3.23.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
