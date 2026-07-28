@@ -96,7 +96,7 @@ export async function fetchDoc(docKey: string): Promise<string> {
     return cached.content;
   }
 
-  // Fetch from GitHub
+  // Fetch from the docs site
   const url = `${DOCS_BASE_URL}${docInfo.path}`;
   try {
     const response = await fetch(url);

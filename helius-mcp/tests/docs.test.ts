@@ -45,7 +45,7 @@ describe('DOCS_INDEX', () => {
     }
   });
 
-  it('resolves every topic against the published docs site', async () => {
+  it('resolves every topic against the published docs site and nowhere else', async () => {
     const requested = stubFetch();
 
     for (const key of getAvailableDocTopics()) {
@@ -55,15 +55,5 @@ describe('DOCS_INDEX', () => {
     const expected = Object.values(DOCS_INDEX).map((info) => `${DOCS_ORIGIN}${info.path}`);
     expect(requested).toHaveLength(Object.keys(DOCS_INDEX).length);
     expect(new Set(requested)).toEqual(new Set(expected));
-  });
-
-  it('never requests docs from the unauthenticated GitHub raw host', async () => {
-    const requested = stubFetch();
-
-    for (const key of getAvailableDocTopics()) {
-      await fetchDoc(key);
-    }
-
-    expect(requested.filter((url) => !url.startsWith(`${DOCS_ORIGIN}/`))).toEqual([]);
   });
 });
