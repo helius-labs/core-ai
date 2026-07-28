@@ -1,12 +1,12 @@
 /**
  * Helius Documentation Fetcher
  *
- * Fetches official Helius documentation from GitHub for accurate, up-to-date information.
+ * Fetches official Helius documentation from helius.dev for accurate, up-to-date information.
  * Uses llms.txt files which are AI-optimized summaries of the documentation.
  */
 
-// GitHub raw URL base for Helius docs
-const DOCS_BASE_URL = 'https://raw.githubusercontent.com/helius-labs/docs/main';
+// Base URL for the published Helius docs site
+const DOCS_BASE_URL = 'https://www.helius.dev/docs';
 
 // Available llms.txt documentation files
 export const DOCS_INDEX: Record<string, { path: string; description: string }> = {
@@ -35,7 +35,7 @@ export const DOCS_INDEX: Record<string, { path: string; description: string }> =
     description: 'Standard Solana WebSocket subscriptions',
   },
   'enhanced-websockets': {
-    path: '/enhanced-websockets/llms.txt',
+    path: '/api-reference/rpc/websocket/llms.txt',
     description: 'Enhanced WebSockets: transactionSubscribe, accountSubscribe, filtering',
   },
   webhooks: {
