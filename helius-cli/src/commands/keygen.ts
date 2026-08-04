@@ -43,7 +43,9 @@ export async function keygenCommand(options: KeygenOptions = {}): Promise<void> 
 
     // Save in Solana CLI format (64-byte array)
     const secretKeyArray = Array.from(keypair.secretKey);
-    fs.writeFileSync(resolvedPath, JSON.stringify(secretKeyArray));
+    // `mode` closes the window where a new keypair is briefly world-readable;
+    // the chmod still covers overwrites of an existing file.
+    fs.writeFileSync(resolvedPath, JSON.stringify(secretKeyArray), { mode: 0o600 });
     fs.chmodSync(resolvedPath, 0o600);
 
     // Get address for display

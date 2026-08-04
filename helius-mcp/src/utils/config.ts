@@ -17,9 +17,20 @@ interface HeliusConfig {
   };
 }
 
+// Warn at most once per process if we can't lock down config permissions.
+let warnedConfigPerms = false;
+
 function ensureDir(): void {
   if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  }
+  // Owner-only — the dir holds a JWT, API key, and keypair. chmod unconditionally:
+  // another path (feedback.ts at module load) may have created it modeless before we
+  // got here, and this also tightens existing installs. Best-effort like the file below.
+  try {
+    fs.chmodSync(CONFIG_DIR, 0o700);
+  } catch {
+    // Non-POSIX filesystem — the saveConfig permission warning already covers this.
   }
 }
 
@@ -76,9 +87,38 @@ function recoveredFieldSummary(cfg: HeliusConfig): string {
   return keys.join(", ");
 }
 
+/** chmod the config to owner-only, warning at most once per process if it fails. */
+function restrictConfigPerms(): void {
+  try {
+    fs.chmodSync(SHARED_CONFIG_PATH, 0o600);
+  } catch {
+    // Non-fatal (e.g. non-POSIX filesystem), but the file may stay readable by
+    // other users — warn once so credentials aren't silently left exposed.
+    if (!warnedConfigPerms) {
+      warnedConfigPerms = true;
+      console.error(
+        `Warning: could not restrict permissions on ${SHARED_CONFIG_PATH}; it may be ` +
+          `readable by other users. If possible, run: chmod 600 ${SHARED_CONFIG_PATH}`,
+      );
+    }
+  }
+}
+
 export function loadConfig(): HeliusConfig {
   if (!fs.existsSync(SHARED_CONFIG_PATH)) {
     return {};
+  }
+
+  // Self-heal installs written before saveConfig locked permissions down. Every
+  // saveConfig caller is an explicit user action (login, signup, set-api-key), so
+  // a user who set up once and only makes read calls would otherwise keep a
+  // world-readable JWT indefinitely. One stat per load; chmod only when loose.
+  try {
+    if ((fs.statSync(SHARED_CONFIG_PATH).mode & 0o077) !== 0) {
+      restrictConfigPerms();
+    }
+  } catch {
+    // Can't stat — the read below will surface any real problem.
   }
 
   let raw: string;
@@ -116,7 +156,9 @@ export function loadConfig(): HeliusConfig {
 
 export function saveConfig(config: HeliusConfig): void {
   ensureDir();
-  fs.writeFileSync(SHARED_CONFIG_PATH, JSON.stringify(config, null, 2));
+  // Owner-only. `mode` only applies on create, so chmod existing files too.
+  fs.writeFileSync(SHARED_CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+  restrictConfigPerms();
 }
 
 export function getSharedApiKey(): string | undefined {
@@ -174,6 +216,8 @@ export function loadKeypairFromDisk(): Uint8Array | null {
 
 export function saveKeypairToDisk(secretKey: Uint8Array): void {
   ensureDir();
-  fs.writeFileSync(KEYPAIR_PATH, JSON.stringify(Array.from(secretKey)));
+  // `mode` closes the window where a newly created keypair is briefly world-readable;
+  // the chmod still covers files that already existed.
+  fs.writeFileSync(KEYPAIR_PATH, JSON.stringify(Array.from(secretKey)), { mode: 0o600 });
   fs.chmodSync(KEYPAIR_PATH, 0o600);
 }
