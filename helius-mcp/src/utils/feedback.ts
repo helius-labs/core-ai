@@ -31,7 +31,8 @@ try {
   } else {
     sessionId = crypto.randomUUID();
     try {
-      fs.mkdirSync(HELIUS_DIR, { recursive: true });
+      // Owner-only — this dir also holds the JWT/API-key config (see config.ts).
+      fs.mkdirSync(HELIUS_DIR, { recursive: true, mode: 0o700 });
       fs.writeFileSync(ANON_ID_PATH, sessionId, 'utf-8');
     } catch {}
   }

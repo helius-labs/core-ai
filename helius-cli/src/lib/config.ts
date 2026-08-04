@@ -116,9 +116,38 @@ function recoverConfig(raw: string): Config {
   return recovered;
 }
 
+/** chmod the config to owner-only, warning at most once per process if it fails. */
+function restrictConfigPerms(): void {
+  try {
+    fs.chmodSync(CONFIG_FILE, 0o600);
+  } catch {
+    // Non-fatal (e.g. non-POSIX filesystem), but the file may stay readable by
+    // other users — warn once so credentials aren't silently left exposed.
+    if (!warnedConfigPerms) {
+      warnedConfigPerms = true;
+      console.error(
+        `Warning: could not restrict permissions on ${CONFIG_FILE}; it may be ` +
+          `readable by other users. If possible, run: chmod 600 ${CONFIG_FILE}`,
+      );
+    }
+  }
+}
+
 export function load(): Config {
   if (!fs.existsSync(CONFIG_FILE)) {
     return {};
+  }
+
+  // Self-heal installs written before save() locked permissions down. Every
+  // save() caller is an explicit user action (login, signup, config set), so a
+  // user who set up once and only runs read commands would otherwise keep a
+  // world-readable JWT indefinitely. One stat per load; chmod only when loose.
+  try {
+    if ((fs.statSync(CONFIG_FILE).mode & 0o077) !== 0) {
+      restrictConfigPerms();
+    }
+  } catch {
+    // Can't stat — the read below will surface any real problem.
   }
 
   let raw: string;
@@ -152,19 +181,7 @@ export function save(data: Config): void {
   ensureDir();
   // Owner-only. `mode` only applies on create, so chmod existing files too.
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), { mode: 0o600 });
-  try {
-    fs.chmodSync(CONFIG_FILE, 0o600);
-  } catch {
-    // Non-fatal (e.g. non-POSIX filesystem), but the file may stay readable by
-    // other users — warn once so credentials aren't silently left exposed.
-    if (!warnedConfigPerms) {
-      warnedConfigPerms = true;
-      console.error(
-        `Warning: could not restrict permissions on ${CONFIG_FILE}; it may be ` +
-          `readable by other users. If possible, run: chmod 600 ${CONFIG_FILE}`,
-      );
-    }
-  }
+  restrictConfigPerms();
 }
 
 export function getJwt(): string | undefined {
