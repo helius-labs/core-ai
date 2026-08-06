@@ -2,6 +2,8 @@ import { createHelius, type HeliusClient } from 'helius-sdk';
 import { MCP_USER_AGENT } from '../http.js';
 import { getSharedApiKey } from './config.js';
 import { wrapClientWithResilience, withResilience, READ_TIMEOUT_MS } from './resilience.js';
+import { registerSecret } from './redact.js';
+import { isSharedCredentialMode } from './runtime.js';
 
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
@@ -37,6 +39,8 @@ export function getApiKey(): string {
   if (!apiKey) {
     throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
+  // Register wherever the key came from so the output scrubber can catch it.
+  registerSecret(apiKey);
   return apiKey;
 }
 
@@ -67,12 +71,19 @@ export function getNetwork(): 'mainnet-beta' | 'devnet' {
 }
 
 export function getEnhancedWebSocketUrl(): string {
-  const apiKey = getApiKey();
   const network = getNetwork();
-  if (network === 'devnet') {
-    return `wss://atlas-devnet.helius-rpc.com/?api-key=${apiKey}`;
+  const host = network === 'devnet'
+    ? 'wss://atlas-devnet.helius-rpc.com'
+    : 'wss://atlas-mainnet.helius-rpc.com';
+
+  // Under a shared server-side credential this URL is tool output that reaches
+  // the caller, so it gets a placeholder the caller substitutes with their own
+  // key. Single-tenant stdio still returns a ready-to-use URL.
+  if (isSharedCredentialMode()) {
+    return `${host}/?api-key=YOUR_HELIUS_API_KEY`;
   }
-  return `wss://atlas-mainnet.helius-rpc.com/?api-key=${apiKey}`;
+
+  return `${host}/?api-key=${getApiKey()}`;
 }
 
 export function getLaserstreamUrl(region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp'): string {

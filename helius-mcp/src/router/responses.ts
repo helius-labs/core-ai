@@ -1,4 +1,5 @@
 import { extractSections } from '../utils/docs.js';
+import { redactSecrets } from '../utils/redact.js';
 import type { DetailLevel, ResponseFamily } from './types.js';
 
 // ── Markdown-dependent patterns ──────────────────────────────────────────
@@ -238,14 +239,14 @@ export function applyRangeSelection(text: string, range?: string): string {
 
 export function mcpText(text: string, meta?: Record<string, unknown>): RouterResponse {
   return {
-    content: [{ type: 'text', text }],
+    content: [{ type: 'text', text: redactSecrets(text) }],
     ...(meta === undefined ? {} : { _meta: meta }),
   };
 }
 
 export function mcpErrorCompact(text: string, meta?: Record<string, unknown>): RouterResponse {
   return {
-    content: [{ type: 'text', text }],
+    content: [{ type: 'text', text: redactSecrets(text) }],
     isError: true,
     ...(meta === undefined ? {} : { _meta: meta }),
   };
