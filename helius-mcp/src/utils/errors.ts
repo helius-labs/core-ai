@@ -1,6 +1,7 @@
 // ─── MCP Response Builders ───
 
 import type { ContinuationHint } from '../results/types.js';
+import { redactSecrets } from './redact.js';
 
 type McpToolResponse = {
   content: [{ type: 'text'; text: string }];
@@ -18,7 +19,7 @@ export type ErrorMeta = {
 
 export function mcpText(text: string, opts?: { continuation?: ContinuationHint }): McpToolResponse {
   return {
-    content: [{ type: 'text', text }],
+    content: [{ type: 'text', text: redactSecrets(text) }],
     ...(opts?.continuation ? { continuation: opts.continuation } : {}),
   };
 }
@@ -27,7 +28,7 @@ export function mcpError(text: string, meta?: ErrorMeta): McpToolResponse {
   const body = meta
     ? '```json\n' + JSON.stringify(meta) + '\n```\n\n' + text
     : text;
-  return { content: [{ type: 'text', text: body }], isError: true };
+  return { content: [{ type: 'text', text: redactSecrets(body) }], isError: true };
 }
 
 // ─── Error Message Extraction ───
