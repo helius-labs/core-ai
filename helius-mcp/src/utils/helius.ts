@@ -29,7 +29,28 @@ export function getSessionWalletAddress(): string | null {
   return sessionWalletAddress;
 }
 
+/**
+ * Runtime credential and network state is module-global — one process, one
+ * caller. That holds for stdio, where the process belongs to a single user.
+ *
+ * Under a shared credential it does not: a mutation from any caller lands on
+ * every concurrent caller, so the setters below refuse. This is a backstop, not
+ * the real isolation — genuine per-caller state arrives with the streamable HTTP
+ * entrypoint, which can key state off the request. Until then, shared-credential
+ * deployments are read-only with respect to configuration: the key comes from
+ * HELIUS_API_KEY and the network from HELIUS_NETWORK, both fixed at deploy time.
+ */
+function assertConfigurableAtRuntime(what: string): void {
+  if (isSharedCredentialMode()) {
+    throw new Error(
+      `SHARED_CREDENTIAL: ${what} is fixed by deployment configuration and cannot be changed at runtime. `
+      + 'Changing it would affect every concurrent caller of this server.',
+    );
+  }
+}
+
 export function setApiKey(apiKey: string): void {
+  assertConfigurableAtRuntime('the Helius API key');
   sessionApiKey = apiKey;
   heliusClient = null; // Reset client so it picks up new key
 }
@@ -59,6 +80,7 @@ export function getHeliusClient(): HeliusClient {
 }
 
 export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
+  assertConfigurableAtRuntime('the network');
   sessionNetwork = network;
 }
 
@@ -103,6 +125,13 @@ export function getLaserstreamUrl(region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon
  * Throws with message 'NO_KEYPAIR' if no keypair is available.
  */
 export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walletAddress: string }> {
+  // Skipping the keypair at startup is not enough on its own: this loads lazily
+  // from disk on first use, which would reinstate a process-global signer that
+  // every caller then shares. Refuse before touching the filesystem.
+  if (isSharedCredentialMode()) {
+    throw new Error('SHARED_CREDENTIAL_NO_SIGNER: this server holds no signing key.');
+  }
+
   // Lazy-import to avoid circular deps (config → helius → config)
   const { loadKeypairFromDisk } = await import('./config.js');
   const { loadKeypair } = await import('helius-sdk/auth/loadKeypair');

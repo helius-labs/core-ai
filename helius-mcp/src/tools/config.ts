@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { setApiKey, setNetwork, hasApiKey, getHeliusClient } from '../utils/helius.js';
+import { isSharedCredentialMode } from '../utils/runtime.js';
 import { mcpText, mcpError, validateEnum, getErrorMessage } from '../utils/errors.js';
 import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
 
@@ -17,6 +18,20 @@ export function registerConfigTools(server: McpServer) {
       network: z.string().optional().default('mainnet-beta').describe('Network to use (default: mainnet-beta)')
     },
     async ({ apiKey, network }) => {
+      // Refuse before validating input: under a shared credential this tool has
+      // no per-caller meaning, and honoring it would repoint the key and network
+      // for every concurrent caller and write the value to disk. The existing
+      // env-var branch below happens to cover the common hosted case, but only
+      // because the key arrives via HELIUS_API_KEY — it fails open if the
+      // credential is mounted as a config file instead.
+      if (isSharedCredentialMode()) {
+        return mcpError(
+          'This server runs with a fixed, deployment-managed Helius API key, so it cannot be set per session. '
+          + 'Queries work without any key configuration. To use your own key, run the Helius MCP locally: `npx helius-mcp@latest`.',
+          { type: 'UNSUPPORTED', code: 'SHARED_CREDENTIAL', retryable: false, recovery: 'Call the query tools directly — no API key setup is needed on this server.' },
+        );
+      }
+
       const err = validateEnum(network, ['mainnet-beta', 'devnet'], 'API Key Error', 'network');
       if (err) return err;
 

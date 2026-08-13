@@ -22,6 +22,7 @@ import { promisify } from 'node:util';
 import { address, createKeyPairSignerFromBytes, type Address } from '@solana/kit';
 import { loadSignerOrFail, getNetwork } from './helius.js';
 import { mcpError } from './errors.js';
+import { isSharedCredentialMode, sharedCredentialRefusal, SHARED_CREDENTIAL_META } from './runtime.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -163,6 +164,19 @@ export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
   | { ok: true; signer: any; walletAddress: string; owsWallet?: string }
   | { ok: false; error: ReturnType<typeof mcpError> }
 > {
+  // Ahead of both branches: the OWS path shells out to a wallet CLI on the host,
+  // and the fallback path loads a keypair from the host's disk. Neither is a
+  // per-caller wallet, so neither belongs on a server serving many callers.
+  // Checked here rather than relying on loadSignerOrFail throwing, because the
+  // catch below flattens every failure into "call generateKeypair" — which in
+  // shared mode is advice that also refuses.
+  if (isSharedCredentialMode()) {
+    return { ok: false, error: mcpError(
+      sharedCredentialRefusal('Transaction signing'),
+      SHARED_CREDENTIAL_META,
+    ) };
+  }
+
   if (owsWallet) {
     if (!WALLET_NAME_RE.test(owsWallet)) {
       return { ok: false, error: mcpError(
