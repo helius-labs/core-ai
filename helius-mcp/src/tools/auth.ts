@@ -23,6 +23,7 @@ import {
   loadSignerOrFail,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
+import { isSharedCredentialMode, sharedCredentialRefusal, SHARED_CREDENTIAL_META } from '../utils/runtime.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import {
@@ -154,6 +155,12 @@ export function registerAuthTools(server: McpServer) {
     'Generate a new Solana keypair (or load the existing one from disk). Returns the wallet address. Required before any `signup` call — the wallet address is bound to the payment intent in both link and autopay modes.',
     {},
     async () => {
+      // Would write a private key to the host's disk and install a signer every
+      // caller shares.
+      if (isSharedCredentialMode()) {
+        return mcpError(sharedCredentialRefusal('Keypair generation'), SHARED_CREDENTIAL_META);
+      }
+
       try {
         const existingKey = loadKeypairFromDisk();
         if (existingKey) {
@@ -217,6 +224,14 @@ export function registerAuthTools(server: McpServer) {
       frictionPoints: z.string().optional().describe('What friction did you hit?'),
     },
     async ({ mode, plan, period, email, firstName, lastName, couponCode, discoveryPath, frictionPoints }) => {
+      // Refuse up front rather than partway through. Every terminal branch calls
+      // setApiKey() one line before rendering the provisioned key, so under a
+      // shared credential the caller would pay, then get a SHARED_CREDENTIAL
+      // throw instead of the key they just bought.
+      if (isSharedCredentialMode()) {
+        return mcpError(sharedCredentialRefusal('Account signup'), SHARED_CREDENTIAL_META);
+      }
+
       if (discoveryPath || frictionPoints) {
         sendFeedbackEvent({
           type: 'discovery',

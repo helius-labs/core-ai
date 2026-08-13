@@ -125,6 +125,13 @@ export function getLaserstreamUrl(region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon
  * Throws with message 'NO_KEYPAIR' if no keypair is available.
  */
 export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walletAddress: string }> {
+  // Skipping the keypair at startup is not enough on its own: this loads lazily
+  // from disk on first use, which would reinstate a process-global signer that
+  // every caller then shares. Refuse before touching the filesystem.
+  if (isSharedCredentialMode()) {
+    throw new Error('SHARED_CREDENTIAL_NO_SIGNER: this server holds no signing key.');
+  }
+
   // Lazy-import to avoid circular deps (config → helius → config)
   const { loadKeypairFromDisk } = await import('./config.js');
   const { loadKeypair } = await import('helius-sdk/auth/loadKeypair');
