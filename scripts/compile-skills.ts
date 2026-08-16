@@ -3,16 +3,30 @@
  * Skill Compiler — generates cross-platform skill variants from canonical sources.
  *
  * Reads canonical SKILL.md + references/ from helius-skills/<skill>/
- * Outputs to:
- *   .agents/skills/<skill>/           (Codex-native)
- *   helius-mcp/system-prompts/<skill>/ (npm-shipped)
+ * (and optional variants/{plugin,cursor}.md for destination-specific frontmatter
+ * + Prerequisites section).
  *
- * Usage: npx tsx scripts/compile-skills.ts
+ * Outputs to:
+ *   .agents/skills/<skill>/                    (Codex-native + prompt variants)
+ *   helius-mcp/system-prompts/<skill>/         (npm-shipped prompt copies)
+ *   helius-plugin/skills/<pluginDir>/          (Claude Code plugin)
+ *   helius-cursor/skills/<pluginDir>/          (Cursor plugin)
+ *
+ * Usage:
+ *   npx tsx scripts/compile-skills.ts          # generate everything
+ *   npx tsx scripts/compile-skills.ts --check  # diff against on-disk; exit 1 on drift
  */
 
-import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from "fs";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
+
+// ---------------------------------------------------------------------------
+// Mode
+// ---------------------------------------------------------------------------
+
+const CHECK_MODE = process.argv.includes("--check");
+const driftReports: string[] = [];
 
 // ---------------------------------------------------------------------------
 // Config
@@ -304,6 +318,141 @@ function inlineReferences(body: string, refsDir: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Filesystem helpers (check-mode aware)
+// ---------------------------------------------------------------------------
+
+/** Write text content if changed; in check mode, record drift instead. */
+function writeFileMaybe(path: string, content: string): void {
+  const existing = existsSync(path) ? readFileSync(path, "utf-8") : null;
+  if (CHECK_MODE) {
+    if (existing === null) {
+      driftReports.push(`MISSING: ${relative(ROOT, path)}`);
+    } else if (existing !== content) {
+      driftReports.push(`DRIFT:   ${relative(ROOT, path)}`);
+    }
+    return;
+  }
+  if (existing !== content) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, content);
+  }
+}
+
+/** Copy a file (binary-safe) with the same drift-detection semantics. */
+function copyFileMaybe(src: string, dest: string): void {
+  const srcBuf = readFileSync(src);
+  const existing = existsSync(dest) ? readFileSync(dest) : null;
+  if (CHECK_MODE) {
+    if (existing === null) {
+      driftReports.push(`MISSING: ${relative(ROOT, dest)}`);
+    } else if (!existing.equals(srcBuf)) {
+      driftReports.push(`DRIFT:   ${relative(ROOT, dest)}`);
+    }
+    return;
+  }
+  if (!existing || !existing.equals(srcBuf)) {
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, srcBuf);
+  }
+}
+
+/**
+ * Report files present in a generated references/ directory but absent from
+ * canonical.
+ *
+ * Copying canonical -> dest cannot see these: a reference file that was renamed
+ * or removed upstream leaves its old copy behind in every destination, and every
+ * byte-for-byte comparison still passes. The bash this replaced caught it with
+ * `comm -13`.
+ *
+ * Orphans are reported, never deleted — removing files the compiler does not own
+ * is not a safe default for a codegen step.
+ */
+function reportOrphanRefs(canonicalRefsDir: string, destRefsDir: string): void {
+  if (!existsSync(destRefsDir)) return;
+
+  const canonical = new Set(
+    existsSync(canonicalRefsDir) ? readdirSync(canonicalRefsDir) : []
+  );
+
+  for (const file of readdirSync(destRefsDir)) {
+    if (!canonical.has(file)) {
+      const rel = relative(ROOT, join(destRefsDir, file));
+      if (CHECK_MODE) {
+        driftReports.push(`ORPHAN:  ${rel}`);
+      } else {
+        console.warn(`  ! orphan reference (not in canonical): ${rel}`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Plugin/Cursor sync
+// ---------------------------------------------------------------------------
+//
+// Plugin/cursor SKILL.md bodies are intentionally bespoke (different MCP
+// prerequisite messaging, condensed router surface section). They are
+// hand-managed in helius-plugin/ and helius-cursor/. The compiler:
+//   1. Re-injects the canonical version into their frontmatter (single
+//      source of truth = versions.json).
+//   2. Bytewise-copies the canonical references/ directory into each.
+//
+// Reference files MUST be byte-identical across all destinations — this is
+// what previously required ~420 lines of duplicated bash in CI.
+
+/** Update version in an existing plugin/cursor SKILL.md and copy refs. */
+function syncPluginCursorSkill(
+  destRoot: string,
+  pluginDir: string,
+  canonicalRefsDir: string,
+  version: string
+): void {
+  const destSkillDir = join(destRoot, pluginDir);
+  const destSkillMd = join(destSkillDir, "SKILL.md");
+
+  // Version sync into existing SKILL.md frontmatter.
+  //
+  // These bodies are hand-authored, so the compiler cannot create one. But
+  // skipping silently hides the misconfiguration it is most likely to encounter:
+  // a new pluginDir added to SKILLS whose SKILL.md nobody wrote.
+  if (!existsSync(destSkillMd)) {
+    const rel = relative(ROOT, destSkillMd);
+    if (CHECK_MODE) {
+      driftReports.push(`MISSING: ${rel}`);
+    } else {
+      console.warn(`  ! hand-authored SKILL.md not found: ${rel}`);
+    }
+  } else {
+    const raw = readFileSync(destSkillMd, "utf-8");
+    const parsed = parseFrontmatter(raw);
+    if (parsed.frontmatter) {
+      const updatedFm = injectVersion(parsed.frontmatter, version);
+      const updated = `---\n${updatedFm}\n---\n${parsed.body}`;
+      writeFileMaybe(destSkillMd, updated);
+    } else {
+      // Same reasoning: a SKILL.md with no frontmatter can never receive a
+      // version, so the version guarantee silently stops holding for it.
+      const rel = relative(ROOT, destSkillMd);
+      if (CHECK_MODE) {
+        driftReports.push(`NO-FRONTMATTER: ${rel}`);
+      } else {
+        console.warn(`  ! SKILL.md has no frontmatter, version not injected: ${rel}`);
+      }
+    }
+  }
+
+  // Reference files: bytewise copy from canonical
+  const destRefsDir = join(destSkillDir, "references");
+  if (existsSync(canonicalRefsDir)) {
+    for (const file of readdirSync(canonicalRefsDir)) {
+      copyFileMaybe(join(canonicalRefsDir, file), join(destRefsDir, file));
+    }
+  }
+  reportOrphanRefs(canonicalRefsDir, destRefsDir);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -330,10 +479,7 @@ function compileSkill(config: SkillConfig): void {
   // --- Update canonical SKILL.md version from versions.json ---
   const updatedFrontmatter = injectVersion(frontmatter, version);
   const updatedCanonical = `---\n${updatedFrontmatter}\n---\n${body}`;
-  if (updatedCanonical !== raw) {
-    writeFileSync(skillMdPath, updatedCanonical);
-    console.log(`  ↻ ${config.dir}/SKILL.md version → ${version}`);
-  }
+  writeFileMaybe(skillMdPath, updatedCanonical);
 
   // --- Apply transforms ---
   let transformed = stripClaudeSpecific(body);
@@ -366,50 +512,37 @@ function compileSkill(config: SkillConfig): void {
   const agentsPromptsDir = join(agentsSkillDir, "prompts");
   const mcpSkillDir = join(MCP_OUT, config.dir);
 
-  mkdirSync(agentsPromptsDir, { recursive: true });
-  mkdirSync(mcpSkillDir, { recursive: true });
-
   // Codex SKILL.md
-  writeFileSync(join(agentsSkillDir, "SKILL.md"), generationHeader + codexSkillMd);
+  writeFileMaybe(join(agentsSkillDir, "SKILL.md"), generationHeader + codexSkillMd);
 
-  // Copy reference files (with Claude-isms stripped)
+  // Copy reference files into agents/ (with Claude-isms stripped for .md)
+  const agentsRefsDir = join(agentsSkillDir, "references");
   if (existsSync(refsDir)) {
-    const agentsRefsDir = join(agentsSkillDir, "references");
-    mkdirSync(agentsRefsDir, { recursive: true });
     for (const file of readdirSync(refsDir)) {
       const srcPath = join(refsDir, file);
       const destPath = join(agentsRefsDir, file);
       if (file.endsWith(".md")) {
         const content = readFileSync(srcPath, "utf-8");
-        writeFileSync(destPath, stripClaudeSpecific(content));
+        writeFileMaybe(destPath, stripClaudeSpecific(content));
       } else {
-        cpSync(srcPath, destPath);
+        copyFileMaybe(srcPath, destPath);
       }
     }
   }
+  reportOrphanRefs(refsDir, agentsRefsDir);
 
   // Prompt variants — both locations
-  writeFileSync(join(agentsPromptsDir, "openai.developer.md"), openaiContent);
-  writeFileSync(join(agentsPromptsDir, "claude.system.md"), claudeContent);
-  writeFileSync(join(agentsPromptsDir, "full.md"), fullContent);
+  writeFileMaybe(join(agentsPromptsDir, "openai.developer.md"), openaiContent);
+  writeFileMaybe(join(agentsPromptsDir, "claude.system.md"), claudeContent);
+  writeFileMaybe(join(agentsPromptsDir, "full.md"), fullContent);
 
-  writeFileSync(join(mcpSkillDir, "openai.developer.md"), openaiContent);
-  writeFileSync(join(mcpSkillDir, "claude.system.md"), claudeContent);
-  writeFileSync(join(mcpSkillDir, "full.md"), fullContent);
+  writeFileMaybe(join(mcpSkillDir, "openai.developer.md"), openaiContent);
+  writeFileMaybe(join(mcpSkillDir, "claude.system.md"), claudeContent);
+  writeFileMaybe(join(mcpSkillDir, "full.md"), fullContent);
 
-  // --- Sync version into plugin/cursor SKILL.md copies ---
-  for (const destRoot of [PLUGIN_DIR, CURSOR_DIR]) {
-    const destSkillMd = join(destRoot, config.pluginDir, "SKILL.md");
-    if (!existsSync(destSkillMd)) continue;
-    const destRaw = readFileSync(destSkillMd, "utf-8");
-    const destParsed = parseFrontmatter(destRaw);
-    const destUpdatedFm = injectVersion(destParsed.frontmatter, version);
-    const destUpdated = `---\n${destUpdatedFm}\n---\n${destParsed.body}`;
-    if (destUpdated !== destRaw) {
-      writeFileSync(destSkillMd, destUpdated);
-      console.log(`  ↻ ${relative(ROOT, destSkillMd)} version → ${version}`);
-    }
-  }
+  // --- Plugin + Cursor: version sync + refs copy ---
+  syncPluginCursorSkill(PLUGIN_DIR, config.pluginDir, refsDir, version);
+  syncPluginCursorSkill(CURSOR_DIR, config.pluginDir, refsDir, version);
 
   // Count refs for summary
   const refCount = existsSync(refsDir)
@@ -420,13 +553,29 @@ function compileSkill(config: SkillConfig): void {
 }
 
 function main(): void {
-  console.log("Compiling skills...\n");
+  console.log(CHECK_MODE ? "Checking compiled skills...\n" : "Compiling skills...\n");
   console.log(`  Source: ${relative(ROOT, CANONICAL_DIR)}/`);
-  console.log(`  Output: ${relative(ROOT, AGENTS_OUT)}/`);
-  console.log(`          ${relative(ROOT, MCP_OUT)}/\n`);
+  if (!CHECK_MODE) {
+    console.log(`  Output: ${relative(ROOT, AGENTS_OUT)}/`);
+    console.log(`          ${relative(ROOT, MCP_OUT)}/`);
+    console.log(`          ${relative(ROOT, PLUGIN_DIR)}/`);
+    console.log(`          ${relative(ROOT, CURSOR_DIR)}/`);
+  }
+  console.log();
 
   for (const skill of SKILLS) {
     compileSkill(skill);
+  }
+
+  if (CHECK_MODE) {
+    if (driftReports.length > 0) {
+      console.error(`\n${driftReports.length} file(s) out of sync:\n`);
+      for (const r of driftReports) console.error(`  ${r}`);
+      console.error(`\nRun \`npx tsx scripts/compile-skills.ts\` to regenerate.`);
+      process.exit(1);
+    }
+    console.log("\nAll generated outputs are in sync.");
+    return;
   }
 
   console.log("\nDone.");
