@@ -356,6 +356,37 @@ function copyFileMaybe(src: string, dest: string): void {
   }
 }
 
+/**
+ * Report files present in a generated references/ directory but absent from
+ * canonical.
+ *
+ * Copying canonical -> dest cannot see these: a reference file that was renamed
+ * or removed upstream leaves its old copy behind in every destination, and every
+ * byte-for-byte comparison still passes. The bash this replaced caught it with
+ * `comm -13`.
+ *
+ * Orphans are reported, never deleted — removing files the compiler does not own
+ * is not a safe default for a codegen step.
+ */
+function reportOrphanRefs(canonicalRefsDir: string, destRefsDir: string): void {
+  if (!existsSync(destRefsDir)) return;
+
+  const canonical = new Set(
+    existsSync(canonicalRefsDir) ? readdirSync(canonicalRefsDir) : []
+  );
+
+  for (const file of readdirSync(destRefsDir)) {
+    if (!canonical.has(file)) {
+      const rel = relative(ROOT, join(destRefsDir, file));
+      if (CHECK_MODE) {
+        driftReports.push(`ORPHAN:  ${rel}`);
+      } else {
+        console.warn(`  ! orphan reference (not in canonical): ${rel}`);
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Plugin/Cursor sync
 // ---------------------------------------------------------------------------
@@ -380,24 +411,45 @@ function syncPluginCursorSkill(
   const destSkillDir = join(destRoot, pluginDir);
   const destSkillMd = join(destSkillDir, "SKILL.md");
 
-  // Version sync into existing SKILL.md frontmatter
-  if (existsSync(destSkillMd)) {
+  // Version sync into existing SKILL.md frontmatter.
+  //
+  // These bodies are hand-authored, so the compiler cannot create one. But
+  // skipping silently hides the misconfiguration it is most likely to encounter:
+  // a new pluginDir added to SKILLS whose SKILL.md nobody wrote.
+  if (!existsSync(destSkillMd)) {
+    const rel = relative(ROOT, destSkillMd);
+    if (CHECK_MODE) {
+      driftReports.push(`MISSING: ${rel}`);
+    } else {
+      console.warn(`  ! hand-authored SKILL.md not found: ${rel}`);
+    }
+  } else {
     const raw = readFileSync(destSkillMd, "utf-8");
     const parsed = parseFrontmatter(raw);
     if (parsed.frontmatter) {
       const updatedFm = injectVersion(parsed.frontmatter, version);
       const updated = `---\n${updatedFm}\n---\n${parsed.body}`;
       writeFileMaybe(destSkillMd, updated);
+    } else {
+      // Same reasoning: a SKILL.md with no frontmatter can never receive a
+      // version, so the version guarantee silently stops holding for it.
+      const rel = relative(ROOT, destSkillMd);
+      if (CHECK_MODE) {
+        driftReports.push(`NO-FRONTMATTER: ${rel}`);
+      } else {
+        console.warn(`  ! SKILL.md has no frontmatter, version not injected: ${rel}`);
+      }
     }
   }
 
   // Reference files: bytewise copy from canonical
+  const destRefsDir = join(destSkillDir, "references");
   if (existsSync(canonicalRefsDir)) {
-    const destRefsDir = join(destSkillDir, "references");
     for (const file of readdirSync(canonicalRefsDir)) {
       copyFileMaybe(join(canonicalRefsDir, file), join(destRefsDir, file));
     }
   }
+  reportOrphanRefs(canonicalRefsDir, destRefsDir);
 }
 
 // ---------------------------------------------------------------------------
@@ -464,8 +516,8 @@ function compileSkill(config: SkillConfig): void {
   writeFileMaybe(join(agentsSkillDir, "SKILL.md"), generationHeader + codexSkillMd);
 
   // Copy reference files into agents/ (with Claude-isms stripped for .md)
+  const agentsRefsDir = join(agentsSkillDir, "references");
   if (existsSync(refsDir)) {
-    const agentsRefsDir = join(agentsSkillDir, "references");
     for (const file of readdirSync(refsDir)) {
       const srcPath = join(refsDir, file);
       const destPath = join(agentsRefsDir, file);
@@ -477,6 +529,7 @@ function compileSkill(config: SkillConfig): void {
       }
     }
   }
+  reportOrphanRefs(refsDir, agentsRefsDir);
 
   // Prompt variants — both locations
   writeFileMaybe(join(agentsPromptsDir, "openai.developer.md"), openaiContent);
