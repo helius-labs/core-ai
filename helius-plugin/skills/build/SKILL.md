@@ -15,7 +15,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 The Helius MCP server should start automatically with this plugin. **Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically.
 
-If not available, try restarting Claude Code, or manually add: `claude mcp add helius npx helius-mcp@latest` then restart. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+If the tools are unavailable, restart the current agent client so it reloads the plugin. In Grok Build, verify the bundled server with `grok mcp doctor helius`; if manual configuration is needed, run `grok mcp add helius -- npx -y helius-mcp@2.1.1`. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 > If MCP tools are available, they expose 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getBalance` or `lookupHeliusDocs`, call the matching public tool with `action: "<action name>"` instead.
 

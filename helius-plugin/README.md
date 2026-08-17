@@ -1,10 +1,10 @@
-# Helius Plugin for Claude Code
+# Helius Plugin for Claude Code and Grok Build
 
 Build on Solana with Helius — one install gives you live blockchain tools and expert coding patterns.
 
 ## Install
 
-### From a marketplace
+### Claude Code marketplace
 
 ```
 /plugin marketplace add helius-labs/claude-plugins
@@ -15,6 +15,24 @@ Build on Solana with Helius — one install gives you live blockchain tools and 
 
 ```bash
 claude --plugin-dir ./helius-plugin
+```
+
+### Grok Build local testing
+
+Install directly from this checkout before submitting it to a marketplace:
+
+```bash
+grok plugin validate ./helius-plugin
+grok plugin install ./helius-plugin --trust
+grok plugin details helius
+grok mcp doctor helius
+grok mcp doctor DFlow
+```
+
+After the plugin is accepted into the Grok Build marketplace, users can install it with:
+
+```bash
+grok plugin install helius --trust
 ```
 
 ## What's included
@@ -49,11 +67,11 @@ Once installed, just ask questions in plain English:
 - "Quote and execute a Jupiter swap, then land it via Helius Sender"
 - "Explain how Solana's transaction scheduler works"
 
-Claude picks the right tools and reads the right reference files automatically.
+The agent picks the right tools and reads the right reference files automatically.
 
 ## API Key Setup
 
-The plugin auto-starts the MCP server, but you still need a Helius API key. On first use, Claude will guide you through one of these paths:
+The plugin auto-starts the MCP server, but you still need a Helius API key. On first use, the agent will guide you through one of these paths:
 
 - **Existing key**: Use the `setHeliusApiKey` tool with your key from https://dashboard.helius.dev
 - **New account**: `generateKeypair` → `signup` with `mode: "link"` (browser pay) or `mode: "autopay"` (pay USDC from local keypair) → after browser payment, `signup` with `mode: "resume"`
@@ -62,6 +80,15 @@ The plugin auto-starts the MCP server, but you still need a Helius API key. On f
 ## Not Using Claude Code?
 
 See [`.agents/skills/`](https://github.com/helius-labs/core-ai/tree/main/.agents/skills) for Codex-native skills, or [`helius-mcp/system-prompts/`](https://github.com/helius-labs/core-ai/tree/main/helius-mcp/system-prompts) for generated prompt files compatible with OpenAI API, Claude API, Cursor, and other tools. See [`helius-skills/SYSTEM-PROMPTS.md`](https://github.com/helius-labs/core-ai/blob/main/helius-skills/SYSTEM-PROMPTS.md) for integration guides.
+
+## Security and Network Access
+
+- The bundled Helius MCP server runs locally through the pinned npm package `helius-mcp@2.1.1` and reads `HELIUS_API_KEY` when configured.
+- Helius requests go to Helius-owned API and RPC endpoints under `helius.dev` and `helius-rpc.com`.
+- Public SIMD research uses GitHub under `github.com`, `api.github.com`, and `raw.githubusercontent.com`.
+- The optional DFlow MCP server connects to `https://pond.dflow.net/mcp`; production DFlow and WebSocket workflows may require separate DFlow credentials.
+- The plugin does not include lifecycle hooks or installation scripts. Review third-party installation instructions before running them.
+- Never commit API keys or expose a Helius API key in browser-side code.
 
 ## Links
 

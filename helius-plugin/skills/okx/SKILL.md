@@ -24,10 +24,10 @@ The Helius MCP server should start automatically with this plugin. Check that He
 If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 
 ```
-The Helius MCP server isn't running. Try restarting Claude Code.
-If the problem persists, you can add it manually:
-claude mcp add helius npx helius-mcp@latest
-Then restart Claude so the tools become available.
+The Helius MCP server isn't running. Restart the current agent client so it reloads the plugin.
+In Grok Build, diagnose it with `grok mcp doctor helius`. If manual configuration is needed, run:
+grok mcp add helius -- npx -y helius-mcp@2.1.1
+Then restart the client so the tools become available.
 ```
 
 ### 2. OKX Skill Library (Required)
@@ -38,15 +38,15 @@ The OKX skill library provides the detailed domain knowledge for all OKX tools â
 npx skills add okx/onchainos-skills
 ```
 
-Or via the Claude Code plugin marketplace. See [github.com/okx/onchainos-skills](https://github.com/okx/onchainos-skills) for all installation options.
+See [github.com/okx/onchainos-skills](https://github.com/okx/onchainos-skills) for platform-specific installation options.
 
 ### 3. OKX CLI (`onchainos`)
 
 Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, tell the user:
 
 ```
-You need to install the OKX onchainos CLI:
-curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash
+Install the OKX `onchainos` CLI by following the reviewed instructions at:
+https://github.com/okx/onchainos-skills
 ```
 
 ### 4. API Keys
@@ -166,10 +166,10 @@ Follow these rules when composing OKX + Helius:
 - LLM-Optimized Docs: `https://www.helius.dev/docs/llms.txt`
 - API Reference: `https://www.helius.dev/docs/api-reference`
 - Dashboard: `https://dashboard.helius.dev`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@latest`
+- Helius MCP Server for Grok Build: `grok mcp add helius -- npx -y helius-mcp@2.1.1`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### OKX
 - OKX Skill Library: `github.com/okx/onchainos-skills`
 - OKX Developer Portal: `https://www.okx.com/web3/build/docs/waas/dex-get-started`
-- OKX CLI Install: `curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash`
+- OKX CLI Install: follow the reviewed instructions at `https://github.com/okx/onchainos-skills`

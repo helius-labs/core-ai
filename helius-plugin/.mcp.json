@@ -2,7 +2,7 @@
   "mcpServers": {
     "helius": {
       "command": "npx",
-      "args": ["helius-mcp@latest"]
+      "args": ["-y", "helius-mcp@2.1.1"]
     },
     "DFlow": {
       "type": "http",

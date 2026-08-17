@@ -150,6 +150,15 @@ export function handleToolError(
       if (handler.match(msg)) return handler.respond(msg);
     }
   }
+  if (/GitHub API/i.test(msg) && /HTTP (?:403|429)/.test(msg)) {
+    const recovery = 'GitHub is rate-limiting public source access. Retry later or set `GITHUB_TOKEN` for a higher GitHub API limit; this is unrelated to Helius credits or plan limits.';
+    return mcpError(`**${fallbackPrefix}:** ${msg}\n\n${recovery}`, {
+      type: 'RATE_LIMIT',
+      code: 'GITHUB_RATE_LIMIT',
+      retryable: true,
+      recovery,
+    });
+  }
   const guidance = extractHttpGuidance(msg);
   if (guidance) {
     const meta = extractHttpMeta(msg, guidance);

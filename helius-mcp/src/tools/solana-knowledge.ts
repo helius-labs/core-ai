@@ -314,8 +314,7 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
           );
         }
 
-        const url = `${SIMD_RAW_BASE}/${entry.filename}`;
-        const content = await cachedFetch(url);
+        const content = await cachedFetch(`${SIMD_RAW_BASE}/${entry.filename}`);
 
         const result = [
           `# SIMD-${entry.number}: ${entry.slug}`,
@@ -328,7 +327,18 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
 
         return mcpText(result);
       } catch (error) {
-        return handleToolError(error, 'Error fetching SIMD');
+        return handleToolError(error, 'Error fetching SIMD', [{
+          match: (message) => /HTTP (?:403|429)/.test(message),
+          respond: (message) => {
+            const recovery = 'GitHub is currently rejecting public SIMD source requests. Retry later or set `GITHUB_TOKEN` for a higher GitHub API limit; this is unrelated to Helius credits or plan limits.';
+            return mcpError(`**Error fetching SIMD:** ${message}\n\n${recovery}`, {
+              type: 'RATE_LIMIT',
+              code: 'GITHUB_RATE_LIMIT',
+              retryable: true,
+              recovery,
+            });
+          },
+        }]);
       }
     }
   );

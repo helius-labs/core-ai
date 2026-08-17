@@ -185,6 +185,19 @@ describe('handleToolError', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('string error');
   });
+
+  it('does not misidentify GitHub rate limits as Helius credit limits', () => {
+    const result = handleToolError(
+      new Error('GitHub API rate limit exceeded (HTTP 429).'),
+      'Error fetching SIMD',
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('GITHUB_RATE_LIMIT');
+    expect(result.content[0].text).toContain('unrelated to Helius credits');
+    expect(result.content[0].text).not.toContain('getAccountStatus');
+  });
+
 });
 
 // ─── Pre-built Handler Factories ───

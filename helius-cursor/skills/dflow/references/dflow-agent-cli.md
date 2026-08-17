@@ -19,9 +19,7 @@ For programmatic API integration (building trading apps, UIs, backends), see `re
 
 ## Installation
 
-```bash
-curl -fsS https://cli.dflow.net | sh
-```
+Follow the reviewed installation instructions at https://pond.dflow.net/build/agent-cli before installing the DFlow Agent CLI.
 
 Zero dependencies. Single command.
 
