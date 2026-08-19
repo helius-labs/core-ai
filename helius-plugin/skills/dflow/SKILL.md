@@ -2,7 +2,7 @@
 name: dflow
 description: Build Solana trading applications combining DFlow trading APIs with Helius infrastructure. Covers spot swaps (imperative and declarative), prediction markets, real-time market streaming, Proof KYC, the DFlow Agent CLI for autonomous trading, transaction submission via Sender, fee optimization, shred-level streaming via LaserStream, and wallet intelligence.
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
 ---
 
 # Helius x DFlow — Build Trading Apps on Solana
@@ -28,15 +28,15 @@ claude mcp add helius npx helius-mcp@latest
 Then restart Claude so the tools become available.
 ```
 
-### 2. DFlow MCP Server (Optional but Recommended)
+### 2. DFlow MCP Server (Optional, Not Bundled)
 
-The DFlow MCP server should start automatically with this plugin. Check if DFlow MCP tools are available. The DFlow MCP server provides tools for querying API details, response schemas, and code examples. If not available, DFlow APIs can still be called directly via fetch/curl.
+The DFlow MCP server is **not** bundled with this plugin — expect its tools to be absent unless the user has added it themselves. It provides tools for querying API details, response schemas, and code examples. Everything in this skill works without it: DFlow APIs can be called directly via fetch/curl, and the `references/` files carry the endpoint details.
 
-If DFlow MCP tools are not available, tell the user:
+If the user wants the richer API tooling, tell them:
 
 ```
-The DFlow MCP server isn't running. Try restarting Claude Code.
-If the problem persists, you can add it manually:
+The DFlow MCP server is optional and not bundled with this plugin.
+To add it:
 claude mcp add --transport http DFlow https://pond.dflow.net/mcp
 Then restart Claude so the tools become available.
 ```

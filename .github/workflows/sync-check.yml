@@ -20,3 +20,22 @@ jobs:
 
       - name: Run compiler in check mode
         run: npx tsx scripts/compile-skills.ts --check
+
+      - name: Verify pinned helius-mcp version exists on npm
+        run: |
+          PIN=$(node -p "require('./versions.json')['helius-mcp']")
+          for i in 1 2 3; do
+            npm view "helius-mcp@$PIN" version > /dev/null 2>&1 && exit 0
+            echo "attempt $i failed"
+            [ "$i" -lt 3 ] && sleep 5
+          done
+          echo "::error::versions.json pins helius-mcp@$PIN, which is not published on npm"
+          exit 1
+
+      - name: Warn if pin lags helius-mcp/package.json
+        run: |
+          PIN=$(node -p "require('./versions.json')['helius-mcp']")
+          PKG=$(node -p "require('./helius-mcp/package.json').version")
+          if [ "$PIN" != "$PKG" ]; then
+            echo "::warning::Pin is helius-mcp@$PIN but package.json is $PKG — advance the pin once $PKG is published."
+          fi

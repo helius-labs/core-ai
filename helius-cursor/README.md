@@ -10,7 +10,7 @@ Search **"Helius"** in the Cursor Marketplace, or run `/add-plugin` in Cursor an
 
 **Helius MCP Server** — auto-starts with the plugin. Exposes 10 public tools total: 9 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 
-**DFlow MCP Server** — auto-starts with the plugin. Tools for querying DFlow API details, response schemas, and code examples for trading integrations.
+**DFlow MCP Server** — *optional, not bundled.* Tools for querying DFlow API details, response schemas, and code examples for trading integrations. The DFlow skill works without it. To add it: Settings > Cursor Settings > MCP, URL `https://pond.dflow.net/mcp` (HTTP type).
 
 **Build skill** — makes the agent an expert Solana developer. Includes routing logic, correct SDK patterns, reference files for every Helius product, and rules that prevent common mistakes (hardcoded fees, wrong endpoints, missing Jito tips).
 

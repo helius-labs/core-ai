@@ -50,7 +50,7 @@ When helping with a Helius integration:
 
 ## Tools
 
-- Helius MCP server — 40+ live blockchain tools (`getAssetsByOwner`, `parseTransactions`, `createWebhook`, `getPriorityFeeEstimate`, `laserstreamSubscribe`, `lookupHeliusDocs`, and more)
-- DFlow MCP server — DFlow trading API tools and documentation (`pond.dflow.net/mcp`)
+- Helius MCP server — 10 public tools: 9 routed domain tools (`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`) plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
+- DFlow MCP server — *optional, not bundled.* DFlow trading API tools and documentation (`pond.dflow.net/mcp`); add it manually if wanted
 - File creation and editing for scaffolding projects
 - Terminal for running install commands and CLI tools

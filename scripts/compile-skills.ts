@@ -51,6 +51,10 @@ interface SkillConfig {
 const PLUGIN_DIR = join(ROOT, "helius-plugin", "skills");
 const CURSOR_DIR = join(ROOT, "helius-cursor", "skills");
 
+/** Package roots that own a generated .mcp.json. */
+const PLUGIN_ROOT = join(ROOT, "helius-plugin");
+const CURSOR_ROOT = join(ROOT, "helius-cursor");
+
 /** Load skill versions from versions.json (single source of truth). */
 const VERSIONS: Record<string, string> = JSON.parse(
   readFileSync(join(ROOT, "versions.json"), "utf-8")
@@ -552,6 +556,40 @@ function compileSkill(config: SkillConfig): void {
   console.log(`  ✓ ${config.dir} v${version} (${refCount} refs, 3 prompts)`);
 }
 
+/**
+ * Generate the plugin + cursor `.mcp.json` from the `helius-mcp` pin in versions.json.
+ *
+ * The Claude plugin marketplace pins this repo to a reviewed commit, so the MCP
+ * server version must be exact — a floating `@latest` would execute code outside
+ * that review. Both destinations are byte-identical by design.
+ *
+ * Emitted as a template literal, not JSON.stringify: `--check` compares bytes, and
+ * JSON.stringify(obj, null, 2) expands `args` across three lines instead of the
+ * inline form used here.
+ */
+function syncMcpConfigs(): void {
+  const pin = VERSIONS["helius-mcp"];
+  if (!pin) {
+    console.error('\nversions.json is missing the "helius-mcp" key (the MCP server pin).');
+    process.exit(1);
+  }
+
+  const content = `{
+  "mcpServers": {
+    "helius": {
+      "command": "npx",
+      "args": ["helius-mcp@${pin}"]
+    }
+  }
+}
+`;
+
+  writeFileMaybe(join(PLUGIN_ROOT, ".mcp.json"), content);
+  writeFileMaybe(join(CURSOR_ROOT, ".mcp.json"), content);
+
+  console.log(`  \u2713 .mcp.json pinned to helius-mcp@${pin} (plugin + cursor)`);
+}
+
 function main(): void {
   console.log(CHECK_MODE ? "Checking compiled skills...\n" : "Compiling skills...\n");
   console.log(`  Source: ${relative(ROOT, CANONICAL_DIR)}/`);
@@ -566,6 +604,9 @@ function main(): void {
   for (const skill of SKILLS) {
     compileSkill(skill);
   }
+
+  // Must run before the drift check below: that block exits the process.
+  syncMcpConfigs();
 
   if (CHECK_MODE) {
     if (driftReports.length > 0) {
