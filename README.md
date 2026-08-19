@@ -9,7 +9,7 @@ The official Helius AI tooling repository — everything you need to interact wi
 | [`helius-cli`](./helius-cli) | CLI for managing Helius accounts and querying Solana data | `npm install -g helius-cli` |
 | [`helius-mcp`](./helius-mcp) | MCP server with 10 public tools total: 9 routed domains plus `expandResult` | `claude mcp add helius npx helius-mcp@latest` |
 | [`helius-skills`](./helius-skills) | Standalone Claude Code skills for building on Solana | `./install.sh` |
-| [`helius-plugin`](./helius-plugin) | Claude Code plugin — bundles all skills and auto-starts the MCP server | `/plugin install helius@helius` |
+| [`helius-plugin`](./helius-plugin) | Claude Code plugin — bundles all skills and auto-starts the MCP server | `/plugin install helius@claude-community` |
 | [`helius-cursor`](./helius-cursor) | Cursor plugin — live blockchain tools and expert coding patterns | `/add-plugin` → search "Helius" |
 
 ---
@@ -209,8 +209,15 @@ An all-in-one [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-cod
 ### Install
 
 ```
-/plugin marketplace add helius-labs/claude-plugins
-/plugin install helius@helius
+/plugin marketplace add anthropics/claude-plugins-community
+/plugin install helius@claude-community
+```
+
+Or install directly from source:
+
+```
+/plugin marketplace add helius-labs/core-ai
+/plugin install helius@helius-labs
 ```
 
 ### What's Included

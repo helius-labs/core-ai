@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius-dflow/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
-<!-- Version: 1.1.1 -->
+<!-- Version: 1.2.0 -->
 
 ## Runtime Notes
 

@@ -7,8 +7,15 @@ Build on Solana with Helius — one install gives you live blockchain tools and 
 ### From a marketplace
 
 ```
-/plugin marketplace add helius-labs/claude-plugins
-/plugin install helius@helius
+/plugin marketplace add anthropics/claude-plugins-community
+/plugin install helius@claude-community
+```
+
+Or install directly from source:
+
+```
+/plugin marketplace add helius-labs/core-ai
+/plugin install helius@helius-labs
 ```
 
 ### Local testing
@@ -21,7 +28,7 @@ claude --plugin-dir ./helius-plugin
 
 **Helius MCP Server** — auto-starts with the plugin. Exposes 10 public tools total: 9 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 
-**DFlow MCP Server** — auto-starts with the plugin. Tools for querying DFlow API details, response schemas, and code examples for trading integrations.
+**DFlow MCP Server** — *optional, not bundled.* Tools for querying DFlow API details, response schemas, and code examples for trading integrations. The DFlow skill works without it. To add it: `claude mcp add --transport http DFlow https://pond.dflow.net/mcp`
 
 **Build skill** (`/helius:build`) — makes Claude an expert Solana developer. Includes routing logic, correct SDK patterns, reference files for every Helius product, and rules that prevent common mistakes (hardcoded fees, wrong endpoints, missing Jito tips).
 

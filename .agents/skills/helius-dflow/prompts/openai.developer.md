@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius-dflow/SKILL.md — do not edit -->
 <!-- OpenAI Responses / Chat Completions API — use as a `developer` message -->
-<!-- Version: 1.1.1 -->
+<!-- Version: 1.2.0 -->
 
 ## Runtime Notes
 
