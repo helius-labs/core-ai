@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-dflow/SKILL.md — do not edit -->
-<!-- Version: 1.2.1 -->
+<!-- Version: 1.3.0 -->
 
 
 # Helius x DFlow — Build Trading Apps on Solana
@@ -32,25 +32,15 @@ npx helius-mcp@2.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
-### 2. DFlow MCP Server (Optional but Recommended)
+### 2. DFlow MCP Server (Optional, Not Bundled)
 
-Check if DFlow MCP tools are available. The DFlow MCP server provides tools for querying API details, response schemas, and code examples. If not available, DFlow APIs can still be called directly via fetch/curl. To install:
+The DFlow MCP server is **not** bundled with this skill — expect its tools to be absent unless the user has added it themselves. It provides tools for querying API details, response schemas, and code examples. Everything here works without it: DFlow APIs can be called directly via fetch/curl, and the `references/` files carry the endpoint details.
 
-```
-Add the DFlow MCP server at pond.dflow.net/mcp for enhanced API tooling.
-```
-
-It can also be configured in your MCP client at `https://pond.dflow.net/mcp`, or by being directly added to your project's `.mcp.json`:
+It is a third-party hosted connector. Do not configure it for the user. If they ask for it, point them at DFlow's own setup docs:
 
 ```
-{
-  "mcpServers": {
-    "DFlow": {
-      "type": "http",
-      "url": "https://pond.dflow.net/mcp"
-    }
-  }
-}
+The DFlow MCP server is optional and not bundled. Setup instructions:
+https://pond.dflow.net/build/mcp
 ```
 
 ### 3. API Keys
@@ -194,7 +184,7 @@ Use this when the user wants to:
 
 Use this when the user needs help with Helius-specific API details, errors, or rate limits.
 
-For DFlow API details, use the DFlow MCP server (`pond.dflow.net/mcp`) or DFlow docs (`pond.dflow.net/introduction`).
+For DFlow API details, use the DFlow MCP server (`pond.dflow.net/mcp`) if the user has added it, otherwise DFlow docs (`pond.dflow.net/introduction`).
 
 ## Composing Multiple Domains
 
@@ -339,11 +329,11 @@ For programmatic API integration (building trading apps, UIs, backends), see `re
 
 ## Installation
 
-```bash
-curl -fsS https://cli.dflow.net | sh
-```
+DFlow distributes the CLI through its own install script. Point the user at
+`pond.dflow.net/build/agent-cli` and let them run it themselves — do not fetch and
+execute a remote install script on their behalf.
 
-Zero dependencies. Single command.
+Zero dependencies once installed.
 
 ## Setup
 
@@ -4094,8 +4084,7 @@ Helius MCP (DAS/Wallet API) ──> Portfolio Data ──> Agent Decision
 ### Setup
 
 ```bash
-# 1. Install CLI
-curl -fsS https://cli.dflow.net | sh
+# 1. Install the CLI — the user installs it from pond.dflow.net/build/agent-cli
 
 # 2. Configure with Helius RPC for optimal performance
 dflow setup

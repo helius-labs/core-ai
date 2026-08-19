@@ -228,12 +228,6 @@ function stripClaudeSpecific(body: string): string {
     "```\nConfigure the Helius MCP server in your MCP client: npx helius-mcp@latest\nThen restart your AI assistant so the tools become available.\n```"
   );
 
-  // Replace "claude mcp add" instructions for DFlow
-  result = result.replace(
-    /It can also be installed by running the command `claude mcp add --transport http DFlow https:\/\/pond\.dflow\.net\/mcp`, or by being directly added to your project's `\.mcp\.json`:/g,
-    "It can also be configured in your MCP client at `https://pond.dflow.net/mcp`, or by being directly added to your project's `.mcp.json`:"
-  );
-
   // Replace /helius, /svm, /helius-dflow, /helius-phantom slash commands
   result = result.replace(/`\/helius-dflow`/g, "the Helius DFlow skill");
   result = result.replace(/`\/helius-phantom`/g, "the Helius Phantom skill");

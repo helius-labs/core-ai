@@ -19,11 +19,11 @@ For programmatic API integration (building trading apps, UIs, backends), see `re
 
 ## Installation
 
-```bash
-curl -fsS https://cli.dflow.net | sh
-```
+DFlow distributes the CLI through its own install script. Point the user at
+`pond.dflow.net/build/agent-cli` and let them run it themselves — do not fetch and
+execute a remote install script on their behalf.
 
-Zero dependencies. Single command.
+Zero dependencies once installed.
 
 ## Setup
 

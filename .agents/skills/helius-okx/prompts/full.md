@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-okx/SKILL.md — do not edit -->
-<!-- Version: 1.1.0 -->
+<!-- Version: 1.2.0 -->
 
 
 # Helius x OKX — Build Trading & Intelligence Apps on Solana
@@ -36,11 +36,11 @@ Or via the Claude Code plugin marketplace. See [github.com/okx/onchainos-skills]
 
 ### 3. OKX CLI (`onchainos`)
 
-Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, tell the user:
+Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, point the user at OKX's own instructions and let them install it themselves — do not fetch and execute a remote install script on their behalf:
 
 ```
-You need to install the OKX onchainos CLI:
-curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash
+The OKX onchainos CLI isn't installed. Installation instructions:
+https://github.com/okx/onchainos-skills
 ```
 
 ### 4. API Keys
@@ -166,7 +166,7 @@ Follow these rules when composing OKX + Helius:
 ### OKX
 - OKX Skill Library: `github.com/okx/onchainos-skills`
 - OKX Developer Portal: `https://www.okx.com/web3/build/docs/waas/dex-get-started`
-- OKX CLI Install: `curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash`
+- OKX CLI Install: see the instructions at `github.com/okx/onchainos-skills`
 
 
 ---

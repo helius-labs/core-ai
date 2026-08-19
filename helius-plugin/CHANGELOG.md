@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- The `okx` skill no longer hands the agent a `curl | bash` installer for the OKX `onchainos` CLI. It points the user at OKX's own instructions instead and explicitly tells the agent not to fetch and execute a remote install script on their behalf.
+- The `dflow` skill and README no longer provide a paste-ready command for the DFlow connector. Both now state that it is a third-party hosted connector, that it is not in the Anthropic MCP connector directory, and that the agent must not configure it for the user — pointing at DFlow's own setup docs instead.
+
 ## 1.2.1
 
 - Fixed the Helius MCP availability check in the `jupiter`, `okx`, and `svm` skills. They tested for pre-router tool names (`getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`, `searchSolanaDocs`, `fetchHeliusBlog`, `getSIMD`, `readSolanaSourceFile`), which the server has not exposed as tools since the 10-tool router surface landed. The check could never pass, so each skill hit its `STOP` branch and reported the server as not running.
