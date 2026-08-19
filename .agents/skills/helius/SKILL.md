@@ -2,7 +2,7 @@
 
 ---
 name: helius
-version: "1.1.1"
+version: "1.1.2"
 description: >
   Build Solana applications with Helius infrastructure. Use this skill when:
   sending transactions (SOL, SPL tokens, swaps), querying assets/NFTs (DAS API),
@@ -19,7 +19,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 1. Helius MCP Server
 
-**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `npx helius-mcp@latest` (configure in your MCP client) then restart your AI assistant. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `npx helius-mcp@2.1.0` (configure in your MCP client) then restart your AI assistant. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 ### 2. MCP Router Surface
 

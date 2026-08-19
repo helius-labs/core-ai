@@ -2,7 +2,7 @@
 name: phantom
 description: Build frontend Solana applications with Phantom Connect SDK and Helius infrastructure. Covers React, React Native, and browser SDK integration, transaction signing via Helius Sender, API key proxying, token gating, NFT minting, crypto payments, real-time updates, and secure frontend architecture.
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
 ---
 
 # Helius x Phantom — Build Frontend Solana Apps
@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Cursor.
 If the problem persists, add it manually via Settings > Cursor Settings > MCP
-with command: npx helius-mcp@latest
+with command: npx helius-mcp@2.1.0
 ```
 
 ### 2. API Key

@@ -12,24 +12,29 @@ Monorepo containing Helius developer tools distributed as independent packages:
 
 The compiler (`npx tsx scripts/compile-skills.ts`) is the source of truth for everything generated from `helius-skills/`. It writes:
 
-1. `helius-skills/<skill>/SKILL.md` frontmatter version (re-injected from `versions.json`)
+1. `helius-skills/<skill>/SKILL.md` frontmatter version (re-injected from `versions.json`) and every `helius-mcp@<version>` mention in the body
 2. `.agents/skills/<skill>/` — Codex-native SKILL.md + 3 prompt variants (`openai.developer.md`, `claude.system.md`, `full.md`)
 3. `helius-mcp/system-prompts/<skill>/` — same prompt variants, npm-shipped
 4. `helius-plugin/skills/<dir>/references/` and `helius-plugin/skills/<dir>/SKILL.md` (refs bytewise from canonical; SKILL.md gets version re-injected)
 5. `helius-cursor/skills/<dir>/references/` and `helius-cursor/skills/<dir>/SKILL.md` (same)
 6. `helius-plugin/.mcp.json` and `helius-cursor/.mcp.json` — generated from the `helius-mcp` pin in `versions.json`
+7. `helius-skills/<skill>/references/*.md` and `helius-skills/<skill>/install.sh` — the `helius-mcp@<version>` token only
 
 Run `npx tsx scripts/compile-skills.ts` after any change in `helius-skills/`. CI runs `--check` mode and fails on drift.
 
 **Reference files** are byte-identical across all destinations — never hand-edit `helius-plugin/` or `helius-cursor/` references; only edit the canonical copy in `helius-skills/<skill>/references/`.
 
-**SKILL.md bodies** in `helius-plugin/` and `helius-cursor/` are intentionally **not identical** to canonical (different MCP prerequisite messaging, condensed router surface section). They are hand-managed in those packages. Only the frontmatter version is auto-synced from `versions.json`.
+**SKILL.md bodies** in `helius-plugin/` and `helius-cursor/` are intentionally **not identical** to canonical (different MCP prerequisite messaging, condensed router surface section). They are hand-managed in those packages. Only the frontmatter version and the `helius-mcp@<version>` token are auto-synced from `versions.json`.
 
 **`.mcp.json`** in `helius-plugin/` and `helius-cursor/` is fully compiler-generated and byte-identical across both — never hand-edit either file. Change the pin in `versions.json` and re-run the compiler.
 
 ## MCP Server Pin
 
 `helius-plugin/.mcp.json` pins an **exact** `helius-mcp` version, never `@latest`. The Claude plugin marketplace pins this repo to a reviewed commit, so a floating tag would mean the server code actually executed on install sits outside that review — this is what got the plugin pulled from the official marketplace.
+
+The pin is not only `.mcp.json`. The compiler re-stamps every `helius-mcp@<version>` mention in skill content — canonical SKILL.md bodies and `references/`, `install.sh`, the hand-managed plugin/cursor SKILL.md bodies, and all generated prompt variants — so the "add it manually" instructions a skill prints can never recommend a version the plugin does not ship. Write `@latest` anywhere in that surface and `--check` fails.
+
+Deliberately **outside** the pin: repo-level docs (`README.md`, `AGENTS.md`, `helius-skills/README.md`, `helius-skills/SYSTEM-PROMPTS.md`, `helius-mcp/README.md`) and the server's own runtime recovery strings in `helius-mcp/src/`. Those describe adding `helius-mcp` standalone, outside any pinned plugin, where tracking latest is the intended behavior. Only `helius-cli` keeps a floating tag inside skill content.
 
 To advance the pin, in this order:
 

@@ -2,7 +2,7 @@
 name: dflow
 description: Build Solana trading applications combining DFlow trading APIs with Helius infrastructure. Covers spot swaps (imperative and declarative), prediction markets, real-time market streaming, Proof KYC, the DFlow Agent CLI for autonomous trading, transaction submission via Sender, fee optimization, shred-level streaming via LaserStream, and wallet intelligence.
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
 ---
 
 # Helius x DFlow — Build Trading Apps on Solana
@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Cursor.
 If the problem persists, add it manually via Settings > Cursor Settings > MCP
-with command: npx helius-mcp@latest
+with command: npx helius-mcp@2.1.0
 ```
 
 ### 2. DFlow MCP Server (Optional, Not Bundled)

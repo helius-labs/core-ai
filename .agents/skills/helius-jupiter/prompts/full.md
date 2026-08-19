@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-jupiter/SKILL.md — do not edit -->
-<!-- Version: 1.0.1 -->
+<!-- Version: 1.1.0 -->
 
 
 # Helius x Jupiter — Build DeFi Apps on Solana
@@ -16,7 +16,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@latest  # configure in your MCP client
+npx helius-mcp@2.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
@@ -304,7 +304,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `npx helius-mcp@latest` (configure in your MCP client)
+- Helius MCP Server: `npx helius-mcp@2.1.0` (configure in your MCP client)
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### Jupiter
@@ -1141,7 +1141,7 @@ The MCP persists API keys and JWTs to shared config files so they survive across
 ### Installing the MCP
 
 ```bash
-npx helius-mcp@latest  # configure in your MCP client
+npx helius-mcp@2.1.0  # configure in your MCP client
 ```
 
 ## Choosing the Right Setup Path

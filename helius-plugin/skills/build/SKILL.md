@@ -2,7 +2,7 @@
 name: build
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
-  version: "1.1.1"
+  version: "1.1.2"
 ---
 
 # Helius — Build on Solana
@@ -15,7 +15,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 The Helius MCP server should start automatically with this plugin. **Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically.
 
-If not available, try restarting Claude Code, or manually add: `claude mcp add helius npx helius-mcp@latest` then restart. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+If not available, try restarting Claude Code, or manually add: `claude mcp add helius npx helius-mcp@2.1.0` then restart. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 > If MCP tools are available, they expose 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getBalance` or `lookupHeliusDocs`, call the matching public tool with `action: "<action name>"` instead.
 

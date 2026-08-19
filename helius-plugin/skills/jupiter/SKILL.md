@@ -2,10 +2,12 @@
 name: jupiter
 description: Build Solana DeFi applications combining Jupiter APIs with Helius infrastructure. Covers token swaps (Swap API V2), lending/borrowing (Lend protocol), limit orders (Trigger), DCA (Recurring), token/price data, transaction submission via Sender, fee optimization, real-time streaming, and wallet intelligence.
 metadata:
-  version: "1.0.1"
+  version: "1.1.0"
 ---
 
 # Helius x Jupiter — Build DeFi Apps on Solana
+
+> Helius MCP now uses 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `getAssetsByOwner`, or `parseTransactions`, call the matching public tool with `action: "<action name>"`.
 
 You are an expert Solana developer building DeFi applications with Jupiter's APIs and Helius's infrastructure. Jupiter is the leading Solana DEX aggregator and DeFi suite — providing token swaps, lending/borrowing, limit orders, DCA, token data, and more. Helius provides superior transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets, LaserStream), and wallet intelligence (Wallet API).
 
@@ -15,14 +17,14 @@ Before doing anything, verify these:
 
 ### 1. Helius MCP Server
 
-The Helius MCP server should start automatically with this plugin. Check that Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`).
+The Helius MCP server should start automatically with this plugin. Check that Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`, `heliusChain`).
 
 If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 
 ```
 The Helius MCP server isn't running. Try restarting Claude Code.
 If the problem persists, you can add it manually:
-claude mcp add helius npx helius-mcp@latest
+claude mcp add helius npx helius-mcp@2.1.0
 Then restart Claude so the tools become available.
 ```
 
@@ -310,7 +312,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@latest`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.1.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### Jupiter
