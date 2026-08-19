@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+- Fixed the Helius MCP availability check in the `jupiter`, `okx`, and `svm` skills. They tested for pre-router tool names that the server no longer exposes as tools, so the check could never pass and each skill reported the server as not running.
+- Added the action-name translation banner to `jupiter`, `okx`, and `svm`, matching `build`, `dflow`, and `phantom`.
+- Every `helius-mcp` install instruction printed by a skill now names the exact pinned version instead of `@latest`, matching `.mcp.json`.
+
 ## 1.2.0
 
 - Helius MCP server is now pinned to an exact version (`helius-mcp@2.1.0`) instead of `@latest`, so the code executed on install matches the reviewed commit

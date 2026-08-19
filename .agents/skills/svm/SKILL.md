@@ -2,7 +2,7 @@
 
 ---
 name: svm
-version: "1.0.0"
+version: "1.1.0"
 description: >
   Explore Solana's architecture and protocol internals. Use this skill when:
   understanding the SVM execution engine, learning about the account model and
@@ -23,7 +23,7 @@ You are a Solana protocol expert. Use the Helius MCP tools to fetch live content
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@latest  # configure in your MCP client
+npx helius-mcp@2.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 

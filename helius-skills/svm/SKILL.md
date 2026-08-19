@@ -3,7 +3,7 @@ name: svm
 description: Explore Solana's architecture and protocol internals. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, development tooling, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
 metadata:
   author: Helius Labs
-  version: "1.0.0"
+  version: "1.1.0"
   mcp-server: helius-mcp
 ---
 
@@ -17,7 +17,7 @@ You are a Solana protocol expert. Use the Helius MCP tools to fetch live content
 
 ```
 You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@latest
+claude mcp add helius npx helius-mcp@2.1.0
 Then restart Claude so the tools become available.
 ```
 

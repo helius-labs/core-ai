@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius-okx/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
-<!-- Version: 1.0.1 -->
+<!-- Version: 1.1.0 -->
 
 ## Runtime Notes
 
@@ -30,7 +30,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@latest  # configure in your MCP client
+npx helius-mcp@2.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
@@ -170,7 +170,7 @@ Follow these rules when composing OKX + Helius:
 - LLM-Optimized Docs: `https://www.helius.dev/docs/llms.txt`
 - API Reference: `https://www.helius.dev/docs/api-reference`
 - Dashboard: `https://dashboard.helius.dev`
-- Helius MCP Server: `npx helius-mcp@latest` (configure in your MCP client)
+- Helius MCP Server: `npx helius-mcp@2.1.0` (configure in your MCP client)
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### OKX

@@ -60,6 +60,33 @@ const VERSIONS: Record<string, string> = JSON.parse(
   readFileSync(join(ROOT, "versions.json"), "utf-8")
 );
 
+/**
+ * Exact `helius-mcp` version every generated artifact must name.
+ *
+ * The plugin marketplace pins this repo to a reviewed commit, so a floating
+ * `@latest` anywhere in the shipped surface — `.mcp.json` or the "add it
+ * manually" instructions the skills print — puts server code outside that
+ * review. One pin, one source, enforced by `--check`.
+ */
+const MCP_PIN: string = VERSIONS["helius-mcp"];
+if (!MCP_PIN) {
+  console.error('\nversions.json is missing the "helius-mcp" key (the MCP server pin).');
+  process.exit(1);
+}
+
+/** Matches `helius-mcp@<anything>`, so the pin re-stamps whatever is on disk. */
+const MCP_SPEC_SOURCE = "helius-mcp@[0-9A-Za-z.\\-]+";
+
+/**
+ * Re-stamp every `helius-mcp@<version>` mention with the pin.
+ *
+ * Deliberately scoped to the `helius-mcp` package: `helius-cli@latest` in the
+ * onboarding paths is a genuinely floating install and stays that way.
+ */
+function pinMcpVersion(text: string): string {
+  return text.replace(new RegExp(MCP_SPEC_SOURCE, "g"), `helius-mcp@${MCP_PIN}`);
+}
+
 const SKILLS: SkillConfig[] = [
   {
     dir: "helius",
@@ -173,7 +200,9 @@ description: >
 
 /** Strip Claude-specific language from body text. */
 function stripClaudeSpecific(body: string): string {
-  let result = body;
+  // Normalize the pin to `@latest` on the way in so the patterns below can stay
+  // written against one literal, then re-stamp the real pin on the way out.
+  let result = body.replace(new RegExp(MCP_SPEC_SOURCE, "g"), "helius-mcp@latest");
 
   // Replace "claude mcp add helius npx helius-mcp@latest" — inline backtick version
   result = result.replace(
@@ -226,7 +255,7 @@ function stripClaudeSpecific(body: string): string {
   // Strip internal blocks: <!-- BEGIN INTERNAL --> ... <!-- END INTERNAL -->
   result = result.replace(/<!--\s*BEGIN INTERNAL\s*-->[\s\S]*?<!--\s*END INTERNAL\s*-->\n?/g, "");
 
-  return result;
+  return pinMcpVersion(result);
 }
 
 /** Rename headings per the plan's normalization table. */
@@ -400,7 +429,9 @@ function reportOrphanRefs(canonicalRefsDir: string, destRefsDir: string): void {
 // hand-managed in helius-plugin/ and helius-cursor/. The compiler:
 //   1. Re-injects the canonical version into their frontmatter (single
 //      source of truth = versions.json).
-//   2. Bytewise-copies the canonical references/ directory into each.
+//   2. Re-stamps the helius-mcp pin in the body. The prose stays hand-authored;
+//      only the version token is compiler-owned.
+//   3. Bytewise-copies the canonical references/ directory into each.
 //
 // Reference files MUST be byte-identical across all destinations — this is
 // what previously required ~420 lines of duplicated bash in CI.
@@ -432,7 +463,7 @@ function syncPluginCursorSkill(
     const parsed = parseFrontmatter(raw);
     if (parsed.frontmatter) {
       const updatedFm = injectVersion(parsed.frontmatter, version);
-      const updated = `---\n${updatedFm}\n---\n${parsed.body}`;
+      const updated = `---\n${updatedFm}\n---\n${pinMcpVersion(parsed.body)}`;
       writeFileMaybe(destSkillMd, updated);
     } else {
       // Same reasoning: a SKILL.md with no frontmatter can never receive a
@@ -471,7 +502,8 @@ function compileSkill(config: SkillConfig): void {
   }
 
   const raw = readFileSync(skillMdPath, "utf-8");
-  const { frontmatter, body } = parseFrontmatter(raw);
+  const { frontmatter, body: rawBody } = parseFrontmatter(raw);
+  const body = pinMcpVersion(rawBody);
   const name = extractName(frontmatter);
   const version = VERSIONS[config.dir];
   if (!version) {
@@ -484,6 +516,29 @@ function compileSkill(config: SkillConfig): void {
   const updatedFrontmatter = injectVersion(frontmatter, version);
   const updatedCanonical = `---\n${updatedFrontmatter}\n---\n${body}`;
   writeFileMaybe(skillMdPath, updatedCanonical);
+
+  // --- Canonical install.sh: re-stamp the pin ---
+  //
+  // install.sh copies SKILL.md + references/ into the user's skills dir and then
+  // prints how to add the MCP server. If it printed a floating tag it would
+  // contradict the very files it just installed.
+  const installSh = join(srcDir, "install.sh");
+  if (existsSync(installSh)) {
+    writeFileMaybe(installSh, pinMcpVersion(readFileSync(installSh, "utf-8")));
+  }
+
+  // --- Canonical references: re-stamp the pin at the source ---
+  //
+  // These are copied bytewise into helius-plugin/ and helius-cursor/, so the pin
+  // has to be correct here or the byte-identity invariant would force the
+  // destinations to disagree with .mcp.json.
+  if (existsSync(refsDir)) {
+    for (const file of readdirSync(refsDir)) {
+      if (!file.endsWith(".md")) continue;
+      const refPath = join(refsDir, file);
+      writeFileMaybe(refPath, pinMcpVersion(readFileSync(refPath, "utf-8")));
+    }
+  }
 
   // --- Apply transforms ---
   let transformed = stripClaudeSpecific(body);
@@ -568,17 +623,11 @@ function compileSkill(config: SkillConfig): void {
  * inline form used here.
  */
 function syncMcpConfigs(): void {
-  const pin = VERSIONS["helius-mcp"];
-  if (!pin) {
-    console.error('\nversions.json is missing the "helius-mcp" key (the MCP server pin).');
-    process.exit(1);
-  }
-
   const content = `{
   "mcpServers": {
     "helius": {
       "command": "npx",
-      "args": ["helius-mcp@${pin}"]
+      "args": ["helius-mcp@${MCP_PIN}"]
     }
   }
 }
@@ -587,7 +636,7 @@ function syncMcpConfigs(): void {
   writeFileMaybe(join(PLUGIN_ROOT, ".mcp.json"), content);
   writeFileMaybe(join(CURSOR_ROOT, ".mcp.json"), content);
 
-  console.log(`  \u2713 .mcp.json pinned to helius-mcp@${pin} (plugin + cursor)`);
+  console.log(`  \u2713 .mcp.json pinned to helius-mcp@${MCP_PIN} (plugin + cursor)`);
 }
 
 function main(): void {

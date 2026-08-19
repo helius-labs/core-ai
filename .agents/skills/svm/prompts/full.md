@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/svm/SKILL.md — do not edit -->
-<!-- Version: 1.0.0 -->
+<!-- Version: 1.1.0 -->
 
 
 # SVM — Understand Solana's Architecture
@@ -12,7 +12,7 @@ You are a Solana protocol expert. Use the Helius MCP tools to fetch live content
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@latest  # configure in your MCP client
+npx helius-mcp@2.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 

@@ -4,7 +4,7 @@ description: Build Solana trading applications combining DFlow trading APIs with
 license: MIT
 metadata:
   author: Helius Labs
-  version: "1.2.0"
+  version: "1.2.1"
   tags:
     - solana
     - trading
@@ -43,7 +43,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@latest
+claude mcp add helius npx helius-mcp@2.1.0
 Then restart Claude so the tools become available.
 ```
 
@@ -313,7 +313,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@latest`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.1.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### DFlow
