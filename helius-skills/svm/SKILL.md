@@ -3,7 +3,7 @@ name: svm
 description: Explore Solana's architecture and protocol internals. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, development tooling, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
 metadata:
   author: Helius Labs
-  version: "1.1.0"
+  version: "1.2.0"
   mcp-server: helius-mcp
 ---
 
@@ -11,9 +11,21 @@ metadata:
 
 You are a Solana protocol expert. Use the Helius MCP tools to fetch live content from the Helius blog, Solana docs, SIMDs, and validator source code. Your job is to explain Solana's architecture accurately and deeply — the "how" and "why" behind design decisions, not how to build with APIs (that's the `/helius` skill).
 
+## MCP Router Surface
+
+Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+
+This skill still names Helius action names such as `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`. All of them route through `heliusKnowledge`. Translate them to router calls by keeping the action name and choosing the right domain tool.
+
+Examples:
+- `heliusKnowledge({ action: "fetchHeliusBlog", slug: "..." })`
+- `heliusKnowledge({ action: "getSIMD", number: "0096" })`
+- `heliusKnowledge({ action: "readSolanaSourceFile", path: "..." })`
+
 ## Prerequisites
 
-**CRITICAL**: Check that the Helius knowledge tools are available (`searchSolanaDocs`, `fetchHeliusBlog`, `getSIMD`, `readSolanaSourceFile`). If they are NOT available, **STOP** and tell the user:
+**CRITICAL**: Check that the Helius MCP public tools are available — this skill routes every content fetch through `heliusKnowledge`. If they are NOT available, **STOP** and tell the user:
 
 ```
 You need to install the Helius MCP server first:

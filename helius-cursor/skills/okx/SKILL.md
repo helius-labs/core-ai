@@ -33,13 +33,12 @@ with command: npx helius-mcp@2.1.0
 
 ### 2. OKX Skill Library (Required)
 
-The OKX skill library provides the detailed domain knowledge for all OKX tools — swap workflows, token discovery, risk controls, signal interpretation, and CLI command reference. Install it:
+The OKX skill library provides the detailed domain knowledge for all OKX tools — swap workflows, token discovery, risk controls, signal interpretation, and CLI command reference. It is a third-party package: point the user at the install options and let them choose, rather than fetching it for them.
 
 ```
-npx skills add okx/onchainos-skills
+The OKX skill library isn't installed. Installation options:
+https://github.com/okx/onchainos-skills
 ```
-
-Or via the Claude Code plugin marketplace. See [github.com/okx/onchainos-skills](https://github.com/okx/onchainos-skills) for all installation options.
 
 ### 3. OKX CLI (`onchainos`)
 

@@ -31,12 +31,11 @@ with command: npx helius-mcp@2.1.0
 
 The DFlow MCP server is **not** bundled with this plugin — expect its tools to be absent unless the user has added it themselves. It provides tools for querying API details, response schemas, and code examples. Everything in this skill works without it: DFlow APIs can be called directly via fetch/curl, and the `references/` files carry the endpoint details.
 
-If the user wants the richer API tooling, tell them:
+It is a third-party hosted connector. Do not configure it for the user. If they ask for it, point them at DFlow's own setup docs:
 
 ```
 The DFlow MCP server is optional and not bundled with this plugin.
-To add it, go to Settings > Cursor Settings > MCP
-and add URL: https://pond.dflow.net/mcp (HTTP type)
+Setup instructions: https://pond.dflow.net/build/mcp
 ```
 
 ### 3. API Keys

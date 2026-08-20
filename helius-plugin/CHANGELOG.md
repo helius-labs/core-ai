@@ -2,8 +2,10 @@
 
 ## 1.2.2
 
-- The `okx` skill no longer hands the agent a `curl | bash` installer for the OKX `onchainos` CLI. It points the user at OKX's own instructions instead and explicitly tells the agent not to fetch and execute a remote install script on their behalf.
-- The `dflow` skill and README no longer provide a paste-ready command for the DFlow connector. Both now state that it is a third-party hosted connector, that it is not in the Anthropic MCP connector directory, and that the agent must not configure it for the user — pointing at DFlow's own setup docs instead.
+- The `okx` skill no longer instructs the agent to install third-party packages on the user's behalf. Both the `onchainos` CLI (previously `curl | bash`) and the OKX skill library (previously `npx skills add`) now point the user at OKX's own install options.
+- The `dflow` skill and README no longer provide a paste-ready command for the DFlow connector. Both now state that it is a third-party hosted connector, that it is not in the Anthropic MCP connector directory, and that the agent must not configure it for the user.
+- Fixed the Helius MCP availability check in the canonical `jupiter`, `okx`, and `svm` skills, which still probed pre-router tool names the server does not register. The plugin copies were fixed in 1.2.1; the canonical sources — which feed the npm-shipped prompt variants — were missed.
+- CI now fails on any shipped skill content that pipes a remote script into a shell or wires up the DFlow connector.
 
 ## 1.2.1
 

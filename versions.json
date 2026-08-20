@@ -2,8 +2,8 @@
   "helius-mcp": "2.1.0",
   "helius": "1.1.2",
   "helius-dflow": "1.3.0",
-  "helius-jupiter": "1.1.0",
+  "helius-jupiter": "1.2.0",
   "helius-okx": "1.2.0",
   "helius-phantom": "1.0.2",
-  "svm": "1.1.0"
+  "svm": "1.2.0"
 }
