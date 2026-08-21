@@ -2,7 +2,7 @@
 name: jupiter
 description: Build Solana DeFi applications combining Jupiter APIs with Helius infrastructure. Covers token swaps (Swap API V2), lending/borrowing (Lend protocol), limit orders (Trigger), DCA (Recurring), token/price data, transaction submission via Sender, fee optimization, real-time streaming, and wallet intelligence.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Helius x Jupiter — Build DeFi Apps on Solana

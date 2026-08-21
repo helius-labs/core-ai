@@ -2,7 +2,7 @@
 name: dflow
 description: Build Solana trading applications combining DFlow trading APIs with Helius infrastructure. Covers spot swaps (imperative and declarative), prediction markets, real-time market streaming, Proof KYC, the DFlow Agent CLI for autonomous trading, transaction submission via Sender, fee optimization, shred-level streaming via LaserStream, and wallet intelligence.
 metadata:
-  version: "1.2.1"
+  version: "1.3.0"
 ---
 
 # Helius x DFlow — Build Trading Apps on Solana
@@ -31,12 +31,11 @@ with command: npx helius-mcp@2.1.0
 
 The DFlow MCP server is **not** bundled with this plugin — expect its tools to be absent unless the user has added it themselves. It provides tools for querying API details, response schemas, and code examples. Everything in this skill works without it: DFlow APIs can be called directly via fetch/curl, and the `references/` files carry the endpoint details.
 
-If the user wants the richer API tooling, tell them:
+It is a third-party hosted connector. Do not configure it for the user. If they ask for it, point them at DFlow's own setup docs:
 
 ```
 The DFlow MCP server is optional and not bundled with this plugin.
-To add it, go to Settings > Cursor Settings > MCP
-and add URL: https://pond.dflow.net/mcp (HTTP type)
+Setup instructions: https://pond.dflow.net/build/mcp
 ```
 
 ### 3. API Keys
@@ -180,7 +179,7 @@ Use this when the user wants to:
 
 Use this when the user needs help with Helius-specific API details, errors, or rate limits.
 
-For DFlow API details, use the DFlow MCP server (`pond.dflow.net/mcp`) or DFlow docs (`pond.dflow.net/introduction`).
+For DFlow API details, use the DFlow MCP server (`pond.dflow.net/mcp`) if the user has added it, otherwise DFlow docs (`pond.dflow.net/introduction`).
 
 ## Composing Multiple Domains
 

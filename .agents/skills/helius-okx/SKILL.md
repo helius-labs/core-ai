@@ -2,7 +2,7 @@
 
 ---
 name: helius-okx
-version: "1.1.0"
+version: "1.2.0"
 description: >
   Build Solana trading and intelligence applications combining OKX DEX aggregation
   with Helius infrastructure. Use this skill when: executing swaps via OKX's 500+
@@ -21,13 +21,25 @@ You are an expert Solana developer building trading and token intelligence appli
 
 **Helius** provides transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets, LaserStream), and wallet intelligence (Wallet API) — via the Helius MCP server.
 
+## MCP Router Surface
+
+Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+
+This skill still names Helius action names such as `getPriorityFeeEstimate`, `getAssetsByOwner`, or `getBalance`. Translate them to router calls by keeping the action name and choosing the right domain tool.
+
+Examples:
+- `heliusChain({ action: "getPriorityFeeEstimate", accountKeys: ["..."] })`
+- `heliusAsset({ action: "getAssetsByOwner", ownerAddress: "..." })`
+- `heliusWallet({ action: "getBalance", address: "..." })`
+
 ## Prerequisites
 
 Before doing anything, verify these:
 
 ### 1. Helius MCP Server
 
-**CRITICAL**: Check if Helius MCP tools are available (e.g., `getBalance`, `getAssetsByOwner`, `getPriorityFeeEstimate`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
+**CRITICAL**: Check if Helius MCP public tools are available (e.g., `heliusWallet`, `heliusAsset`, `heliusChain`). If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl or any other workaround. Tell the user:
 
 ```
 You need to install the Helius MCP server first:
@@ -37,21 +49,20 @@ Then restart your AI assistant so the tools become available.
 
 ### 2. OKX Skill Library (Required)
 
-The OKX skill library provides the detailed domain knowledge for all OKX tools — swap workflows, token discovery, risk controls, signal interpretation, and CLI command reference. Install it:
+The OKX skill library provides the detailed domain knowledge for all OKX tools — swap workflows, token discovery, risk controls, signal interpretation, and CLI command reference. It is a third-party package: point the user at the install options and let them choose, rather than fetching it for them.
 
 ```
-npx skills add okx/onchainos-skills
+The OKX skill library isn't installed. Installation options:
+https://github.com/okx/onchainos-skills
 ```
-
-Or via the Claude Code plugin marketplace. See [github.com/okx/onchainos-skills](https://github.com/okx/onchainos-skills) for all installation options.
 
 ### 3. OKX CLI (`onchainos`)
 
-Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, tell the user:
+Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, point the user at OKX's own instructions and let them install it themselves — do not fetch and execute a remote install script on their behalf:
 
 ```
-You need to install the OKX onchainos CLI:
-curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash
+The OKX onchainos CLI isn't installed. Installation instructions:
+https://github.com/okx/onchainos-skills
 ```
 
 ### 4. API Keys
@@ -177,4 +188,4 @@ Follow these rules when composing OKX + Helius:
 ### OKX
 - OKX Skill Library: `github.com/okx/onchainos-skills`
 - OKX Developer Portal: `https://www.okx.com/web3/build/docs/waas/dex-get-started`
-- OKX CLI Install: `curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash`
+- OKX CLI Install: see the instructions at `github.com/okx/onchainos-skills`

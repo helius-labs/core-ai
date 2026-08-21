@@ -2,7 +2,7 @@
 name: okx
 description: Build Solana trading and intelligence applications combining OKX DEX aggregation with Helius infrastructure. Integration-only layer — describes when and how to compose OKX tools with Helius tools for swaps, token discovery, smart money signals, meme token analysis, and portfolio intelligence.
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Helius x OKX — Build Trading & Intelligence Apps on Solana
@@ -33,21 +33,20 @@ with command: npx helius-mcp@2.1.0
 
 ### 2. OKX Skill Library (Required)
 
-The OKX skill library provides the detailed domain knowledge for all OKX tools — swap workflows, token discovery, risk controls, signal interpretation, and CLI command reference. Install it:
+The OKX skill library provides the detailed domain knowledge for all OKX tools — swap workflows, token discovery, risk controls, signal interpretation, and CLI command reference. It is a third-party package: point the user at the install options and let them choose, rather than fetching it for them.
 
 ```
-npx skills add okx/onchainos-skills
+The OKX skill library isn't installed. Installation options:
+https://github.com/okx/onchainos-skills
 ```
-
-Or via the Claude Code plugin marketplace. See [github.com/okx/onchainos-skills](https://github.com/okx/onchainos-skills) for all installation options.
 
 ### 3. OKX CLI (`onchainos`)
 
-Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, tell the user:
+Check if the `onchainos` binary is installed by running `onchainos --version`. If not available, point the user at OKX's own instructions and let them install it themselves — do not fetch and execute a remote install script on their behalf:
 
 ```
-You need to install the OKX onchainos CLI:
-curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash
+The OKX onchainos CLI isn't installed. Installation instructions:
+https://github.com/okx/onchainos-skills
 ```
 
 ### 4. API Keys
@@ -173,4 +172,4 @@ Follow these rules when composing OKX + Helius:
 ### OKX
 - OKX Skill Library: `github.com/okx/onchainos-skills`
 - OKX Developer Portal: `https://www.okx.com/web3/build/docs/waas/dex-get-started`
-- OKX CLI Install: `curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash`
+- OKX CLI Install: see the instructions at `github.com/okx/onchainos-skills`

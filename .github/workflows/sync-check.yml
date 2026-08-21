@@ -32,6 +32,21 @@ jobs:
           echo "::error::versions.json pins helius-mcp@$PIN, which is not published on npm"
           exit 1
 
+      - name: Forbid agent-executable third-party installs in shipped skills
+        run: |
+          # These are not style rules. A skill that tells the agent to pipe a
+          # remote script into a shell, or to wire up an unlisted third-party
+          # connector, is what a marketplace curation pass flags — and both have
+          # regressed through hand-edits before. Scoped to shipped surfaces.
+          PATTERN='curl[^|]*\|[[:space:]]*(bash|sh)|mcp add --transport http DFlow'
+          if grep -rInE "$PATTERN" \
+               helius-plugin helius-cursor helius-skills .agents helius-mcp/system-prompts \
+               --include='*.md' --include='*.sh' --include='*.json' \
+               | grep -v CHANGELOG.md; then
+            echo "::error::Shipped skill content instructs an agent-executable third-party install. Point the user at the vendor's own instructions instead."
+            exit 1
+          fi
+
       - name: Warn if pin lags helius-mcp/package.json
         run: |
           PIN=$(node -p "require('./versions.json')['helius-mcp']")

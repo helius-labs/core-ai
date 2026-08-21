@@ -216,24 +216,6 @@ function stripClaudeSpecific(body: string): string {
     "npx helius-mcp@latest  # configure in your MCP client"
   );
 
-  // Replace multi-line code blocks with claude mcp add
-  result = result.replace(
-    /```\n(?:You need to install the Helius MCP server first:\n)?claude mcp add helius npx helius-mcp@latest\nThen restart Claude so the tools become available\.\n```/g,
-    "```\nConfigure the Helius MCP server in your MCP client: npx helius-mcp@latest\nThen restart your AI assistant so the tools become available.\n```"
-  );
-
-  // Also handle the code block variant with leading text
-  result = result.replace(
-    /```\nYou need to install the Helius MCP server first:\nclaude mcp add helius npx helius-mcp@latest\nThen restart Claude so the tools become available\.\n```/g,
-    "```\nConfigure the Helius MCP server in your MCP client: npx helius-mcp@latest\nThen restart your AI assistant so the tools become available.\n```"
-  );
-
-  // Replace "claude mcp add" instructions for DFlow
-  result = result.replace(
-    /It can also be installed by running the command `claude mcp add --transport http DFlow https:\/\/pond\.dflow\.net\/mcp`, or by being directly added to your project's `\.mcp\.json`:/g,
-    "It can also be configured in your MCP client at `https://pond.dflow.net/mcp`, or by being directly added to your project's `.mcp.json`:"
-  );
-
   // Replace /helius, /svm, /helius-dflow, /helius-phantom slash commands
   result = result.replace(/`\/helius-dflow`/g, "the Helius DFlow skill");
   result = result.replace(/`\/helius-phantom`/g, "the Helius Phantom skill");
@@ -242,12 +224,6 @@ function stripClaudeSpecific(body: string): string {
 
   // Replace "restart Claude" with generic
   result = result.replace(/restart Claude/g, "restart your AI assistant");
-
-  // Replace "Helius MCP Server: `claude mcp add helius npx helius-mcp@latest`" in Resources
-  result = result.replace(
-    /Helius MCP Server: `claude mcp add helius npx helius-mcp@latest`/g,
-    "Helius MCP Server: `npx helius-mcp@latest`"
-  );
 
   // Strip internal notes: <!-- internal --> lines, <!-- internal-only --> lines
   result = result.replace(/<!--\s*internal(?:-only)?\s*-->[^\n]*\n?/g, "");

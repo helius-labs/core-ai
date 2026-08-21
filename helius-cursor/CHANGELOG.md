@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2
+
+- The `okx` skill no longer instructs the agent to install third-party packages on the user's behalf. Both the `onchainos` CLI (previously `curl | bash`) and the OKX skill library (previously `npx skills add`) now point the user at OKX's own install options.
+- The `dflow` skill and README no longer provide paste-ready setup steps for the DFlow connector, and state that the agent must not configure this third-party hosted connector for the user.
+- Fixed the Helius MCP availability check in the canonical `jupiter`, `okx`, and `svm` skills, which still probed pre-router tool names the server does not register.
+- CI now fails on any shipped skill content that pipes a remote script into a shell or wires up the DFlow connector.
+
 ## 1.2.1
 
 - Fixed the Helius MCP availability check in the `jupiter`, `okx`, and `svm` skills. They tested for pre-router tool names that the server no longer exposes as tools, so the check could never pass and each skill reported the server as not running.

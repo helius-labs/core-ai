@@ -28,7 +28,7 @@ claude --plugin-dir ./helius-plugin
 
 **Helius MCP Server** — auto-starts with the plugin. Exposes 10 public tools total: 9 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 
-**DFlow MCP Server** — *optional, not bundled.* Tools for querying DFlow API details, response schemas, and code examples for trading integrations. The DFlow skill works without it. To add it: `claude mcp add --transport http DFlow https://pond.dflow.net/mcp`
+**DFlow MCP Server** — *optional, not bundled.* Tools for querying DFlow API details, response schemas, and code examples for trading integrations. The DFlow skill works without it. It is a third-party hosted connector and is not in the Anthropic MCP connector directory; setup instructions live at [pond.dflow.net/build/mcp](https://pond.dflow.net/build/mcp).
 
 **Build skill** (`/helius:build`) — makes Claude an expert Solana developer. Includes routing logic, correct SDK patterns, reference files for every Helius product, and rules that prevent common mistakes (hardcoded fees, wrong endpoints, missing Jito tips).
 

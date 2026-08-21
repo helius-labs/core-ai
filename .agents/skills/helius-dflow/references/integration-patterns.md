@@ -485,8 +485,7 @@ Helius MCP (DAS/Wallet API) ──> Portfolio Data ──> Agent Decision
 ### Setup
 
 ```bash
-# 1. Install CLI
-curl -fsS https://cli.dflow.net | sh
+# 1. Install the CLI — the user installs it from pond.dflow.net/build/agent-cli
 
 # 2. Configure with Helius RPC for optimal performance
 dflow setup
