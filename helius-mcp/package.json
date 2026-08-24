@@ -1,6 +1,6 @@
 {
   "name": "helius-mcp",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Official Helius MCP Server - Complete Solana blockchain data access for AI assistants",
   "type": "module",
   "main": "dist/index.js",
