@@ -43,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@solana-program/token": "^0.15.0",
+    "@solana-program/token": "^0.16.0",
     "@solana/kit": "^6.10.0",
     "chalk": "^6.0.0",
     "commander": "^15.0.0",
