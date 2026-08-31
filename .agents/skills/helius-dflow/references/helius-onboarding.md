@@ -210,7 +210,7 @@ The MCP persists API keys and JWTs to shared config files so they survive across
 ### Installing the MCP
 
 ```bash
-npx helius-mcp@2.1.0  # configure in your MCP client
+npx helius-mcp@2.2.0  # configure in your MCP client
 ```
 
 ## Choosing the Right Setup Path

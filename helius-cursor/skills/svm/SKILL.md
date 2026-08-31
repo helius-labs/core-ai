@@ -22,7 +22,7 @@ If they are NOT available, **STOP** and tell the user:
 ```
 The Helius MCP server isn't running. Try restarting Cursor.
 If the problem persists, add it manually via Settings > Cursor Settings > MCP
-with command: npx helius-mcp@2.1.0
+with command: npx helius-mcp@2.2.0
 ```
 
 No API key is required — all knowledge tools fetch from public GitHub and Solana sources.

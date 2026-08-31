@@ -38,7 +38,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@2.1.0  # configure in your MCP client
+npx helius-mcp@2.2.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
@@ -342,7 +342,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `npx helius-mcp@2.1.0` (configure in your MCP client)
+- Helius MCP Server: `npx helius-mcp@2.2.0` (configure in your MCP client)
 - Orb Explorer: `https://orbmarkets.io`
 
 ## Quality Checks & Common Pitfalls

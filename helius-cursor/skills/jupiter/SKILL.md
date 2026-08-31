@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Cursor.
 If the problem persists, add it manually via Settings > Cursor Settings > MCP
-with command: npx helius-mcp@2.1.0
+with command: npx helius-mcp@2.2.0
 ```
 
 ### 2. Jupiter API Key
@@ -311,7 +311,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.1.0`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.2.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### Jupiter

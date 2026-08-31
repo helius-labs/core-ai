@@ -29,7 +29,7 @@ Examples:
 
 ```
 You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@2.1.0
+claude mcp add helius npx helius-mcp@2.2.0
 Then restart Claude so the tools become available.
 ```
 
