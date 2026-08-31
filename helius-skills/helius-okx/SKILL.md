@@ -48,7 +48,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@2.1.0
+claude mcp add helius npx helius-mcp@2.2.0
 Then restart Claude so the tools become available.
 ```
 
@@ -187,7 +187,7 @@ Follow these rules when composing OKX + Helius:
 - LLM-Optimized Docs: `https://www.helius.dev/docs/llms.txt`
 - API Reference: `https://www.helius.dev/docs/api-reference`
 - Dashboard: `https://dashboard.helius.dev`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.1.0`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.2.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### OKX

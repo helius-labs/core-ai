@@ -34,7 +34,7 @@ Examples:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@2.1.0  # configure in your MCP client
+npx helius-mcp@2.2.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 

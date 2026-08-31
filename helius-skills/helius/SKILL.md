@@ -15,7 +15,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 1. Helius MCP Server
 
-**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `claude mcp add helius npx helius-mcp@2.1.0` then restart Claude. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `claude mcp add helius npx helius-mcp@2.2.0` then restart Claude. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 ### 2. MCP Router Surface
 

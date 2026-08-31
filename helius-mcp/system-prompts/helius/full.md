@@ -10,7 +10,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 1. Helius MCP Server
 
-**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `npx helius-mcp@2.1.0` (configure in your MCP client) then restart your AI assistant. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `npx helius-mcp@2.2.0` (configure in your MCP client) then restart your AI assistant. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 ### 2. MCP Router Surface
 
@@ -1426,7 +1426,7 @@ The MCP persists API keys and JWTs to shared config files so they survive across
 ### Installing the MCP
 
 ```bash
-npx helius-mcp@2.1.0  # configure in your MCP client
+npx helius-mcp@2.2.0  # configure in your MCP client
 ```
 
 ## Choosing the Right Setup Path

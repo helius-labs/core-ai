@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Cursor.
 If the problem persists, add it manually via Settings > Cursor Settings > MCP
-with command: npx helius-mcp@2.1.0
+with command: npx helius-mcp@2.2.0
 ```
 
 ### 2. DFlow MCP Server (Optional, Not Bundled)

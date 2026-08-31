@@ -15,7 +15,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 The Helius MCP server should start automatically with this plugin. **Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically.
 
-If not available, try restarting **Cursor**, or manually add the Helius MCP server via **Settings > Cursor Settings > MCP** with command `npx helius-mcp@2.1.0`. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+If not available, try restarting **Cursor**, or manually add the Helius MCP server via **Settings > Cursor Settings > MCP** with command `npx helius-mcp@2.2.0`. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 > If MCP tools are available, they expose 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getBalance` or `lookupHeliusDocs`, call the matching public tool with `action: "<action name>"` instead.
 
