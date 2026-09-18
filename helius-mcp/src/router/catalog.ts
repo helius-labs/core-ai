@@ -60,7 +60,7 @@ function makeEntry(
     aliases: overrides.aliases ?? [],
     authRequirement: overrides.authRequirement ?? 'apiKey',
     capabilityGate: overrides.capabilityGate ?? gate('agent', 'Available on every plan'),
-    mutability: overrides.mutability ?? (publicTool === 'heliusWrite' ? 'write' : 'read'),
+    mutability: overrides.mutability ?? 'read',
     responseFamily,
     defaultDetail,
     handleEligibility: overrides.handleEligibility ?? !['scalar', 'mutationReceipt'].includes(responseFamily),
@@ -181,6 +181,7 @@ const mutationActions: ActionName[] = [
 for (const action of mutationActions) {
   catalog[action] = makeEntry(action, {
     ...catalog[action],
+    mutability: 'write',
     responseFamily: 'mutationReceipt',
     defaultDetail: 'full',
     handleEligibility: false,
@@ -279,6 +280,7 @@ for (const action of ['transactionSubscribe', 'accountSubscribe', 'laserstreamSu
 
 catalog.setHeliusApiKey = makeEntry('setHeliusApiKey', {
   authRequirement: 'none',
+  mutability: 'write',
   capabilityGate: gate('agent', 'API key configuration'),
   responseFamily: 'record',
   defaultDetail: 'standard',
@@ -304,6 +306,7 @@ catalog.getStarted = makeEntry('getStarted', {
 catalog.signup = makeEntry('signup', {
   authRequirement: 'signer',
   capabilityGate: gate('agent', 'Signup flow'),
+  mutability: 'write',
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -312,6 +315,7 @@ catalog.signup = makeEntry('signup', {
 catalog.purchaseCredits = makeEntry('purchaseCredits', {
   authRequirement: 'jwt',
   capabilityGate: gate('agent', 'Prepaid credits top-up'),
+  mutability: 'write',
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -485,6 +489,44 @@ export function getActionCatalogEntry(action: ActionName): ActionCatalogEntry {
 export function getActionsForTool(tool: RoutedPublicToolName): ActionName[] {
   return (Object.values(ACTION_CATALOG)
     .filter((entry) => entry.publicTool === tool)
+    .map((entry) => entry.action)
+    .sort()) as ActionName[];
+}
+
+/**
+ * Actions a hosted deployment must not expose even though their auth requirement
+ * would otherwise admit them.
+ *
+ * `generateKeypair` returns private key material, which would travel back through
+ * the proxy and into an LLM transcript. `setHeliusApiKey` mutates process-global
+ * config, which one caller must never be able to do on behalf of everyone else.
+ */
+const HOSTED_MANUAL_EXCLUSIONS: ReadonlySet<ActionName> = new Set<ActionName>([
+  'generateKeypair',
+  'setHeliusApiKey',
+]);
+
+/**
+ * Whether an action can be served by a hosted, multi-tenant deployment.
+ *
+ * The rule is the auth requirement, not the mutability: a hosted server holds no
+ * wallet and no dashboard JWT, so anything needing a `signer` or `jwt` is out.
+ * Webhook CRUD stays in — it mutates, but it only needs the caller's API key, so
+ * it works correctly under a bring-your-own-key deployment.
+ */
+export function hostedEligible(entry: ActionCatalogEntry): boolean {
+  if (HOSTED_MANUAL_EXCLUSIONS.has(entry.action)) {
+    return false;
+  }
+  return entry.authRequirement === 'apiKey' || entry.authRequirement === 'none';
+}
+
+/** Size of the hosted surface. Exported so validation and tests agree on one number. */
+export const HOSTED_ACTION_COUNT = 82;
+
+export function getHostedActions(): ActionName[] {
+  return (Object.values(ACTION_CATALOG)
+    .filter(hostedEligible)
     .map((entry) => entry.action)
     .sort()) as ActionName[];
 }
