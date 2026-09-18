@@ -4,6 +4,7 @@ import {
   ACTION_CATALOG,
   hostedEligible,
   getHostedActions,
+  HOSTED_ACTION_COUNT,
 } from '../src/router/catalog.js';
 
 /**
@@ -68,15 +69,33 @@ describe('mutability labels', () => {
     expect(ACTION_CATALOG.purchaseCredits.mutability).toBe('write');
   });
 
+  it('labels signup a write — under autopay it sends USDC from the local keypair', () => {
+    expect(ACTION_CATALOG.signup.mutability).toBe('write');
+  });
+
+  it('labels setHeliusApiKey a write, since it changes server config', () => {
+    expect(ACTION_CATALOG.setHeliusApiKey.mutability).toBe('write');
+  });
+
+  it('labels every action that needs a signer a write', () => {
+    // Acting as the wallet is a mutation wherever it appears. This is the
+    // invariant that catches actions whose receipt shape looks like a read.
+    for (const entry of Object.values(ACTION_CATALOG)) {
+      if (entry.authRequirement === 'signer' || entry.authRequirement === 'jwtAndSigner') {
+        expect(entry.mutability).toBe('write');
+      }
+    }
+  });
+
   it('defaults to read rather than inferring from the public tool name', () => {
     expect(ACTION_CATALOG.getBalance.mutability).toBe('read');
   });
 });
 
 describe('the hosted surface', () => {
-  it('is 82 of the 95 catalogued actions', () => {
+  it('matches the declared hosted action count', () => {
     expect(Object.keys(ACTION_CATALOG)).toHaveLength(95);
-    expect(getHostedActions()).toHaveLength(82);
+    expect(getHostedActions()).toHaveLength(HOSTED_ACTION_COUNT);
   });
 
   it('excludes every heliusWrite action', () => {

@@ -12,14 +12,15 @@
  * 6. No empty mcpTools arrays
  * 7. Every action that returns a mutation receipt is labelled a write
  * 8. Every heliusWrite action is labelled a write
- * 9. No action needing a signer or a JWT is hosted-eligible
+ * 9. Every action needing a signer is labelled a write
+ * 10. No action needing a signer or a JWT reaches the hosted surface
  */
 
 import fs from 'fs';
 import path from 'path';
 import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
 import { ACTION_NAME_SET } from '../router/actions.js';
-import { ACTION_CATALOG, hostedEligible, getHostedActions } from '../router/catalog.js';
+import { ACTION_CATALOG, getHostedActions, HOSTED_ACTION_COUNT } from '../router/catalog.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -85,8 +86,6 @@ for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
  * hosted eligibility on it, and then the actions that most needed protecting
  * are the ones that slipped through.
  */
-const HOSTED_ACTION_COUNT = 82;
-
 for (const entry of Object.values(ACTION_CATALOG)) {
   if (entry.responseFamily === 'mutationReceipt' && entry.mutability !== 'write') {
     error(entry.action, 'returns a mutation receipt but is labelled a read');
@@ -96,13 +95,29 @@ for (const entry of Object.values(ACTION_CATALOG)) {
     error(entry.action, 'is a heliusWrite action but is labelled a read');
   }
 
-  // A hosted deployment holds no wallet and no dashboard JWT.
-  if (hostedEligible(entry) && entry.authRequirement !== 'apiKey' && entry.authRequirement !== 'none') {
-    error(entry.action, `is hosted-eligible but requires "${entry.authRequirement}"`);
+  // Needing a signing key means acting as the wallet, which is a mutation
+  // wherever it appears. This is the check that would have caught `signup`,
+  // whose receipt shape and public tool both look like a read.
+  const needsSigner = entry.authRequirement === 'signer' || entry.authRequirement === 'jwtAndSigner';
+  if (needsSigner && entry.mutability !== 'write') {
+    error(entry.action, `requires "${entry.authRequirement}" but is labelled a read`);
   }
 }
 
+// Assert the hosted surface from the catalogue rather than from the predicate
+// that builds it: re-calling `hostedEligible` here would only confirm it agrees
+// with itself.
 const hostedActions = getHostedActions();
+const hosted = new Set<string>(hostedActions);
+for (const entry of Object.values(ACTION_CATALOG)) {
+  const needsLocalSecret = entry.authRequirement === 'signer'
+    || entry.authRequirement === 'jwt'
+    || entry.authRequirement === 'jwtAndSigner';
+  if (needsLocalSecret && hosted.has(entry.action)) {
+    error(entry.action, `requires "${entry.authRequirement}" but reaches the hosted surface`);
+  }
+}
+
 if (hostedActions.length !== HOSTED_ACTION_COUNT) {
   error(
     'hosted-surface',
@@ -122,5 +137,9 @@ if (errors.length > 0) {
   process.exit(1);
 } else {
   const productCount = Object.keys(PRODUCT_CATALOG).length;
-  console.log(`\u2705 All products valid (${productCount} products in catalog)`);
+  const actionCount = Object.keys(ACTION_CATALOG).length;
+  console.log(
+    `\u2705 Valid: ${productCount} products, ${actionCount} actions `
+    + `(${hostedActions.length} hosted-eligible)`,
+  );
 }

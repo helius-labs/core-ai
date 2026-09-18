@@ -280,6 +280,7 @@ for (const action of ['transactionSubscribe', 'accountSubscribe', 'laserstreamSu
 
 catalog.setHeliusApiKey = makeEntry('setHeliusApiKey', {
   authRequirement: 'none',
+  mutability: 'write',
   capabilityGate: gate('agent', 'API key configuration'),
   responseFamily: 'record',
   defaultDetail: 'standard',
@@ -305,6 +306,7 @@ catalog.getStarted = makeEntry('getStarted', {
 catalog.signup = makeEntry('signup', {
   authRequirement: 'signer',
   capabilityGate: gate('agent', 'Signup flow'),
+  mutability: 'write',
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -518,6 +520,9 @@ export function hostedEligible(entry: ActionCatalogEntry): boolean {
   }
   return entry.authRequirement === 'apiKey' || entry.authRequirement === 'none';
 }
+
+/** Size of the hosted surface. Exported so validation and tests agree on one number. */
+export const HOSTED_ACTION_COUNT = 82;
 
 export function getHostedActions(): ActionName[] {
   return (Object.values(ACTION_CATALOG)
