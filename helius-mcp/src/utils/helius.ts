@@ -4,6 +4,7 @@ import { getSharedApiKey } from './config.js';
 import { wrapClientWithResilience, withResilience, READ_TIMEOUT_MS } from './resilience.js';
 import { registerSecret } from './redact.js';
 import { isSharedCredentialMode } from './runtime.js';
+import type { RequestContext } from './request-context.js';
 
 let sessionApiKey: string | null = null;
 let sessionNetwork: 'mainnet-beta' | 'devnet' = 'mainnet-beta';
@@ -55,8 +56,8 @@ export function setApiKey(apiKey: string): void {
   heliusClient = null; // Reset client so it picks up new key
 }
 
-export function getApiKey(): string {
-  const apiKey = sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
+export function getApiKey(ctx?: RequestContext): string {
+  const apiKey = ctx?.apiKey || sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
   if (!apiKey) {
     throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
@@ -65,11 +66,20 @@ export function getApiKey(): string {
   return apiKey;
 }
 
-export function hasApiKey(): boolean {
-  return !!(sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey());
+export function hasApiKey(ctx?: RequestContext): boolean {
+  return !!(ctx?.apiKey || sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey());
 }
 
-export function getHeliusClient(): HeliusClient {
+export function getHeliusClient(ctx?: RequestContext): HeliusClient {
+  // A caller-supplied context gets its own client. Caching per key would be a
+  // cross-tenant hazard for no gain: construction measures ~0.012ms, far below
+  // the network call it wraps.
+  if (ctx) {
+    return wrapClientWithResilience(
+      createHelius({ apiKey: getApiKey(ctx), userAgent: MCP_USER_AGENT }),
+    );
+  }
+
   if (!heliusClient) {
     const apiKey = getApiKey();
     // Wrap so idempotent reads get a timeout + retry-with-backoff; writes,
@@ -84,7 +94,11 @@ export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
   sessionNetwork = network;
 }
 
-export function getNetwork(): 'mainnet-beta' | 'devnet' {
+export function getNetwork(ctx?: RequestContext): 'mainnet-beta' | 'devnet' {
+  if (ctx) {
+    return ctx.network;
+  }
+
   const envNetwork = process.env.HELIUS_NETWORK;
   if (envNetwork === 'devnet' || envNetwork === 'mainnet-beta') {
     return envNetwork;
@@ -92,8 +106,8 @@ export function getNetwork(): 'mainnet-beta' | 'devnet' {
   return sessionNetwork;
 }
 
-export function getEnhancedWebSocketUrl(): string {
-  const network = getNetwork();
+export function getEnhancedWebSocketUrl(ctx?: RequestContext): string {
+  const network = getNetwork(ctx);
   const host = network === 'devnet'
     ? 'wss://atlas-devnet.helius-rpc.com'
     : 'wss://atlas-mainnet.helius-rpc.com';
@@ -105,13 +119,16 @@ export function getEnhancedWebSocketUrl(): string {
     return `${host}/?api-key=YOUR_HELIUS_API_KEY`;
   }
 
-  return `${host}/?api-key=${getApiKey()}`;
+  return `${host}/?api-key=${getApiKey(ctx)}`;
 }
 
-export function getLaserstreamUrl(region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp'): string {
+export function getLaserstreamUrl(
+  region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp',
+  ctx?: RequestContext,
+): string {
   // Endpoint host is public; clients pass apiKey separately (e.g. @helius/laserstream subscribe options).
   // Do not call getApiKey() here or docs tools like getLaserstreamInfo fail unnecessarily.
-  const network = getNetwork();
+  const network = getNetwork(ctx);
   if (network === 'devnet') {
     return `https://laserstream-devnet-ewr.helius-rpc.com`;
   }
@@ -161,8 +178,12 @@ export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walle
   return { secretKey, walletAddress };
 }
 
-export async function restRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
-  const apiKey = getApiKey();
+export async function restRequest(
+  endpoint: string,
+  options: RequestInit = {},
+  ctx?: RequestContext,
+): Promise<any> {
+  const apiKey = getApiKey(ctx);
   const separator = endpoint.includes('?') ? '&' : '?';
   const url = `https://api.helius.xyz${endpoint}${separator}api-key=${apiKey}`;
 
