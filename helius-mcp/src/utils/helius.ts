@@ -112,14 +112,22 @@ export function getEnhancedWebSocketUrl(ctx?: RequestContext): string {
     ? 'wss://atlas-devnet.helius-rpc.com'
     : 'wss://atlas-mainnet.helius-rpc.com';
 
-  // Under a shared server-side credential this URL is tool output that reaches
-  // the caller, so it gets a placeholder the caller substitutes with their own
-  // key. Single-tenant stdio still returns a ready-to-use URL.
+  // A supplied context means the key belongs to the caller being answered, so
+  // returning it is the point of this tool, not a leak — check before the
+  // shared-credential placeholder below. Getting this order wrong half-applies
+  // the context: the network comes from the request while the key does not.
+  if (ctx) {
+    return `${host}/?api-key=${getApiKey(ctx)}`;
+  }
+
+  // Without a context the key is the deployment's, not the caller's, so under a
+  // shared credential it gets a placeholder the caller substitutes with their
+  // own. Single-tenant stdio still returns a ready-to-use URL.
   if (isSharedCredentialMode()) {
     return `${host}/?api-key=YOUR_HELIUS_API_KEY`;
   }
 
-  return `${host}/?api-key=${getApiKey(ctx)}`;
+  return `${host}/?api-key=${getApiKey()}`;
 }
 
 export function getLaserstreamUrl(

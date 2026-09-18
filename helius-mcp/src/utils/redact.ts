@@ -16,6 +16,16 @@ const REDACTED = '***REDACTED***';
 /** Matches `api-key=<value>` in a query string, however the URL is delimited. */
 const API_KEY_QUERY_RE = /([?&]api-key=)[^&\s'"`)\]}<]+/gi;
 
+/**
+ * Unbounded and process-global. One stdio caller registers one key, so this is
+ * fine today; a deployment serving many callers accumulates one entry per
+ * distinct key forever, and `redactSecrets` scans the whole set on every
+ * response. There is no cap, no TTL and no eviction.
+ *
+ * Making this request-local belongs with the removal of the other credential
+ * globals, not here — capping it in isolation would silently stop scrubbing an
+ * evicted key, which is worse than the growth.
+ */
 const secrets = new Set<string>();
 
 /**

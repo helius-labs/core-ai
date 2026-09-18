@@ -30,7 +30,7 @@ describe('contextFromExtra', () => {
   });
 
   it('returns null when authInfo carries no token', () => {
-    expect(contextFromExtra(extraWith({ clientId: 'proj_1' }))).toBeNull();
+    expect(contextFromExtra(extraWith({ extra: { projectId: 'proj_1' } }))).toBeNull();
     expect(contextFromExtra(extraWith({ token: '' }))).toBeNull();
     expect(contextFromExtra(extraWith({ token: 42 }))).toBeNull();
   });
@@ -39,14 +39,21 @@ describe('contextFromExtra', () => {
     expect(contextFromExtra(extraWith({ token: CALLER_A }))?.apiKey).toBe(CALLER_A);
   });
 
-  it('reads the project from authInfo.clientId', () => {
-    const built = contextFromExtra(extraWith({ token: CALLER_A, clientId: 'proj_1' }));
+  it('reads the project from authInfo.extra', () => {
+    const built = contextFromExtra(extraWith({ token: CALLER_A, extra: { projectId: 'proj_1' } }));
     expect(built?.projectId).toBe('proj_1');
   });
 
-  it('leaves the project undefined when clientId is absent or empty', () => {
+  it('leaves the project undefined when it is absent or empty', () => {
     expect(contextFromExtra(extraWith({ token: CALLER_A }))?.projectId).toBeUndefined();
-    expect(contextFromExtra(extraWith({ token: CALLER_A, clientId: '' }))?.projectId).toBeUndefined();
+    expect(
+      contextFromExtra(extraWith({ token: CALLER_A, extra: { projectId: '' } }))?.projectId,
+    ).toBeUndefined();
+  });
+
+  it('ignores clientId, which identifies an OAuth client rather than a project', () => {
+    const built = contextFromExtra(extraWith({ token: CALLER_A, clientId: 'some-oauth-client' }));
+    expect(built?.projectId).toBeUndefined();
   });
 
   it('reads the network from authInfo.extra, defaulting to mainnet', () => {
@@ -64,8 +71,8 @@ describe('sessionKey', () => {
   it('is stable across requests from the same caller', () => {
     // Handles are issued by one request and redeemed by the next, so a
     // per-request key would break expansion immediately.
-    const first = contextFromExtra(extraWith({ token: CALLER_A, clientId: 'proj_1' }));
-    const second = contextFromExtra(extraWith({ token: CALLER_A, clientId: 'proj_1' }));
+    const first = contextFromExtra(extraWith({ token: CALLER_A, extra: { projectId: 'proj_1' } }));
+    const second = contextFromExtra(extraWith({ token: CALLER_A, extra: { projectId: 'proj_1' } }));
     expect(first?.sessionKey).toBe(second?.sessionKey);
   });
 
@@ -76,8 +83,8 @@ describe('sessionKey', () => {
   });
 
   it('differs when the same key is presented under a different project', () => {
-    const a = contextFromExtra(extraWith({ token: CALLER_A, clientId: 'proj_1' }));
-    const b = contextFromExtra(extraWith({ token: CALLER_A, clientId: 'proj_2' }));
+    const a = contextFromExtra(extraWith({ token: CALLER_A, extra: { projectId: 'proj_1' } }));
+    const b = contextFromExtra(extraWith({ token: CALLER_A, extra: { projectId: 'proj_2' } }));
     expect(a?.sessionKey).not.toBe(b?.sessionKey);
   });
 
@@ -127,6 +134,28 @@ describe('resolvers with a context', () => {
     // ends at the on-disk shared config, so that result depends on the machine.
     delete process.env.HELIUS_API_KEY;
     expect(hasApiKey(ctx())).toBe(true);
+  });
+
+  it('returns the caller their own key even under a shared credential', () => {
+    // The whole point of this tool is a usable URL. A context means the key
+    // belongs to the caller being answered, so the placeholder must not win.
+    process.env.HELIUS_MCP_SHARED_CREDENTIAL = '1';
+    try {
+      const url = getEnhancedWebSocketUrl(ctx({ network: 'devnet' }));
+      expect(url).toContain(CALLER_A);
+      expect(url).not.toContain('YOUR_HELIUS_API_KEY');
+    } finally {
+      delete process.env.HELIUS_MCP_SHARED_CREDENTIAL;
+    }
+  });
+
+  it('still placeholders the key under a shared credential with no context', () => {
+    process.env.HELIUS_MCP_SHARED_CREDENTIAL = '1';
+    try {
+      expect(getEnhancedWebSocketUrl()).toContain('YOUR_HELIUS_API_KEY');
+    } finally {
+      delete process.env.HELIUS_MCP_SHARED_CREDENTIAL;
+    }
   });
 
   it('builds the WebSocket URL from the context, not module state', () => {

@@ -28,19 +28,15 @@ export type RequestContext = {
    * immediately, since a handle is issued by one request and redeemed by the
    * next; per-caller means a handle survives exactly as long as the caller does
    * and is invisible to everyone else.
+   *
+   * Note this duplicates a responsibility `RouterContext` currently holds:
+   * `getRouterContext()` takes no argument and hands `dispatch.ts` a
+   * process-global session key. Nothing bridges the two yet, and nothing can
+   * until call sites start passing a context. The migration that converts them
+   * is where `getRouterContext` learns to derive from this field; until then
+   * this is the declared intent and `RouterContext` is the live implementation.
    */
   sessionKey: string;
-};
-
-/**
- * The `AuthInfo` shape the MCP SDK surfaces on `extra.authInfo`, narrowed to the
- * fields we populate. Declared structurally rather than imported so this module
- * stays free of SDK types.
- */
-type AuthInfoLike = {
-  token?: unknown;
-  clientId?: unknown;
-  extra?: unknown;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -68,7 +64,7 @@ export function contextFromExtra(extra: unknown): RequestContext | null {
     return null;
   }
 
-  const authInfo = extra.authInfo as AuthInfoLike | undefined;
+  const authInfo = extra.authInfo;
   if (!isRecord(authInfo)) {
     return null;
   }
@@ -78,12 +74,16 @@ export function contextFromExtra(extra: unknown): RequestContext | null {
     return null;
   }
 
-  const projectId = typeof authInfo.clientId === 'string' && authInfo.clientId
-    ? authInfo.clientId
-    : undefined;
+  // Both of ours live under `extra`, which the SDK documents as the home for
+  // additional token data. Deliberately not `clientId`: that identifies the
+  // OAuth client application, and a Helius project is not one — under any
+  // registration model it would end up holding something else.
+  const authExtra = isRecord(authInfo.extra) ? authInfo.extra : undefined;
 
-  const rawNetwork = isRecord(authInfo.extra) ? authInfo.extra.network : undefined;
-  const network = rawNetwork === 'devnet' ? 'devnet' : 'mainnet-beta';
+  const rawProjectId = authExtra?.projectId;
+  const projectId = typeof rawProjectId === 'string' && rawProjectId ? rawProjectId : undefined;
+
+  const network = authExtra?.network === 'devnet' ? 'devnet' : 'mainnet-beta';
 
   return {
     apiKey,
