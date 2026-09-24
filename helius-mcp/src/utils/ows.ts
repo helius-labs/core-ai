@@ -23,6 +23,7 @@ import { address, createKeyPairSignerFromBytes, type Address } from '@solana/kit
 import { loadSignerOrFail, getNetwork } from './helius.js';
 import { mcpError } from './errors.js';
 import { isSharedCredentialMode, sharedCredentialRefusal, SHARED_CREDENTIAL_META } from './runtime.js';
+import type { RequestContext } from './request-context.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -64,10 +65,13 @@ function validateWalletName(name: string): void {
 
 /**
  * Return the Solana address for the named OWS wallet.
- * Uses the current MCP session network (mainnet or devnet) to select
- * the correct CAIP-2 chain key.
+ * Uses the request's network, falling back to the session's, to select the
+ * correct CAIP-2 chain key.
  */
-export async function getOwsSolanaAddress(walletName: string): Promise<string> {
+export async function getOwsSolanaAddress(
+  walletName: string,
+  ctx?: RequestContext | null,
+): Promise<string> {
   validateWalletName(walletName);
 
   const { stdout } = await execFileAsync(
@@ -79,7 +83,7 @@ export async function getOwsSolanaAddress(walletName: string): Promise<string> {
 
   // The CLI outputs accounts keyed by CAIP-2 chain id.
   // Pick the key matching the active network.
-  const network = getNetwork();
+  const network = getNetwork(ctx);
   const primaryKey = network === 'devnet' ? SOLANA_CAIP2_DEVNET : SOLANA_CAIP2_MAINNET;
   const account =
     info.accounts?.[primaryKey] ??
@@ -159,7 +163,10 @@ export interface OwsSigner {
  * still passes `isTransactionSigner()` and produces valid signatures in the
  * full `signTransactionMessageWithSigners` pipeline.
  */
-export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
+export async function resolveOwsOrKeypairSigner(
+  owsWallet?: string,
+  ctx?: RequestContext | null,
+): Promise<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   | { ok: true; signer: any; walletAddress: string; owsWallet?: string }
   | { ok: false; error: ReturnType<typeof mcpError> }
@@ -191,7 +198,7 @@ export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
       ) };
     }
     try {
-      const signer = await createOwsSigner(owsWallet);
+      const signer = await createOwsSigner(owsWallet, ctx);
       return { ok: true, signer, walletAddress: signer.address, owsWallet };
     } catch (err: any) {
       return { ok: false, error: mcpError(
@@ -213,8 +220,11 @@ export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
   }
 }
 
-export async function createOwsSigner(walletName: string): Promise<OwsSigner> {
-  const solAddress = await getOwsSolanaAddress(walletName);
+export async function createOwsSigner(
+  walletName: string,
+  ctx?: RequestContext | null,
+): Promise<OwsSigner> {
+  const solAddress = await getOwsSolanaAddress(walletName, ctx);
   const addr = address(solAddress);
 
   return {
