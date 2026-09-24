@@ -13,6 +13,26 @@ export type ResponseFamily =
   | 'catalog';
 
 export type AuthRequirement = 'none' | 'apiKey' | 'jwt' | 'signer' | 'jwtAndSigner';
+
+/**
+ * Whether an auth requirement can only be satisfied by a secret held on the
+ * host — a signing key or a dashboard session — as opposed to a credential the
+ * caller presents with the request.
+ *
+ * The `switch` is exhaustive on purpose: a new `AuthRequirement` variant fails
+ * to compile here rather than silently falling into one side of the split.
+ */
+export function needsHostSecret(auth: AuthRequirement): boolean {
+  switch (auth) {
+    case 'jwt':
+    case 'signer':
+    case 'jwtAndSigner':
+      return true;
+    case 'none':
+    case 'apiKey':
+      return false;
+  }
+}
 export type Mutability = 'read' | 'write';
 export type ContinuationModel = 'none' | 'transactionHistory' | 'page';
 

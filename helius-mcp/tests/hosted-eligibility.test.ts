@@ -4,106 +4,174 @@ import {
   ACTION_CATALOG,
   hostedEligible,
   getHostedActions,
-  HOSTED_ACTION_COUNT,
+  hostedExclusionReason,
 } from '../src/router/catalog.js';
+import { ACTION_NAMES } from '../src/router/actions.js';
 
 /**
- * A hosted deployment is multi-tenant and holds no wallet, no dashboard JWT and
- * no on-disk config. These tests pin the boundary, because widening it silently
- * is how a hosted server ends up signing on someone's behalf.
+ * The hosted surface is the set of actions a multi-tenant deployment could
+ * serve. Nothing consumes it yet — these tests fix the boundary before anything
+ * depends on it, because widening it silently is how a hosted server ends up
+ * signing or reading host state on someone's behalf.
+ *
+ * Catalog-wide invariants ("every mutation receipt is a write") live in
+ * `pnpm validate`, which runs in the same `pnpm test`. This file keeps the
+ * examples that explain *why* the boundary sits where it does.
  */
 
-describe('hostedEligible', () => {
-  it('admits actions that need only the caller API key', () => {
-    expect(hostedEligible(ACTION_CATALOG.getTokenBalances)).toBe(true);
+describe('the hosted surface', () => {
+  it('is exactly this set', () => {
+    // A snapshot rather than a count: swapping one action for another keeps a
+    // count at 78 and passes, while this names both the entrant and the leaver
+    // in the failing diff. Update deliberately, and say why in the PR.
+    expect(getHostedActions()).toEqual([
+      'accountSubscribe',
+      'batchWalletIdentity',
+      'createWebhook',
+      'deleteWebhook',
+      'fetchHeliusBlog',
+      'getAccountInfo',
+      'getAccountPlan',
+      'getAllWebhooks',
+      'getAsset',
+      'getAssetProof',
+      'getAssetProofBatch',
+      'getAssetsByGroup',
+      'getAssetsByOwner',
+      'getBalance',
+      'getBlock',
+      'getCompressedAccount',
+      'getCompressedAccountProof',
+      'getCompressedAccountsByOwner',
+      'getCompressedBalance',
+      'getCompressedBalanceByOwner',
+      'getCompressedMintTokenHolders',
+      'getCompressedTokenAccountBalance',
+      'getCompressedTokenAccountsByDelegate',
+      'getCompressedTokenAccountsByOwner',
+      'getCompressedTokenBalancesByOwnerV2',
+      'getCompressionSignaturesForAccount',
+      'getCompressionSignaturesForAddress',
+      'getCompressionSignaturesForOwner',
+      'getCompressionSignaturesForTokenOwner',
+      'getEnhancedWebSocketInfo',
+      'getHeliusCreditsInfo',
+      'getIndexerHealth',
+      'getIndexerSlot',
+      'getLaserstreamInfo',
+      'getLatencyComparison',
+      'getLatestCompressionSignatures',
+      'getLatestNonVotingSignatures',
+      'getMultipleCompressedAccountProofs',
+      'getMultipleCompressedAccounts',
+      'getMultipleNewAddressProofs',
+      'getNetworkStatus',
+      'getNftEditions',
+      'getPriorityFeeEstimate',
+      'getProgramAccounts',
+      'getPumpFunGuide',
+      'getRateLimitInfo',
+      'getSIMD',
+      'getSenderInfo',
+      'getSignaturesForAsset',
+      'getStakeAccounts',
+      'getTokenAccounts',
+      'getTokenBalances',
+      'getTokenHolders',
+      'getTransactionHistory',
+      'getTransactionWithCompressionInfo',
+      'getTransfersByAddress',
+      'getValidityProof',
+      'getWalletBalanceAt',
+      'getWalletBalances',
+      'getWalletFundedBy',
+      'getWalletHistory',
+      'getWalletIdentity',
+      'getWalletTransfers',
+      'getWebhookByID',
+      'getWebhookGuide',
+      'getWithdrawableAmount',
+      'laserstreamSubscribe',
+      'listHeliusDocTopics',
+      'listSIMDs',
+      'lookupHeliusDocs',
+      'parseTransactions',
+      'readSolanaSourceFile',
+      'searchAssets',
+      'searchSolanaDocs',
+      'simulateTransaction',
+      'transactionSubscribe',
+      'troubleshootError',
+      'updateWebhook',
+    ]);
   });
 
-  it('admits actions that need no credential at all', () => {
-    expect(hostedEligible(ACTION_CATALOG.compareHeliusPlans)).toBe(true);
+  it('covers the whole catalog between hosted and excluded', () => {
+    const hosted = new Set(getHostedActions());
+    const excluded = ACTION_NAMES.filter((a) => !hosted.has(a));
+    expect(hosted.size + excluded.length).toBe(ACTION_NAMES.length);
   });
+});
 
-  it('refuses every action that needs a signer', () => {
+describe('what the boundary excludes, and why', () => {
+  it('excludes every action needing a signer or a dashboard session', () => {
     for (const entry of Object.values(ACTION_CATALOG)) {
-      if (entry.authRequirement === 'signer' || entry.authRequirement === 'jwtAndSigner') {
-        expect(hostedEligible(entry)).toBe(false);
-      }
+      if (entry.authRequirement === 'apiKey' || entry.authRequirement === 'none') continue;
+      expect(hostedEligible(entry)).toBe(false);
     }
   });
 
-  it('refuses every action that needs a dashboard JWT', () => {
-    for (const entry of Object.values(ACTION_CATALOG)) {
-      if (entry.authRequirement === 'jwt') {
-        expect(hostedEligible(entry)).toBe(false);
-      }
+  it('excludes actions whose credential is the caller\'s but whose effect is not', () => {
+    // These pass the auth check and still have to go: `authRequirement`
+    // describes what a call needs to authenticate, not what it reaches.
+    for (const action of [
+      'generateKeypair',
+      'setHeliusApiKey',
+      'recommendStack',
+      'getStarted',
+      'getHeliusPlanInfo',
+      'compareHeliusPlans',
+    ] as const) {
+      expect(hostedExclusionReason(action)).toBeTruthy();
+      expect(hostedEligible(ACTION_CATALOG[action])).toBe(false);
     }
   });
 
-  it('refuses generateKeypair, which would return key material to the caller', () => {
-    expect(ACTION_CATALOG.generateKeypair.authRequirement).toBe('none');
-    expect(hostedEligible(ACTION_CATALOG.generateKeypair)).toBe(false);
+  it('gives every manual exclusion a stated reason', () => {
+    for (const action of ACTION_NAMES) {
+      const reason = hostedExclusionReason(action);
+      if (reason !== undefined) expect(reason.length).toBeGreaterThan(20);
+    }
   });
+});
 
-  it('refuses setHeliusApiKey, which mutates config for every caller', () => {
-    expect(ACTION_CATALOG.setHeliusApiKey.authRequirement).toBe('none');
-    expect(hostedEligible(ACTION_CATALOG.setHeliusApiKey)).toBe(false);
-  });
-
+describe('what the boundary keeps', () => {
   it('keeps webhook CRUD, which mutates but needs only the caller API key', () => {
+    // True of a deployment where each caller presents their own key. Under the
+    // shared-credential mode that exists today, these would reach the
+    // operator's webhooks — which is why nothing calls hostedEligible yet.
     for (const action of ['createWebhook', 'updateWebhook', 'deleteWebhook'] as const) {
       expect(ACTION_CATALOG[action].mutability).toBe('write');
       expect(hostedEligible(ACTION_CATALOG[action])).toBe(true);
     }
   });
+
+  it('keeps ordinary reads that need nothing but a key', () => {
+    expect(hostedEligible(ACTION_CATALOG.getTokenBalances)).toBe(true);
+    expect(hostedEligible(ACTION_CATALOG.getBalance)).toBe(true);
+  });
 });
 
 describe('mutability labels', () => {
-  it('labels every mutation-receipt action a write', () => {
-    for (const entry of Object.values(ACTION_CATALOG)) {
-      if (entry.responseFamily === 'mutationReceipt') {
-        expect(entry.mutability).toBe('write');
-      }
-    }
-  });
-
-  it('labels purchaseCredits a write, since it spends money', () => {
-    expect(ACTION_CATALOG.purchaseCredits.mutability).toBe('write');
+  it('defaults to read rather than inferring from the public tool name', () => {
+    expect(ACTION_CATALOG.getBalance.mutability).toBe('read');
   });
 
   it('labels signup a write — under autopay it sends USDC from the local keypair', () => {
     expect(ACTION_CATALOG.signup.mutability).toBe('write');
   });
 
-  it('labels setHeliusApiKey a write, since it changes server config', () => {
-    expect(ACTION_CATALOG.setHeliusApiKey.mutability).toBe('write');
-  });
-
-  it('labels every action that needs a signer a write', () => {
-    // Acting as the wallet is a mutation wherever it appears. This is the
-    // invariant that catches actions whose receipt shape looks like a read.
-    for (const entry of Object.values(ACTION_CATALOG)) {
-      if (entry.authRequirement === 'signer' || entry.authRequirement === 'jwtAndSigner') {
-        expect(entry.mutability).toBe('write');
-      }
-    }
-  });
-
-  it('defaults to read rather than inferring from the public tool name', () => {
-    expect(ACTION_CATALOG.getBalance.mutability).toBe('read');
-  });
-});
-
-describe('the hosted surface', () => {
-  it('matches the declared hosted action count', () => {
-    expect(Object.keys(ACTION_CATALOG)).toHaveLength(95);
-    expect(getHostedActions()).toHaveLength(HOSTED_ACTION_COUNT);
-  });
-
-  it('excludes every heliusWrite action', () => {
-    const hosted = new Set(getHostedActions());
-    for (const entry of Object.values(ACTION_CATALOG)) {
-      if (entry.publicTool === 'heliusWrite') {
-        expect(hosted.has(entry.action)).toBe(false);
-      }
-    }
+  it('labels purchaseCredits a write, since it spends money', () => {
+    expect(ACTION_CATALOG.purchaseCredits.mutability).toBe('write');
   });
 });

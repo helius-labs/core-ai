@@ -13,14 +13,17 @@
  * 7. Every action that returns a mutation receipt is labelled a write
  * 8. Every heliusWrite action is labelled a write
  * 9. Every action needing a signer is labelled a write
- * 10. No action needing a signer or a JWT reaches the hosted surface
+ * 10. Every manually excluded action is absent from the hosted surface
+ * 11. No heliusWrite action reaches the hosted surface
  */
 
 import fs from 'fs';
 import path from 'path';
 import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
 import { ACTION_NAME_SET } from '../router/actions.js';
-import { ACTION_CATALOG, getHostedActions, HOSTED_ACTION_COUNT } from '../router/catalog.js';
+import { ACTION_CATALOG, getHostedActions, hostedExclusionReason } from '../router/catalog.js';
+import { ACTION_NAMES } from '../router/actions.js';
+import { needsHostSecret } from '../router/types.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -95,35 +98,30 @@ for (const entry of Object.values(ACTION_CATALOG)) {
     error(entry.action, 'is a heliusWrite action but is labelled a read');
   }
 
-  // Needing a signing key means acting as the wallet, which is a mutation
-  // wherever it appears. This is the check that would have caught `signup`,
-  // whose receipt shape and public tool both look like a read.
-  const needsSigner = entry.authRequirement === 'signer' || entry.authRequirement === 'jwtAndSigner';
-  if (needsSigner && entry.mutability !== 'write') {
+  // Acting as the wallet is a mutation wherever it appears. This is the check
+  // that caught `signup`, whose receipt shape and public tool both look read-ish.
+  if (needsHostSecret(entry.authRequirement) && entry.authRequirement !== 'jwt'
+      && entry.mutability !== 'write') {
     error(entry.action, `requires "${entry.authRequirement}" but is labelled a read`);
   }
 }
 
-// Assert the hosted surface from the catalogue rather than from the predicate
-// that builds it: re-calling `hostedEligible` here would only confirm it agrees
-// with itself.
-const hostedActions = getHostedActions();
-const hosted = new Set<string>(hostedActions);
-for (const entry of Object.values(ACTION_CATALOG)) {
-  const needsLocalSecret = entry.authRequirement === 'signer'
-    || entry.authRequirement === 'jwt'
-    || entry.authRequirement === 'jwtAndSigner';
-  if (needsLocalSecret && hosted.has(entry.action)) {
-    error(entry.action, `requires "${entry.authRequirement}" but reaches the hosted surface`);
+// Hosted-surface checks that do not restate the predicate. Asserting that no
+// signer/jwt action is hosted would only confirm `hostedEligible` agrees with
+// itself; these two can fail for a catalog edit that leaves the predicate alone.
+const hosted = new Set<string>(getHostedActions());
+
+for (const action of ACTION_NAMES) {
+  const reason = hostedExclusionReason(action);
+  if (reason && hosted.has(action)) {
+    error(action, `is manually excluded (${reason}) but reaches the hosted surface`);
   }
 }
 
-if (hostedActions.length !== HOSTED_ACTION_COUNT) {
-  error(
-    'hosted-surface',
-    `expected ${HOSTED_ACTION_COUNT} hosted-eligible actions, found ${hostedActions.length}. `
-    + 'If this is intentional, update HOSTED_ACTION_COUNT and say why in the PR.',
-  );
+for (const entry of Object.values(ACTION_CATALOG)) {
+  if (entry.publicTool === 'heliusWrite' && hosted.has(entry.action)) {
+    error(entry.action, 'is a heliusWrite action but reaches the hosted surface');
+  }
 }
 
 // ── Report ──
@@ -137,9 +135,8 @@ if (errors.length > 0) {
   process.exit(1);
 } else {
   const productCount = Object.keys(PRODUCT_CATALOG).length;
-  const actionCount = Object.keys(ACTION_CATALOG).length;
   console.log(
-    `\u2705 Valid: ${productCount} products, ${actionCount} actions `
-    + `(${hostedActions.length} hosted-eligible)`,
+    `\u2705 Valid: ${productCount} products, ${ACTION_NAMES.length} actions `
+    + `(${hosted.size} hosted-eligible)`,
   );
 }

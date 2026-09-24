@@ -12,8 +12,9 @@ import {
   type ActionName,
 } from './actions.js';
 import { findPublicToolForAction, type RoutedPublicToolName } from './action-groups.js';
-import type {
-  ActionCatalogEntry,
+import {
+  needsHostSecret,
+  type ActionCatalogEntry,
   AuthRequirement,
   CapabilityGate,
   ContinuationModel,
@@ -60,7 +61,7 @@ function makeEntry(
     aliases: overrides.aliases ?? [],
     authRequirement: overrides.authRequirement ?? 'apiKey',
     capabilityGate: overrides.capabilityGate ?? gate('agent', 'Available on every plan'),
-    mutability: overrides.mutability ?? 'read',
+    mutability: overrides.mutability ?? (responseFamily === 'mutationReceipt' ? 'write' : 'read'),
     responseFamily,
     defaultDetail,
     handleEligibility: overrides.handleEligibility ?? !['scalar', 'mutationReceipt'].includes(responseFamily),
@@ -181,6 +182,9 @@ const mutationActions: ActionName[] = [
 for (const action of mutationActions) {
   catalog[action] = makeEntry(action, {
     ...catalog[action],
+    // Spreading the existing entry carries its already-derived fields, so the
+    // three that follow from `responseFamily` are restated rather than
+    // re-derived — same reason `defaultDetail` and `handleEligibility` are.
     mutability: 'write',
     responseFamily: 'mutationReceipt',
     defaultDetail: 'full',
@@ -494,35 +498,48 @@ export function getActionsForTool(tool: RoutedPublicToolName): ActionName[] {
 }
 
 /**
- * Actions a hosted deployment must not expose even though their auth requirement
- * would otherwise admit them.
+ * Actions a hosted deployment must not expose even though their auth
+ * requirement would otherwise admit them.
  *
- * `generateKeypair` returns private key material, which would travel back through
- * the proxy and into an LLM transcript. `setHeliusApiKey` mutates process-global
- * config, which one caller must never be able to do on behalf of everyone else.
+ * Each of these touches state that belongs to the host rather than the caller,
+ * which `authRequirement` does not describe: it says what a call needs to
+ * authenticate, not what it reaches once authenticated.
  */
-const HOSTED_MANUAL_EXCLUSIONS: ReadonlySet<ActionName> = new Set<ActionName>([
-  'generateKeypair',
-  'setHeliusApiKey',
+const HOSTED_MANUAL_EXCLUSIONS: ReadonlyMap<ActionName, string> = new Map<ActionName, string>([
+  ['generateKeypair', 'returns private key material, which would cross the proxy and land in an LLM transcript'],
+  ['setHeliusApiKey', 'writes the host config file and repoints the key for every caller'],
+  ['recommendStack', 'writes the host config file when `remember` is set (see savePreferences)'],
+  ['getStarted', 'reads the keypair file and the dashboard session, and echoes KEYPAIR_PATH back to the caller'],
+  ['getHeliusPlanInfo', 'reads the host dashboard session via detectCurrentPlan and reports the operator\'s plan'],
+  ['compareHeliusPlans', 'reads the host dashboard session via detectCurrentPlan and reports the operator\'s plan'],
 ]);
 
 /**
- * Whether an action can be served by a hosted, multi-tenant deployment.
+ * Whether an action could be served by a hosted, multi-tenant deployment.
  *
- * The rule is the auth requirement, not the mutability: a hosted server holds no
- * wallet and no dashboard JWT, so anything needing a `signer` or `jwt` is out.
- * Webhook CRUD stays in — it mutates, but it only needs the caller's API key, so
- * it works correctly under a bring-your-own-key deployment.
+ * Two rules, because one is not enough. `needsHostSecret` removes anything that
+ * can only be satisfied by a signing key or dashboard session on the host.
+ * `HOSTED_MANUAL_EXCLUSIONS` removes what is left: actions whose credential is
+ * the caller's but whose *effect* reaches host-local state.
+ *
+ * Note what this predicate assumes and the runtime does not yet provide. It is
+ * written for a deployment where each caller presents their own API key, so
+ * that webhook CRUD acting on "the caller's webhooks" is a true statement. The
+ * only hosted mode that exists today is `HELIUS_MCP_SHARED_CREDENTIAL`, where
+ * every caller shares the deployment's key — under which webhook CRUD would
+ * enumerate and mutate the *operator's* webhooks. Nothing calls this predicate
+ * yet, and nothing should until per-caller credentials exist.
  */
 export function hostedEligible(entry: ActionCatalogEntry): boolean {
   if (HOSTED_MANUAL_EXCLUSIONS.has(entry.action)) {
     return false;
   }
-  return entry.authRequirement === 'apiKey' || entry.authRequirement === 'none';
+  return !needsHostSecret(entry.authRequirement);
 }
 
-/** Size of the hosted surface. Exported so validation and tests agree on one number. */
-export const HOSTED_ACTION_COUNT = 82;
+export function hostedExclusionReason(action: ActionName): string | undefined {
+  return HOSTED_MANUAL_EXCLUSIONS.get(action);
+}
 
 export function getHostedActions(): ActionName[] {
   return (Object.values(ACTION_CATALOG)
