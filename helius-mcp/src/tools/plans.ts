@@ -198,7 +198,7 @@ export function registerPlanTools(server: McpServer) {
     'getAccountPlan',
     'Lightweight pre-flight check: returns current plan, credit balance, and which MCP tools require an upgrade. 0 credits. Call before gated tools (transactionSubscribe, laserstreamSubscribe, etc.).',
     {},
-    async (extra) => {
+    async (_args, extra) => {
       const ctx = contextFromExtra(extra);
       // ── Tier 1: not authenticated at all ──
       if (!hasApiKey(ctx)) {

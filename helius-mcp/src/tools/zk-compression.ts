@@ -861,7 +861,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getIndexerHealth',
     'BEST FOR: checking if the ZK Compression indexer is healthy and responsive. Credit cost: 10 credits (ZK Compression RPC).',
     {},
-    async (extra) => {
+    async (_args, extra) => {
       const ctx = contextFromExtra(extra);
       if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
@@ -878,7 +878,7 @@ export function registerZkCompressionTools(server: McpServer) {
     'getIndexerSlot',
     'BEST FOR: checking the latest slot processed by the ZK Compression indexer. Useful for monitoring indexer lag. Credit cost: 10 credits (ZK Compression RPC).',
     {},
-    async (extra) => {
+    async (_args, extra) => {
       const ctx = contextFromExtra(extra);
       if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {

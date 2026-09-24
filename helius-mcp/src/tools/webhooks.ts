@@ -12,7 +12,7 @@ export function registerWebhookTools(server: McpServer) {
     'getAllWebhooks',
     'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses. Credit cost: 100 credits/call (management operation).',
     {},
-    async (extra) => {
+    async (_args, extra) => {
       const ctx = contextFromExtra(extra);
       if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {

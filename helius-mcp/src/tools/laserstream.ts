@@ -171,7 +171,7 @@ export function registerLaserstreamTools(server: McpServer) {
     'getLaserstreamInfo',
     'Get Helius Laserstream gRPC capabilities, regions, pricing, and plan requirements. Lowest latency Solana streaming with 24h replay. Fetches live from official documentation.',
     {},
-    async (extra) => {
+    async (_args, extra) => {
       const ctx = contextFromExtra(extra);
       const endpoint = getLaserstreamUrl(undefined, ctx);
 

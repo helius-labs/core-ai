@@ -293,3 +293,50 @@ describe('action handler bridge', () => {
     expect(both.content?.[0]?.text).toContain('exactly one');
   });
 });
+
+describe('handler arity', () => {
+  it('gives every context-threading handler two parameters', async () => {
+    // Both the SDK and ActionHandlerCollector invoke handlers as
+    // `handler(args, extra)`. A handler written `async (extra) => ...` binds
+    // that single parameter to *args*, so the context is silently discarded —
+    // and TypeScript accepts it, since a 1-arity function is assignable to a
+    // 2-arity signature and `contextFromExtra` takes `unknown`.
+    //
+    // Nothing else in this suite can see that: the resolvers are mocked here,
+    // so a handler that never receives a context still returns correct output.
+    // Arity is the one observable signal, so assert on it directly.
+    const { getActionHandlers } = await import('../src/router/action-handlers.js');
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+
+    const toolsDir = new URL('../src/tools/', import.meta.url).pathname;
+    const threading = new Set<string>();
+
+    for (const file of readdirSync(toolsDir).filter((f) => f.endsWith('.ts'))) {
+      const source = readFileSync(join(toolsDir, file), 'utf8');
+      // One block per registration, so a handler that binds a context is
+      // matched to its own tool name rather than to its whole file.
+      //
+      // Detection is on the literal `contextFromExtra(extra)`, so a handler
+      // that renames the parameter drops out of the set and stops being
+      // checked. The size tripwire below catches wholesale breakage of this
+      // scan, not a single rename.
+      for (const block of source.split('server.tool(').slice(1)) {
+        const name = block.match(/^\s*'([^']+)'/)?.[1];
+        if (name && block.includes('contextFromExtra(extra)')) threading.add(name);
+      }
+    }
+
+    // Guard the guard: if this ever finds nothing, the detection broke.
+    expect(threading.size).toBeGreaterThan(50);
+
+    const offenders: string[] = [];
+    for (const [name, def] of getActionHandlers()) {
+      if (threading.has(name) && def.handler.length < 2) {
+        offenders.push(`${name} (arity ${def.handler.length})`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+});

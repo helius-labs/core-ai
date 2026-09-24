@@ -4,7 +4,6 @@ import { setApiKey, setNetwork, hasApiKey, getHeliusClient } from '../utils/heli
 import { isSharedCredentialMode } from '../utils/runtime.js';
 import { mcpText, mcpError, validateEnum, getErrorMessage } from '../utils/errors.js';
 import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
-import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerConfigTools(server: McpServer) {
   const keyFromEnv = hasApiKey();
@@ -18,8 +17,7 @@ export function registerConfigTools(server: McpServer) {
       apiKey: z.string().describe('Your Helius API key from https://dashboard.helius.dev/api-keys'),
       network: z.string().optional().default('mainnet-beta').describe('Network to use (default: mainnet-beta)')
     },
-    async ({ apiKey, network }, extra) => {
-      const ctx = contextFromExtra(extra);
+    async ({ apiKey, network }) => {
       // Refuse before validating input: under a shared credential this tool has
       // no per-caller meaning, and honoring it would repoint the key and network
       // for every concurrent caller and write the value to disk. The existing
@@ -37,7 +35,7 @@ export function registerConfigTools(server: McpServer) {
       const err = validateEnum(network, ['mainnet-beta', 'devnet'], 'API Key Error', 'network');
       if (err) return err;
 
-      if (hasApiKey(ctx) && process.env.HELIUS_API_KEY) {
+      if (hasApiKey() && process.env.HELIUS_API_KEY) {
         return mcpText(`✅ API key is already configured via environment. You don't need to set it - just use the other Helius tools directly (getBalance, parseTransactions, getAsset, etc.)`);
       }
 
@@ -47,7 +45,10 @@ export function registerConfigTools(server: McpServer) {
       }
 
       try {
-        const helius = getHeliusClient(ctx);
+        // Deliberately context-free: this validates the key just passed to
+        // setApiKey above, so it must read module state rather than whatever
+        // credential the caller authenticated the request with.
+        const helius = getHeliusClient();
         await helius.getBlockHeight();
       } catch (e: unknown) {
         const errorMsg = getErrorMessage(e);

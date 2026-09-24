@@ -203,7 +203,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     'getEnhancedWebSocketInfo',
     'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets. Fetches live from official documentation.',
     {},
-    async (extra) => {
+    async (_args, extra) => {
       const ctx = contextFromExtra(extra);
       let wsUrl: string;
       try {
