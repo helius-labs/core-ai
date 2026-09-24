@@ -13,6 +13,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError, isValidAddressFormat } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
 import { resolveOwsOrKeypairSigner } from '../utils/ows.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
@@ -37,8 +38,9 @@ export function registerTransferTools(server: McpServer) {
       sendMax: z.boolean().optional().default(false).describe('Send the maximum possible amount (entire balance minus transaction fees). When true, amount is ignored.'),
       owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed). When provided, signs via Open Wallet Standard instead of the local keypair.'),
     },
-    async ({ recipientAddress, amount, sendMax, owsWallet }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ recipientAddress, amount, sendMax, owsWallet }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         // Load signer — OWS wallet or local keypair
@@ -54,7 +56,7 @@ export function registerTransferTools(server: McpServer) {
           );
         }
 
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const balanceResult = await helius.getBalance(walletAddress);
         const balanceLamports = BigInt(balanceResult.value);
 
@@ -163,8 +165,9 @@ export function registerTransferTools(server: McpServer) {
       sendMax: z.boolean().optional().default(false).describe('Send the entire token balance and close the sender token account to reclaim rent. When true, amount is ignored.'),
       owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed). When provided, signs via Open Wallet Standard instead of the local keypair.'),
     },
-    async ({ recipientAddress, mintAddress, amount, sendMax, owsWallet }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ recipientAddress, mintAddress, amount, sendMax, owsWallet }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         // Load signer — OWS wallet or local keypair
@@ -187,7 +190,7 @@ export function registerTransferTools(server: McpServer) {
         }
 
         // Fetch token metadata via DAS to get decimals and token program
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         let asset: any;
         try {
           asset = await helius.getAsset({ id: mintAddress });

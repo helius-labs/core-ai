@@ -56,7 +56,7 @@ export function setApiKey(apiKey: string): void {
   heliusClient = null; // Reset client so it picks up new key
 }
 
-export function getApiKey(ctx?: RequestContext): string {
+export function getApiKey(ctx?: RequestContext | null): string {
   const apiKey = ctx?.apiKey || sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
   if (!apiKey) {
     throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
@@ -66,11 +66,11 @@ export function getApiKey(ctx?: RequestContext): string {
   return apiKey;
 }
 
-export function hasApiKey(ctx?: RequestContext): boolean {
+export function hasApiKey(ctx?: RequestContext | null): boolean {
   return !!(ctx?.apiKey || sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey());
 }
 
-export function getHeliusClient(ctx?: RequestContext): HeliusClient {
+export function getHeliusClient(ctx?: RequestContext | null): HeliusClient {
   // A caller-supplied context gets its own client. Caching per key would be a
   // cross-tenant hazard for no gain: construction measures ~0.012ms, far below
   // the network call it wraps.
@@ -94,7 +94,7 @@ export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
   sessionNetwork = network;
 }
 
-export function getNetwork(ctx?: RequestContext): 'mainnet-beta' | 'devnet' {
+export function getNetwork(ctx?: RequestContext | null): 'mainnet-beta' | 'devnet' {
   if (ctx) {
     return ctx.network;
   }
@@ -106,7 +106,7 @@ export function getNetwork(ctx?: RequestContext): 'mainnet-beta' | 'devnet' {
   return sessionNetwork;
 }
 
-export function getEnhancedWebSocketUrl(ctx?: RequestContext): string {
+export function getEnhancedWebSocketUrl(ctx?: RequestContext | null): string {
   const network = getNetwork(ctx);
   const host = network === 'devnet'
     ? 'wss://atlas-devnet.helius-rpc.com'
@@ -132,7 +132,7 @@ export function getEnhancedWebSocketUrl(ctx?: RequestContext): string {
 
 export function getLaserstreamUrl(
   region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp',
-  ctx?: RequestContext,
+  ctx?: RequestContext | null,
 ): string {
   // Endpoint host is public; clients pass apiKey separately (e.g. @helius/laserstream subscribe options).
   // Do not call getApiKey() here or docs tools like getLaserstreamInfo fail unnecessarily.
@@ -188,8 +188,8 @@ export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walle
 
 export async function restRequest(
   endpoint: string,
+  ctx?: RequestContext | null,
   options: RequestInit = {},
-  ctx?: RequestContext,
 ): Promise<any> {
   const apiKey = getApiKey(ctx);
   const separator = endpoint.includes('?') ? '&' : '?';

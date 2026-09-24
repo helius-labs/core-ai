@@ -211,6 +211,7 @@ describe('action handler bridge', () => {
     expect(result.isError).not.toBe(true);
     expect(restRequest).toHaveBeenCalledWith(
       '/v1/wallet/BenchWallet11111111111111111111111111111111/balance-at?mint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&slot=313000000',
+      null,
     );
     expect(result.content?.[0]?.text).toContain('Historical Token Balance');
     expect(result.content?.[0]?.text).toContain('284961463.392936');
@@ -242,6 +243,7 @@ describe('action handler bridge', () => {
     expect(result.isError).not.toBe(true);
     expect(restRequest).toHaveBeenCalledWith(
       '/v1/wallet/BenchWallet11111111111111111111111111111111/balance-at?mint=So11111111111111111111111111111111111111111&datetime=2025-01-10+19%3A20%3A00',
+      null,
     );
     expect(result.content?.[0]?.text).toContain('Resolved:');
   });

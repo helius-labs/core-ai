@@ -4,6 +4,7 @@ import { getLaserstreamUrl, getNetwork, hasApiKey } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnAddressConflicts } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
 import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerLaserstreamTools(server: McpServer) {
 
@@ -27,8 +28,9 @@ export function registerLaserstreamTools(server: McpServer) {
       fromSlot: z.string().optional().describe('Starting slot for 24h historical replay'),
       keepalive: z.boolean().optional().default(true).describe('Send gRPC keepalive pings to maintain the connection (default: true). Set to false only if your client handles its own keepalive.')
     },
-    async (params) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async (params, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       let err;
       err = validateEnum(params.region, ['ewr', 'pitt', 'slc', 'lax', 'lon', 'ams', 'fra', 'tyo', 'sgp'], 'Laserstream Error', 'region');
@@ -99,8 +101,8 @@ export function registerLaserstreamTools(server: McpServer) {
       }
 
       try {
-        const network = getNetwork();
-        const endpoint = getLaserstreamUrl(params.region as 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp');
+        const network = getNetwork(ctx);
+        const endpoint = getLaserstreamUrl(params.region as 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp', ctx);
         const sub: any = {};
 
         if (params.subscribeSlots) sub.slots = { filterByCommitment: params.filterByCommitment };
@@ -169,8 +171,9 @@ export function registerLaserstreamTools(server: McpServer) {
     'getLaserstreamInfo',
     'Get Helius Laserstream gRPC capabilities, regions, pricing, and plan requirements. Lowest latency Solana streaming with 24h replay. Fetches live from official documentation.',
     {},
-    async () => {
-      const endpoint = getLaserstreamUrl();
+    async (extra) => {
+      const ctx = contextFromExtra(extra);
+      const endpoint = getLaserstreamUrl(undefined, ctx);
 
       let content: string;
       try {

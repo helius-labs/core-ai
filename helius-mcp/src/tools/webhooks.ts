@@ -5,16 +5,18 @@ import { formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { TRANSACTION_TYPES } from '../types/transaction-types.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, http400Error } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerWebhookTools(server: McpServer) {
   server.tool(
     'getAllWebhooks',
     'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses. Credit cost: 100 credits/call (management operation).',
     {},
-    async () => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async (extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const webhooks = await helius.webhooks.getAll();
 
         if (!webhooks || webhooks.length === 0) {
@@ -45,10 +47,11 @@ export function registerWebhookTools(server: McpServer) {
     {
       webhookID: z.string().describe('Webhook ID')
     },
-    async ({ webhookID }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ webhookID }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const webhook = await helius.webhooks.get(webhookID);
 
         const lines = [
@@ -88,8 +91,9 @@ export function registerWebhookTools(server: McpServer) {
       accountAddresses: z.array(z.string()).describe('Array of Solana addresses to monitor (base58 encoded, up to 100,000 per webhook)'),
       transactionTypes: z.array(z.string()).optional().describe('Transaction types to monitor - e.g. ["SWAP", "NFT_SALE"]. Use ["ANY"] to receive all types. Common types: NFT_SALE, NFT_MINT, SWAP, TRANSFER, STAKE_TOKEN, UNSTAKE_TOKEN, BUY, SELL, TOKEN_MINT')
     },
-    async ({ webhookURL, webhookType, accountAddresses, transactionTypes }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ webhookURL, webhookType, accountAddresses, transactionTypes }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       const err = validateEnum(webhookType, ['enhanced', 'raw', 'discord'], 'Create Webhook Error', 'webhook type');
       if (err) return err;
       if (transactionTypes) {
@@ -102,7 +106,7 @@ export function registerWebhookTools(server: McpServer) {
         }
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const webhook = await helius.webhooks.create({
           webhookURL,
           webhookType,
@@ -129,8 +133,9 @@ export function registerWebhookTools(server: McpServer) {
       accountAddresses: z.array(z.string()).optional().describe('New list of addresses to monitor (base58 encoded, replaces existing list, up to 100,000 per webhook)'),
       transactionTypes: z.array(z.string()).optional().describe('New transaction type filters - e.g. ["SWAP", "NFT_SALE"]. Replaces existing filters.')
     },
-    async ({ webhookID, webhookURL, webhookType, accountAddresses, transactionTypes }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ webhookID, webhookURL, webhookType, accountAddresses, transactionTypes }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       if (webhookType) {
         const err = validateEnum(webhookType, ['enhanced', 'raw', 'discord'], 'Update Webhook Error', 'webhook type');
         if (err) return err;
@@ -145,7 +150,7 @@ export function registerWebhookTools(server: McpServer) {
         }
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         // Helius PUT /v0/webhooks requires the full webhook object.
         // Fetch the existing webhook first so callers only need to supply changed fields.
         const existing = await helius.webhooks.get(webhookID);
@@ -178,10 +183,11 @@ export function registerWebhookTools(server: McpServer) {
     {
       webhookID: z.string().describe('Webhook ID to delete')
     },
-    async ({ webhookID }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ webhookID }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         await helius.webhooks.delete(webhookID);
 
         return mcpText(`✅ Webhook ${webhookID} deleted successfully.`);

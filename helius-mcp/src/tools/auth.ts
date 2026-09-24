@@ -37,6 +37,7 @@ import {
   keypairExistsOnDisk,
 } from '../utils/config.js';
 import { HELIUS_PLANS } from './plans.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 type SupportedPlan = 'agent' | 'developer' | 'business' | 'professional';
 
@@ -70,10 +71,11 @@ export function registerAuthTools(server: McpServer) {
     'getStarted',
     'Get setup instructions for Helius. Checks whether an API key is configured (not validated), whether a keypair exists on disk, and whether a JWT session is present, then tells you exactly what to do next. Call this when a user asks "how do I get started?" or needs onboarding help.',
     {},
-    async () => {
+    async (extra) => {
+      const ctx = contextFromExtra(extra);
       const lines: string[] = ['# Getting Started with Helius'];
 
-      const apiKeyConfigured = hasApiKey();
+      const apiKeyConfigured = hasApiKey(ctx);
       const hasKeypair = keypairExistsOnDisk();
       const jwt = getJwt();
 
@@ -322,9 +324,10 @@ export function registerAuthTools(server: McpServer) {
     'getAccountStatus',
     'Check your Helius account status: current plan, remaining credits, rate limits, and billing cycle. Requires a JWT session (i.e., you signed up via `signup`). If you only have an API key configured, auth status is confirmed but credit data is unavailable — call `signup` to enable full status.',
     {},
-    async () => {
+    async (extra) => {
+      const ctx = contextFromExtra(extra);
       try {
-        if (!hasApiKey()) {
+        if (!hasApiKey(ctx)) {
           return mcpText(
             `## Account Status\n\n` +
               `**Auth:** Not authenticated\n\n` +

@@ -5,6 +5,7 @@ import { getHeliusClient, hasApiKey, getSessionWalletAddress } from '../utils/he
 import { mcpText, mcpError, handleToolError, isValidAddressFormat, missingParamError } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
 import { resolveOwsOrKeypairSigner } from '../utils/ows.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 // ── Tool Registration ──
 
@@ -27,15 +28,16 @@ export function registerStakingTools(server: McpServer) {
       ),
       owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed).'),
     },
-    async ({ amount, owsWallet }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ amount, owsWallet }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         const resolved = await resolveOwsOrKeypairSigner(owsWallet);
         if (!resolved.ok) return resolved.error;
         const { signer, walletAddress } = resolved;
 
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
 
         // Pre-flight balance check — need amount + ~0.01 SOL for rent + fees
         const balanceResult = await helius.getBalance(walletAddress);
@@ -96,8 +98,9 @@ export function registerStakingTools(server: McpServer) {
       ),
       owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed).'),
     },
-    async ({ stakeAccount: stakeAccountAddress, owsWallet }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ stakeAccount: stakeAccountAddress, owsWallet }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         const resolved = await resolveOwsOrKeypairSigner(owsWallet);
@@ -112,7 +115,7 @@ export function registerStakingTools(server: McpServer) {
           );
         }
 
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
 
         // Get deactivation instruction (synchronous)
         const ix = helius.stake.getUnstakeInstruction(signer as any, address(stakeAccountAddress));
@@ -163,8 +166,9 @@ export function registerStakingTools(server: McpServer) {
       ),
       owsWallet: z.string().optional().describe('OWS wallet name for policy-gated signing (requires `ows` CLI installed).'),
     },
-    async ({ stakeAccount: stakeAccountAddress, destination, amount, owsWallet }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ stakeAccount: stakeAccountAddress, destination, amount, owsWallet }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         const resolved = await resolveOwsOrKeypairSigner(owsWallet);
@@ -185,7 +189,7 @@ export function registerStakingTools(server: McpServer) {
           );
         }
 
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const dest = destination || walletAddress;
 
         // Determine lamports to withdraw
@@ -247,8 +251,9 @@ export function registerStakingTools(server: McpServer) {
         'Wallet address to query Helius stake accounts for (base58 encoded). Defaults to the MCP wallet if omitted and a keypair is configured.'
       ),
     },
-    async ({ wallet }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ wallet }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         // Resolve wallet address
@@ -267,7 +272,7 @@ export function registerStakingTools(server: McpServer) {
           );
         }
 
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const accounts = await helius.stake.getHeliusStakeAccounts(walletAddress);
 
         if (!accounts || accounts.length === 0) {
@@ -337,8 +342,9 @@ export function registerStakingTools(server: McpServer) {
         'If true, includes the rent-exempt reserve (~0.00228 SOL) in the withdrawable amount. Withdrawing the full amount (with rent) closes the stake account.'
       ),
     },
-    async ({ stakeAccount: stakeAccountAddress, includeRentExempt }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ stakeAccount: stakeAccountAddress, includeRentExempt }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
         if (!isValidAddressFormat(stakeAccountAddress)) {
@@ -348,7 +354,7 @@ export function registerStakingTools(server: McpServer) {
           );
         }
 
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const lamports = await helius.stake.getWithdrawableAmount(stakeAccountAddress, includeRentExempt);
         const solAmount = lamports / 1_000_000_000;
 

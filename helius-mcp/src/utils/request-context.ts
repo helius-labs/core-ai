@@ -56,7 +56,8 @@ function deriveSessionKey(apiKey: string, projectId?: string): string {
  * carries no identity.
  *
  * `null` is the stdio case and is not an error: callers fall back to the module
- * state that has always answered for them. A hosted entrypoint is expected to
+ * state that has always answered for them. The resolvers accept the `null`
+ * directly rather than making every call site coerce it. A hosted entrypoint is expected to
  * reject an unidentified request before dispatch ever reaches here.
  */
 export function contextFromExtra(extra: unknown): RequestContext | null {
