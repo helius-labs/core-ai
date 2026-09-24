@@ -33,7 +33,7 @@ export function registerStakingTools(server: McpServer) {
       if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet, ctx);
         if (!resolved.ok) return resolved.error;
         const { signer, walletAddress } = resolved;
 
@@ -103,7 +103,7 @@ export function registerStakingTools(server: McpServer) {
       if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet, ctx);
         if (!resolved.ok) return resolved.error;
         const { signer, walletAddress } = resolved;
 
@@ -171,7 +171,7 @@ export function registerStakingTools(server: McpServer) {
       if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet, ctx);
         if (!resolved.ok) return resolved.error;
         const { signer, walletAddress } = resolved;
 
