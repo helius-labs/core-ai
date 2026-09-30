@@ -12,10 +12,22 @@ import { isSharedCredentialMode } from './runtime.js';
  */
 
 const REDACTED = '***REDACTED***';
+/** Substitution instruction returned in shared-credential mode; see helius.ts. */
+export const API_KEY_PLACEHOLDER = 'YOUR_HELIUS_API_KEY';
 
 /** Matches `api-key=<value>` in a query string, however the URL is delimited. */
 const API_KEY_QUERY_RE = /([?&]api-key=)[^&\s'"`)\]}<]+/gi;
 
+/**
+ * Unbounded and process-global. One stdio caller registers one key, so this is
+ * fine today; a deployment serving many callers accumulates one entry per
+ * distinct key forever, and `redactSecrets` scans the whole set on every
+ * response. There is no cap, no TTL and no eviction.
+ *
+ * Making this request-local belongs with the removal of the other credential
+ * globals, not here — capping it in isolation would silently stop scrubbing an
+ * evicted key, which is worse than the growth.
+ */
 const secrets = new Set<string>();
 
 /**
@@ -39,7 +51,13 @@ export function redactSecrets(text: string): string {
     return text;
   }
 
-  let out = text.replace(API_KEY_QUERY_RE, `$1${REDACTED}`);
+  // The placeholder is instruction, not a leak. Rewriting it to ***REDACTED***
+  // turns "substitute your own key here" into an opaque string, which is how
+  // the Enhanced WebSocket URL reached callers before this guard.
+  let out = text.replace(API_KEY_QUERY_RE, (match, prefix: string) =>
+    match.endsWith(API_KEY_PLACEHOLDER) || match.endsWith(REDACTED)
+      ? match
+      : `${prefix}${REDACTED}`);
   for (const secret of secrets) {
     // split/join rather than RegExp so key contents need no escaping.
     out = out.split(secret).join(REDACTED);
