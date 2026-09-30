@@ -56,14 +56,40 @@ describe('contextFromExtra', () => {
     expect(built?.projectId).toBeUndefined();
   });
 
-  it('reads the network from authInfo.extra, defaulting to mainnet', () => {
-    expect(contextFromExtra(extraWith({ token: CALLER_A }))?.network).toBe('mainnet-beta');
+  it('reads the network from authInfo.extra', () => {
     expect(
       contextFromExtra(extraWith({ token: CALLER_A, extra: { network: 'devnet' } }))?.network,
     ).toBe('devnet');
-    expect(
-      contextFromExtra(extraWith({ token: CALLER_A, extra: { network: 'nonsense' } }))?.network,
-    ).toBe('mainnet-beta');
+  });
+
+  it('leaves the network unset when the request does not state one', () => {
+    // Not the same as mainnet: a self-hosted server with HELIUS_NETWORK=devnet
+    // and a middleware that sets a token but no network must stay on devnet.
+    expect(contextFromExtra(extraWith({ token: CALLER_A }))?.network).toBeUndefined();
+  });
+
+  it('refuses an unknown network rather than coercing it', () => {
+    // 'Devnet' or 'testnet' silently routing writes to mainnet is not a safe
+    // default, so this throws instead of guessing.
+    for (const bad of ['Devnet', 'testnet', 'mainnet', 42]) {
+      expect(() =>
+        contextFromExtra(extraWith({ token: CALLER_A, extra: { network: bad } })),
+      ).toThrow(/INVALID_NETWORK/);
+    }
+  });
+
+  it('prefers extra.apiKey over the transport token', () => {
+    // `token` is the transport credential. Reading it as the Helius key couples
+    // the two, so it is only the fallback.
+    const built = contextFromExtra(extraWith({
+      token: 'transport-bearer-token',
+      extra: { apiKey: CALLER_A },
+    }));
+    expect(built?.apiKey).toBe(CALLER_A);
+  });
+
+  it('falls back to the token when no explicit key is given', () => {
+    expect(contextFromExtra(extraWith({ token: CALLER_A }))?.apiKey).toBe(CALLER_A);
   });
 });
 
@@ -124,6 +150,16 @@ describe('resolvers with a context', () => {
     expect(getNetwork(ctx({ network: 'devnet' }))).toBe('devnet');
   });
 
+  it('falls back to the environment when the context states no network', () => {
+    process.env.HELIUS_NETWORK = 'devnet';
+    expect(getNetwork(ctx({ network: undefined }))).toBe('devnet');
+  });
+
+  it('throws rather than billing the deployment for an empty context key', () => {
+    expect(() => getApiKey(ctx({ apiKey: '' }))).toThrow(/NO_API_KEY/);
+    expect(hasApiKey(ctx({ apiKey: '' }))).toBe(false);
+  });
+
   it('keeps the existing env-then-session order when no context is given', () => {
     process.env.HELIUS_NETWORK = 'devnet';
     expect(getNetwork()).toBe('devnet');
@@ -136,14 +172,16 @@ describe('resolvers with a context', () => {
     expect(hasApiKey(ctx())).toBe(true);
   });
 
-  it('returns the caller their own key even under a shared credential', () => {
-    // The whole point of this tool is a usable URL. A context means the key
-    // belongs to the caller being answered, so the placeholder must not win.
+  it('placeholders the key under a shared credential, context or not', () => {
+    // The two settings are contradictory — one says every caller shares the
+    // deployment key, the other says this caller brought their own. The
+    // placeholder wins, because every response passes through redactSecrets,
+    // whose query rule rewrites any api-key value in this mode.
     process.env.HELIUS_MCP_SHARED_CREDENTIAL = '1';
     try {
       const url = getEnhancedWebSocketUrl(ctx({ network: 'devnet' }));
-      expect(url).toContain(CALLER_A);
-      expect(url).not.toContain('YOUR_HELIUS_API_KEY');
+      expect(url).toContain('YOUR_HELIUS_API_KEY');
+      expect(url).not.toContain(CALLER_A);
     } finally {
       delete process.env.HELIUS_MCP_SHARED_CREDENTIAL;
     }
