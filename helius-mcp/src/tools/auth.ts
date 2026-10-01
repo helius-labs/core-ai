@@ -76,8 +76,12 @@ export function registerAuthTools(server: McpServer) {
       const lines: string[] = ['# Getting Started with Helius'];
 
       const apiKeyConfigured = hasApiKey(ctx);
-      const hasKeypair = keypairExistsOnDisk();
-      const jwt = getJwt();
+      // Both of these read this host's disk. A request that carried its own
+      // identity gets neither: checking the caller's key and then reporting the
+      // operator's keypair and dashboard session answers one principal's
+      // question with another's state.
+      const hasKeypair = ctx ? false : keypairExistsOnDisk();
+      const jwt = getJwt(ctx);
 
       // Already fully set up
       if (apiKeyConfigured && jwt) {
