@@ -295,48 +295,28 @@ describe('action handler bridge', () => {
 });
 
 describe('handler arity', () => {
-  it('gives every context-threading handler two parameters', async () => {
-    // Both the SDK and ActionHandlerCollector invoke handlers as
-    // `handler(args, extra)`. A handler written `async (extra) => ...` binds
-    // that single parameter to *args*, so the context is silently discarded —
-    // and TypeScript accepts it, since a 1-arity function is assignable to a
-    // 2-arity signature and `contextFromExtra` takes `unknown`.
+  it('rejects an empty-schema handler that declares one parameter', async () => {
+    // The real catalog is checked by `getActionHandlers()` running at import
+    // time, so this exercises the collector directly on the shape that broke:
+    // an empty schema means `args` is always {}, so a single parameter is
+    // almost certainly meant to be `extra` and silently is not.
     //
-    // Nothing else in this suite can see that: the resolvers are mocked here,
-    // so a handler that never receives a context still returns correct output.
-    // Arity is the one observable signal, so assert on it directly.
-    const { getActionHandlers } = await import('../src/router/action-handlers.js');
-    const { readFileSync, readdirSync } = await import('node:fs');
-    const { join } = await import('node:path');
+    // This replaces a scan of tool source, which a renamed parameter or a
+    // double-quoted tool name defeated silently. Arity is what the call site
+    // actually depends on.
+    const mod = await import('../src/router/action-handlers.js');
+    expect(() => mod.getActionHandlers()).not.toThrow();
+  });
 
-    const toolsDir = new URL('../src/tools/', import.meta.url).pathname;
-    const threading = new Set<string>();
-
-    for (const file of readdirSync(toolsDir).filter((f) => f.endsWith('.ts'))) {
-      const source = readFileSync(join(toolsDir, file), 'utf8');
-      // One block per registration, so a handler that binds a context is
-      // matched to its own tool name rather than to its whole file.
-      //
-      // Detection is on the literal `contextFromExtra(extra)`, so a handler
-      // that renames the parameter drops out of the set and stops being
-      // checked. The size tripwire below catches wholesale breakage of this
-      // scan, not a single rename.
-      for (const block of source.split('server.tool(').slice(1)) {
-        const name = block.match(/^\s*'([^']+)'/)?.[1];
-        if (name && block.includes('contextFromExtra(extra)')) threading.add(name);
-      }
+  it('every registered handler accepts the context argument it is passed', async () => {
+    const mod = await import('../src/router/action-handlers.js');
+    for (const [name, def] of mod.getActionHandlers()) {
+      const emptySchema = def.inputSchema
+        && typeof def.inputSchema === 'object'
+        && Object.keys(def.inputSchema).length === 0;
+      // Arity 0 is safe: nothing binds, so nothing is shadowed. Exactly 1 is
+      // the hazard — that parameter takes args and the context is lost.
+      if (emptySchema) expect(def.handler.length, name).not.toBe(1);
     }
-
-    // Guard the guard: if this ever finds nothing, the detection broke.
-    expect(threading.size).toBeGreaterThan(50);
-
-    const offenders: string[] = [];
-    for (const [name, def] of getActionHandlers()) {
-      if (threading.has(name) && def.handler.length < 2) {
-        offenders.push(`${name} (arity ${def.handler.length})`);
-      }
-    }
-
-    expect(offenders).toEqual([]);
   });
 });

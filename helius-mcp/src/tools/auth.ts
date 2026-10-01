@@ -337,7 +337,7 @@ export function registerAuthTools(server: McpServer) {
           );
         }
 
-        const jwt = getJwt();
+        const jwt = getJwt(ctx);
         if (!jwt) {
           return mcpText(
             `## Account Status\n\n` +

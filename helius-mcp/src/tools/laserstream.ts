@@ -102,7 +102,7 @@ export function registerLaserstreamTools(server: McpServer) {
 
       try {
         const network = getNetwork(ctx);
-        const endpoint = getLaserstreamUrl(params.region as 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp', ctx);
+        const endpoint = getLaserstreamUrl(ctx, params.region as 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp');
         const sub: any = {};
 
         if (params.subscribeSlots) sub.slots = { filterByCommitment: params.filterByCommitment };
@@ -173,7 +173,7 @@ export function registerLaserstreamTools(server: McpServer) {
     {},
     async (_args, extra) => {
       const ctx = contextFromExtra(extra);
-      const endpoint = getLaserstreamUrl(undefined, ctx);
+      const endpoint = getLaserstreamUrl(ctx);
 
       let content: string;
       try {
