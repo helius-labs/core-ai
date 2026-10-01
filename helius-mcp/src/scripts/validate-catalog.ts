@@ -13,15 +13,14 @@
  * 7. Every action that returns a mutation receipt is labelled a write
  * 8. Every heliusWrite action is labelled a write
  * 9. Every action needing a signer is labelled a write
- * 10. Every manually excluded action is absent from the hosted surface
- * 11. No heliusWrite action reaches the hosted surface
+ * 10. No heliusWrite action reaches the hosted surface
  */
 
 import fs from 'fs';
 import path from 'path';
 import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
 import { ACTION_NAME_SET } from '../router/actions.js';
-import { ACTION_CATALOG, getHostedActions, hostedExclusionReason } from '../router/catalog.js';
+import { ACTION_CATALOG, getHostedActions } from '../router/catalog.js';
 import { ACTION_NAMES } from '../router/actions.js';
 import { needsHostSecret } from '../router/types.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
@@ -106,17 +105,11 @@ for (const entry of Object.values(ACTION_CATALOG)) {
   }
 }
 
-// Hosted-surface checks that do not restate the predicate. Asserting that no
-// signer/jwt action is hosted would only confirm `hostedEligible` agrees with
-// itself; these two can fail for a catalog edit that leaves the predicate alone.
+// `hostedEligible` reads both the auth requirement and the manual-exclusion
+// map, so re-asserting either against it only confirms it agrees with itself.
+// `publicTool` is the one signal it never consults, which makes this the single
+// hosted check here that can fail for a catalog edit leaving the predicate alone.
 const hosted = new Set<string>(getHostedActions());
-
-for (const action of ACTION_NAMES) {
-  const reason = hostedExclusionReason(action);
-  if (reason && hosted.has(action)) {
-    error(action, `is manually excluded (${reason}) but reaches the hosted surface`);
-  }
-}
 
 for (const entry of Object.values(ACTION_CATALOG)) {
   if (entry.publicTool === 'heliusWrite' && hosted.has(entry.action)) {

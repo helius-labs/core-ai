@@ -167,7 +167,7 @@ describe('mutability labels', () => {
     expect(ACTION_CATALOG.getBalance.mutability).toBe('read');
   });
 
-  it('labels signup a write — under autopay it sends USDC from the local keypair', () => {
+  it('labels signup a write — every mode persists config, autopay also sends USDC', () => {
     expect(ACTION_CATALOG.signup.mutability).toBe('write');
   });
 
