@@ -1,25 +1,43 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterAll } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-// The host is made to look fully provisioned: a dashboard session and a keypair
-// on disk. Without this the assertions below pass vacuously on any machine that
-// has never run `signup`, which is most of them — including CI.
-//
-// `loadConfig` is mocked rather than `getJwt`, deliberately. Stubbing `getJwt`
-// would replace the very guard under test, and the suite would pass whether or
-// not the context is honoured.
-vi.mock('../src/utils/config.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../src/utils/config.js')>();
-  return {
-    ...actual,
-    loadConfig: vi.fn(() => ({ jwt: 'host-dashboard-session-token' })),
-    keypairExistsOnDisk: vi.fn(() => true),
-    KEYPAIR_PATH: '/home/operator/.helius/keypair.json',
-  };
+/**
+ * A fully provisioned host, built on disk rather than mocked.
+ *
+ * `config.ts` resolves its paths from `os.homedir()` at module load, and
+ * `getJwt` calls its own module-local `loadConfig`, so mocking either export
+ * leaves the real code path untouched — an earlier version of this file did
+ * exactly that and asserted nothing on a machine that had never run `signup`.
+ * Pointing `homedir` at a temp directory makes the real loader read a real
+ * session, on any machine.
+ */
+const HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'helius-host-state-'));
+fs.mkdirSync(path.join(HOME, '.helius'), { recursive: true });
+fs.writeFileSync(
+  path.join(HOME, '.helius', 'config.json'),
+  JSON.stringify({ jwt: 'host-dashboard-session-token', apiKey: 'host-operator-key-0000' }),
+);
+fs.writeFileSync(path.join(HOME, '.helius', 'keypair.json'), '[1,2,3]');
+
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, default: { ...actual, homedir: () => HOME }, homedir: () => HOME };
 });
 
-import { callActionHandler } from '../src/router/action-handlers.js';
+const { callActionHandler } = await import('../src/router/action-handlers.js');
 
 const CALLER = { authInfo: { token: 'caller-key-aaaa1111', extra: { network: 'mainnet-beta' } } };
+
+async function textFor(action: string, params: Record<string, unknown>, extra: unknown) {
+  const result = await callActionHandler(action as never, params, extra);
+  return result.content?.[0]?.text ?? '';
+}
+
+afterAll(() => {
+  fs.rmSync(HOME, { recursive: true, force: true });
+});
 
 /**
  * A request that carried its own identity must not be answered with state
@@ -31,21 +49,24 @@ const CALLER = { authInfo: { token: 'caller-key-aaaa1111', extra: { network: 'ma
  * reading host state still returns plausible output.
  */
 
-async function textFor(action: string, params: Record<string, unknown>, extra: unknown) {
-  const result = await callActionHandler(action as never, params, extra);
-  return result.content?.[0]?.text ?? '';
-}
+describe('the host fixture is provisioned', () => {
+  it('answers a local caller with the session and keypair', async () => {
+    // Guards the guards. If this stops passing, the fixture has stopped being
+    // set up and every assertion below would pass for the wrong reason.
+    const text = await textFor('getStarted', {}, {});
+    expect(text).toMatch(/all set|account session are configured/i);
+  });
+});
 
 describe('host state is withheld from an identified caller', () => {
   it('getStarted does not report the host dashboard session', async () => {
-    // The provisioned host would otherwise reach the "already set up" branch,
-    // which is only true of the operator.
-    expect(await textFor('getStarted', {}, CALLER)).not.toMatch(/all set|account session are configured/i);
+    expect(await textFor('getStarted', {}, CALLER))
+      .not.toMatch(/all set|account session are configured/i);
   });
 
   it('getStarted does not reveal the host keypair', async () => {
     const text = await textFor('getStarted', {}, CALLER);
-    expect(text).not.toContain('/home/operator/.helius/keypair.json');
+    expect(text).not.toContain(HOME);
     expect(text).not.toMatch(/keypair already exists/i);
   });
 
@@ -53,14 +74,5 @@ describe('host state is withheld from an identified caller', () => {
     const text = await textFor('getStakeAccounts', {}, CALLER);
     expect(text).toMatch(/pass a wallet address/i);
     expect(text).not.toMatch(/generateKeypair/i);
-  });
-});
-
-describe('the same host state still answers a local caller', () => {
-  it('getStarted reports the session and keypair with no context', async () => {
-    // The mirror of the above: withholding must be conditional on identity, not
-    // a blanket removal that breaks the stdio build.
-    const text = await textFor('getStarted', {}, {});
-    expect(text).toMatch(/all set|account session are configured/i);
   });
 });
