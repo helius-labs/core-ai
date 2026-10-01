@@ -23,6 +23,7 @@ import { address, createKeyPairSignerFromBytes, type Address } from '@solana/kit
 import { loadSignerOrFail, getNetwork } from './helius.js';
 import { mcpError } from './errors.js';
 import { isSharedCredentialMode, sharedCredentialRefusal, SHARED_CREDENTIAL_META } from './runtime.js';
+import type { RequestContext } from './request-context.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -64,10 +65,15 @@ function validateWalletName(name: string): void {
 
 /**
  * Return the Solana address for the named OWS wallet.
- * Uses the current MCP session network (mainnet or devnet) to select
- * the correct CAIP-2 chain key.
+ *
+ * The CAIP-2 chain key is chosen from the network: the request's when it states
+ * one, otherwise whatever `getNetwork` resolves. Note the added parameter —
+ * this function is mirrored in `helius-cli`, and the signature has diverged.
  */
-export async function getOwsSolanaAddress(walletName: string): Promise<string> {
+export async function getOwsSolanaAddress(
+  walletName: string,
+  ctx?: RequestContext | null,
+): Promise<string> {
   validateWalletName(walletName);
 
   const { stdout } = await execFileAsync(
@@ -79,7 +85,7 @@ export async function getOwsSolanaAddress(walletName: string): Promise<string> {
 
   // The CLI outputs accounts keyed by CAIP-2 chain id.
   // Pick the key matching the active network.
-  const network = getNetwork();
+  const network = getNetwork(ctx);
   const primaryKey = network === 'devnet' ? SOLANA_CAIP2_DEVNET : SOLANA_CAIP2_MAINNET;
   const account =
     info.accounts?.[primaryKey] ??
@@ -159,7 +165,10 @@ export interface OwsSigner {
  * still passes `isTransactionSigner()` and produces valid signatures in the
  * full `signTransactionMessageWithSigners` pipeline.
  */
-export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
+export async function resolveOwsOrKeypairSigner(
+  owsWallet?: string,
+  ctx?: RequestContext | null,
+): Promise<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   | { ok: true; signer: any; walletAddress: string; owsWallet?: string }
   | { ok: false; error: ReturnType<typeof mcpError> }
@@ -170,7 +179,13 @@ export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
   // Checked here rather than relying on loadSignerOrFail throwing, because the
   // catch below flattens every failure into "call generateKeypair" — which in
   // shared mode is advice that also refuses.
-  if (isSharedCredentialMode()) {
+  //
+  // A request that carried its own identity is the same situation without the
+  // flag: a deployment authenticating per request, with a keypair on disk and
+  // `HELIUS_MCP_SHARED_CREDENTIAL` unset, would otherwise sign every caller's
+  // transaction with the operator's wallet. The flag describes one way to serve
+  // many callers; a context is evidence that it is happening.
+  if (isSharedCredentialMode() || ctx) {
     return { ok: false, error: mcpError(
       sharedCredentialRefusal('Transaction signing'),
       SHARED_CREDENTIAL_META,
@@ -191,7 +206,7 @@ export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
       ) };
     }
     try {
-      const signer = await createOwsSigner(owsWallet);
+      const signer = await createOwsSigner(owsWallet, ctx);
       return { ok: true, signer, walletAddress: signer.address, owsWallet };
     } catch (err: any) {
       return { ok: false, error: mcpError(
@@ -213,8 +228,11 @@ export async function resolveOwsOrKeypairSigner(owsWallet?: string): Promise<
   }
 }
 
-export async function createOwsSigner(walletName: string): Promise<OwsSigner> {
-  const solAddress = await getOwsSolanaAddress(walletName);
+export async function createOwsSigner(
+  walletName: string,
+  ctx?: RequestContext | null,
+): Promise<OwsSigner> {
+  const solAddress = await getOwsSolanaAddress(walletName, ctx);
   const addr = address(solAddress);
 
   return {

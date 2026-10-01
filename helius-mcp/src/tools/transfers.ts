@@ -44,7 +44,7 @@ export function registerTransferTools(server: McpServer) {
 
       try {
         // Load signer — OWS wallet or local keypair
-        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet, ctx);
         if (!resolved.ok) return resolved.error;
         const { signer, walletAddress } = resolved;
 
@@ -171,7 +171,7 @@ export function registerTransferTools(server: McpServer) {
 
       try {
         // Load signer — OWS wallet or local keypair
-        const resolved = await resolveOwsOrKeypairSigner(owsWallet);
+        const resolved = await resolveOwsOrKeypairSigner(owsWallet, ctx);
         if (!resolved.ok) return resolved.error;
         const { signer, walletAddress } = resolved;
 

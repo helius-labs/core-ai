@@ -70,6 +70,19 @@ describe('host state is withheld from an identified caller', () => {
     expect(text).not.toMatch(/keypair already exists/i);
   });
 
+  it('refuses to sign with the host wallet', async () => {
+    // The signer gate used to key only on HELIUS_MCP_SHARED_CREDENTIAL, so a
+    // deployment authenticating per request without that flag would have signed
+    // every caller's transaction with the operator's keypair — which the
+    // fixture above puts on disk.
+    const text = await textFor(
+      'transferSol',
+      { recipientAddress: 'So11111111111111111111111111111111111111112', amount: 0.001 },
+      CALLER,
+    );
+    expect(text).toMatch(/unavailable on this server|holds no wallet/i);
+  });
+
   it('getStakeAccounts asks for an address instead of using the host wallet', async () => {
     const text = await textFor('getStakeAccounts', {}, CALLER);
     expect(text).toMatch(/pass a wallet address/i);
