@@ -212,7 +212,7 @@ export function registerPlanTools(server: McpServer) {
       }
 
       // ── Tier 2: API key present but no JWT ──
-      const jwt = getJwt();
+      const jwt = getJwt(ctx);
       if (!jwt) {
         return mcpText(
           `## Account Plan\n\n` +

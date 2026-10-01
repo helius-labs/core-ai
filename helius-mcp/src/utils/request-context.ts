@@ -20,7 +20,13 @@ export type RequestContext = {
   apiKey: string;
   /** Helius project the key belongs to, when the transport can resolve it. */
   projectId?: string;
-  network: 'mainnet-beta' | 'devnet';
+  /**
+   * Absent when the request did not state one. That is not the same as
+   * mainnet: a self-hosted server with `HELIUS_NETWORK=devnet` and a middleware
+   * that sets a token but no network must keep answering on devnet, so the
+   * resolver falls through to env and session rather than defaulting here.
+   */
+  network?: 'mainnet-beta' | 'devnet';
   /**
    * Opaque, stable per caller — not per request.
    *
@@ -74,21 +80,39 @@ export function contextFromExtra(extra: unknown): RequestContext | null {
     return null;
   }
 
-  const apiKey = typeof authInfo.token === 'string' ? authInfo.token : '';
+  // `extra.apiKey` first: `token` is the transport credential, and reading it
+  // as the Helius key couples the two. Once a hosted entrypoint fronts this
+  // with real OAuth, every access token would be appended as `?api-key=` to a
+  // Helius host. `token` stays as a fallback for a transport that authenticates
+  // with the Helius key itself, which is the shape we expect first.
+  const rawExtra = isRecord(authInfo.extra) ? authInfo.extra : undefined;
+  const fromExtra = typeof rawExtra?.apiKey === 'string' ? rawExtra.apiKey : '';
+  const apiKey = fromExtra || (typeof authInfo.token === 'string' ? authInfo.token : '');
   if (!apiKey) {
     return null;
   }
 
   // Both of ours live under `extra`, which the SDK documents as the home for
   // additional token data. Deliberately not `clientId`: that identifies the
-  // OAuth client application, and a Helius project is not one — under any
-  // registration model it would end up holding something else.
+  // OAuth client application, and a Helius project is not one.
   const authExtra = isRecord(authInfo.extra) ? authInfo.extra : undefined;
 
   const rawProjectId = authExtra?.projectId;
   const projectId = typeof rawProjectId === 'string' && rawProjectId ? rawProjectId : undefined;
 
-  const network = authExtra?.network === 'devnet' ? 'devnet' : 'mainnet-beta';
+  // Unknown values are refused rather than coerced. `'Devnet'` or `'testnet'`
+  // silently routing a caller's writes to mainnet is not a safe default.
+  const rawNetwork = authExtra?.network;
+  let network: 'mainnet-beta' | 'devnet' | undefined;
+  if (rawNetwork !== undefined) {
+    if (rawNetwork !== 'devnet' && rawNetwork !== 'mainnet-beta') {
+      throw new Error(
+        `INVALID_NETWORK: request declared network "${String(rawNetwork)}"; `
+        + 'expected "mainnet-beta" or "devnet".',
+      );
+    }
+    network = rawNetwork;
+  }
 
   return {
     apiKey,

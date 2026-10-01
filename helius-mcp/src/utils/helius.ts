@@ -2,7 +2,7 @@ import { createHelius, type HeliusClient } from 'helius-sdk';
 import { MCP_USER_AGENT } from '../http.js';
 import { getSharedApiKey } from './config.js';
 import { wrapClientWithResilience, withResilience, READ_TIMEOUT_MS } from './resilience.js';
-import { registerSecret } from './redact.js';
+import { registerSecret, API_KEY_PLACEHOLDER } from './redact.js';
 import { isSharedCredentialMode } from './runtime.js';
 import type { RequestContext } from './request-context.js';
 
@@ -57,7 +57,20 @@ export function setApiKey(apiKey: string): void {
 }
 
 export function getApiKey(ctx?: RequestContext | null): string {
-  const apiKey = ctx?.apiKey || sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
+  // A supplied context answers alone. Falling through to the deployment's
+  // credential on an empty caller key would bill the operator for a request
+  // that failed to authenticate.
+  if (ctx) {
+    if (!ctx.apiKey) {
+      throw new Error('NO_API_KEY: the request carried a context with no Helius API key');
+    }
+    // Deliberately not registered as a secret: the scrubber exists to keep the
+    // deployment's credential out of tool output, and this key is the caller's
+    // own. Registering it would scrub it from their own responses.
+    return ctx.apiKey;
+  }
+
+  const apiKey = sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
   if (!apiKey) {
     throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
@@ -67,7 +80,10 @@ export function getApiKey(ctx?: RequestContext | null): string {
 }
 
 export function hasApiKey(ctx?: RequestContext | null): boolean {
-  return !!(ctx?.apiKey || sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey());
+  if (ctx) {
+    return !!ctx.apiKey;
+  }
+  return !!(sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey());
 }
 
 export function getHeliusClient(ctx?: RequestContext | null): HeliusClient {
@@ -76,7 +92,11 @@ export function getHeliusClient(ctx?: RequestContext | null): HeliusClient {
   // the network call it wraps.
   if (ctx) {
     return wrapClientWithResilience(
-      createHelius({ apiKey: getApiKey(ctx), userAgent: MCP_USER_AGENT }),
+      createHelius({
+        apiKey: getApiKey(ctx),
+        network: getNetwork(ctx) === 'devnet' ? 'devnet' : 'mainnet',
+        userAgent: MCP_USER_AGENT,
+      }),
     );
   }
 
@@ -84,7 +104,11 @@ export function getHeliusClient(ctx?: RequestContext | null): HeliusClient {
     const apiKey = getApiKey();
     // Wrap so idempotent reads get a timeout + retry-with-backoff; writes,
     // sends, and streaming pass through untouched. See utils/resilience.ts.
-    heliusClient = wrapClientWithResilience(createHelius({ apiKey, userAgent: MCP_USER_AGENT }));
+    heliusClient = wrapClientWithResilience(createHelius({
+      apiKey,
+      network: getNetwork() === 'devnet' ? 'devnet' : 'mainnet',
+      userAgent: MCP_USER_AGENT,
+    }));
   }
   return heliusClient;
 }
@@ -95,7 +119,7 @@ export function setNetwork(network: 'mainnet-beta' | 'devnet'): void {
 }
 
 export function getNetwork(ctx?: RequestContext | null): 'mainnet-beta' | 'devnet' {
-  if (ctx) {
+  if (ctx?.network) {
     return ctx.network;
   }
 
@@ -112,27 +136,25 @@ export function getEnhancedWebSocketUrl(ctx?: RequestContext | null): string {
     ? 'wss://atlas-devnet.helius-rpc.com'
     : 'wss://atlas-mainnet.helius-rpc.com';
 
-  // A supplied context means the key belongs to the caller being answered, so
-  // returning it is the point of this tool, not a leak — check before the
-  // shared-credential placeholder below. Getting this order wrong half-applies
-  // the context: the network comes from the request while the key does not.
-  if (ctx) {
-    return `${host}/?api-key=${getApiKey(ctx)}`;
-  }
-
-  // Without a context the key is the deployment's, not the caller's, so under a
-  // shared credential it gets a placeholder the caller substitutes with their
-  // own. Single-tenant stdio still returns a ready-to-use URL.
+  // Shared-credential mode and a per-caller context are contradictory states:
+  // the first says every caller shares the deployment's key, the second says
+  // this caller brought their own. The placeholder wins where they collide,
+  // because the alternative is worse — every response passes through
+  // `redactSecrets`, whose query-string rule rewrites *any* `api-key=` value in
+  // this mode, so returning the caller's key here yields `***REDACTED***` at the
+  // caller. An unusable URL that says what to substitute beats one that does
+  // not. The two settings become orthogonal when hosted mode is split out, and
+  // a bring-your-own-key deployment will run with redaction off.
   if (isSharedCredentialMode()) {
-    return `${host}/?api-key=YOUR_HELIUS_API_KEY`;
+    return `${host}/?api-key=${API_KEY_PLACEHOLDER}`;
   }
 
-  return `${host}/?api-key=${getApiKey()}`;
+  return `${host}/?api-key=${getApiKey(ctx)}`;
 }
 
 export function getLaserstreamUrl(
-  region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp',
   ctx?: RequestContext | null,
+  region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp',
 ): string {
   // Endpoint host is public; clients pass apiKey separately (e.g. @helius/laserstream subscribe options).
   // Do not call getApiKey() here or docs tools like getLaserstreamInfo fail unnecessarily.

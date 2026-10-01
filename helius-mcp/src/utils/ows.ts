@@ -65,8 +65,10 @@ function validateWalletName(name: string): void {
 
 /**
  * Return the Solana address for the named OWS wallet.
- * Uses the request's network, falling back to the session's, to select the
- * correct CAIP-2 chain key.
+ *
+ * The CAIP-2 chain key is chosen from the network: the request's when it states
+ * one, otherwise whatever `getNetwork` resolves. Note the added parameter —
+ * this function is mirrored in `helius-cli`, and the signature has diverged.
  */
 export async function getOwsSolanaAddress(
   walletName: string,
@@ -177,7 +179,13 @@ export async function resolveOwsOrKeypairSigner(
   // Checked here rather than relying on loadSignerOrFail throwing, because the
   // catch below flattens every failure into "call generateKeypair" — which in
   // shared mode is advice that also refuses.
-  if (isSharedCredentialMode()) {
+  //
+  // A request that carried its own identity is the same situation without the
+  // flag: a deployment authenticating per request, with a keypair on disk and
+  // `HELIUS_MCP_SHARED_CREDENTIAL` unset, would otherwise sign every caller's
+  // transaction with the operator's wallet. The flag describes one way to serve
+  // many callers; a context is evidence that it is happening.
+  if (isSharedCredentialMode() || ctx) {
     return { ok: false, error: mcpError(
       sharedCredentialRefusal('Transaction signing'),
       SHARED_CREDENTIAL_META,

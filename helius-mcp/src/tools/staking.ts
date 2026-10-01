@@ -259,6 +259,12 @@ export function registerStakingTools(server: McpServer) {
         // Resolve wallet address
         let walletAddress = wallet;
         if (!walletAddress) {
+          // The session wallet belongs to the host's keypair, not the caller.
+          // Defaulting to it for a request that carried its own identity would
+          // answer with the operator's stake accounts.
+          if (ctx) {
+            return missingParamError('getStakeAccounts', 'Pass a wallet address.');
+          }
           walletAddress = getSessionWalletAddress() ?? undefined;
           if (!walletAddress) {
             return missingParamError('getStakeAccounts', 'Pass a wallet address or call generateKeypair first.');

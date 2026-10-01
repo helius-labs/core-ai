@@ -1,9 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const execFileAsync = vi.fn();
+import { getOwsSolanaAddress } from '../src/utils/ows.js';
+import { setNetwork } from '../src/utils/helius.js';
+
+// Hoisted with the mock factories: `ows.ts` calls promisify at module scope, so
+// a plain const would still be in its temporal dead zone when the import runs.
+const { execFileAsync } = vi.hoisted(() => ({ execFileAsync: vi.fn() }));
 
 vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
-vi.mock('node:util', () => ({ promisify: () => execFileAsync }));
+// Spread the real module: replacing it wholesale breaks as soon as anything in
+// this import graph reaches for `inspect` or `format`, with an error that
+// points nowhere near the cause.
+vi.mock('node:util', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:util')>()),
+  promisify: () => execFileAsync,
+}));
 
 const MAINNET_CAIP2 = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 const DEVNET_CAIP2 = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
@@ -42,7 +53,6 @@ describe('OWS address resolution follows the request network', () => {
   });
 
   it('picks the devnet account for a devnet caller', async () => {
-    const { getOwsSolanaAddress } = await import('../src/utils/ows.js');
     const address = await getOwsSolanaAddress('my-wallet', {
       apiKey: 'caller-key',
       network: 'devnet',
@@ -52,7 +62,6 @@ describe('OWS address resolution follows the request network', () => {
   });
 
   it('picks the mainnet account for a mainnet caller', async () => {
-    const { getOwsSolanaAddress } = await import('../src/utils/ows.js');
     const address = await getOwsSolanaAddress('my-wallet', {
       apiKey: 'caller-key',
       network: 'mainnet-beta',
@@ -65,7 +74,6 @@ describe('OWS address resolution follows the request network', () => {
     // The bug this closes: a devnet caller on a mainnet-default server used to
     // derive the mainnet address, because the network came from module state.
     process.env.HELIUS_NETWORK = 'mainnet-beta';
-    const { getOwsSolanaAddress } = await import('../src/utils/ows.js');
     const address = await getOwsSolanaAddress('my-wallet', {
       apiKey: 'caller-key',
       network: 'devnet',
@@ -74,12 +82,23 @@ describe('OWS address resolution follows the request network', () => {
     expect(address).toBe(DEVNET_ADDRESS);
   });
 
-  it('falls back to session state with no context', async () => {
+  it('falls back to HELIUS_NETWORK with no context', async () => {
     process.env.HELIUS_NETWORK = 'devnet';
-    const { getOwsSolanaAddress } = await import('../src/utils/ows.js');
     expect(await getOwsSolanaAddress('my-wallet')).toBe(DEVNET_ADDRESS);
 
     process.env.HELIUS_NETWORK = 'mainnet-beta';
     expect(await getOwsSolanaAddress('my-wallet')).toBe(MAINNET_ADDRESS);
+  });
+
+  it('falls back to the session network when the environment is unset', async () => {
+    // Resolution is env first, then session, so the session branch is only
+    // reachable with HELIUS_NETWORK cleared.
+    delete process.env.HELIUS_NETWORK;
+    setNetwork('devnet');
+    try {
+      expect(await getOwsSolanaAddress('my-wallet')).toBe(DEVNET_ADDRESS);
+    } finally {
+      setNetwork('mainnet-beta');
+    }
   });
 });

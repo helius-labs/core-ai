@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import type { RequestContext } from './request-context.js';
 
 const CONFIG_DIR = path.join(os.homedir(), ".helius");
 export const SHARED_CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
@@ -171,7 +172,21 @@ export function setSharedApiKey(apiKey: string): void {
   saveConfig(config);
 }
 
-export function getJwt(): string | undefined {
+/**
+ * The dashboard session stored on this host.
+ *
+ * A request that carried its own identity never gets it. The session belongs to
+ * whoever ran `signup` on this machine, so handing it to an authenticated
+ * caller would answer an identity check made against one principal with data
+ * belonging to another — their key, the operator's plan, credits and projects.
+ *
+ * Returning `undefined` rather than throwing keeps every existing caller on the
+ * "no session" branch it already handles.
+ */
+export function getJwt(ctx?: RequestContext | null): string | undefined {
+  if (ctx) {
+    return undefined;
+  }
   return loadConfig().jwt;
 }
 
