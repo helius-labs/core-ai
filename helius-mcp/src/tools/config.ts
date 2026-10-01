@@ -45,6 +45,9 @@ export function registerConfigTools(server: McpServer) {
       }
 
       try {
+        // Deliberately context-free: this validates the key just passed to
+        // setApiKey above, so it must read module state rather than whatever
+        // credential the caller authenticated the request with.
         const helius = getHeliusClient();
         await helius.getBlockHeight();
       } catch (e: unknown) {

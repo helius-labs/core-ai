@@ -6,6 +6,7 @@ import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct, PLAN_RANK } from './product-catalog.js';
 import { ACTION_NAME_SET } from '../router/actions.js';
+import { contextFromExtra } from '../utils/request-context.js';
 // fetchDoc/extractSections no longer needed — live billing fetch removed
 
 
@@ -220,7 +221,8 @@ export function registerRecommendTools(server: McpServer) {
       scale: z.enum(['budget', 'standard', 'production', 'all']).optional().default('all'),
       remember: z.boolean().optional().describe('Save budget/complexity preferences for future sessions'),
     },
-    async ({ description, budget, complexity, scale, remember }) => {
+    async ({ description, budget, complexity, scale, remember }, extra) => {
+      const ctx = contextFromExtra(extra);
       // 1. Load saved preferences, merge with provided params
       const savedPrefs = getPreferences();
       const effectiveBudget = budget ?? savedPrefs.budget;
@@ -284,7 +286,7 @@ export function registerRecommendTools(server: McpServer) {
       let output = formatCatalog(availableTiers, upgradeTiers, description, effectiveComplexity, detectedPlan);
 
       // 9. Soft hint: if no API key, append setup note
-      if (!hasApiKey()) {
+      if (!hasApiKey(ctx)) {
         output += '\n\n---\n\n> **Setup needed:** You\'ll need a Helius API key to use these tools. Call `getStarted` for setup instructions.';
       }
 

@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, handleToolError, addressError, paginationError, notFoundError, missingParamError, exclusiveParamError, batchLimitError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerAssetTools(server: McpServer) {
   // Get Assets by Owner (NFTs and tokens via DAS)
@@ -15,9 +16,10 @@ export function registerAssetTools(server: McpServer) {
       limit: z.number().optional().default(20).describe('Number of assets to return (default 20). Increase for wallets with many NFTs.'),
       page: z.number().optional().default(1).describe('Page number (starts at 1)')
     },
-    async ({ address, limit, page }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ address, limit, page }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
       let response;
       try {
         response = await helius.getAssetsByOwner({
@@ -92,9 +94,10 @@ export function registerAssetTools(server: McpServer) {
       id: z.string().optional().describe('Single asset mint address (base58 encoded). Use this OR ids, not both.'),
       ids: z.array(z.string()).optional().describe('Array of asset mint addresses for batch lookup (base58 encoded, up to 1000). Use this OR id, not both.')
     },
-    async ({ id, ids }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ id, ids }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       // Validate: must provide exactly one of id or ids
       if (!id && (!ids || ids.length === 0)) {
@@ -282,9 +285,10 @@ export function registerAssetTools(server: McpServer) {
       page: z.number().optional().default(1).describe('Page number (starts at 1)'),
       limit: z.number().optional().default(20).describe('Results per page (max 1000)')
     },
-    async ({ ownerAddress, creatorAddress, authorityAddress, onlyVerified, name, compressed, burnt, frozen, page, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ ownerAddress, creatorAddress, authorityAddress, onlyVerified, name, compressed, burnt, frozen, page, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       type AssetItem = {
         id: string;
@@ -416,9 +420,10 @@ export function registerAssetTools(server: McpServer) {
       page: z.number().optional().default(1).describe('Page number (starts at 1)'),
       limit: z.number().optional().default(20).describe('Results per page (max 1000)')
     },
-    async ({ groupKey, groupValue, page, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ groupKey, groupValue, page, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       let response;
       try {

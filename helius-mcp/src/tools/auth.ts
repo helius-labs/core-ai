@@ -37,6 +37,7 @@ import {
   keypairExistsOnDisk,
 } from '../utils/config.js';
 import { HELIUS_PLANS } from './plans.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 type SupportedPlan = 'agent' | 'developer' | 'business' | 'professional';
 
@@ -70,12 +71,17 @@ export function registerAuthTools(server: McpServer) {
     'getStarted',
     'Get setup instructions for Helius. Checks whether an API key is configured (not validated), whether a keypair exists on disk, and whether a JWT session is present, then tells you exactly what to do next. Call this when a user asks "how do I get started?" or needs onboarding help.',
     {},
-    async () => {
+    async (_args, extra) => {
+      const ctx = contextFromExtra(extra);
       const lines: string[] = ['# Getting Started with Helius'];
 
-      const apiKeyConfigured = hasApiKey();
-      const hasKeypair = keypairExistsOnDisk();
-      const jwt = getJwt();
+      const apiKeyConfigured = hasApiKey(ctx);
+      // Both of these read this host's disk. A request that carried its own
+      // identity gets neither: checking the caller's key and then reporting the
+      // operator's keypair and dashboard session answers one principal's
+      // question with another's state.
+      const hasKeypair = ctx ? false : keypairExistsOnDisk();
+      const jwt = getJwt(ctx);
 
       // Already fully set up
       if (apiKeyConfigured && jwt) {
@@ -322,9 +328,10 @@ export function registerAuthTools(server: McpServer) {
     'getAccountStatus',
     'Check your Helius account status: current plan, remaining credits, rate limits, and billing cycle. Requires a JWT session (i.e., you signed up via `signup`). If you only have an API key configured, auth status is confirmed but credit data is unavailable — call `signup` to enable full status.',
     {},
-    async () => {
+    async (_args, extra) => {
+      const ctx = contextFromExtra(extra);
       try {
-        if (!hasApiKey()) {
+        if (!hasApiKey(ctx)) {
           return mcpText(
             `## Account Status\n\n` +
               `**Auth:** Not authenticated\n\n` +
@@ -334,7 +341,7 @@ export function registerAuthTools(server: McpServer) {
           );
         }
 
-        const jwt = getJwt();
+        const jwt = getJwt(ctx);
         if (!jwt) {
           return mcpText(
             `## Account Status\n\n` +
