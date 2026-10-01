@@ -10,12 +10,19 @@
  * 4. Every minimumPlan is a valid key in PLAN_RANK and HELIUS_PLANS
  * 5. Plan-feature compatibility (Laserstream mainnet → business+, Enhanced WebSockets → developer+)
  * 6. No empty mcpTools arrays
+ * 7. Every action that returns a mutation receipt is labelled a write
+ * 8. Every heliusWrite action is labelled a write
+ * 9. Every action needing a signer is labelled a write
+ * 10. No heliusWrite action reaches the hosted surface
  */
 
 import fs from 'fs';
 import path from 'path';
 import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
 import { ACTION_NAME_SET } from '../router/actions.js';
+import { ACTION_CATALOG, getHostedActions } from '../router/catalog.js';
+import { ACTION_NAMES } from '../router/actions.js';
+import { needsHostSecret } from '../router/types.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -73,6 +80,43 @@ for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
   }
 }
 
+// ── Action catalog: mutability and hosted eligibility ──
+
+/**
+ * `mutability` defaults to 'read'. These checks exist because a mislabelled
+ * write is silent: it looks correct until something filters replay-safety or
+ * hosted eligibility on it, and then the actions that most needed protecting
+ * are the ones that slipped through.
+ */
+for (const entry of Object.values(ACTION_CATALOG)) {
+  if (entry.responseFamily === 'mutationReceipt' && entry.mutability !== 'write') {
+    error(entry.action, 'returns a mutation receipt but is labelled a read');
+  }
+
+  if (entry.publicTool === 'heliusWrite' && entry.mutability !== 'write') {
+    error(entry.action, 'is a heliusWrite action but is labelled a read');
+  }
+
+  // Acting as the wallet is a mutation wherever it appears. This is the check
+  // that caught `signup`, whose receipt shape and public tool both look read-ish.
+  if (needsHostSecret(entry.authRequirement) && entry.authRequirement !== 'jwt'
+      && entry.mutability !== 'write') {
+    error(entry.action, `requires "${entry.authRequirement}" but is labelled a read`);
+  }
+}
+
+// `hostedEligible` reads both the auth requirement and the manual-exclusion
+// map, so re-asserting either against it only confirms it agrees with itself.
+// `publicTool` is the one signal it never consults, which makes this the single
+// hosted check here that can fail for a catalog edit leaving the predicate alone.
+const hosted = new Set<string>(getHostedActions());
+
+for (const entry of Object.values(ACTION_CATALOG)) {
+  if (entry.publicTool === 'heliusWrite' && hosted.has(entry.action)) {
+    error(entry.action, 'is a heliusWrite action but reaches the hosted surface');
+  }
+}
+
 // ── Report ──
 
 if (errors.length > 0) {
@@ -84,5 +128,8 @@ if (errors.length > 0) {
   process.exit(1);
 } else {
   const productCount = Object.keys(PRODUCT_CATALOG).length;
-  console.log(`\u2705 All products valid (${productCount} products in catalog)`);
+  console.log(
+    `\u2705 Valid: ${productCount} products, ${ACTION_NAMES.length} actions `
+    + `(${hosted.size} hosted-eligible)`,
+  );
 }
