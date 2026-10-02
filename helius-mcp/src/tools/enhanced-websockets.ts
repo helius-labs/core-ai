@@ -20,7 +20,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       encoding: z.string().optional().default('jsonParsed').describe('Response encoding format. Values: "base58", "base64", "jsonParsed" (default — recommended, returns decoded instruction data)'),
       transactionDetails: z.string().optional().default('full').describe('Level of transaction detail in response. Values: "full" (default — complete data), "signatures" (just sigs), "accounts" (account keys only), "none"'),
       showRewards: z.boolean().optional().default(false).describe('Include block rewards in transaction results (default: false)'),
-      maxSupportedTransactionVersion: z.number().optional().default(0).describe('Max transaction version to return. Defaults to 0, which includes versioned transactions (v0).')
+      maxSupportedTransactionVersion: z.number().optional().default(1).describe('Max transaction version to return. Defaults to 1, which includes legacy and versioned transactions (v0 and v1).')
     },
     async (params) => {
       let err;

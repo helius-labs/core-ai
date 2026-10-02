@@ -26,7 +26,7 @@ export function registerBlockTools(server: McpServer) {
         const block = await (helius as any).getBlock(BigInt(slot), {
           encoding: 'jsonParsed',
           transactionDetails,
-          maxSupportedTransactionVersion: 0,
+          maxSupportedTransactionVersion: 1,
           rewards: true
         });
 
