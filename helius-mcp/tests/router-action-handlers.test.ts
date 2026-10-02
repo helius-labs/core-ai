@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { callActionHandler } from '../src/router/action-handlers.js';
+import { z, type ZodRawShape } from 'zod';
+import { callActionHandler, getActionHandlers } from '../src/router/action-handlers.js';
 import { restRequest } from '../src/utils/helius.js';
 
 const getTransactionsForAddress = vi.fn(async () => ({
@@ -11,6 +12,7 @@ const getTransfersByAddress = vi.fn(async () => ({
 }));
 const getAssetBatch = vi.fn(async () => []);
 const getAsset = vi.fn(async () => null);
+const getBlock = vi.fn(async (..._args: unknown[]) => null);
 
 vi.mock('../src/utils/helius.js', () => ({
   hasApiKey: vi.fn(() => true),
@@ -20,6 +22,7 @@ vi.mock('../src/utils/helius.js', () => ({
     getTransfersByAddress,
     getAssetBatch,
     getAsset,
+    getBlock,
   })),
   getEnhancedWebSocketUrl: vi.fn(() => 'wss://atlas-mainnet.helius-rpc.com/?api-key=test'),
   getLaserstreamUrl: vi.fn(() => 'https://laserstream-mainnet-ewr.helius-rpc.com'),
@@ -40,6 +43,7 @@ describe('action handler bridge', () => {
     getTransfersByAddress.mockClear();
     getAssetBatch.mockClear();
     getAsset.mockClear();
+    getBlock.mockClear();
     vi.mocked(restRequest).mockClear();
   });
 
@@ -61,7 +65,7 @@ describe('action handler bridge', () => {
         transactionDetails: 'signatures',
         sortOrder: 'desc',
         limit: 10,
-        maxSupportedTransactionVersion: 0,
+        maxSupportedTransactionVersion: 1,
         filters: {
           status: 'succeeded',
         },
@@ -289,5 +293,22 @@ describe('action handler bridge', () => {
     );
     expect(both.isError).toBe(true);
     expect(both.content?.[0]?.text).toContain('exactly one');
+  });
+
+  it('requests v1 transactions from getBlock', async () => {
+    const result = await callActionHandler('getBlock', { slot: 123456789 }, {});
+
+    expect(result.isError).not.toBe(true);
+    expect(getBlock).toHaveBeenCalledWith(
+      123456789n,
+      expect.objectContaining({ transactionDetails: 'signatures', maxSupportedTransactionVersion: 1 }),
+    );
+    expect(result.content?.[0]?.text).toContain('Block not found');
+  });
+
+  it('defaults transactionSubscribe to v1 transactions', () => {
+    const tool = getActionHandlers().get('transactionSubscribe');
+    const params = z.object(tool?.inputSchema as ZodRawShape).parse({});
+    expect(params.maxSupportedTransactionVersion).toBe(1);
   });
 });

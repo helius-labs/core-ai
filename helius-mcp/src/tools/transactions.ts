@@ -128,7 +128,7 @@ async function fetchTransactionsForAddress(
     transactionDetails: params.transactionDetails,
     sortOrder: params.sortOrder,
     limit: params.limit,
-    maxSupportedTransactionVersion: 0
+    maxSupportedTransactionVersion: 1
   };
 
   if (params.paginationToken) reqParams.paginationToken = params.paginationToken;
