@@ -342,7 +342,7 @@ export function registerAuthTools(server: McpServer) {
               `**Auth:** Not authenticated\n\n` +
               `No API key or session found. To get started:\n` +
               `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
-              `- If you need an account: use \`signup\``,
+              `- If you need an account: use \`signup\` with email, firstName, and lastName`,
           );
         }
 
@@ -359,8 +359,8 @@ export function registerAuthTools(server: McpServer) {
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
           return mcpError(
-            'No projects found. Call `signup` to create an account first.',
-            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `signup`.' },
+            'No projects found. Call `signup` with email, firstName, and lastName to create an account first.',
+            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `signup` with email, firstName, and lastName.' },
           );
         }
 
@@ -443,7 +443,7 @@ export function registerAuthTools(server: McpServer) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` to create an account first.', {
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName to create an account first.', {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
