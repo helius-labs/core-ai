@@ -48,19 +48,26 @@ helius keygen
 
 This creates a new Solana keypair and saves it to `~/.helius/keypair.json`. The public key is printed to the terminal — you'll need it for the next step.
 
-**Step 2 — Fund the keypair** *(manual)*
+**Step 2 — Fund the keypair** *(only for autopay)*
 
-Before creating an account, send the following to the public key from step 1:
+Skip this step if you'll pay through the hosted payment link (the default). For autopay (`--pay`), send the following to the public key from step 1:
 
-- **1 USDC** (used as payment for the basic plan)
-- **A small amount of SOL** to cover transaction fees (~0.01 SOL is sufficient)
+- **$10 USDC** (the Agent plan, one-time)
+- **A small amount of SOL** to cover transaction fees (~0.001 SOL is sufficient)
 
-You can use any wallet or exchange to send funds. The CLI will not proceed until the keypair has the required balance.
+You can use any wallet or exchange to send funds.
 
 **Step 3 — Create your Helius account**
 
+Every new account needs an email, first name and last name. The wallet is only used to pay.
+
 ```bash
-helius signup
+# Default: prints a hosted payment link; pay with any wallet, then finalize
+helius signup --email you@example.com --first-name Jane --last-name Doe
+helius signup --resume
+
+# Or autopay from the funded keypair
+helius signup --pay --email you@example.com --first-name Jane --last-name Doe
 ```
 
 **Step 4 — Start using the CLI**

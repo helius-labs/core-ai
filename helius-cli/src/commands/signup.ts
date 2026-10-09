@@ -144,21 +144,9 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // ── Fresh signup path ──
     //
-    // Every new signup needs real contact info; the wallet is only the
-    // payment method. Check before loading the keypair or calling the API.
-    const missing = [
-      !options.email && "--email",
-      !options.firstName && "--first-name",
-      !options.lastName && "--last-name",
-    ].filter(Boolean);
-    if (missing.length > 0) {
-      exitWithError(
-        "INVALID_INPUT",
-        `Signup requires contact info. Missing: ${missing.join(", ")}.`,
-        undefined,
-        !!options.json,
-      );
-    }
+    // Contact-info validation lives in the SDK's no-project branch — that
+    // way already_subscribed / upgrade_required short-circuits don't demand
+    // --email/--first-name/--last-name when they're not needed.
 
     const plan = (options.plan?.toLowerCase() || "agent") as
       | "agent"
@@ -250,6 +238,21 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       }
     }
   } catch (error) {
+    // The SDK demands contact info only when the wallet has no project yet.
+    // Surface that as bad input, naming the CLI flags rather than SDK fields.
+    const message = error instanceof Error ? error.message : String(error);
+    if (/requires contact info|invalid email address/i.test(message)) {
+      spinner?.stop();
+      exitWithError(
+        "INVALID_INPUT",
+        message
+          .replace("firstName", "--first-name")
+          .replace("lastName", "--last-name")
+          .replace(/\bemail\b(?=[,.])/, "--email"),
+        undefined,
+        !!options.json,
+      );
+    }
     handleCommandError(error, options, spinner);
   }
 }

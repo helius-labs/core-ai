@@ -661,22 +661,44 @@ describe("signup command — contact info required", () => {
     mockGetPendingSignup.mockReturnValue(undefined);
   });
 
-  it("rejects a fresh signup without email before calling the API", async () => {
-    const { json } = await captureStdout(() =>
-      signupCommand({ ...baseOpts, email: undefined } as any),
+  it("surfaces the SDK's missing-contact error as INVALID_INPUT with CLI flag names", async () => {
+    mockSignup.mockRejectedValue(
+      new Error("Signup requires contact info. Missing: email, firstName, lastName."),
     );
 
-    expect(json?.ok).toBe(false);
-    expect((json as any)?.error).toContain("Missing: --email");
-    expect(mockSignup).not.toHaveBeenCalled();
-  });
-
-  it("lists every missing field", async () => {
     const { json } = await captureStdout(() =>
       signupCommand({ ...baseOpts, email: undefined, firstName: undefined, lastName: undefined } as any),
     );
 
+    expect(json?.ok).toBe(false);
+    expect((json as any)?.error_code).toBe("INVALID_INPUT");
     expect((json as any)?.error).toContain("Missing: --email, --first-name, --last-name");
-    expect(mockSignup).not.toHaveBeenCalled();
+    expect(mockSetPendingSignup).not.toHaveBeenCalled();
+  });
+
+  it("returns the existing key for a wallet that already has a project, without contact info", async () => {
+    mockSignup.mockResolvedValue({
+      kind: "already_subscribed",
+      jwt: "jwt-1",
+      refId: "ref-1",
+      walletAddress: "Wallet111",
+      projectId: "proj-1",
+      apiKey: "key-1",
+      endpoints: {
+        mainnet: "https://mainnet.helius-rpc.com/?api-key=key-1",
+        devnet: "https://devnet.helius-rpc.com/?api-key=key-1",
+      },
+    });
+
+    const { json } = await captureStdout(() =>
+      signupCommand({ keypair: baseOpts.keypair, json: true } as any),
+    );
+
+    expect(mockSignup).toHaveBeenCalledWith(
+      expect.objectContaining({ email: undefined, firstName: undefined, lastName: undefined }),
+    );
+    expect(json?.data.status).toBe("ALREADY_SUBSCRIBED");
+    expect(json?.data.apiKey).toBe("key-1");
+    expect(mockSetApiKey).toHaveBeenCalledWith("key-1");
   });
 });
