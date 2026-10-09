@@ -200,7 +200,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'signup',
-    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
+    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first, and `email`, `firstName`, and `lastName` for `link` and `autopay` (every new signup needs real contact info; the wallet is only the payment method) (the wallet address is bound to the payment intent in every mode). Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
     {
       mode: z
         .enum(['link', 'autopay', 'resume'])
@@ -216,9 +216,9 @@ export function registerAuthTools(server: McpServer) {
         .enum(['monthly', 'yearly'])
         .optional()
         .describe('Billing period for subscription plans (default: monthly). Ignored for agent.'),
-      email: z.string().email().optional().describe('Email (required for fresh signup; not needed for resume)'),
-      firstName: z.string().optional().describe('First name (required for fresh signup)'),
-      lastName: z.string().optional().describe('Last name (required for fresh signup)'),
+      email: z.string().email().optional().describe('Email. Required for link and autopay; not needed for resume.'),
+      firstName: z.string().optional().describe('First name. Required for link and autopay; not needed for resume.'),
+      lastName: z.string().optional().describe('Last name. Required for link and autopay; not needed for resume.'),
       couponCode: z.string().optional().describe('Coupon code'),
       discoveryPath: z.string().optional().describe('How did you discover Helius?'),
       frictionPoints: z.string().optional().describe('What friction did you hit?'),
@@ -246,6 +246,18 @@ export function registerAuthTools(server: McpServer) {
         // from that invocation is on disk.
         if (mode === 'resume') {
           return await handleResumeSignup();
+        }
+
+        // Contact info is required for every new signup. Check before loading
+        // the keypair or touching the network so the agent gets a fixable error.
+        const missing = [!email && 'email', !firstName && 'firstName', !lastName && 'lastName'].filter(Boolean);
+        if (missing.length > 0) {
+          return mcpError(`Signup requires contact info. Missing: ${missing.join(', ')}.`, {
+            type: 'VALIDATION',
+            code: 'MISSING_CONTACT_INFO',
+            retryable: false,
+            recovery: 'Ask the user for their email, first name, and last name, then retry signup with all three.',
+          });
         }
 
         let signerData: { secretKey: Uint8Array; walletAddress: string };

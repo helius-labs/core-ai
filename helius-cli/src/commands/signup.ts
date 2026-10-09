@@ -144,9 +144,21 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     // ── Fresh signup path ──
     //
-    // Contact-info validation lives in the SDK's no-project branch — that
-    // way already_subscribed / upgrade_required short-circuits don't demand
-    // --email/--first-name/--last-name when they're not needed.
+    // Every new signup needs real contact info; the wallet is only the
+    // payment method. Check before loading the keypair or calling the API.
+    const missing = [
+      !options.email && "--email",
+      !options.firstName && "--first-name",
+      !options.lastName && "--last-name",
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      exitWithError(
+        "INVALID_INPUT",
+        `Signup requires contact info. Missing: ${missing.join(", ")}.`,
+        undefined,
+        !!options.json,
+      );
+    }
 
     const plan = (options.plan?.toLowerCase() || "agent") as
       | "agent"

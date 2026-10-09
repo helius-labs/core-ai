@@ -653,3 +653,30 @@ describe("signup command — basic plan rejection", () => {
     expect(mockSignup).not.toHaveBeenCalled();
   });
 });
+
+describe("signup command — contact info required", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockKeypairExists.mockReturnValue(true);
+    mockGetPendingSignup.mockReturnValue(undefined);
+  });
+
+  it("rejects a fresh signup without email before calling the API", async () => {
+    const { json } = await captureStdout(() =>
+      signupCommand({ ...baseOpts, email: undefined } as any),
+    );
+
+    expect(json?.ok).toBe(false);
+    expect((json as any)?.error).toContain("Missing: --email");
+    expect(mockSignup).not.toHaveBeenCalled();
+  });
+
+  it("lists every missing field", async () => {
+    const { json } = await captureStdout(() =>
+      signupCommand({ ...baseOpts, email: undefined, firstName: undefined, lastName: undefined } as any),
+    );
+
+    expect((json as any)?.error).toContain("Missing: --email, --first-name, --last-name");
+    expect(mockSignup).not.toHaveBeenCalled();
+  });
+});

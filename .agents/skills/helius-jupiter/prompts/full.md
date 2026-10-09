@@ -978,6 +978,8 @@ If the environment variable `HELIUS_API_KEY` is already set, no action is needed
 
 Two modes — pick based on whether the user wants to pay in a browser or have the agent pay USDC from a local keypair.
 
+Every new signup requires the user's real `email`, `firstName`, and `lastName`. Ask the user for them before calling `signup`; `link` and `autopay` refuse without all three. The keypair is only the payment method, not a substitute for contact info.
+
 **Link mode (default — pay in browser):**
 
 1. **`generateKeypair`** — generates or loads a Solana keypair. Returns the wallet address.
