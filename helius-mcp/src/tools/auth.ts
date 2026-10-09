@@ -447,7 +447,7 @@ export function registerAuthTools(server: McpServer) {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
-            recovery: 'Call `signup`.',
+            recovery: 'Call `signup` with email, firstName, and lastName.',
           });
         }
 
@@ -510,11 +510,11 @@ export function registerAuthTools(server: McpServer) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` first.', {
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName first.', {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
-            recovery: 'Call `signup`.',
+            recovery: 'Call `signup` with email, firstName, and lastName.',
           });
         }
         const projectId = projects[0].id;
@@ -587,11 +587,11 @@ export function registerAuthTools(server: McpServer) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` first.', {
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName first.', {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
-            recovery: 'Call `signup`.',
+            recovery: 'Call `signup` with email, firstName, and lastName.',
           });
         }
         const projectId = projects[0].id;
@@ -699,11 +699,11 @@ export function registerAuthTools(server: McpServer) {
 async function handleResumeSignup() {
   const jwt = getJwt();
   if (!jwt) {
-    return mcpError('No pending signup. Call `signup` (link mode) first.', {
+    return mcpError('No pending signup. Call `signup` (link mode) with email, firstName, and lastName first.', {
       type: 'AUTH',
       code: 'NOT_AUTHENTICATED',
       retryable: false,
-      recovery: 'Call `signup`.',
+      recovery: 'Call `signup` with email, firstName, and lastName.',
     });
   }
   const projects = await listProjects(jwt, MCP_USER_AGENT);
