@@ -653,3 +653,52 @@ describe("signup command — basic plan rejection", () => {
     expect(mockSignup).not.toHaveBeenCalled();
   });
 });
+
+describe("signup command — contact info required", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockKeypairExists.mockReturnValue(true);
+    mockGetPendingSignup.mockReturnValue(undefined);
+  });
+
+  it("surfaces the SDK's missing-contact error as INVALID_INPUT with CLI flag names", async () => {
+    mockSignup.mockRejectedValue(
+      new Error("Signup requires contact info. Missing: email, firstName, lastName."),
+    );
+
+    const { json } = await captureStdout(() =>
+      signupCommand({ ...baseOpts, email: undefined, firstName: undefined, lastName: undefined } as any),
+    );
+
+    expect(json?.ok).toBe(false);
+    expect((json as any)?.error_code).toBe("INVALID_INPUT");
+    expect((json as any)?.error).toContain("Missing: --email, --first-name, --last-name");
+    expect(mockSetPendingSignup).not.toHaveBeenCalled();
+  });
+
+  it("returns the existing key for a wallet that already has a project, without contact info", async () => {
+    mockSignup.mockResolvedValue({
+      kind: "already_subscribed",
+      jwt: "jwt-1",
+      refId: "ref-1",
+      walletAddress: "Wallet111",
+      projectId: "proj-1",
+      apiKey: "key-1",
+      endpoints: {
+        mainnet: "https://mainnet.helius-rpc.com/?api-key=key-1",
+        devnet: "https://devnet.helius-rpc.com/?api-key=key-1",
+      },
+    });
+
+    const { json } = await captureStdout(() =>
+      signupCommand({ keypair: baseOpts.keypair, json: true } as any),
+    );
+
+    expect(mockSignup).toHaveBeenCalledWith(
+      expect.objectContaining({ email: undefined, firstName: undefined, lastName: undefined }),
+    );
+    expect(json?.data.status).toBe("ALREADY_SUBSCRIBED");
+    expect(json?.data.apiKey).toBe("key-1");
+    expect(mockSetApiKey).toHaveBeenCalledWith("key-1");
+  });
+});

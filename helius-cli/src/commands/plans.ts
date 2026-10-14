@@ -3,14 +3,14 @@ import { PLAN_CATALOG } from "../lib/checkout.js";
 import { outputJson, type OutputOptions } from "../lib/output.js";
 
 export function plansCommand(options: OutputOptions = {}): void {
-  // The "basic" plan in signup is the Agent tier ($1 one-time signup fee)
+  // The Agent tier is a one-time USDC payment, not a subscription.
   const plans = [
     {
-      key: "basic",
+      key: "agent",
       name: "Agent",
       monthlyPrice: 0,
       yearlyPrice: 0,
-      signupFee: 1,
+      signupFee: 10,
       credits: 1_000_000,
       requestsPerSecond: 10,
     },
@@ -62,7 +62,11 @@ export function plansCommand(options: OutputOptions = {}): void {
   console.log(`    ${chalk.gray("Rate:")}    Custom`);
   console.log();
 
-  console.log(chalk.gray("  Sign up: helius signup [--plan <plan>] [--period monthly|yearly]"));
+  console.log(
+    chalk.gray(
+      "  Sign up: helius signup --email <email> --first-name <name> --last-name <name> [--plan <plan>] [--period monthly|yearly]",
+    ),
+  );
   console.log(chalk.gray("  Upgrade: helius upgrade --plan <plan> [--period monthly|yearly]"));
   console.log(chalk.gray("  Enterprise: https://www.helius.dev/docs/billing/plans#enterprise-plans\n"));
 }

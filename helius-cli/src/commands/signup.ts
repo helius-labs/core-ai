@@ -238,6 +238,21 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
       }
     }
   } catch (error) {
+    // The SDK demands contact info only when the wallet has no project yet.
+    // Surface that as bad input, naming the CLI flags rather than SDK fields.
+    const message = error instanceof Error ? error.message : String(error);
+    if (/requires contact info|invalid email address/i.test(message)) {
+      spinner?.stop();
+      exitWithError(
+        "INVALID_INPUT",
+        message
+          .replace("firstName", "--first-name")
+          .replace("lastName", "--last-name")
+          .replace(/\bemail\b(?=[,.])/, "--email"),
+        undefined,
+        !!options.json,
+      );
+    }
     handleCommandError(error, options, spinner);
   }
 }

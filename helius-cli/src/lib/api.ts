@@ -1,7 +1,6 @@
 // Re-export auth functions and types from helius-sdk
 import { CLI_USER_AGENT } from "../constants.js";
 import { walletSignup as sdkWalletSignup } from "helius-sdk/auth/walletSignup";
-import { createProject as sdkCreateProject } from "helius-sdk/auth/createProject";
 import { listProjects as sdkListProjects } from "helius-sdk/auth/listProjects";
 import { getProject as sdkGetProject } from "helius-sdk/auth/getProject";
 import { createApiKey as sdkCreateApiKey } from "helius-sdk/auth/createApiKey";
@@ -63,10 +62,6 @@ export async function walletSignup(
   userID: string,
 ): Promise<SignupResponse> {
   return sdkWalletSignup(message, signature, userID, CLI_USER_AGENT);
-}
-
-export async function createProject(jwt: string): Promise<Project> {
-  return sdkCreateProject(jwt, CLI_USER_AGENT);
 }
 
 export async function listProjects(jwt: string): Promise<ProjectListItem[]> {

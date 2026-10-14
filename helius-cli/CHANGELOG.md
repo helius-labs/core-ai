@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **New signups need contact info.** `helius signup` asks for `--email`, `--first-name` and `--last-name` when the wallet has no account yet. A wallet that already has an account can still re-run `helius signup` without them to recover its key.
+- **`helius plans` lists the Agent tier as `agent` ($10 one-time).** The `--json` output key changed from `basic` to `agent`, matching `--plan agent`; the old `basic` plan was retired.
+- `helius keygen` now prints the contact flags in its "Then run" hint.
+
 ## 2.1.0 — Historical token balance & safer transactions
 
 ### New

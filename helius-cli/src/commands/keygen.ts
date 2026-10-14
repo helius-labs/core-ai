@@ -70,12 +70,10 @@ export async function keygenCommand(options: KeygenOptions = {}): Promise<void> 
       console.log(`      ${key.padEnd(15)}${chalk.cyan(price)}/mo`);
     }
     console.log("");
-    console.log(`Then run: ${chalk.green("helius signup")}`);
     console.log(
-      chalk.gray(
-        "  Options: --plan <plan> --email <email> --first-name <name> --last-name <name> --coupon <code>",
-      ),
+      `Then run: ${chalk.green("helius signup --email <email> --first-name <name> --last-name <name>")}`,
     );
+    console.log(chalk.gray("  Options: --plan <plan> --period monthly|yearly --coupon <code> --pay"));
   } catch (error) {
     handleCommandError(error, options, spinner);
   }

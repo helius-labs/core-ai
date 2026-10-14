@@ -40,7 +40,7 @@ If using MCP and a tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$1** Agent, **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
+**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$10** Agent (one-time), **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
 
 **Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume`. Or autopay: `... signup --plan agent --pay`.
 

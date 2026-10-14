@@ -13,8 +13,8 @@ I need a Helius API key to query the Solana blockchain.
 
 **Option 1 — Sign up here (recommended):**
 1. Call \`generateKeypair\` to create a signup wallet
-2. Fund the wallet with ~0.001 SOL + 1 USDC
-3. Call \`signup\` to create your account — the API key will be configured automatically
+2. Call \`signup\` with the user's email, first name, and last name. It returns a payment link to pay with any wallet (or use \`mode: "autopay"\` after funding the keypair with ~0.001 SOL + the plan amount in USDC, $10 for the Agent plan)
+3. After paying via the link, call \`signup\` with \`mode: "resume"\` — the API key is configured automatically
 
 **Option 2 — Use an existing key:**
 1. Go to https://dashboard.helius.dev/api-keys
