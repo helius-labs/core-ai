@@ -31,7 +31,7 @@ If using MCP and a tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$1** Agent, **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
+**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$10** Agent (one-time), **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
 
 **Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume`. Or autopay: `... signup --plan agent --pay`.
 
@@ -1251,6 +1251,8 @@ If the environment variable `HELIUS_API_KEY` is already set, no action is needed
 
 Two modes — pick based on whether the user wants to pay in a browser or have the agent pay USDC from a local keypair.
 
+Every new signup requires the user's real `email`, `firstName`, and `lastName`. Ask the user for them before calling `signup`; `link` and `autopay` refuse without all three. The keypair is only the payment method, not a substitute for contact info.
+
 **Link mode (default — pay in browser):**
 
 1. **`generateKeypair`** — generates or loads a Solana keypair. Returns the wallet address.
@@ -1260,14 +1262,14 @@ Two modes — pick based on whether the user wants to pay in a browser or have t
 **Autopay mode (agent pays USDC from local keypair):**
 
 1. **`generateKeypair`** — same as above.
-2. **User funds the wallet** with ~0.001 SOL (transaction fees) + the plan amount in USDC ($1 Agent, $49 Developer, $499 Business, $999 Professional).
+2. **User funds the wallet** with ~0.001 SOL (transaction fees) + the plan amount in USDC ($10 Agent one-time, $49 Developer, $499 Business, $999 Professional).
 3. **`signup`** with `mode: "autopay"` — sends USDC + memo from the local keypair, polls until the subscription is provisioned, returns API key + RPC endpoints + project ID.
 
 If the wallet already has an account on the same plan, `signup` detects it and returns existing credentials (no double payment). If it's on a different plan, `signup` returns `kind: "upgrade_required"` — use `upgradePlan` instead.
 
 **Parameters for `signup`:**
 - `mode`: `"link"` (default), `"autopay"`, or `"resume"`
-- `plan`: `"agent"` (default, $1), `"developer"`, `"business"`, or `"professional"`
+- `plan`: `"agent"` (default, $10 one-time), `"developer"`, `"business"`, or `"professional"`
 - `period`: `"monthly"` (default) or `"yearly"` (paid plans only)
 - `email`, `firstName`, `lastName`: required for every new signup
 - `couponCode`: optional discount code
@@ -1347,7 +1349,7 @@ const result = await auth.signupAndPay({
 
 | | Agent | Developer | Business | Professional |
 |---|---|---|---|---|
-| **Price** | $1 USDC | $49/mo | $499/mo | $999/mo |
+| **Price** | $10 USDC one-time | $49/mo | $499/mo | $999/mo |
 | **Credits** | 1M | 10M | 100M | 200M |
 | **Extra credits** | N/A | $5/M | $5/M | $5/M |
 | **RPC RPS** | 10 | 50 | 200 | 500 |
@@ -1437,8 +1439,8 @@ npx helius-mcp@2.2.0  # configure in your MCP client
 | User has `HELIUS_API_KEY` env var set | No action needed — auto-detected |
 | AI agent + user wants to pay in browser | `generateKeypair` -> `signup` (link) -> user pays -> `signup` (resume) (Path B) |
 | AI agent + agent pays USDC from local keypair | `generateKeypair` -> fund wallet -> `signup` (autopay) (Path B) |
-| Script/CI link-mode signup | `helius keygen` -> `helius signup --json` -> user pays -> `helius signup --resume --json` (Path C) |
-| Script/CI autopay signup | `helius keygen` -> fund -> `helius signup --pay --json` (Path C) |
+| Script/CI link-mode signup | `helius keygen` -> `helius signup --email <email> --first-name <name> --last-name <name> --json` -> user pays -> `helius signup --resume --json` (Path C) |
+| Script/CI autopay signup | `helius keygen` -> fund -> `helius signup --email <email> --first-name <name> --last-name <name> --pay --json` (Path C) |
 | Application needs programmatic signup | SDK `signup()` / `signupAndPay()` |
 | User wants full account visibility | `signup` (detects existing accounts) then `getAccountStatus` |
 | User needs a higher plan | `previewUpgrade` then `upgradePlan` |

@@ -206,7 +206,7 @@ export function registerAuthTools(server: McpServer) {
 
   server.tool(
     'signup',
-    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
+    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Creating a new account requires `email`, `firstName`, and `lastName` (the wallet is only the payment method); they are not needed if this wallet already has an account. Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
     {
       mode: z
         .enum(['link', 'autopay', 'resume'])
@@ -222,9 +222,9 @@ export function registerAuthTools(server: McpServer) {
         .enum(['monthly', 'yearly'])
         .optional()
         .describe('Billing period for subscription plans (default: monthly). Ignored for agent.'),
-      email: z.string().email().optional().describe('Email (required for fresh signup; not needed for resume)'),
-      firstName: z.string().optional().describe('First name (required for fresh signup)'),
-      lastName: z.string().optional().describe('Last name (required for fresh signup)'),
+      email: z.string().email().optional().describe('Email. Required for a new account; not needed if this wallet already has one, or for resume.'),
+      firstName: z.string().optional().describe('First name. Required for a new account; not needed if this wallet already has one, or for resume.'),
+      lastName: z.string().optional().describe('Last name. Required for a new account; not needed if this wallet already has one, or for resume.'),
       couponCode: z.string().optional().describe('Coupon code'),
       discoveryPath: z.string().optional().describe('How did you discover Helius?'),
       frictionPoints: z.string().optional().describe('What friction did you hit?'),
@@ -317,7 +317,19 @@ export function registerAuthTools(server: McpServer) {
           renderPaymentLink(result.paymentLink, 'Sign up', 'signup with mode: "resume"'),
         );
       } catch (err) {
-        return handleToolError(err, 'Error during signup');
+        // The SDK asks for contact info only when the wallet has no account yet.
+        return handleToolError(err, 'Error during signup', [
+          {
+            match: (msg) => /requires contact info|invalid email address/i.test(msg),
+            respond: (msg) =>
+              mcpError(msg, {
+                type: 'VALIDATION',
+                code: 'MISSING_CONTACT_INFO',
+                retryable: false,
+                recovery: 'Ask the user for their email, first name, and last name, then retry signup with all three.',
+              }),
+          },
+        ]);
       }
     },
   );
@@ -337,7 +349,7 @@ export function registerAuthTools(server: McpServer) {
               `**Auth:** Not authenticated\n\n` +
               `No API key or session found. To get started:\n` +
               `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
-              `- If you need an account: use \`signup\``,
+              `- If you need an account: use \`signup\` with email, firstName, and lastName`,
           );
         }
 
@@ -354,8 +366,8 @@ export function registerAuthTools(server: McpServer) {
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
           return mcpError(
-            'No projects found. Call `signup` to create an account first.',
-            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `signup`.' },
+            'No projects found. Call `signup` with email, firstName, and lastName to create an account first.',
+            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `signup` with email, firstName, and lastName.' },
           );
         }
 
@@ -438,11 +450,11 @@ export function registerAuthTools(server: McpServer) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` to create an account first.', {
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName to create an account first.', {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
-            recovery: 'Call `signup`.',
+            recovery: 'Call `signup` with email, firstName, and lastName.',
           });
         }
 
@@ -505,11 +517,11 @@ export function registerAuthTools(server: McpServer) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` first.', {
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName first.', {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
-            recovery: 'Call `signup`.',
+            recovery: 'Call `signup` with email, firstName, and lastName.',
           });
         }
         const projectId = projects[0].id;
@@ -582,11 +594,11 @@ export function registerAuthTools(server: McpServer) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` first.', {
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName first.', {
             type: 'AUTH',
             code: 'NO_PROJECT',
             retryable: false,
-            recovery: 'Call `signup`.',
+            recovery: 'Call `signup` with email, firstName, and lastName.',
           });
         }
         const projectId = projects[0].id;
@@ -694,11 +706,11 @@ export function registerAuthTools(server: McpServer) {
 async function handleResumeSignup() {
   const jwt = getJwt();
   if (!jwt) {
-    return mcpError('No pending signup. Call `signup` (link mode) first.', {
+    return mcpError('No pending signup. Call `signup` (link mode) with email, firstName, and lastName first.', {
       type: 'AUTH',
       code: 'NOT_AUTHENTICATED',
       retryable: false,
-      recovery: 'Call `signup`.',
+      recovery: 'Call `signup` with email, firstName, and lastName.',
     });
   }
   const projects = await listProjects(jwt, MCP_USER_AGENT);

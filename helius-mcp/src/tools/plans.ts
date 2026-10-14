@@ -226,7 +226,7 @@ export function registerPlanTools(server: McpServer) {
       try {
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` to create an account first.');
+          return mcpError('No projects found. Call `signup` with email, firstName, and lastName to create an account first.');
         }
 
         const projectId = projects[0].id;

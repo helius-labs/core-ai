@@ -24,8 +24,8 @@ importers:
         specifier: ^15.0.0
         version: 15.0.0
       helius-sdk:
-        specifier: ^3.0.0
-        version: 3.1.0(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.14.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2))
+        specifier: ^3.3.0
+        version: 3.3.0(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.14.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2))
       ora:
         specifier: ^9.4.1
         version: 9.4.1
@@ -963,8 +963,8 @@ packages:
     resolution: {integrity: sha512-QRbvDIbx6YklUe6RxeTeleMR0yv3cYH6PsPZHcnVn7xv7zO1BHN8r0XETu8n6Ye3Q+ahtSarc3WgtNWmehIBfA==}
     engines: {node: '>=18'}
 
-  helius-sdk@3.1.0:
-    resolution: {integrity: sha512-XgJeTCLJ4ZLRnSCT8cOkHAlbseCMDEk98dEA57ccKBpRQFfsQlc6Dnn85UiFPVbGH9y03BCcIlWcZyH4wnOQdg==}
+  helius-sdk@3.3.0:
+    resolution: {integrity: sha512-24DTWAlZbCdWwVjRrFG66A/lGeODEjtg1kfCag5siiKGJvcHFBBbz0AEcdwHxxB1KkQjBILw4H8SxJGA+DQB/Q==}
     engines: {node: '>=20'}
     peerDependencies:
       '@solana-program/compute-budget': ^0.15.0
@@ -2111,7 +2111,7 @@ snapshots:
 
   get-east-asian-width@1.6.0: {}
 
-  helius-sdk@3.1.0(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.14.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2)):
+  helius-sdk@3.3.0(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.14.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2)):
     dependencies:
       '@solana-program/compute-budget': 0.15.0(@solana/kit@6.10.0(typescript@7.0.2))
       '@solana-program/stake': 0.6.1(@solana/kit@6.10.0(typescript@7.0.2))
