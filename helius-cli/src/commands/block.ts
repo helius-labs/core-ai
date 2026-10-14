@@ -14,7 +14,7 @@ export async function blockCommand(slot: string, options: BlockOptions = {}): Pr
     const helius = await setupClient(spinner, options, `Fetching block at slot ${slot}...`);
     const slotNum = BigInt(slot);
     const result = await withRetry(() => helius.raw.getBlock(slotNum, {
-      maxSupportedTransactionVersion: 0,
+      maxSupportedTransactionVersion: 1,
       transactionDetails: "signatures",
     }), options, spinner);
     spinner?.stop();
