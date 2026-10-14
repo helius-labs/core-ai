@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatTokenAmount } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, handleToolError, addressError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerTokenTools(server: McpServer) {
   server.tool(
@@ -12,9 +13,10 @@ export function registerTokenTools(server: McpServer) {
     {
       mint: z.string().describe('Token mint address (base58 encoded)')
     },
-    async ({ mint }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ mint }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       // Use getTokenAccounts to find top holders
       let response;

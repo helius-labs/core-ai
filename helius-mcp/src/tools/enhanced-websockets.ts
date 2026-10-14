@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getEnhancedWebSocketUrl } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
 import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerEnhancedWebSocketTools(server: McpServer) {
 
@@ -22,7 +23,8 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       showRewards: z.boolean().optional().default(false).describe('Include block rewards in transaction results (default: false)'),
       maxSupportedTransactionVersion: z.number().optional().default(0).describe('Max transaction version to return. Defaults to 0, which includes versioned transactions (v0).')
     },
-    async (params) => {
+    async (params, extra) => {
+      const ctx = contextFromExtra(extra);
       let err;
       err = validateEnum(params.commitment, ['processed', 'confirmed', 'finalized'], 'Transaction Subscribe Error', 'commitment');
       if (err) return err;
@@ -57,7 +59,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       }
 
       try {
-        const wsUrl = getEnhancedWebSocketUrl();
+        const wsUrl = getEnhancedWebSocketUrl(ctx);
 
         const filter: any = {};
         if (params.vote !== undefined) filter.vote = params.vote;
@@ -131,7 +133,8 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       encoding: z.string().optional().default('base58').describe('Account data encoding format. Values: "base58" (default), "base64", "base64+zstd" (compressed), "jsonParsed" (decoded if known program)'),
       commitment: z.string().optional().default('finalized').describe('Commitment level for change notifications. Values: "processed", "confirmed", "finalized" (default — most reliable)')
     },
-    async ({ account, encoding, commitment }) => {
+    async ({ account, encoding, commitment }, extra) => {
+      const ctx = contextFromExtra(extra);
       let err;
       err = validateEnum(encoding, ['base58', 'base64', 'base64+zstd', 'jsonParsed'], 'Account Subscribe Error', 'encoding');
       if (err) return err;
@@ -145,7 +148,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
       if (addrWarning) warnings.push(addrWarning);
 
       try {
-        const wsUrl = getEnhancedWebSocketUrl();
+        const wsUrl = getEnhancedWebSocketUrl(ctx);
 
         const subscriptionRequest = {
           jsonrpc: '2.0', id: 1,
@@ -200,10 +203,11 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     'getEnhancedWebSocketInfo',
     'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets. Fetches live from official documentation.',
     {},
-    async () => {
+    async (_args, extra) => {
+      const ctx = contextFromExtra(extra);
       let wsUrl: string;
       try {
-        wsUrl = getEnhancedWebSocketUrl();
+        wsUrl = getEnhancedWebSocketUrl(ctx);
       } catch (err) {
         return handleToolError(err, 'Enhanced WebSocket Error');
       }

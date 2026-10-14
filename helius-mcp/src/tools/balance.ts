@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, getErrorMessage, handleToolError, addressError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerBalanceTools(server: McpServer) {
   // Get SOL Balance
@@ -13,10 +14,11 @@ export function registerBalanceTools(server: McpServer) {
     {
       address: z.string().describe('Solana wallet address (base58 encoded)')
     },
-    async ({ address }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const balance = await helius.getBalance(address);
         const lamports = Number(balance.value);
 
@@ -36,9 +38,10 @@ export function registerBalanceTools(server: McpServer) {
     {
       address: z.string().describe('Solana wallet address (base58 encoded)')
     },
-    async ({ address }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ address }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       type Asset = {
         id: string;

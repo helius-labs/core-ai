@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, handleToolError, addressError, missingParamError } from '../utils/errors.js';
 import { formatSol, formatAddress } from '../utils/formatters.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const bigintReplacer = (_: string, v: any) => typeof v === 'bigint' ? Number(v) : v;
@@ -19,13 +20,14 @@ export function registerZkCompressionTools(server: McpServer) {
       address: z.string().optional().describe('Compressed account address (base58). Provide address or hash (at least one required).'),
       hash: z.string().optional().describe('Compressed account hash (base58). Provide address or hash (at least one required).'),
     },
-    async ({ address, hash }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, hash }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       if (!address && !hash) {
         return missingParamError('getCompressedAccount', 'Provide at least one of `address` or `hash`.');
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedAccount({
           address: address ?? null,
           hash,
@@ -65,10 +67,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ owner, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ owner, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedAccountsByOwner({
           owner,
           cursor: cursor ?? null,
@@ -106,13 +109,14 @@ export function registerZkCompressionTools(server: McpServer) {
       addresses: z.array(z.string()).optional().describe('Array of compressed account addresses (base58). Provide addresses or hashes (at least one required).'),
       hashes: z.array(z.string()).optional().describe('Array of compressed account hashes (base58). Provide addresses or hashes (at least one required).'),
     },
-    async ({ addresses, hashes }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ addresses, hashes }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       if (!addresses?.length && !hashes?.length) {
         return missingParamError('getMultipleCompressedAccounts', 'Provide at least one of `addresses` or `hashes`.');
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getMultipleCompressedAccounts({
           addresses: addresses ?? null,
           hashes: hashes ?? null,
@@ -149,13 +153,14 @@ export function registerZkCompressionTools(server: McpServer) {
       address: z.string().optional().describe('Compressed account address (base58). Provide address or hash (at least one required).'),
       hash: z.string().optional().describe('Compressed account hash (base58). Provide address or hash (at least one required).'),
     },
-    async ({ address, hash }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, hash }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       if (!address && !hash) {
         return missingParamError('getCompressedBalance', 'Provide at least one of `address` or `hash`.');
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedBalance({
           address: address ?? null,
           hash: hash ?? null,
@@ -177,10 +182,11 @@ export function registerZkCompressionTools(server: McpServer) {
     {
       owner: z.string().min(1).describe('Owner wallet address (base58)'),
     },
-    async ({ owner }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ owner }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedBalanceByOwner({ owner });
         const lamports = result.value;
         return mcpText(`**Compressed Balance for ${formatAddress(owner)}** (slot ${result.context.slot})\n\n${formatSol(lamports)} (${lamports.toLocaleString()} lamports)`);
@@ -202,10 +208,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ mint, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ mint, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedMintTokenHolders({
           mint,
           cursor: cursor ?? null,
@@ -242,13 +249,14 @@ export function registerZkCompressionTools(server: McpServer) {
       address: z.string().optional().describe('Compressed token account address (base58). Provide address or hash (at least one required).'),
       hash: z.string().optional().describe('Compressed token account hash (base58). Provide address or hash (at least one required).'),
     },
-    async ({ address, hash }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, hash }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       if (!address && !hash) {
         return missingParamError('getCompressedTokenAccountBalance', 'Provide at least one of `address` or `hash`.');
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedTokenAccountBalance({
           address: address ?? null,
           hash: hash ?? null,
@@ -272,10 +280,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ owner, mint, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ owner, mint, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedTokenAccountsByOwner({
           owner,
           mint: mint ?? null,
@@ -318,10 +327,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ delegate, mint, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ delegate, mint, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedTokenAccountsByDelegate({
           delegate,
           mint: mint ?? null,
@@ -364,10 +374,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ owner, mint, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ owner, mint, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedTokenBalancesByOwnerV2({
           owner,
           mint: mint ?? null,
@@ -406,10 +417,11 @@ export function registerZkCompressionTools(server: McpServer) {
     {
       hash: z.string().min(1).describe('Compressed account hash (base58, 32-byte leaf hash)'),
     },
-    async ({ hash }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ hash }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressedAccountProof({ hash });
         const proof = result.value;
         const lines = [
@@ -437,10 +449,11 @@ export function registerZkCompressionTools(server: McpServer) {
     {
       hashes: z.array(z.string().min(1)).describe('Array of compressed account hashes (base58, 32-byte leaf hashes)'),
     },
-    async ({ hashes }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ hashes }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         // SDK takes a bare string[] for this method
         const result = await helius.zk.getMultipleCompressedAccountProofs(hashes);
         const proofs = result.value ?? [];
@@ -470,10 +483,11 @@ export function registerZkCompressionTools(server: McpServer) {
         tree: z.string().min(1).describe('Merkle tree address (base58)'),
       })).describe('Array of address-tree pairs'),
     },
-    async ({ addresses }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ addresses }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         // SDK takes a bare AddressWithTree[] for this method
         const result = await helius.zk.getMultipleNewAddressProofsV2(addresses);
         const proofs = result.value ?? [];
@@ -502,10 +516,11 @@ export function registerZkCompressionTools(server: McpServer) {
     {
       hash: z.string().min(1).describe('Compressed account hash (base58, 32-byte leaf hash)'),
     },
-    async ({ hash }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ hash }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressionSignaturesForAccount({ hash });
         const items = result.value.items ?? [];
         if (items.length === 0) {
@@ -537,10 +552,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ address, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressionSignaturesForAddress({
           address,
           cursor: cursor ?? null,
@@ -580,10 +596,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ owner, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ owner, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressionSignaturesForOwner({
           owner,
           cursor: cursor ?? null,
@@ -623,10 +640,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ owner, cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ owner, cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getCompressionSignaturesForTokenOwner({
           owner,
           cursor: cursor ?? null,
@@ -665,10 +683,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getLatestCompressionSignatures({
           cursor: cursor ?? null,
           limit: limit ?? null,
@@ -704,10 +723,11 @@ export function registerZkCompressionTools(server: McpServer) {
       cursor: z.string().optional().describe('Pagination cursor from previous response'),
       limit: z.number().optional().default(20).describe('Max results per page (default 20)'),
     },
-    async ({ cursor, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ cursor, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getLatestNonVotingSignatures({
           cursor: cursor ?? null,
           limit: limit ?? null,
@@ -746,10 +766,11 @@ export function registerZkCompressionTools(server: McpServer) {
     {
       signature: z.string().min(1).describe('Transaction signature (base58)'),
     },
-    async ({ signature }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ signature }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getTransactionWithCompressionInfo({ signature });
         if (!result) {
           return mcpText(`**Transaction ${signature}**\n\nTransaction not found or has no compression info.`);
@@ -801,13 +822,14 @@ export function registerZkCompressionTools(server: McpServer) {
         tree: z.string().min(1).describe('Merkle tree address (base58)'),
       })).optional().describe('New address-tree pairs for non-inclusion proofs'),
     },
-    async ({ hashes, newAddressesWithTrees }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ hashes, newAddressesWithTrees }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       if (!hashes?.length && !newAddressesWithTrees?.length) {
         return missingParamError('getValidityProof', 'Provide at least one of `hashes` or `newAddressesWithTrees`.');
       }
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getValidityProof({
           hashes: hashes ?? null,
           newAddressesWithTrees: newAddressesWithTrees ?? null,
@@ -839,10 +861,11 @@ export function registerZkCompressionTools(server: McpServer) {
     'getIndexerHealth',
     'BEST FOR: checking if the ZK Compression indexer is healthy and responsive. Credit cost: 10 credits (ZK Compression RPC).',
     {},
-    async () => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async (_args, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getIndexerHealth();
         return mcpText(`**ZK Compression Indexer Health**\n\nStatus: **${result}**`);
       } catch (err) {
@@ -855,10 +878,11 @@ export function registerZkCompressionTools(server: McpServer) {
     'getIndexerSlot',
     'BEST FOR: checking the latest slot processed by the ZK Compression indexer. Useful for monitoring indexer lag. Credit cost: 10 credits (ZK Compression RPC).',
     {},
-    async () => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async (_args, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.zk.getIndexerSlot();
         return mcpText(`**ZK Compression Indexer Slot**\n\nLatest indexed slot: **${result.toLocaleString()}**`);
       } catch (err) {

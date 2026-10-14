@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { mcpText, mcpError, handleToolError, addressError, notFoundError, paginationError } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerDasExtraTools(server: McpServer) {
   server.tool(
@@ -12,10 +13,11 @@ export function registerDasExtraTools(server: McpServer) {
     {
       id: z.string().describe('Compressed NFT mint address (base58 encoded)')
     },
-    async ({ id }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ id }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const proof = await helius.getAssetProof({ id });
         return mcpText(`**Merkle Proof for ${formatAddress(id)}**\n\n**Root:** ${formatAddress(proof.root)}\n**Leaf:** ${formatAddress(proof.leaf)}\n**Tree ID:** ${formatAddress(proof.tree_id)}\n**Proof Length:** ${proof.proof.length} nodes`);
       } catch (err) {
@@ -34,8 +36,9 @@ export function registerDasExtraTools(server: McpServer) {
     {
       ids: z.array(z.string()).describe('Array of cNFT mint addresses (base58 encoded, up to 1000)')
     },
-    async ({ ids }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ ids }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
         if (ids.length > 1000) {
           return mcpError(
@@ -43,7 +46,7 @@ export function registerDasExtraTools(server: McpServer) {
             { type: 'VALIDATION', code: 'TOO_MANY_ITEMS', retryable: false, recovery: 'Reduce batch to 1000 or fewer.' }
           );
         }
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.getAssetProofBatch({ ids });
         const proofsArray = Array.isArray(result) ? result : Object.values(result);
         return mcpText(`**Batch Merkle Proofs** (${proofsArray.length})\n\n${proofsArray.map((p: any, i: number) => `${i + 1}. ${formatAddress(ids[i])}\n   Root: ${formatAddress(p.root)}`).join('\n\n')}`);
@@ -64,10 +67,11 @@ export function registerDasExtraTools(server: McpServer) {
       page: z.number().optional().default(1).describe('Page number for pagination (default: 1)'),
       limit: z.number().optional().default(20).describe('Results per page, max 1000 (default: 20)')
     },
-    async ({ id, page, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ id, page, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.getSignaturesForAsset({ id, page, limit });
         if (!result.items?.length) {
           return mcpText(`**Signatures for ${formatAddress(id)}**\n\nNo transactions found.`);
@@ -97,10 +101,11 @@ export function registerDasExtraTools(server: McpServer) {
       page: z.number().optional().default(1).describe('Page number for pagination (default: 1)'),
       limit: z.number().optional().default(20).describe('Results per page, max 1000 (default: 20)')
     },
-    async ({ mint, page, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ mint, page, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.getNftEditions({ mint, page, limit });
         if (!result.editions?.length) {
           return mcpText(`**Editions for ${formatAddress(mint)}**\n\nNo editions found.`);

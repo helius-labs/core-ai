@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerBlockTools(server: McpServer) {
   server.tool(
@@ -13,14 +14,15 @@ export function registerBlockTools(server: McpServer) {
       slot: z.number().describe('Slot number of the block to fetch'),
       transactionDetails: z.string().optional().default('signatures').describe('"none" = block metadata only, "signatures" = list of tx signatures (default), "full" = complete transaction data')
     },
-    async ({ slot, transactionDetails }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ slot, transactionDetails }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       const err = validateEnum(transactionDetails, ['none', 'signatures', 'full'], 'Block Error', 'transactionDetails');
       if (err) return err;
 
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
 
         // Kit requires BigInt for slot parameter
         const block = await (helius as any).getBlock(BigInt(slot), {

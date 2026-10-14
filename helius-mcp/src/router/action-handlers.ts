@@ -110,6 +110,29 @@ class ActionHandlerCollector {
       throw new Error(`Action handler "${name}" is missing a callable handler`);
     }
 
+    // Handlers are invoked as `handler(args, extra)`, so one written
+    // `async (extra) => ...` binds its only parameter to *args* and silently
+    // drops the request context. TypeScript accepts it — a 1-arity function is
+    // assignable to a 2-arity signature — and the result type-checks, runs, and
+    // returns plausible output built from the wrong credential.
+    //
+    // Checked at registration rather than by scanning source: a renamed
+    // parameter or a differently quoted tool name defeats a scanner, while
+    // arity is what the call site actually depends on. An empty-schema tool
+    // that wants no args declares `(_args, extra)`.
+    const schemaIsEmpty = inputSchema !== undefined
+      && typeof inputSchema === 'object'
+      && inputSchema !== null
+      && Object.keys(inputSchema).length === 0;
+
+    if (schemaIsEmpty && handler.length === 1) {
+      throw new Error(
+        `Action handler "${name}" takes no arguments but declares one parameter. `
+        + 'Handlers are called as (args, extra), so that parameter binds to args — '
+        + 'always {} here — and the request context is discarded. Use (_args, extra).',
+      );
+    }
+
     this.tools.set(name as ActionName, {
       name: name as ActionName,
       description,

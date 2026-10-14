@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatSol } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError, addressError, paginationError, missingParamError, exclusiveParamError, batchLimitError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 function formatParsedAccountData(account: {
   data: unknown;
@@ -45,8 +46,9 @@ export function registerAccountTools(server: McpServer) {
       addresses: z.array(z.string()).optional().describe('Array of account addresses for batch lookup (base58 encoded, up to 100). Use this OR address, not both.'),
       encoding: z.string().optional().default('jsonParsed').describe('Data encoding format')
     },
-    async ({ address, addresses, encoding }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, addresses, encoding }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       const err = validateEnum(encoding, ['base58', 'base64', 'jsonParsed'], 'Account Info Error', 'encoding');
       if (err) return err;
@@ -61,7 +63,7 @@ export function registerAccountTools(server: McpServer) {
       }
 
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
 
         // --- Batch mode ---
         if (addresses && addresses.length > 0) {
@@ -140,9 +142,10 @@ export function registerAccountTools(server: McpServer) {
       page: z.number().optional().default(1).describe('Page number (starts at 1)'),
       limit: z.number().optional().default(20).describe('Results per page (max 1000)')
     },
-    async ({ owner, mint, page, limit }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ owner, mint, page, limit }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       if (!owner && !mint) {
         return missingParamError('getTokenAccounts', 'Provide at least one of: `owner` or `mint` address.');
@@ -222,13 +225,14 @@ export function registerAccountTools(server: McpServer) {
       dataSize: z.number().optional().describe('Filter by exact account data size in bytes (e.g. 165 for SPL token accounts)'),
       paginationKey: z.string().optional().describe('Pagination cursor from a previous response to fetch the next page')
     },
-    async ({ programId, limit, encoding, dataSize, paginationKey }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ programId, limit, encoding, dataSize, paginationKey }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       const encErr = validateEnum(encoding, ['base58', 'base64', 'jsonParsed'], 'Program Accounts Error', 'encoding');
       if (encErr) return encErr;
 
-      const helius = getHeliusClient();
+      const helius = getHeliusClient(ctx);
       const cappedLimit = Math.min(limit, 10_000);
 
       type Filter = { dataSize: number };

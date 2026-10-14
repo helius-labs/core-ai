@@ -4,6 +4,7 @@ import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSolCompact } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, handleToolError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerNetworkTools(server: McpServer) {
   server.tool(
@@ -12,11 +13,12 @@ export function registerNetworkTools(server: McpServer) {
     {
       samples: z.number().optional().default(4).describe('Number of recent performance samples for TPS calculation (each sample ≈ 60s). Default 4 (~4 min). Max 720 (~12 hours).'),
     },
-    async ({ samples }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ samples }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
 
         // Fire all requests in parallel — Kit returns bigint for numeric fields
         // wrapAutoSend in the SDK already calls .send() on pending RPC requests

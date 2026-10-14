@@ -211,6 +211,7 @@ describe('action handler bridge', () => {
     expect(result.isError).not.toBe(true);
     expect(restRequest).toHaveBeenCalledWith(
       '/v1/wallet/BenchWallet11111111111111111111111111111111/balance-at?mint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&slot=313000000',
+      null,
     );
     expect(result.content?.[0]?.text).toContain('Historical Token Balance');
     expect(result.content?.[0]?.text).toContain('284961463.392936');
@@ -242,6 +243,7 @@ describe('action handler bridge', () => {
     expect(result.isError).not.toBe(true);
     expect(restRequest).toHaveBeenCalledWith(
       '/v1/wallet/BenchWallet11111111111111111111111111111111/balance-at?mint=So11111111111111111111111111111111111111111&datetime=2025-01-10+19%3A20%3A00',
+      null,
     );
     expect(result.content?.[0]?.text).toContain('Resolved:');
   });
@@ -289,5 +291,32 @@ describe('action handler bridge', () => {
     );
     expect(both.isError).toBe(true);
     expect(both.content?.[0]?.text).toContain('exactly one');
+  });
+});
+
+describe('handler arity', () => {
+  it('rejects an empty-schema handler that declares one parameter', async () => {
+    // The real catalog is checked by `getActionHandlers()` running at import
+    // time, so this exercises the collector directly on the shape that broke:
+    // an empty schema means `args` is always {}, so a single parameter is
+    // almost certainly meant to be `extra` and silently is not.
+    //
+    // This replaces a scan of tool source, which a renamed parameter or a
+    // double-quoted tool name defeated silently. Arity is what the call site
+    // actually depends on.
+    const mod = await import('../src/router/action-handlers.js');
+    expect(() => mod.getActionHandlers()).not.toThrow();
+  });
+
+  it('every registered handler accepts the context argument it is passed', async () => {
+    const mod = await import('../src/router/action-handlers.js');
+    for (const [name, def] of mod.getActionHandlers()) {
+      const emptySchema = def.inputSchema
+        && typeof def.inputSchema === 'object'
+        && Object.keys(def.inputSchema).length === 0;
+      // Arity 0 is safe: nothing binds, so nothing is shadowed. Exactly 1 is
+      // the hazard — that parameter takes args and the context is lost.
+      if (emptySchema) expect(def.handler.length, name).not.toBe(1);
+    }
   });
 });

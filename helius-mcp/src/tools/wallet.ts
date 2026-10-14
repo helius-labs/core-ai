@@ -5,6 +5,7 @@ import { getHeliusClient, hasApiKey, restRequest } from '../utils/helius.js';
 import { formatAddress, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerWalletTools(server: McpServer) {
   // ─── Get Wallet Identity ───
@@ -14,11 +15,12 @@ export function registerWalletTools(server: McpServer) {
     {
       address: z.string().describe('Solana wallet address (base58) or SNS/ANS domain (e.g., toly.sol, helius.bonk — mainnet only)')
     },
-    async ({ address }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const client = getHeliusClient();
+        const client = getHeliusClient(ctx);
         // TODO: drop `any` once helius-sdk types include inputDomain on the identity response
         const data = await client.wallet.getIdentity({ wallet: address }) as any;
 
@@ -46,8 +48,9 @@ export function registerWalletTools(server: McpServer) {
     {
       entries: z.array(z.string()).describe('Array of up to 100 entries — each a base58 address or SNS/ANS domain')
     },
-    async ({ entries }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ entries }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       if (entries.length > 100) {
         return mcpError(
@@ -57,7 +60,7 @@ export function registerWalletTools(server: McpServer) {
       }
 
       try {
-        const client = getHeliusClient();
+        const client = getHeliusClient(ctx);
         const results = await client.wallet.getBatchIdentity({ addresses: entries });
 
         if (results.length === 0) {
@@ -108,11 +111,12 @@ export function registerWalletTools(server: McpServer) {
       showZeroBalance: z.boolean().optional().default(false).describe('Include tokens with zero balance'),
       showNative: z.boolean().optional().default(true).describe('Include native SOL balance')
     },
-    async ({ address, page, limit, showNfts, showZeroBalance, showNative }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, page, limit, showNfts, showZeroBalance, showNative }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const client = getHeliusClient();
+        const client = getHeliusClient(ctx);
         const data = await client.wallet.getBalances({
           wallet: address,
           page,
@@ -179,8 +183,9 @@ export function registerWalletTools(server: McpServer) {
       datetime: z.string().optional().describe('Datetime string (e.g. "2025-01-10" or "2025-01-10T19:20:00Z"). Interpreted as UTC unless an explicit timezone is included. Provide exactly one of time, datetime, or slot'),
       slot: z.number().optional().describe('Slot number — exact and deterministic. Provide exactly one of time, datetime, or slot')
     },
-    async ({ address, mint, time, datetime, slot }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, mint, time, datetime, slot }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       const provided = [time !== undefined, datetime !== undefined, slot !== undefined].filter(Boolean).length;
       if (provided !== 1) {
@@ -196,7 +201,7 @@ export function registerWalletTools(server: McpServer) {
         if (datetime !== undefined) params.set('datetime', datetime);
         if (slot !== undefined) params.set('slot', String(slot));
 
-        const data = await restRequest(`/v1/wallet/${address}/balance-at?${params.toString()}`);
+        const data = await restRequest(`/v1/wallet/${address}/balance-at?${params.toString()}`, ctx);
 
         const symbol = data.isNative ? 'SOL' : formatAddress(data.mint || mint);
         const lines = ['**Historical Token Balance**', ''];
@@ -239,14 +244,15 @@ export function registerWalletTools(server: McpServer) {
       type: z.string().optional().describe('Filter by transaction type (e.g. SWAP, TRANSFER, NFT_SALE)'),
       tokenAccounts: z.string().optional().default('balanceChanged').describe('"none" = only direct transactions, "balanceChanged" = include token transfers (default), "all" = all token account activity')
     },
-    async ({ address, limit, before, after, type, tokenAccounts }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, limit, before, after, type, tokenAccounts }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       const err = validateEnum(tokenAccounts, ['none', 'balanceChanged', 'all'], 'Wallet History Error', 'tokenAccounts');
       if (err) return err;
 
       try {
-        const client = getHeliusClient();
+        const client = getHeliusClient(ctx);
         const data = await client.wallet.getHistory({
           wallet: address,
           limit: Math.min(limit, 100),
@@ -309,11 +315,12 @@ export function registerWalletTools(server: McpServer) {
       limit: z.number().optional().default(50).describe('Number of results (max 100)'),
       cursor: z.string().optional().describe('Pagination cursor from previous response')
     },
-    async ({ address, limit, cursor }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address, limit, cursor }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const client = getHeliusClient();
+        const client = getHeliusClient(ctx);
         const data = await client.wallet.getTransfers({
           wallet: address,
           limit: Math.min(limit, 100),
@@ -363,11 +370,12 @@ export function registerWalletTools(server: McpServer) {
     {
       address: z.string().describe('Solana wallet address (base58 encoded)')
     },
-    async ({ address }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ address }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       try {
-        const client = getHeliusClient();
+        const client = getHeliusClient(ctx);
         const data = await client.wallet.getFundedBy({ wallet: address });
 
         const lines = ['**Wallet Funding Source**', ''];

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 export function registerFeeTools(server: McpServer) {
   // Get Priority Fee Estimate
@@ -14,8 +15,9 @@ export function registerFeeTools(server: McpServer) {
       priorityLevel: z.string().optional().describe('Desired priority level. Values: "Min", "Low", "Medium", "High", "VeryHigh", "UnsafeMax". Returns the estimated fee in microlamports/compute unit for that level. Used when includeAllLevels is false.'),
       includeAllLevels: z.boolean().optional().default(true).describe('Return fees for all priority levels')
     },
-    async ({ accountKeys, priorityLevel, includeAllLevels }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ accountKeys, priorityLevel, includeAllLevels }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       if (priorityLevel) {
         const err = validateEnum(priorityLevel, ['Min', 'Low', 'Medium', 'High', 'VeryHigh', 'UnsafeMax'], 'Priority Fee Estimate', 'priority level');
@@ -23,7 +25,7 @@ export function registerFeeTools(server: McpServer) {
       }
 
       try {
-        const helius = getHeliusClient();
+        const helius = getHeliusClient(ctx);
         const result = await helius.getPriorityFeeEstimate({
           ...(accountKeys && { accountKeys }),
           options: {

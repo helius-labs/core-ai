@@ -5,6 +5,7 @@ import { formatSol, formatAddress, formatTimestamp, LAMPORTS_PER_SOL } from '../
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, getErrorMessage, validateEnum, handleToolError, http400Error } from '../utils/errors.js';
 import bs58 from 'bs58';
+import { contextFromExtra } from '../utils/request-context.js';
 
 // ─── Shared Types ───
 
@@ -266,9 +267,10 @@ export function registerTransactionTools(server: McpServer) {
       signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded, 86-88 characters). Can be 1 or more.'),
       showRaw: z.boolean().optional().default(false).describe('Include raw instruction data: program IDs, accounts, inner instructions. Useful for debugging or tracing fund flows.')
     },
-    async ({ signatures, showRaw }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ signatures, showRaw }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       // Validate signature formats before hitting the API
       const { valid: validSigs, invalid: invalidSigs } = validateSignatures(signatures);
@@ -510,8 +512,9 @@ export function registerTransactionTools(server: McpServer) {
       commitment: z.string().optional().describe('Commitment level: "processed" | "confirmed" | "finalized".'),
       addresses: z.array(z.string()).optional().describe('Optional account addresses (base58) to return post-simulation state for.')
     },
-    async ({ transaction, sigVerify, replaceRecentBlockhash, commitment, addresses }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
+    async ({ transaction, sigVerify, replaceRecentBlockhash, commitment, addresses }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
 
       if (typeof transaction !== 'string' || transaction.trim().length === 0) {
         return mcpError('A base64-encoded transaction string is required.', {
@@ -527,7 +530,7 @@ export function registerTransactionTools(server: McpServer) {
         if (err) return err;
       }
 
-      const helius = getHeliusClient();
+      const helius = getHeliusClient(ctx);
 
       // sigVerify and replaceRecentBlockhash are mutually exclusive at the RPC layer.
       const verify = sigVerify === true;
@@ -632,9 +635,10 @@ export function registerTransactionTools(server: McpServer) {
       slotGte: z.number().optional().describe('Filter: slot >= this value'),
       slotLte: z.number().optional().describe('Filter: slot <= this value')
     },
-    async ({ address, mode, limit, sortOrder, before, until, paginationToken, transactionDetails, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    async ({ address, mode, limit, sortOrder, before, until, paginationToken, transactionDetails, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       let err;
       err = validateEnum(mode, ['parsed', 'signatures', 'raw'], 'Transaction History Error', 'mode');
@@ -959,9 +963,10 @@ export function registerTransactionTools(server: McpServer) {
       blockTimeLte,
       slotGte,
       slotLte,
-    }) => {
-      if (!hasApiKey()) return noApiKeyResponse();
-      const helius = getHeliusClient();
+    }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      const helius = getHeliusClient(ctx);
 
       let err;
       err = validateEnum(direction, ['in', 'out', 'any'], 'Transfers By Address Error', 'direction');

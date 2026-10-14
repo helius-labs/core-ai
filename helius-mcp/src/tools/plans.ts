@@ -9,6 +9,7 @@ import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { MCP_USER_AGENT } from '../http.js';
 import { PRODUCT_CATALOG, PLAN_RANK } from './product-catalog.js';
+import { contextFromExtra } from '../utils/request-context.js';
 
 /**
  * Static plan metadata — NOT the source of truth for pricing or billing data.
@@ -197,9 +198,10 @@ export function registerPlanTools(server: McpServer) {
     'getAccountPlan',
     'Lightweight pre-flight check: returns current plan, credit balance, and which MCP tools require an upgrade. 0 credits. Call before gated tools (transactionSubscribe, laserstreamSubscribe, etc.).',
     {},
-    async () => {
+    async (_args, extra) => {
+      const ctx = contextFromExtra(extra);
       // ── Tier 1: not authenticated at all ──
-      if (!hasApiKey()) {
+      if (!hasApiKey(ctx)) {
         return mcpText(
           `## Account Plan\n\n` +
           `**Auth:** Not authenticated\n\n` +
@@ -210,7 +212,7 @@ export function registerPlanTools(server: McpServer) {
       }
 
       // ── Tier 2: API key present but no JWT ──
-      const jwt = getJwt();
+      const jwt = getJwt(ctx);
       if (!jwt) {
         return mcpText(
           `## Account Plan\n\n` +
