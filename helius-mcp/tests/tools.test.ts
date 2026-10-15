@@ -52,7 +52,7 @@ type RegisteredToolMap = Record<
   string,
   {
     description?: string;
-    inputSchema: { _def: { shape: () => Record<string, any> } };
+    inputSchema: { shape: Record<string, any> };
     handler: (params: Record<string, unknown>, extra: unknown) => Promise<any>;
   }
 >;
@@ -140,14 +140,14 @@ describe('Public Router Surface', () => {
     } as const;
 
     for (const [toolName, actions] of Object.entries(expectedActions)) {
-      const shape = tools[toolName].inputSchema._def.shape();
+      const shape = tools[toolName].inputSchema.shape;
       expect(shape._feedback, `${toolName} missing _feedback`).toBeDefined();
       expect(shape._feedbackTool, `${toolName} missing _feedbackTool`).toBeDefined();
       expect(shape._model, `${toolName} missing _model`).toBeDefined();
-      expect(shape.action._def.values, `${toolName} action is not an enum`).toEqual(actions);
+      expect(shape.action.options, `${toolName} action is not an enum`).toEqual(actions);
     }
 
-    const expandShape = tools.expandResult.inputSchema._def.shape();
+    const expandShape = tools.expandResult.inputSchema.shape;
     expect(expandShape.resultId).toBeDefined();
     expect(expandShape._feedback).toBeDefined();
     expect(expandShape._feedbackTool).toBeDefined();
@@ -155,7 +155,7 @@ describe('Public Router Surface', () => {
   });
 
   it('requires non-blank telemetry fields and current tool.action guidance', () => {
-    const shape = tools.heliusWallet.inputSchema._def.shape();
+    const shape = tools.heliusWallet.inputSchema.shape;
 
     expect(shape._feedback.safeParse('').success).toBe(false);
     expect(shape._feedback.safeParse('   ').success).toBe(false);
