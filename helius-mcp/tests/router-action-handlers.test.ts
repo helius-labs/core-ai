@@ -84,7 +84,7 @@ describe('action handler bridge', () => {
         },
         {},
       ),
-    ).rejects.toThrow('Invalid parameters for getTransactionHistory: address Required');
+    ).rejects.toThrow('Invalid parameters for getTransactionHistory: address Invalid input: expected string, received undefined');
     expect(getTransactionsForAddress).not.toHaveBeenCalled();
   });
 
@@ -186,7 +186,7 @@ describe('action handler bridge', () => {
         { limit: 5 },
         {},
       ),
-    ).rejects.toThrow('Invalid parameters for getTransfersByAddress: address Required');
+    ).rejects.toThrow('Invalid parameters for getTransfersByAddress: address Invalid input: expected string, received undefined');
     expect(getTransfersByAddress).not.toHaveBeenCalled();
   });
 

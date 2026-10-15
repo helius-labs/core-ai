@@ -59,7 +59,8 @@ function buildRuntimeSchema(inputSchema: unknown): z.ZodObject<ZodRawShape> | nu
     return null;
   }
 
-  const rawShape: ZodRawShape = {};
+  // Zod 4 types `ZodRawShape` as read-only, so collect into a plain record.
+  const rawShape: Record<string, ZodTypeAny> = {};
   for (const [key, value] of Object.entries(inputSchema)) {
     if (isZodType(value)) {
       rawShape[key] = value;
