@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius-jupiter/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
-<!-- Version: 1.2.0 -->
+<!-- Version: 1.2.1 -->
 
 ## Runtime Notes
 

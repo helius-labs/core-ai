@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
-<!-- Version: 1.1.2 -->
+<!-- Version: 1.1.3 -->
 
 
 # Helius — Build on Solana
@@ -2838,7 +2838,7 @@ Stream real-time transactions with advanced filtering. Use the `transactionSubsc
 - `encoding`: `base58`, `base64`, `jsonParsed`
 - `transactionDetails`: `full`, `signatures`, `accounts`, `none`
 - `showRewards`: include reward data
-- `maxSupportedTransactionVersion`: set to `0` to receive both legacy and versioned transactions (required when `transactionDetails` is `accounts` or `full`)
+- `maxSupportedTransactionVersion`: set to `1` to receive legacy and versioned transactions, v0 and v1 included (required when `transactionDetails` is `accounts` or `full`)
 
 ```typescript
 ws.on('open', () => {
@@ -2856,7 +2856,7 @@ ws.on('open', () => {
         commitment: 'confirmed',
         encoding: 'jsonParsed',
         transactionDetails: 'full',
-        maxSupportedTransactionVersion: 0
+        maxSupportedTransactionVersion: 1
       }
     ]
   }));
@@ -3095,7 +3095,7 @@ For Standard WebSockets:
 - ALWAYS implement auto-reconnection with exponential backoff
 - Use `accountRequired` for stricter matching (AND logic) vs `accountInclude` (OR logic)
 - Set `vote: false` and `failed: false` to reduce noise unless you specifically need those
-- Set `maxSupportedTransactionVersion: 0` to receive both legacy and versioned transactions
+- Set `maxSupportedTransactionVersion: 1` to receive legacy and versioned transactions, v0 and v1 included
 - Use `jsonParsed` encoding for human-readable data; `base64` for raw processing
 - Use the MCP tools (`transactionSubscribe`, `accountSubscribe`) to generate correct configs before embedding in user code
 - For standard WebSockets, use `confirmed` commitment for most use cases
@@ -3105,7 +3105,7 @@ For Standard WebSockets:
 - Not implementing ping keepalive — connection silently drops after 10 minutes of inactivity
 - Not implementing auto-reconnection — WebSocket disconnects are normal and expected
 - Confusing `accountInclude` (OR — any match) with `accountRequired` (AND — all must match)
-- Not setting `maxSupportedTransactionVersion: 0` — misses versioned transactions
+- Setting `maxSupportedTransactionVersion` to `0` or leaving it unset — v1 transactions are live on mainnet, and requests that reach one fail with `Transaction version (1) is not supported`
 - Using Enhanced WebSocket features on Free plan — requires Developer+
 - Subscribing without filters on `transactionSubscribe` — streams ALL network transactions, extreme volume
 - Using `blockSubscribe`, `slotsUpdatesSubscribe`, or `voteSubscribe` — these are unstable and not supported on Helius
