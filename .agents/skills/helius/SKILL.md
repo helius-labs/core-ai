@@ -2,7 +2,7 @@
 
 ---
 name: helius
-version: "1.1.2"
+version: "1.1.3"
 description: >
   Build Solana applications with Helius infrastructure. Use this skill when:
   sending transactions (SOL, SPL tokens, swaps), querying assets/NFTs (DAS API),

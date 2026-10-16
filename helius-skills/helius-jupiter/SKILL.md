@@ -4,7 +4,7 @@ description: Build Solana DeFi applications combining Jupiter APIs with Helius i
 license: MIT
 metadata:
   author: Helius Labs
-  version: "1.2.0"
+  version: "1.2.1"
   tags:
     - solana
     - defi

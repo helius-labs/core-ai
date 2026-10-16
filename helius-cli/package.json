@@ -1,6 +1,6 @@
 {
   "name": "helius-cli",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "CLI to create and manage Helius accounts, with OAuth/PKCE browser-based login",
   "homepage": "https://www.helius.dev/cli.md",
   "repository": {

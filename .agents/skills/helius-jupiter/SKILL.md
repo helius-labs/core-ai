@@ -2,7 +2,7 @@
 
 ---
 name: helius-jupiter
-version: "1.2.0"
+version: "1.2.1"
 description: >
   Build Solana DeFi applications combining Jupiter APIs with Helius
   infrastructure. Use this skill when: building token swap UIs or trading terminals,

@@ -306,7 +306,7 @@ function monitorTradeConfirmation(
           {
             commitment: 'confirmed',
             encoding: 'jsonParsed',
-            maxSupportedTransactionVersion: 0,
+            maxSupportedTransactionVersion: 1,
           }
         ]
       }));
