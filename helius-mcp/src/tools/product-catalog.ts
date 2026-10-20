@@ -6,12 +6,17 @@
 
 export interface CatalogProduct {
   name: string;
+  /** MCP actions that use this product. Empty only when `integration` says how an app uses it instead. */
   mcpTools: string[];
   creditCostPerCall: string;
   minimumPlan: string;
   docKey: string;
   referenceFile?: string;
   description: string;
+  /** Lifecycle label shown next to the name. Omitted for generally available products. */
+  status?: 'beta' | 'legacy';
+  /** How an app calls the product directly (endpoint or SDK entry point). Required when no MCP action uses it. */
+  integration?: string;
 }
 
 // ─── Plan Ranking ───
@@ -46,7 +51,17 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     minimumPlan: 'agent',
     docKey: 'enhanced-transactions',
     referenceFile: 'references/enhanced-transactions.md',
-    description: 'Parse any transaction into human-readable format with types (SWAP, TRANSFER, NFT_SALE), descriptions, token transfers, and fees. Powers transaction history views and trade verification.',
+    status: 'legacy',
+    description: 'Parse any transaction into human-readable format with types (SWAP, TRANSFER, NFT_SALE), descriptions, token transfers, and fees. In maintenance mode: prefer Parsed Events for new builds, at a tenth of the credit cost. The MCP parseTransactions and getTransactionHistory actions still use this API.',
+  },
+  'parsed-events': {
+    name: 'Parsed Events API',
+    mcpTools: [],
+    creditCostPerCall: '10 credits per request',
+    minimumPlan: 'agent',
+    docKey: 'parsed-events',
+    integration: 'REST `POST https://mainnet.helius-rpc.com/v1/parsed-events/transactions` and `/v1/parsed-events/transaction-history`, or `helius.parsedEvents.parseTransactions()` / `getTransactionHistory()` in helius-sdk 3.3.0+. Mainnet only.',
+    description: 'Decode transactions through the IDL catalog into named instructions, arguments, and accounts, and fetch parsed transaction history for an address. Replaces the legacy Enhanced Transactions API.',
   },
   'wallet-api': {
     name: 'Wallet API',
@@ -64,7 +79,16 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     minimumPlan: 'agent',
     docKey: 'webhooks',
     referenceFile: 'references/webhooks.md',
-    description: 'HTTP POST notifications when monitored addresses have on-chain activity. Event-driven architecture without polling. Monitor up to 100k addresses per webhook. Filter by 150+ transaction types (SWAP, NFT_SALE, TRANSFER, etc.).',
+    description: 'HTTP POST notifications when monitored addresses have on-chain activity. Event-driven architecture without polling. Monitor up to 100k addresses per webhook. Filter by 150+ transaction types (SWAP, NFT_SALE, TRANSFER, etc.). For parsed real-time data in new builds, prefer Parsed Streams.',
+  },
+  'parsed-streams': {
+    name: 'Parsed Streams',
+    mcpTools: [],
+    creditCostPerCall: '1 credit per delivered event',
+    minimumPlan: 'agent',
+    docKey: 'parsed-streams',
+    integration: 'WebSocket `parsedTransactionSubscribe` on `wss://beta.helius-rpc.com`, or `makeParsedStreamsClient` from `helius-sdk/websockets/parsedStreams` (3.3.0+). `describeProgram` lists the instructions you can filter on.',
+    description: 'Decoded transactions pushed over WebSocket as they land, filtered server-side by program, instruction name, and account role. Successor to Enhanced Transaction webhooks for parsed real-time pipelines. Up to 25 subscriptions per connection.',
   },
   'enhanced-websockets': {
     name: 'Enhanced WebSockets',
@@ -83,6 +107,24 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     docKey: 'sender',
     referenceFile: 'references/sender.md',
     description: 'Submit transactions with SWQoS routing, staked connections, and Jito tip integration for optimal landing rates. Essential for trading bots, token launches, and any app that sends transactions.',
+  },
+  'mev-protect': {
+    name: 'MEV Protect',
+    mcpTools: [],
+    creditCostPerCall: 'Standard send pricing',
+    minimumPlan: 'agent',
+    docKey: 'mev-protect',
+    integration: 'Add `mev-protect=true` to the send endpoint URL, or pass `mevProtect: true` to `createHelius()` or the Sender helpers in helius-sdk 3.3.0+.',
+    description: 'Opt-in routing that keeps transactions away from validators statistically linked to sandwich attacks. Works with basic sendTransaction, sendBundle, Sender Max, and Sender SWQOS-only.',
+  },
+  'backrun-rebates': {
+    name: 'Backrun Rebates',
+    mcpTools: [],
+    creditCostPerCall: 'Standard send pricing',
+    minimumPlan: 'agent',
+    docKey: 'backrun-rebates',
+    integration: 'Add `rebate-address=<SOL address>` to a mainnet `sendTransaction` URL, or pass `rebateAddress` to `createHelius()`.',
+    description: 'Earn 50% of the MEV your transaction creates, paid automatically to an address you choose. Opt-in; only single-transaction requests on mainnet qualify.',
   },
   'priority-fee': {
     name: 'Priority Fee API',
@@ -118,7 +160,36 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     minimumPlan: 'business',
     docKey: 'laserstream',
     referenceFile: 'references/laserstream.md',
-    description: 'Lowest-latency gRPC streaming with 24h historical replay for production indexers, trading infrastructure, and data pipelines. Subscribe to all transactions, accounts, blocks, or entries on mainnet.',
+    description: 'Lowest-latency gRPC streaming with 48-hour historical replay for production indexers, trading infrastructure, and data pipelines. Subscribe to all transactions, accounts, blocks, or entries on mainnet.',
+  },
+  'pre-confirmations': {
+    name: 'Preconfirmations',
+    mcpTools: [],
+    creditCostPerCall: '10 credits per message, 300-credit minimum per subscription in slots that deliver messages',
+    minimumPlan: 'developer',
+    docKey: 'pre-confirmations',
+    integration: 'WebSocket `preconfSubscribe` on `wss://beta.helius-rpc.com`, or `makePreconfWsClientForApiKey` from `helius-sdk/websockets/preconfWs` (3.1.0+). `getPreConfCoverage` reports current coverage.',
+    description: 'The earliest transaction signal on Solana: transactions streamed before they are shredded, with execution status from Helius and pre-execution signals from Jito BAM. Filter by account, signer, signature, instruction, region, and source. Built for latency-critical trading.',
+  },
+  'preprocessed-transactions': {
+    name: 'Preprocessed Transactions',
+    mcpTools: [],
+    creditCostPerCall: '0.1 credits per message',
+    minimumPlan: 'developer',
+    docKey: 'preprocessed-transactions',
+    status: 'beta',
+    integration: 'WebSocket `preprocessedSubscribe` on `wss://beta.helius-rpc.com`. No SDK helper yet. 10 concurrent connections per API key.',
+    description: 'Pre-execution transaction data over WebSocket without deshredding, filtered by included, excluded, or required accounts. Successor to the preprocessed LaserStream gRPC feed, which will be deprecated.',
+  },
+  'gatekeeper': {
+    name: 'Gatekeeper',
+    mcpTools: [],
+    creditCostPerCall: 'No additional cost',
+    minimumPlan: 'agent',
+    docKey: 'gatekeeper',
+    status: 'beta',
+    integration: 'Replace `mainnet.helius-rpc.com` with `beta.helius-rpc.com` for HTTP and WebSocket traffic. LaserStream is not yet available on it.',
+    description: 'Opt-in next-generation endpoint for Helius RPC, WebSockets, DAS, ZK Compression, and Priority Fees, slated to become the default. It is also the only host for Parsed Streams, Preconfirmations, and Preprocessed Transactions.',
   },
   'token-transfers': {
     name: 'Token Transfers',
@@ -167,5 +238,34 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     docKey: 'das',
     referenceFile: 'references/das.md',
     description: 'Top 20 holders of any SPL token. Check token distribution, find whale wallets, verify decentralization. Useful for token launches and analytics.',
+  },
+  'admin-api': {
+    name: 'Admin API',
+    mcpTools: [],
+    creditCostPerCall: 'Rate-limited to 5 requests/s per project',
+    minimumPlan: 'agent',
+    docKey: 'admin-api',
+    integration: '`GET https://admin-api.helius.xyz/v0/admin/projects/{projectId}/usage` with an `X-Api-Key` header, or `helius.admin.getProjectUsage(projectId)`. The key must belong to that project.',
+    description: 'Credits used and remaining, the current credit cycle, subscription details, and per-service request counts for a project. For internal dashboards, usage alerts, and billing pipelines.',
+  },
+  'waas': {
+    name: 'Wallet-as-a-Service',
+    mcpTools: [],
+    creditCostPerCall: '200 credits per signature',
+    minimumPlan: 'developer',
+    docKey: 'waas',
+    status: 'beta',
+    integration: '`HeliusWalletProvider` and `useHeliusWallet` from the `helius-wallet-kit` npm package (React 18+). Signing happens client-side, so an API key alone cannot sign.',
+    description: 'Non-custodial embedded Solana wallets with passkey or email sign-in and no seed phrases. Keys are secured in Turnkey enclaves. For consumer apps that need wallets without a browser extension.',
+  },
+  'privacy': {
+    name: 'Helius Privacy',
+    mcpTools: [],
+    creditCostPerCall: 'Devnet beta; pricing not published',
+    minimumPlan: 'agent',
+    docKey: 'privacy',
+    status: 'beta',
+    integration: '`@heliuslabs/zolana` (TypeScript, with @solana/kit) or `zolana-client` (Rust), against devnet.',
+    description: 'Confidential transfers secured by zero-knowledge proofs that settle onchain in a single Solana transaction. Devnet only; mainnet has not launched.',
   },
 };

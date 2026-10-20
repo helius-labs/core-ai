@@ -9,7 +9,7 @@
  * 3. Every docKey exists in DOCS_INDEX
  * 4. Every minimumPlan is a valid key in PLAN_RANK and HELIUS_PLANS
  * 5. Plan-feature compatibility (Laserstream mainnet → business+, Enhanced WebSockets → developer+)
- * 6. No empty mcpTools arrays
+ * 6. Every product has MCP tools or an integration path
  * 7. Every action that returns a mutation receipt is labelled a write
  * 8. Every heliusWrite action is labelled a write
  * 9. Every action needing a signer is labelled a write
@@ -74,9 +74,9 @@ for (const [key, product] of Object.entries(PRODUCT_CATALOG)) {
     error(key, `Enhanced WebSockets requires developer+ plan, but has "${product.minimumPlan}"`);
   }
 
-  // 6. No empty mcpTools
-  if (product.mcpTools.length === 0) {
-    error(key, 'mcpTools array is empty');
+  // 6. A product with no MCP action must say how an app integrates it instead
+  if (product.mcpTools.length === 0 && !product.integration?.trim()) {
+    error(key, 'mcpTools is empty and no integration is given');
   }
 }
 
