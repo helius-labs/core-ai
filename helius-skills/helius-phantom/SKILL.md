@@ -4,7 +4,7 @@ description: Build frontend Solana applications with Phantom Connect SDK and Hel
 license: MIT
 metadata:
   author: Helius Labs
-  version: "1.0.3"
+  version: "1.0.4"
   tags:
     - solana
     - phantom
