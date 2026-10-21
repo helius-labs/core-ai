@@ -51,7 +51,10 @@ interface CatalogTier {
   products: CatalogProduct[];
 }
 
+// Keyed by catalog minimumPlan. A plan missing here falls through to the
+// production tier, so every PLAN_RANK key must appear.
 const TIER_MAP: Record<string, 'budget' | 'standard' | 'production'> = {
+  agent: 'budget',
   free: 'budget',
   developer: 'standard',
   business: 'production',
@@ -79,9 +82,23 @@ function groupCatalogByTier(): CatalogTier[] {
 
 // ─── Formatting ───
 
+const STATUS_LABEL: Record<NonNullable<CatalogProduct['status']>, string> = { beta: 'Beta', legacy: 'Legacy' };
+
 function formatProduct(product: CatalogProduct): string {
-  const docs = product.referenceFile ? ` | Docs: \`${product.referenceFile}\`` : '';
-  return `- **${product.name}** \u2014 ${product.description} (${product.creditCostPerCall})${docs}\n  Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`;
+  const status = product.status ? ` (${STATUS_LABEL[product.status]})` : '';
+  const docs = product.referenceFile
+    ? ` | Docs: \`${product.referenceFile}\``
+    : ` | Docs: \`lookupHeliusDocs\` topic \`${product.docKey}\``;
+  const lines = [`- **${product.name}**${status} \u2014 ${product.description} (${product.creditCostPerCall})${docs}`];
+  if (product.mcpTools.length > 0) {
+    lines.push(`  Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`);
+  } else {
+    lines.push('  Tools: none in this MCP yet');
+  }
+  if (product.integration) {
+    lines.push(`  Use from your app: ${product.integration}`);
+  }
+  return lines.join('\n');
 }
 
 function formatTier(tier: CatalogTier, detectedPlan?: string): string {
