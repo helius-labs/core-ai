@@ -1,11 +1,20 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { getHeliusClient, hasApiKey } from '../utils/helius.js';
+import { getHeliusClient, getNetwork, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatAddress, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, getErrorMessage, validateEnum, handleToolError, http400Error } from '../utils/errors.js';
 import bs58 from 'bs58';
 import { contextFromExtra } from '../utils/request-context.js';
+import type { ParsedTransactionResult } from 'helius-sdk/parsedEvents/types';
+import {
+  PARSED_EVENTS_BATCH_SIZE,
+  collectParsedMints,
+  formatParsedHistoryEntry,
+  formatParsedTransaction,
+  splitParsedResults,
+  type TokenLabel,
+} from './parsed-events-format.js';
 
 // ─── Shared Types ───
 
@@ -204,6 +213,27 @@ async function fetchTokenMetadata(
   return metadata;
 }
 
+function tokenLabelFrom(metadata: Map<string, AssetInfo>): TokenLabel {
+  return (mint) => {
+    const asset = metadata.get(mint);
+    return asset?.token_info?.symbol || asset?.content?.metadata?.symbol || asset?.content?.metadata?.name || formatAddress(mint);
+  };
+}
+
+// Parsed Events (mainnet) parses at most 100 signatures per request and
+// returns one result per signature, in input order.
+async function parseWithParsedEvents(
+  helius: ReturnType<typeof getHeliusClient>,
+  signatures: string[],
+): Promise<ParsedTransactionResult[]> {
+  const results: ParsedTransactionResult[] = [];
+  for (let i = 0; i < signatures.length; i += PARSED_EVENTS_BATCH_SIZE) {
+    const batch = signatures.slice(i, i + PARSED_EVENTS_BATCH_SIZE);
+    results.push(...await helius.parsedEvents.parseTransactions({ transactions: batch }));
+  }
+  return results;
+}
+
 const MAX_RESPONSE_CHARS = 50_000;
 
 function truncateResponse(text: string): string {
@@ -259,10 +289,10 @@ function formatSwapSummary(
 }
 
 export function registerTransactionTools(server: McpServer) {
-  // Parse Transactions (Enhanced API)
+  // Parse Transactions (Parsed Events on mainnet, Enhanced Transactions on devnet)
   server.tool(
     'parseTransactions',
-    'BEST FOR: decoding specific transaction(s) by signature. Parse one or more Solana transactions into human-readable format. Returns type, source, transfers, fees, timestamp, and description. Use showRaw=true for full instruction data. Credit cost: 100 credits/call.',
+    'BEST FOR: decoding specific transaction(s) by signature. Parse one or more Solana transactions into human-readable format. Returns type, decoded instructions, transfers, fees, timestamp, status with decoded program errors, and description. Use showRaw=true for full instruction data. Mainnet uses the Parsed Events API (decoded program and instruction names, 10 credits per 100 signatures); devnet uses the legacy Enhanced Transactions API (100 credits/call).',
     {
       signatures: z.array(z.string()).describe('Array of transaction signatures (base58 encoded, 86-88 characters). Can be 1 or more.'),
       showRaw: z.boolean().optional().default(false).describe('Include raw instruction data: program IDs, accounts, inner instructions. Useful for debugging or tracing fund flows.')
@@ -281,6 +311,44 @@ export function registerTransactionTools(server: McpServer) {
         return mcpText(lines.join('\n'));
       }
 
+      if (getNetwork(ctx) !== 'devnet') {
+        let results: ParsedTransactionResult[];
+        try {
+          results = await parseWithParsedEvents(helius, validSigs);
+        } catch (err) {
+          return handleToolError(err, 'Error fetching transactions', [
+            http400Error('Parse Transactions Error'),
+          ]);
+        }
+
+        const { parsed, notFound, unparseable } = splitParsedResults(results);
+        const warnings: string[] = [];
+        if (invalidSigs.length > 0) {
+          warnings.push('', '*Invalid signature format:*', ...invalidSigs.map((sig) => `- \`${sig}\``));
+        }
+        if (notFound.length > 0) {
+          warnings.push('', '*Not found on Solana mainnet (may be pending, very old, or nonexistent):*', ...notFound.map((sig) => `- \`${sig}\``));
+        }
+        if (unparseable.length > 0) {
+          warnings.push('', '*Could not be parsed:*', ...unparseable.map((u) => `- \`${u.signature}\`: ${u.code} — ${u.message}`));
+        }
+
+        if (parsed.length === 0) {
+          return mcpText(['**No Transactions Found on Mainnet**', ...warnings].join('\n'));
+        }
+
+        const tokenLabel = tokenLabelFrom(await fetchTokenMetadata(helius, collectParsedMints(parsed.map((p) => p.tx))));
+        const outputLines: string[] = [];
+        parsed.forEach(({ signature, tx }, index) => {
+          if (index > 0) outputLines.push('', '---', '');
+          outputLines.push(...formatParsedTransaction(signature, tx, tokenLabel, showRaw));
+        });
+        if (warnings.length > 0) outputLines.push('', '---', '', '**Warnings:**', ...warnings);
+
+        return mcpText(truncateResponse(outputLines.join('\n')));
+      }
+
+      // Devnet: Parsed Events is mainnet-only, so fall back to Enhanced Transactions.
       let transactions: EnrichedTransaction[];
       try {
         transactions = await helius.enhanced.getTransactions({
@@ -297,14 +365,14 @@ export function registerTransactionTools(server: McpServer) {
       const notFoundSigs = validSigs.filter(sig => !returnedSigs.has(sig));
 
       if (!transactions || transactions.length === 0) {
-        const lines = ['**No Transactions Found on Mainnet**', ''];
+        const lines = ['**No Transactions Found on Devnet**', ''];
         if (invalidSigs.length > 0) {
           lines.push('**Invalid format** (not valid base58 signatures):');
           invalidSigs.forEach(sig => lines.push(`- \`${sig}\``));
           lines.push('');
         }
         if (notFoundSigs.length > 0) {
-          lines.push('**Not found on Solana mainnet** (may be pending, very old, or nonexistent):');
+          lines.push('**Not found on Solana devnet** (may be pending, very old, or nonexistent):');
           notFoundSigs.forEach(sig => lines.push(`- \`${sig}\``));
         }
         return mcpText(lines.join('\n'));
@@ -491,7 +559,7 @@ export function registerTransactionTools(server: McpServer) {
           invalidSigs.forEach(sig => outputLines.push(`- \`${sig}\``));
         }
         if (notFoundSigs.length > 0) {
-          outputLines.push('', '*Not found on Solana mainnet (may be pending, very old, or nonexistent):*');
+          outputLines.push('', '*Not found on Solana devnet (may be pending, very old, or nonexistent):*');
           notFoundSigs.forEach(sig => outputLines.push(`- \`${sig}\``));
         }
       }
@@ -618,7 +686,7 @@ export function registerTransactionTools(server: McpServer) {
   // Get Transaction History (unified: parsed, signatures, or raw mode)
   server.tool(
     'getTransactionHistory',
-    'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~110 credits), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges.',
+    'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~20 credits on mainnet via Parsed Events, ~110 on devnet), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
@@ -846,8 +914,34 @@ export function registerTransactionTools(server: McpServer) {
 
         type SigItem = { signature: string };
         const sortedSigs = (sigResult.data as unknown as SigItem[]).map(item => item.signature);
+        const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
+        const continuation = sigResult.paginationToken
+          ? { continuation: { kind: 'paginationToken' as const, api: 'history' as const, token: sigResult.paginationToken } }
+          : undefined;
 
-        // Step 2: Send sorted signatures to Enhanced API for rich data
+        // Step 2 (mainnet): parse the sorted signatures with Parsed Events, which
+        // returns results in input order, so no re-sort is needed.
+        if (getNetwork(ctx) !== 'devnet') {
+          const { parsed, notFound, unparseable } = splitParsedResults(await parseWithParsedEvents(helius, sortedSigs));
+          if (parsed.length === 0) {
+            return mcpText(`**Transaction History for ${formatAddress(address)}**\n\nNo transactions could be parsed.`);
+          }
+
+          const tokenLabel = tokenLabelFrom(await fetchTokenMetadata(helius, collectParsedMints(parsed.map((p) => p.tx))));
+          const lines = [`**Transaction History for ${formatAddress(address)}** (${parsed.length} transactions, ${orderLabel}${statusNote})`, ''];
+          for (const { signature, tx } of parsed) {
+            lines.push(...formatParsedHistoryEntry(signature, tx, tokenLabel), '');
+          }
+          for (const sig of notFound) lines.push(`⚠️ \`${sig}\` was listed but not found by the parser`, '');
+          for (const u of unparseable) lines.push(`⚠️ \`${u.signature}\` could not be parsed: ${u.code}`, '');
+
+          if (sigResult.paginationToken) {
+            lines.push(`**Next Page Token:** \`${sigResult.paginationToken}\``);
+          }
+          return mcpText(truncateResponse(lines.join('\n')), continuation);
+        }
+
+        // Step 2 (devnet): Parsed Events is mainnet-only, so enrich with Enhanced Transactions
         // Batch in chunks of 100 (Enhanced API limit)
         const allTransactions: EnrichedTransaction[] = [];
         for (let i = 0; i < sortedSigs.length; i += 100) {
@@ -868,7 +962,6 @@ export function registerTransactionTools(server: McpServer) {
 
         const tokenMetadata = await fetchTokenMetadata(helius, collectMints(allTransactions));
 
-        const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
         const lines = [`**Transaction History for ${formatAddress(address)}** (${allTransactions.length} transactions, ${orderLabel}${statusNote})`, ''];
 
         allTransactions.forEach((tx) => {
@@ -916,10 +1009,7 @@ export function registerTransactionTools(server: McpServer) {
           lines.push(`**Next Page Token:** \`${sigResult.paginationToken}\``);
         }
 
-        const fullText = lines.join('\n');
-        return mcpText(truncateResponse(fullText), sigResult.paginationToken
-          ? { continuation: { kind: 'paginationToken', api: 'history', token: sigResult.paginationToken } }
-          : undefined);
+        return mcpText(truncateResponse(lines.join('\n')), continuation);
       } catch (err) {
         return handleToolError(err, 'Error fetching transaction history');
       }

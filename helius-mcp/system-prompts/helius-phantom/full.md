@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-phantom/SKILL.md — do not edit -->
-<!-- Version: 1.0.3 -->
+<!-- Version: 1.0.4 -->
 
 
 # Helius x Phantom — Build Frontend Solana Apps
@@ -1346,8 +1346,8 @@ Use these endpoints for transaction analysis — available via MCP tools, SDK me
 
 | Endpoint | What It Does | Credits | Interfaces |
 |---|---|---|---|
-| `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call | REST: `POST /v0/transactions/`, SDK: `helius.enhanced.getTransactions()`, MCP: `parseTransactions` |
-| `getTransactionsByAddress` | Get parsed transaction history for a wallet via the Enhanced Transactions API. | ~110 | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`) |
+| `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call | REST: `POST /v0/transactions/`, SDK: `helius.enhanced.getTransactions()`, MCP: `parseTransactions` on devnet only (on mainnet it uses Parsed Events, 10 credits per 100 signatures) |
+| `getTransactionsByAddress` | Get parsed transaction history for a wallet via the Enhanced Transactions API. | ~110 | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()` |
 | `getTransactionsForAddress` | Get transaction history via RPC with advanced filters. Handles `getSignaturesForAddress` + enrichment internally. | ~10-110 | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
 
 Related endpoint (Wallet API, covered in `helius-wallet-api.md`):
@@ -1361,7 +1361,7 @@ Related endpoint (Wallet API, covered in `helius-wallet-api.md`):
 | You want to... | Use this | Interface options |
 |---|---|---|
 | Parse specific transaction signatures | `parseTransactions` | REST / SDK / MCP |
-| Get a wallet's recent activity (human-readable) | `getTransactionsByAddress` | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`) |
+| Get a wallet's recent activity (human-readable) | `getTransactionsByAddress` | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`, Parsed Events on mainnet) |
 | Get a lightweight list of signatures for a wallet | `getTransactionsForAddress` (signatures mode) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `signatures`) |
 | Filter by time range, slot range, or status | `getTransactionsForAddress` (with filters) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
 | See balance changes per transaction | `getWalletHistory` (Wallet API) | REST / MCP |
@@ -1374,6 +1374,8 @@ Parses one or more transaction signatures into structured data.
 **Parameters:**
 - `signatures`: array of base58-encoded transaction signatures
 - `showRaw` (default: `false`): include raw instruction data (program IDs, accounts, inner instructions, decoded ComputeBudget instructions)
+
+**In the MCP:** on mainnet this action uses the Parsed Events API (10 credits per 100 signatures). It returns the summary type and description, the protocol, decoded program and instruction names, decoded program errors for failed transactions, and token and SOL transfers. Signatures the parser cannot find are listed as warnings. The fields below describe the Enhanced Transactions REST response, which the MCP uses only on devnet.
 
 **What you get back:**
 - `description`: plain-English summary ("Transfer 0.1 SOL to FXv...")
@@ -1417,7 +1419,7 @@ Three modes with different tradeoffs:
 
 ### Mode: `parsed` (default)
 
-Human-readable decoded history. Two-step process internally: fetches signatures, then enriches via the Enhanced API.
+Human-readable decoded history. Two-step process internally: fetches signatures with `getTransactionsForAddress`, then parses them with the Parsed Events API on mainnet (~20 credits per page) or the Enhanced API on devnet (~110).
 
 **Key parameters:**
 - `address`: wallet address
@@ -1687,7 +1689,7 @@ const parsed = await helius.enhanced.getTransactions({ transactions: ['sig1', 's
 - Using raw RPC `getTransaction` when you could use `parseTransactions` for human-readable data — Enhanced Transactions saves significant parsing work
 - Not handling the runtime type filtering continuation pattern — the API may return an error with a continuation signature instead of results
 - Using `tokenAccounts: "all"` when `"balanceChanged"` would filter spam
-- Confusing `getTransactionHistory` (Enhanced Transactions API, 100 credits, parsed data) with `getWalletHistory` (Wallet API, 100 credits, balance changes per tx) — they return different response formats
+- Confusing `getTransactionHistory` (MCP, one parsed row per transaction, ~20 credits per page on mainnet) with `getWalletHistory` (Wallet API, 100 credits, balance changes per tx) — they return different response formats
 - Expecting type filtering to work pre-December 2022 with `tokenAccounts` — the `owner` metadata wasn't available before slot 111,491,819
 - Not paginating — high-volume wallets can have thousands of transactions
 
