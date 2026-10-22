@@ -22,7 +22,7 @@ import { ACTION_NAMES } from '../src/router/actions.js';
 describe('the hosted surface', () => {
   it('is exactly this set', () => {
     // A snapshot rather than a count: swapping one action for another keeps a
-    // count at 78 and passes, while this names both the entrant and the leaver
+    // count at 77 and passes, while this names both the entrant and the leaver
     // in the failing diff. Update deliberately, and say why in the PR.
     expect(getHostedActions()).toEqual([
       'accountSubscribe',
@@ -31,7 +31,6 @@ describe('the hosted surface', () => {
       'deleteWebhook',
       'fetchHeliusBlog',
       'getAccountInfo',
-      'getAccountPlan',
       'getAllWebhooks',
       'getAsset',
       'getAssetProof',
@@ -119,6 +118,14 @@ describe('what the boundary excludes, and why', () => {
       if (entry.authRequirement === 'apiKey' || entry.authRequirement === 'none') continue;
       expect(hostedEligible(entry)).toBe(false);
     }
+  });
+
+  it('labels getAccountPlan as needing the dashboard session, like getAccountStatus', () => {
+    // It reads the plan, credits, and project from the session. The
+    // account-group default of 'none' understated that and made it hosted.
+    expect(ACTION_CATALOG.getAccountPlan.authRequirement).toBe('jwt');
+    expect(ACTION_CATALOG.getAccountPlan.responseFamily).toBe('scalar');
+    expect(hostedEligible(ACTION_CATALOG.getAccountPlan)).toBe(false);
   });
 
   it('excludes actions whose credential is the caller\'s but whose effect is not', () => {

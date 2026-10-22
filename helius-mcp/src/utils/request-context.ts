@@ -35,16 +35,8 @@ export type RequestContext = {
    * next; per-caller means a handle survives exactly as long as the caller does
    * and is invisible to everyone else.
    *
-   * Note this duplicates a responsibility `RouterContext` currently holds:
-   * `getRouterContext()` takes no argument and hands `dispatch.ts` a
-   * process-global session key, so `expandResult` handles are bucketed per
-   * process rather than per caller.
-   *
-   * Threading a context through the handlers does not fix that on its own —
-   * `dispatch.ts` calls `getRouterContext()` for itself, above the handler it
-   * invokes. Bridging the two belongs with the change that makes the context
-   * required and removes the globals; until then this field is the declared
-   * intent and `RouterContext` is the live implementation.
+   * `getRouterContext(extra)` uses it as the owner of stored results, narrowed
+   * to the transport session when there is one.
    */
   sessionKey: string;
 };
