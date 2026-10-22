@@ -49,6 +49,10 @@ The DFlow connector is deliberately **not** in the default config: an official m
 
 Skill versions are managed via `versions.json` at the repo root (single source of truth). To bump a version, edit `versions.json` and re-run the compiler. Versions follow semver.
 
+## pnpm Overrides
+
+`helius-mcp` and `helius-cli` declare their dependency overrides twice, identically: in the `pnpm.overrides` field of `package.json` and under `overrides:` in `pnpm-workspace.yaml`. CI's pnpm 9 reads only `package.json`; the pnpm 12 that Dependabot runs reads only `pnpm-workspace.yaml`, and without it regenerates the lockfile with no overrides, which fails CI's frozen install on every Dependabot PR. Change both files together. `scripts/check-pnpm-overrides.ts` runs in the Sync Check workflow and fails if they differ.
+
 ## Router Surface Maintenance
 
 The Helius MCP public surface is a coordinated contract: 10 public tools total, shared `action` routing, and summary-first responses with `expandResult`.
