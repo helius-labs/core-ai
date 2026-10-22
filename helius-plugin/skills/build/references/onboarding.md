@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/onboarding.md — edit there, not here -->
+
 # Onboarding — Account Setup, API Keys & Plans
 
 ## What This Covers

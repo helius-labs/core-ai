@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/sender.md — edit there, not here -->
+
 # Helius Sender — Transaction Submission
 
 ## When To Use
@@ -139,7 +141,8 @@ import {
   PublicKey,
   Keypair,
   LAMPORTS_PER_SOL,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  TransactionInstruction
 } from '@solana/web3.js';
 
 const TIP_ACCOUNTS = [

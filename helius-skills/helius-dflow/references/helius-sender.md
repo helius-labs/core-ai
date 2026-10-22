@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/sender.md — edit there, not here -->
+
 # Helius Sender — Transaction Submission
 
 ## When To Use

@@ -19,10 +19,14 @@ The compiler (`npx tsx scripts/compile-skills.ts`) is the source of truth for ev
 5. `helius-cursor/skills/<dir>/references/` and `helius-cursor/skills/<dir>/SKILL.md` (same)
 6. `helius-plugin/.mcp.json` and `helius-cursor/.mcp.json` — generated from the `helius-mcp` pin in `versions.json`
 7. `helius-skills/<skill>/references/*.md` and `helius-skills/<skill>/install.sh` — the `helius-mcp@<version>` token only
+8. `helius-skills/<skill>/references/` copies of shared references — rendered from `helius-skills/shared/references/` for every skill that lists them in `sharedRefs` (see `SKILLS` in the compiler)
+9. `.gitattributes` — the block between the `compile-skills` markers, marking every generated path `linguist-generated` so GitHub collapses it in PR diffs
 
 Run `npx tsx scripts/compile-skills.ts` after any change in `helius-skills/`. CI runs `--check` mode and fails on drift.
 
-**Reference files** are byte-identical across all destinations — never hand-edit `helius-plugin/` or `helius-cursor/` references; only edit the canonical copy in `helius-skills/<skill>/references/`.
+**Shared references** (Sender, DAS, WebSockets, priority fees, Wallet API, onboarding, LaserStream, Enhanced Transactions) have one source in `helius-skills/shared/references/`. Edit them there, never in a skill's `references/` copy — those copies carry a "Generated from" header and `--check` fails if one is hand-edited. The compiler rewrites links between references to each skill's filenames, and turns a link to a reference the skill does not include into a link to the matching docs page (`SHARED_REF_DOCS`). A skill that needs its own version of a reference leaves it out of `sharedRefs` and owns the file, as `helius-phantom` does for its `@solana/kit` Sender and priority-fee references.
+
+**Reference files** are byte-identical across all destinations — never hand-edit `helius-plugin/` or `helius-cursor/` references; edit the shared source, or for skill-specific references the canonical copy in `helius-skills/<skill>/references/`.
 
 **SKILL.md bodies** in `helius-plugin/` and `helius-cursor/` are intentionally **not identical** to canonical (different MCP prerequisite messaging, condensed router surface section). They are hand-managed in those packages. Only the frontmatter version and the `helius-mcp@<version>` token are auto-synced from `versions.json`.
 

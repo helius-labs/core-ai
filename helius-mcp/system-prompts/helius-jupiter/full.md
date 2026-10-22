@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-jupiter/SKILL.md — do not edit -->
-<!-- Version: 1.2.1 -->
+<!-- Version: 1.2.2 -->
 
 
 # Helius x Jupiter — Build DeFi Apps on Solana
@@ -338,6 +338,8 @@ Follow these rules in ALL implementations:
 
 ## helius-das.md
 
+<!-- Generated from helius-skills/shared/references/das.md — edit there, not here -->
+
 # DAS API — Digital Asset Standard
 
 ## What DAS Covers
@@ -610,7 +612,7 @@ let assets = helius.rpc().get_assets_by_owner("ADDR").await?;
 1. `getAssetsByGroup` for collection browsing pages
 2. `searchAssets` for search/filter functionality
 3. `getAsset` for individual NFT detail pages
-4. Set up webhooks (see Helius docs at `docs.helius.dev`) to monitor sales and listings
+4. Set up webhooks (see the [Helius docs](https://www.helius.dev/docs/webhooks)) to monitor sales and listings
 
 ### Token-Gated Application
 1. `searchAssets` with `ownerAddress` + `grouping: ['collection', 'REQUIRED_COLLECTION']`
@@ -632,6 +634,8 @@ let assets = helius.rpc().get_assets_by_owner("ADDR").await?;
 
 ## helius-laserstream.md
 
+<!-- Generated from helius-skills/shared/references/laserstream.md — edit there, not here -->
+
 # LaserStream — High-Performance gRPC Streaming
 
 ## What LaserStream Is
@@ -644,8 +648,8 @@ LaserStream is a next-generation gRPC streaming service for Solana data. It is a
 - **Multi-node failover**: redundant node clusters with automatic load balancing
 - **40x faster** than JavaScript Yellowstone clients (Rust core with zero-copy NAPI bindings)
 - **9 global regions** for minimal latency
-- **Mainnet requires Professional plan** ($999/mo); Devnet available on Developer+ plans
-- 3 credits per 0.1 MB of streamed data (uncompressed)
+- **Mainnet requires Business+ plan** ($499+/mo); Devnet available on Developer+ plans
+- 2 credits per 0.1 MB of streamed data (uncompressed)
 
 ## MCP Tools and SDK Workflow
 
@@ -660,7 +664,7 @@ LaserStream has two MCP tools that work together with the SDK:
 2. Use `laserstreamSubscribe` with the user's requirements to generate the correct subscription config and SDK code
 3. The generated code uses the `helius-laserstream` SDK — place it in the user's application code where the actual gRPC stream will run
 
-ALWAYS use the MCP tools first to generate correct configs, then embed the SDK code they produce into the user's project.
+If MCP tools are available, use them first to generate correct configs, then embed the SDK code they produce into the user's project. Otherwise, follow the patterns in this file to build configs directly.
 
 ## Endpoints
 
@@ -843,7 +847,7 @@ LaserStream also provides standard gRPC utility methods:
 | Latency | Lowest (shred-level) | Low (1.5-2x faster than standard WS) |
 | Historical replay | Yes (24 hours) | No |
 | Auto-reconnect | Built-in with replay | Manual |
-| Plan required | Professional (mainnet) | Business+ |
+| Plan required | Business+ (mainnet) | Developer+ |
 | Max pubkeys | 10M | 50K |
 | Best for | Indexers, bots, high-throughput pipelines | Real-time UIs, dashboards, monitoring |
 | SDK | `helius-laserstream` | Raw WebSocket |
@@ -918,7 +922,7 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 
 ## Best Practices
 
-- ALWAYS use the `laserstreamSubscribe` MCP tool to generate subscription configs — it validates parameters and produces correct SDK code
+- If MCP is available, use the `laserstreamSubscribe` tool to generate subscription configs — it validates parameters and produces correct SDK code
 - Choose the closest regional endpoint to minimize latency
 - Use the LaserStream SDK (`helius-laserstream`) — it handles reconnection and replay automatically
 - Filter aggressively — only subscribe to accounts/transactions you need to minimize data transfer and credit usage
@@ -932,7 +936,7 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 - Using LaserStream for simple real-time features that Enhanced WebSockets can handle (unnecessary complexity)
 - Not setting `from_slot` after reconnection (misses data during the disconnect gap)
 - Subscribing to all transactions without filters (massive data volume and credit burn)
-- Forgetting that mainnet requires the Professional plan
+- Forgetting that mainnet requires at least a Business plan
 - Using `PROCESSED` commitment for financial decisions (can be rolled back)
 - Not choosing the closest regional endpoint (adds unnecessary latency)
 
@@ -940,6 +944,8 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 ---
 
 ## helius-onboarding.md
+
+<!-- Generated from helius-skills/shared/references/onboarding.md — edit there, not here -->
 
 # Onboarding — Account Setup, API Keys & Plans
 
@@ -1185,6 +1191,8 @@ npx helius-mcp@2.3.0  # configure in your MCP client
 ---
 
 ## helius-priority-fees.md
+
+<!-- Generated from helius-skills/shared/references/priority-fees.md — edit there, not here -->
 
 # Priority Fees — Transaction Landing Optimization
 
@@ -1440,6 +1448,8 @@ const computeUnits = units < 1000 ? 1000 : Math.ceil(units * 1.1);
 
 ## helius-sender.md
 
+<!-- Generated from helius-skills/shared/references/sender.md — edit there, not here -->
+
 # Helius Sender — Transaction Submission
 
 ## When To Use
@@ -1465,7 +1475,9 @@ Every Sender transaction MUST include all three of these or it will be rejected:
 
 ### 2. Jito Tip
 
-A SOL transfer instruction to one of the designated tip accounts. Pick one randomly per transaction to distribute load.
+A SOL transfer instruction to one of the designated **Sender tip accounts** listed below. These are Sender-specific accounts — NOT the Jito tip accounts directly. Sender forwards your tip to Jito on your behalf. This means you cannot reuse a tip you've already sent to a Jito tip account elsewhere — the transfer must go to one of these Sender tip accounts.
+
+Pick one tip account **randomly per transaction** to distribute load.
 
 **Minimum tip amounts:**
 - Default dual routing: **0.0002 SOL** (200,000 lamports)
@@ -1874,6 +1886,88 @@ When building the transaction, instructions MUST be ordered:
 3. Your application instructions (middle)
 4. Jito tip transfer (last)
 
+## Sending a Pre-Serialized Transaction via Sender
+
+If you receive an already-serialized transaction (e.g. from a third-party API, a dApp, or a user), do NOT assume it already contains a Jito tip. First check the transaction's instructions for an existing transfer to one of the Sender tip accounts listed above. Most pre-built transactions will not have a tip, and Sender will reject transactions without one.
+
+Deserializing, modifying, and re-serializing a transaction is perfectly safe and is the standard approach. In typical Sender integration scenarios you have access to all required signers — the transaction is being built or relayed on behalf of a user whose keypair you hold. Re-signing after modification is straightforward in this case.
+
+To add a tip, **deserialize** the transaction, append the tip transfer instruction, and re-sign:
+
+```typescript
+import {
+  VersionedTransaction,
+  TransactionMessage,
+  SystemProgram,
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  Keypair,
+  Connection,
+  ComputeBudgetProgram,
+  AddressLookupTableAccount,
+} from '@solana/web3.js';
+
+async function addTipAndSend(
+  serializedTx: Uint8Array,
+  keypair: Keypair,
+  connection: Connection
+): Promise<string> {
+  // 1. Deserialize the existing transaction
+  const originalTx = VersionedTransaction.deserialize(serializedTx);
+
+  // 2. Resolve any address lookup tables the transaction uses
+  const addressLookupTableAccounts = await Promise.all(
+    originalTx.message.addressTableLookups.map(async (lookup) => {
+      const { value } = await connection.getAddressLookupTable(lookup.accountKey);
+      if (!value) throw new Error(`ALT not found: ${lookup.accountKey.toBase58()}`);
+      return value;
+    })
+  );
+
+  // 3. Decompile into a mutable message
+  const message = TransactionMessage.decompile(originalTx.message, {
+    addressLookupTableAccounts,
+  });
+
+  // 4. Append the Sender tip instruction
+  const tipAccount = TIP_ACCOUNTS[Math.floor(Math.random() * TIP_ACCOUNTS.length)];
+  const tipAmountSOL = await getDynamicTipAmount();
+  message.instructions.push(
+    SystemProgram.transfer({
+      fromPubkey: keypair.publicKey,
+      toPubkey: new PublicKey(tipAccount),
+      lamports: Math.floor(tipAmountSOL * LAMPORTS_PER_SOL),
+    })
+  );
+
+  // 5. Recompile, re-sign, and send
+  const newTx = new VersionedTransaction(
+    message.compileToV0Message(addressLookupTableAccounts)
+  );
+  newTx.sign([keypair]);
+
+  const response = await fetch('https://sender.helius-rpc.com/fast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now().toString(),
+      method: 'sendTransaction',
+      params: [
+        Buffer.from(newTx.serialize()).toString('base64'),
+        { encoding: 'base64', skipPreflight: true, maxRetries: 0 },
+      ],
+    }),
+  });
+
+  const json = await response.json();
+  if (json.error) throw new Error(json.error.message);
+  return json.result;
+}
+```
+
+**Important:** Decompiling and recompiling changes the transaction, which invalidates all existing signatures. You must re-sign with all required signers after adding the tip. This is expected and safe — in most Sender integration scenarios you control the signing keys. If the original transaction was signed by a third party whose key you don't hold, you cannot modify it — coordinate with the signer to include the tip before serialization.
+
 ## Common Mistakes
 
 - Forgetting `skipPreflight: true` — transaction will be rejected
@@ -1888,6 +1982,8 @@ When building the transaction, instructions MUST be ordered:
 ---
 
 ## helius-wallet-api.md
+
+<!-- Generated from helius-skills/shared/references/wallet-api.md — edit there, not here -->
 
 # Wallet API — Wallet Intelligence & Investigation
 
@@ -1917,7 +2013,7 @@ All Wallet API endpoints have direct MCP tools. ALWAYS use these instead of gene
 | `getWalletTransfers` | `GET /v1/wallet/{wallet}/transfers` | Token transfers with direction (in/out) and counterparty |
 | `getWalletFundedBy` | `GET /v1/wallet/{wallet}/funded-by` | Original funding source (first incoming SOL transfer) |
 
-When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these MCP tools directly. Only generate raw API code when the user is building an application that needs to call these endpoints programmatically.
+When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these endpoints via MCP tools (if available), SDK, or REST API. For live queries, MCP tools handle auth and pagination automatically; for application code, use the SDK or REST API directly.
 
 ## Choosing the Right Tool
 
@@ -2135,6 +2231,8 @@ let balances = helius.wallet().get_balances("ADDRESS").await?;
 
 ## helius-websockets.md
 
+<!-- Generated from helius-skills/shared/references/websockets.md — edit there, not here -->
+
 # WebSockets — Real-Time Solana Streaming
 
 ## Two WebSocket Tiers
@@ -2144,12 +2242,12 @@ Helius provides two WebSocket tiers on the same endpoint:
 | | Standard WebSockets | Enhanced WebSockets |
 |---|---|---|
 | Methods | Solana native: `accountSubscribe`, `logsSubscribe`, `programSubscribe`, `signatureSubscribe`, `slotSubscribe`, `rootSubscribe` | `transactionSubscribe`, `accountSubscribe` with advanced filtering and auto-parsing |
-| Plan required | Free+ (all plans) | Business+ |
+| Plan required | Free+ (all plans) | Developer+ |
 | Filtering | Basic (single account or program) | Up to 50,000 addresses per filter, include/exclude/required logic |
 | Parsing | Raw Solana data | Automatic transaction parsing (type, description, tokenTransfers) |
 | Latency | Good | Faster (powered by LaserStream infrastructure) |
-| Credits | 3 credits per 0.1 MB streamed | 3 credits per 0.1 MB streamed |
-| Max connections | Plan-dependent | 250 concurrent (Business/Professional) |
+| Credits | 2 credits per 0.1 MB streamed | 2 credits per 0.1 MB streamed |
+| Max connections | Plan-dependent | Up to 1,000 concurrent (plan-dependent) |
 
 Both tiers use the same endpoints:
 - **Mainnet**: `wss://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY`
@@ -2167,7 +2265,7 @@ Enhanced WebSocket operations have MCP tools. Like LaserStream, these are config
 | `accountSubscribe` | Generates Enhanced WS subscription config + code for account monitoring |
 | `getEnhancedWebSocketInfo` | Returns endpoint, capabilities, plan requirements |
 
-ALWAYS use these MCP tools first when the user needs Enhanced WebSocket subscriptions — they validate parameters, warn about config issues, and produce correct code.
+If MCP tools are available, use them first when the user needs Enhanced WebSocket subscriptions — they validate parameters, warn about config issues, and produce correct code. Otherwise, follow the patterns in this file to build subscription configs directly.
 
 Standard WebSocket subscriptions do not have MCP tools — generate the code directly using the patterns in this file.
 
@@ -2175,15 +2273,15 @@ Standard WebSocket subscriptions do not have MCP tools — generate the code dir
 
 | You want to... | Use |
 |---|---|
-| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Business+) |
-| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Business+) |
+| Monitor a specific account for changes | Standard `accountSubscribe` (Free+) or Enhanced `accountSubscribe` (Developer+) |
+| Stream transactions for specific accounts/programs | Enhanced `transactionSubscribe` (Developer+) |
 | Monitor program account changes | Standard `programSubscribe` (Free+) |
 | Watch for transaction confirmation | Standard `signatureSubscribe` (Free+) |
 | Track slot/root progression | Standard `slotSubscribe` / `rootSubscribe` (Free+) |
 | Monitor transaction logs | Standard `logsSubscribe` (Free+) |
-| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Business+) |
+| Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Developer+) |
 | Need historical replay or 10M+ addresses | LaserStream (see `references/helius-laserstream.md`) |
-| Need push notifications without persistent connection | Webhooks (see Helius docs at `docs.helius.dev`) |
+| Need push notifications without persistent connection | Webhooks (see the [Helius docs](https://www.helius.dev/docs/webhooks)) |
 
 ## Connection Pattern
 
@@ -2483,7 +2581,7 @@ For Standard WebSockets:
 
 | Feature | Standard WS | Enhanced WS | LaserStream | Webhooks |
 |---|---|---|---|---|
-| Plan | Free+ | Business+ | Professional+ | Free+ |
+| Plan | Free+ | Developer+ | Business+ (mainnet) | Free+ |
 | Protocol | WebSocket | WebSocket | gRPC | HTTP POST |
 | Latency | Good | Faster | Fastest (shred-level) | Variable |
 | Max addresses | 1 per subscription | 50K per filter | 10M | 100K per webhook |
@@ -2492,13 +2590,13 @@ For Standard WebSockets:
 | Transaction parsing | No | Yes (auto) | No (raw data) | Yes (enhanced type) |
 | Requires public endpoint | No | No | No | Yes |
 
-**Use Standard WebSockets when**: you're on a Free/Developer plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
+**Use Standard WebSockets when**: you're on a Free plan, need basic account/program monitoring, or are using existing Solana WebSocket code.
 
-**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Business+ plan.
+**Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Developer+ plan.
 
 **Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See `references/helius-laserstream.md`.
 
-**Use Webhooks when**: you want push notifications without maintaining a connection. See Helius docs at `docs.helius.dev`.
+**Use Webhooks when**: you want push notifications without maintaining a connection. See the [Helius docs](https://www.helius.dev/docs/webhooks).
 
 ## Best Practices
 
@@ -2517,7 +2615,7 @@ For Standard WebSockets:
 - Not implementing auto-reconnection — WebSocket disconnects are normal and expected
 - Confusing `accountInclude` (OR — any match) with `accountRequired` (AND — all must match)
 - Setting `maxSupportedTransactionVersion` to `0` or leaving it unset — v1 transactions are live on mainnet, and requests that reach one fail with `Transaction version (1) is not supported`
-- Using Enhanced WebSocket features on Free/Developer plans — requires Business+
+- Using Enhanced WebSocket features on Free plan — requires Developer+
 - Subscribing without filters on `transactionSubscribe` — streams ALL network transactions, extreme volume
 - Using `blockSubscribe`, `slotsUpdatesSubscribe`, or `voteSubscribe` — these are unstable and not supported on Helius
 - Not handling the subscription confirmation message (first message has `result` field, not notification data)

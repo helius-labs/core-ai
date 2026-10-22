@@ -2,15 +2,16 @@
 /**
  * Skill Compiler — generates cross-platform skill variants from canonical sources.
  *
- * Reads canonical SKILL.md + references/ from helius-skills/<skill>/
- * (and optional variants/{plugin,cursor}.md for destination-specific frontmatter
- * + Prerequisites section).
+ * Reads canonical SKILL.md + references/ from helius-skills/<skill>/, after
+ * first writing that skill's shared references from helius-skills/shared/.
  *
  * Outputs to:
  *   .agents/skills/<skill>/                    (Codex-native + prompt variants)
  *   helius-mcp/system-prompts/<skill>/         (npm-shipped prompt copies)
  *   helius-plugin/skills/<pluginDir>/          (Claude Code plugin)
  *   helius-cursor/skills/<pluginDir>/          (Cursor plugin)
+ *   helius-skills/<skill>/references/          (shared reference copies)
+ *   .gitattributes                             (generated-paths block)
  *
  * Usage:
  *   npx tsx scripts/compile-skills.ts          # generate everything
@@ -46,7 +47,38 @@ interface SkillConfig {
   pluginDir: string;
   /** Enhanced multi-line description for Codex implicit invocation */
   enhancedDescription: string;
+  /**
+   * Shared references this skill includes, by name (see SHARED_REFS_DIR).
+   * The compiler writes each one into the skill's references/ directory, so
+   * those copies are generated: edit the shared source, never the copy.
+   */
+  sharedRefs?: readonly string[];
+  /** Filename prefix for this skill's shared reference copies, e.g. "helius-". */
+  sharedRefPrefix?: string;
 }
+
+/** Single source for references that several skills include. */
+const SHARED_REFS_DIR = join(ROOT, "helius-skills", "shared", "references");
+
+/**
+ * Docs pages a shared reference links to when the target skill does not
+ * include the linked reference itself.
+ */
+const SHARED_REF_DOCS: Record<string, string> = {
+  "das": "https://www.helius.dev/docs/das-api",
+  "enhanced-transactions": "https://www.helius.dev/docs/enhanced-transactions/overview",
+  "laserstream": "https://www.helius.dev/docs/laserstream",
+  "onboarding": "https://www.helius.dev/docs/agents/overview",
+  "priority-fees": "https://www.helius.dev/docs/priority-fee-api",
+  "sender": "https://www.helius.dev/docs/sending-transactions/sender",
+  "wallet-api": "https://www.helius.dev/docs/wallet-api/overview",
+  "webhooks": "https://www.helius.dev/docs/webhooks",
+};
+
+/** Shared references every Helius-plus-partner skill includes. */
+const PARTNER_SHARED_REFS = [
+  "das", "laserstream", "onboarding", "priority-fees", "sender", "wallet-api", "websockets",
+] as const;
 
 const PLUGIN_DIR = join(ROOT, "helius-plugin", "skills");
 const CURSOR_DIR = join(ROOT, "helius-cursor", "skills");
@@ -96,6 +128,8 @@ const SKILLS: SkillConfig[] = [
   streaming real-time data (WebSockets, Laserstream), setting up webhooks for
   event notifications, analyzing wallets (balances, history, identity), or
   managing Helius API keys and plans. Requires helius-mcp MCP server.`,
+    sharedRefs: [...PARTNER_SHARED_REFS, "enhanced-transactions"],
+    sharedRefPrefix: "",
   },
   {
     dir: "helius-dflow",
@@ -106,6 +140,8 @@ const SKILLS: SkillConfig[] = [
   prediction markets, streaming real-time market data via WebSockets, implementing
   Proof KYC identity verification, submitting transactions via Helius Sender, or
   optimizing priority fees for trading. Requires helius-mcp MCP server.`,
+    sharedRefs: PARTNER_SHARED_REFS,
+    sharedRefPrefix: "helius-",
   },
   {
     dir: "helius-jupiter",
@@ -116,6 +152,8 @@ const SKILLS: SkillConfig[] = [
   querying token prices and metadata, checking token safety via Token Shield,
   embedding a drop-in swap widget, submitting transactions via Helius Sender, or
   optimizing priority fees for DeFi operations. Requires helius-mcp MCP server.`,
+    sharedRefs: PARTNER_SHARED_REFS,
+    sharedRefPrefix: "helius-",
   },
   {
     dir: "helius-okx",
@@ -137,6 +175,9 @@ const SKILLS: SkillConfig[] = [
   Helius Sender, building token-gated content, minting NFTs, accepting crypto
   payments, displaying portfolio data, streaming real-time updates, or setting
   up secure API key proxying. Requires helius-mcp MCP server.`,
+    // Sender and priority fees are Phantom's own @solana/kit ports, not shared.
+    sharedRefs: ["das", "enhanced-transactions", "onboarding", "wallet-api", "websockets"],
+    sharedRefPrefix: "helius-",
   },
   {
     dir: "svm",
@@ -464,6 +505,121 @@ function syncPluginCursorSkill(
 }
 
 // ---------------------------------------------------------------------------
+// Shared references
+// ---------------------------------------------------------------------------
+//
+// Several skills include the same Helius references (Sender, DAS, WebSockets,
+// ...). They used to be hand-copied into each skill and drifted apart. Now each
+// has one source in helius-skills/shared/references/, and the compiler writes a
+// copy into every skill that lists it in `sharedRefs`. Those copies live in the
+// skill's own references/ directory, so install.sh and every downstream copy
+// step keep reading the same paths; `--check` fails if one is hand-edited.
+
+const SHARED_HEADER_PREFIX = "<!-- Generated from helius-skills/shared/references/";
+
+function sharedHeader(name: string): string {
+  return `${SHARED_HEADER_PREFIX}${name}.md — edit there, not here -->\n\n`;
+}
+
+/** `references/foo.md` or `foo.md` in backticks: a link to another reference. */
+const REFERENCE_LINK = /`(references\/)?([\w-]+)\.md`/g;
+
+/**
+ * Render a shared reference for one skill.
+ *
+ * Links to references are rewritten to that skill's filenames. A link to a
+ * reference the skill does not have becomes a link to the matching docs page,
+ * and a link with no docs page fails the build rather than shipping a dead
+ * pointer.
+ */
+function renderSharedRef(name: string, config: SkillConfig, ownedFiles: Set<string>): string {
+  const prefix = config.sharedRefPrefix ?? "";
+  const included = new Set(config.sharedRefs ?? []);
+  const source = readFileSync(join(SHARED_REFS_DIR, `${name}.md`), "utf-8");
+
+  const body = source.replace(REFERENCE_LINK, (_match, dir: string | undefined, target: string) => {
+    const local = `${prefix}${target}.md`;
+    if (included.has(target) || ownedFiles.has(local)) return `\`${dir ?? ""}${local}\``;
+    const url = SHARED_REF_DOCS[target];
+    if (!url) {
+      throw new Error(
+        `shared reference ${name}.md links to ${target}.md, which ${config.dir} does not include ` +
+        `and SHARED_REF_DOCS has no docs page for`,
+      );
+    }
+    return `the [Helius docs](${url})`;
+  });
+
+  return sharedHeader(name) + pinMcpVersion(body);
+}
+
+/** Write a skill's shared reference copies into its canonical references/ directory. */
+function materializeSharedRefs(config: SkillConfig, refsDir: string): void {
+  const names = config.sharedRefs ?? [];
+  const prefix = config.sharedRefPrefix ?? "";
+  const generated = new Set(names.map((name) => `${prefix}${name}.md`));
+  const onDisk = existsSync(refsDir) ? readdirSync(refsDir) : [];
+
+  // A file carrying the shared header that this skill no longer lists would
+  // otherwise linger as if it were hand-owned.
+  for (const file of onDisk) {
+    if (generated.has(file) || !file.endsWith(".md")) continue;
+    if (readFileSync(join(refsDir, file), "utf-8").startsWith(SHARED_HEADER_PREFIX)) {
+      const rel = relative(ROOT, join(refsDir, file));
+      if (CHECK_MODE) {
+        driftReports.push(`STALE-SHARED: ${rel}`);
+      } else {
+        console.warn(`  ! generated shared reference no longer listed in sharedRefs: ${rel}`);
+      }
+    }
+  }
+
+  const ownedFiles = new Set(onDisk.filter((file) => !generated.has(file)));
+  for (const name of names) {
+    if (!existsSync(join(SHARED_REFS_DIR, `${name}.md`))) {
+      throw new Error(`${config.dir} lists shared reference "${name}", but ${name}.md is not in helius-skills/shared/references/`);
+    }
+    writeFileMaybe(join(refsDir, `${prefix}${name}.md`), renderSharedRef(name, config, ownedFiles));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// .gitattributes
+// ---------------------------------------------------------------------------
+//
+// Marks every compiler-written path as generated, so GitHub collapses it in PR
+// diffs. Only the block between the markers is compiler-owned; anything else in
+// .gitattributes is left alone.
+
+const GITATTRIBUTES = join(ROOT, ".gitattributes");
+const GITATTRIBUTES_BEGIN = "# BEGIN compile-skills: generated by scripts/compile-skills.ts, do not edit this block";
+const GITATTRIBUTES_END = "# END compile-skills";
+
+function syncGitattributes(): void {
+  const generatedPaths = [
+    ".agents/skills/**",
+    "helius-mcp/system-prompts/**",
+    "helius-plugin/skills/*/references/**",
+    "helius-cursor/skills/*/references/**",
+    "helius-plugin/.mcp.json",
+    "helius-cursor/.mcp.json",
+    ...SKILLS.flatMap((skill) =>
+      (skill.sharedRefs ?? []).map((name) => `helius-skills/${skill.dir}/references/${skill.sharedRefPrefix ?? ""}${name}.md`),
+    ).sort(),
+  ];
+  const block = [GITATTRIBUTES_BEGIN, ...generatedPaths.map((p) => `${p} linguist-generated=true`), GITATTRIBUTES_END].join("\n");
+
+  const existing = existsSync(GITATTRIBUTES) ? readFileSync(GITATTRIBUTES, "utf-8") : "";
+  const start = existing.indexOf(GITATTRIBUTES_BEGIN);
+  const end = existing.indexOf(GITATTRIBUTES_END);
+  const updated = start >= 0 && end > start
+    ? existing.slice(0, start) + block + existing.slice(end + GITATTRIBUTES_END.length)
+    : `${existing}${existing && !existing.endsWith("\n") ? "\n" : ""}${existing ? "\n" : ""}${block}\n`;
+
+  writeFileMaybe(GITATTRIBUTES, updated);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -487,6 +643,9 @@ function compileSkill(config: SkillConfig): void {
     return;
   }
   const generationHeader = `<!-- Generated from helius-skills/${config.dir}/SKILL.md — do not edit -->\n\n`;
+
+  // --- Shared references: write this skill's copies before anything reads refsDir ---
+  materializeSharedRefs(config, refsDir);
 
   // --- Update canonical SKILL.md version from versions.json ---
   const updatedFrontmatter = injectVersion(frontmatter, version);
@@ -632,6 +791,7 @@ function main(): void {
 
   // Must run before the drift check below: that block exits the process.
   syncMcpConfigs();
+  syncGitattributes();
 
   if (CHECK_MODE) {
     if (driftReports.length > 0) {

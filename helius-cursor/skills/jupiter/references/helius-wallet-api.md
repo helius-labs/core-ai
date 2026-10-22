@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/wallet-api.md — edit there, not here -->
+
 # Wallet API — Wallet Intelligence & Investigation
 
 ## What the Wallet API Covers
@@ -26,7 +28,7 @@ All Wallet API endpoints have direct MCP tools. ALWAYS use these instead of gene
 | `getWalletTransfers` | `GET /v1/wallet/{wallet}/transfers` | Token transfers with direction (in/out) and counterparty |
 | `getWalletFundedBy` | `GET /v1/wallet/{wallet}/funded-by` | Original funding source (first incoming SOL transfer) |
 
-When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these MCP tools directly. Only generate raw API code when the user is building an application that needs to call these endpoints programmatically.
+When the user asks to investigate a wallet, identify an address, check balances, or trace funds — use these endpoints via MCP tools (if available), SDK, or REST API. For live queries, MCP tools handle auth and pagination automatically; for application code, use the SDK or REST API directly.
 
 ## Choosing the Right Tool
 

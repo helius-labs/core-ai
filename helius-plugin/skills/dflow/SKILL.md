@@ -2,7 +2,7 @@
 name: dflow
 description: Build Solana trading applications combining DFlow trading APIs with Helius infrastructure. Covers spot swaps (imperative and declarative), prediction markets, real-time market streaming, Proof KYC, the DFlow Agent CLI for autonomous trading, transaction submission via Sender, fee optimization, shred-level streaming via LaserStream, and wallet intelligence.
 metadata:
-  version: "1.3.1"
+  version: "1.3.2"
 ---
 
 # Helius x DFlow — Build Trading Apps on Solana

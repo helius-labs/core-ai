@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
-<!-- Version: 1.1.4 -->
+<!-- Version: 1.1.5 -->
 
 
 # Helius — Build on Solana
@@ -193,6 +193,8 @@ Follow these rules in ALL implementations:
 # Reference Files
 
 ## das.md
+
+<!-- Generated from helius-skills/shared/references/das.md — edit there, not here -->
 
 # DAS API — Digital Asset Standard
 
@@ -487,6 +489,8 @@ let assets = helius.rpc().get_assets_by_owner("ADDR").await?;
 ---
 
 ## enhanced-transactions.md
+
+<!-- Generated from helius-skills/shared/references/enhanced-transactions.md — edit there, not here -->
 
 # Enhanced Transactions — Human-Readable Transaction Data
 
@@ -907,6 +911,8 @@ const parsed = await helius.enhanced.getTransactions({ transactions: ['sig1', 's
 
 ## laserstream.md
 
+<!-- Generated from helius-skills/shared/references/laserstream.md — edit there, not here -->
+
 # LaserStream — High-Performance gRPC Streaming
 
 ## What LaserStream Is
@@ -1216,6 +1222,8 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 
 ## onboarding.md
 
+<!-- Generated from helius-skills/shared/references/onboarding.md — edit there, not here -->
+
 # Onboarding — Account Setup, API Keys & Plans
 
 ## What This Covers
@@ -1460,6 +1468,8 @@ npx helius-mcp@2.3.0  # configure in your MCP client
 ---
 
 ## priority-fees.md
+
+<!-- Generated from helius-skills/shared/references/priority-fees.md — edit there, not here -->
 
 # Priority Fees — Transaction Landing Optimization
 
@@ -1715,6 +1725,8 @@ const computeUnits = units < 1000 ? 1000 : Math.ceil(units * 1.1);
 
 ## sender.md
 
+<!-- Generated from helius-skills/shared/references/sender.md — edit there, not here -->
+
 # Helius Sender — Transaction Submission
 
 ## When To Use
@@ -1856,7 +1868,8 @@ import {
   PublicKey,
   Keypair,
   LAMPORTS_PER_SOL,
-  ComputeBudgetProgram
+  ComputeBudgetProgram,
+  TransactionInstruction
 } from '@solana/web3.js';
 
 const TIP_ACCOUNTS = [
@@ -2246,6 +2259,8 @@ async function addTipAndSend(
 ---
 
 ## wallet-api.md
+
+<!-- Generated from helius-skills/shared/references/wallet-api.md — edit there, not here -->
 
 # Wallet API — Wallet Intelligence & Investigation
 
@@ -2725,6 +2740,8 @@ All patterns use the `createWebhook` MCP tool with the same shape — vary `acco
 ---
 
 ## websockets.md
+
+<!-- Generated from helius-skills/shared/references/websockets.md — edit there, not here -->
 
 # WebSockets — Real-Time Solana Streaming
 

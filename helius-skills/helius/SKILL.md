@@ -3,7 +3,7 @@ name: helius
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
   author: Helius Labs
-  version: "1.1.4"
+  version: "1.1.5"
   mcp-server: helius-mcp
 ---
 
