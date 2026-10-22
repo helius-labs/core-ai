@@ -53,6 +53,10 @@ The DFlow connector is deliberately **not** in the default config: an official m
 
 Skill versions are managed via `versions.json` at the repo root (single source of truth). To bump a version, edit `versions.json` and re-run the compiler. Versions follow semver.
 
+## pnpm Version Pin
+
+`helius-mcp` and `helius-cli` pin pnpm with `"packageManager": "pnpm@9.15.9"`, matching CI's `pnpm/action-setup` `version: 9`. Without a pin, Dependabot runs the newest pnpm it has (12 as of October 2026), which ignores the `pnpm.overrides` field in `package.json` and regenerates the lockfile without them, failing CI's frozen install. With the pin, Corepack and newer pnpm versions both switch to 9.15.9. Bump the pin and CI's `version` together.
+
 ## Router Surface Maintenance
 
 The Helius MCP public surface is a coordinated contract: 10 public tools total, shared `action` routing, and summary-first responses with `expandResult`.
