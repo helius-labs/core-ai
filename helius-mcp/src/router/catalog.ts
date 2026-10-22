@@ -331,6 +331,15 @@ catalog.getAccountStatus = makeEntry('getAccountStatus', {
   responseFamily: 'record',
 });
 
+// Same path as getAccountStatus: the plan, credits, and project come from the
+// dashboard session. Without one it can only report "plan unknown", so the
+// account-group default of 'none' understated it and let it onto the hosted
+// surface.
+catalog.getAccountPlan = makeEntry('getAccountPlan', {
+  ...catalog.getAccountPlan,
+  authRequirement: 'jwt',
+});
+
 catalog.previewUpgrade = makeEntry('previewUpgrade', {
   authRequirement: 'jwt',
   capabilityGate: gate('agent', 'Upgrade preview'),

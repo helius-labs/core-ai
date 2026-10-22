@@ -119,14 +119,14 @@ function buildStoredResult(
   params: Record<string, unknown>,
   summary: string,
   text: string,
+  ownerSessionKey: string,
   hint?: ContinuationHint,
 ): StoredResult {
-  const context = getRouterContext();
   const continuation = detectContinuation(params, hint);
   const sectionHints = collectSectionHints(text);
   const stored = putStoredResult({
     kind: entry.responseFamily,
-    ownerSessionKey: context.sessionKey,
+    ownerSessionKey,
     summary,
     availableExpansions: buildAvailableExpansions(entry.responseFamily, continuation, sectionHints),
     payload: {
@@ -152,6 +152,7 @@ function normalizeSuccessResponse(
   text: string,
   requestedDetail: DetailLevel,
   allowHandles: boolean,
+  ownerSessionKey: string,
   hint?: ContinuationHint,
 ): RouterResponse {
   const baseText = text.trim();
@@ -172,7 +173,7 @@ function normalizeSuccessResponse(
     && (requestedDetail === 'summary' || size > limit);
 
   if (needsHandle) {
-    const stored = buildStoredResult(entry, publicTool, params, summaryText, fullText, hint);
+    const stored = buildStoredResult(entry, publicTool, params, summaryText, fullText, ownerSessionKey, hint);
     return mcpResultHandle(summaryText, stored.resultId, stored.availableExpansions, {
       family: entry.responseFamily,
       action: entry.action,
@@ -194,6 +195,7 @@ function normalizeActionResponse(
   result: ActionHandlerResponse,
   requestedDetail: DetailLevel,
   allowHandles: boolean,
+  ownerSessionKey: string,
 ): RouterResponse {
   const text = toPlainText(result);
 
@@ -205,7 +207,7 @@ function normalizeActionResponse(
     });
   }
 
-  return normalizeSuccessResponse(entry, publicTool, params, text, requestedDetail, allowHandles, result.continuation);
+  return normalizeSuccessResponse(entry, publicTool, params, text, requestedDetail, allowHandles, ownerSessionKey, result.continuation);
 }
 
 async function executeActionViaRouter(
@@ -218,8 +220,9 @@ async function executeActionViaRouter(
 ): Promise<RouterResponse> {
   const entry = getActionCatalogEntry(action);
   try {
+    const { sessionKey } = getRouterContext(extra);
     const result = await callActionHandler(action, params, extra);
-    return normalizeActionResponse(entry, publicTool, params, result, requestedDetail, allowHandles);
+    return normalizeActionResponse(entry, publicTool, params, result, requestedDetail, allowHandles, sessionKey);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return mcpErrorCompact(message, { code: 'HANDLER_ERROR', action, publicTool });
@@ -299,7 +302,8 @@ export async function expandStoredResult(
     return mcpErrorCompact('Missing required "resultId".', { code: 'MISSING_RESULT_ID' });
   }
 
-  const context = getRouterContext();
+  // Only the caller that stored a handle can redeem it.
+  const context = getRouterContext(extra);
   const stored = getStoredResult(resultId, context.sessionKey);
   if (!stored) {
     return mcpErrorCompact('Result handle not found or no longer available. Re-run the original action.', {
@@ -348,6 +352,7 @@ export async function expandStoredResult(
         selected,
         requestedDetail,
         true,
+        context.sessionKey,
         rawResponse.continuation,
       );
     }
