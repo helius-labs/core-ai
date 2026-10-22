@@ -49,9 +49,9 @@ The DFlow connector is deliberately **not** in the default config: an official m
 
 Skill versions are managed via `versions.json` at the repo root (single source of truth). To bump a version, edit `versions.json` and re-run the compiler. Versions follow semver.
 
-## pnpm Overrides
+## pnpm Version Pin
 
-`helius-mcp` and `helius-cli` declare their dependency overrides twice, identically: in the `pnpm.overrides` field of `package.json` and under `overrides:` in `pnpm-workspace.yaml`. CI's pnpm 9 reads only `package.json`; the pnpm 12 that Dependabot runs reads only `pnpm-workspace.yaml`, and without it regenerates the lockfile with no overrides, which fails CI's frozen install on every Dependabot PR. Change both files together. `scripts/check-pnpm-overrides.ts` runs in the Sync Check workflow and fails if they differ.
+`helius-mcp` and `helius-cli` pin pnpm with `"packageManager": "pnpm@9.15.9"`, matching CI's `pnpm/action-setup` `version: 9`. Without a pin, Dependabot runs the newest pnpm it has (12 as of October 2026), which ignores the `pnpm.overrides` field in `package.json` and regenerates the lockfile without them, failing CI's frozen install. With the pin, Corepack and newer pnpm versions both switch to 9.15.9. Bump the pin and CI's `version` together.
 
 ## Router Surface Maintenance
 

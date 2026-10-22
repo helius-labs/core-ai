@@ -61,6 +61,7 @@
     "README.md",
     "LICENSE"
   ],
+  "packageManager": "pnpm@9.15.9",
   "pnpm": {
     "overrides": {
       "ws@>=8.0.0 <8.21.0": "^8.21.0",

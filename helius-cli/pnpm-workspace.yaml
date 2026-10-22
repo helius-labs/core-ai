@@ -1,9 +1,1 @@
 packages: []
-
-# Dependency overrides, duplicated from the "pnpm.overrides" field in
-# package.json on purpose. pnpm 9 (CI) reads them only from package.json.
-# pnpm 12 (what Dependabot runs) reads them only from this file, and without
-# it drops them from the lockfile, which breaks CI's frozen install.
-# Keep both lists identical: scripts/check-pnpm-overrides.ts enforces it.
-overrides:
-  'ws@>=8.0.0 <8.21.0': '^8.21.0'
