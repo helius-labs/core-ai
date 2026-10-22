@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/das.md — edit there, not here -->
+
 # DAS API — Digital Asset Standard
 
 ## What DAS Covers

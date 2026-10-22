@@ -27,3 +27,7 @@ claude mcp add helius npx helius-mcp@latest
 ```
 
 Full installation instructions are in the [root README](../README.md#helius-skills).
+
+## Editing references
+
+References that several skills include, such as Sender, DAS, and WebSockets, live once in [`shared/references/`](./shared/references). Edit them there and run `npx tsx scripts/compile-skills.ts`, which writes the copy each skill ships. Copies in a skill's own `references/` start with a "Generated from" header and must not be edited by hand. CI fails if they drift.

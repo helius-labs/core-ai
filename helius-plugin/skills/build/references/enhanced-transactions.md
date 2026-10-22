@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/enhanced-transactions.md — edit there, not here -->
+
 # Enhanced Transactions — Human-Readable Transaction Data
 
 ## What This Covers

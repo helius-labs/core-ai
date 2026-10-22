@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-dflow/SKILL.md — do not edit -->
-<!-- Version: 1.3.1 -->
+<!-- Version: 1.3.2 -->
 
 
 # Helius x DFlow — Build Trading Apps on Solana
@@ -1326,6 +1326,8 @@ function connectDFlowWebSocket(apiKey: string) {
 
 ## helius-das.md
 
+<!-- Generated from helius-skills/shared/references/das.md — edit there, not here -->
+
 # DAS API — Digital Asset Standard
 
 ## What DAS Covers
@@ -1598,7 +1600,7 @@ let assets = helius.rpc().get_assets_by_owner("ADDR").await?;
 1. `getAssetsByGroup` for collection browsing pages
 2. `searchAssets` for search/filter functionality
 3. `getAsset` for individual NFT detail pages
-4. Set up webhooks (see Helius docs at `docs.helius.dev`) to monitor sales and listings
+4. Set up webhooks (see the [Helius docs](https://www.helius.dev/docs/webhooks)) to monitor sales and listings
 
 ### Token-Gated Application
 1. `searchAssets` with `ownerAddress` + `grouping: ['collection', 'REQUIRED_COLLECTION']`
@@ -1619,6 +1621,8 @@ let assets = helius.rpc().get_assets_by_owner("ADDR").await?;
 ---
 
 ## helius-laserstream.md
+
+<!-- Generated from helius-skills/shared/references/laserstream.md — edit there, not here -->
 
 # LaserStream — High-Performance gRPC Streaming
 
@@ -1929,6 +1933,8 @@ Use the `getLatencyComparison` MCP tool to show the user detailed tradeoffs.
 
 ## helius-onboarding.md
 
+<!-- Generated from helius-skills/shared/references/onboarding.md — edit there, not here -->
+
 # Onboarding — Account Setup, API Keys & Plans
 
 ## What This Covers
@@ -2173,6 +2179,8 @@ npx helius-mcp@2.3.0  # configure in your MCP client
 ---
 
 ## helius-priority-fees.md
+
+<!-- Generated from helius-skills/shared/references/priority-fees.md — edit there, not here -->
 
 # Priority Fees — Transaction Landing Optimization
 
@@ -2427,6 +2435,8 @@ const computeUnits = units < 1000 ? 1000 : Math.ceil(units * 1.1);
 ---
 
 ## helius-sender.md
+
+<!-- Generated from helius-skills/shared/references/sender.md — edit there, not here -->
 
 # Helius Sender — Transaction Submission
 
@@ -2961,6 +2971,8 @@ async function addTipAndSend(
 
 ## helius-wallet-api.md
 
+<!-- Generated from helius-skills/shared/references/wallet-api.md — edit there, not here -->
+
 # Wallet API — Wallet Intelligence & Investigation
 
 ## What the Wallet API Covers
@@ -3207,6 +3219,8 @@ let balances = helius.wallet().get_balances("ADDRESS").await?;
 
 ## helius-websockets.md
 
+<!-- Generated from helius-skills/shared/references/websockets.md — edit there, not here -->
+
 # WebSockets — Real-Time Solana Streaming
 
 ## Two WebSocket Tiers
@@ -3255,7 +3269,7 @@ Standard WebSocket subscriptions do not have MCP tools — generate the code dir
 | Monitor transaction logs | Standard `logsSubscribe` (Free+) |
 | Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Developer+) |
 | Need historical replay or 10M+ addresses | LaserStream (see `references/helius-laserstream.md`) |
-| Need push notifications without persistent connection | Webhooks (see Helius docs at `docs.helius.dev`) |
+| Need push notifications without persistent connection | Webhooks (see the [Helius docs](https://www.helius.dev/docs/webhooks)) |
 
 ## Connection Pattern
 
@@ -3570,7 +3584,7 @@ For Standard WebSockets:
 
 **Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See `references/helius-laserstream.md`.
 
-**Use Webhooks when**: you want push notifications without maintaining a connection. See Helius docs at `docs.helius.dev`.
+**Use Webhooks when**: you want push notifications without maintaining a connection. See the [Helius docs](https://www.helius.dev/docs/webhooks).
 
 ## Best Practices
 

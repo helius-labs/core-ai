@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/wallet-api.md — edit there, not here -->
+
 # Wallet API — Wallet Intelligence & Investigation
 
 ## What the Wallet API Covers

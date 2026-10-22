@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/das.md — edit there, not here -->
+
 # DAS API — Digital Asset Standard
 
 ## What DAS Covers
@@ -270,7 +272,7 @@ let assets = helius.rpc().get_assets_by_owner("ADDR").await?;
 1. `getAssetsByGroup` for collection browsing pages
 2. `searchAssets` for search/filter functionality
 3. `getAsset` for individual NFT detail pages
-4. Set up webhooks (see Helius docs at `docs.helius.dev`) to monitor sales and listings
+4. Set up webhooks (see the [Helius docs](https://www.helius.dev/docs/webhooks)) to monitor sales and listings
 
 ### Token-Gated Application
 1. `searchAssets` with `ownerAddress` + `grouping: ['collection', 'REQUIRED_COLLECTION']`

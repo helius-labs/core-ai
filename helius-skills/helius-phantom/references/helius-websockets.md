@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/websockets.md — edit there, not here -->
+
 # WebSockets — Real-Time Solana Streaming
 
 ## Two WebSocket Tiers
@@ -45,8 +47,8 @@ Standard WebSocket subscriptions do not have MCP tools — generate the code dir
 | Track slot/root progression | Standard `slotSubscribe` / `rootSubscribe` (Free+) |
 | Monitor transaction logs | Standard `logsSubscribe` (Free+) |
 | Stream with advanced filtering (50K addresses) | Enhanced `transactionSubscribe` (Developer+) |
-| Need historical replay or 10M+ addresses | LaserStream (see Helius docs at `docs.helius.dev`) |
-| Need push notifications without persistent connection | Webhooks (see Helius docs at `docs.helius.dev`) |
+| Need historical replay or 10M+ addresses | LaserStream (see the [Helius docs](https://www.helius.dev/docs/laserstream)) |
+| Need push notifications without persistent connection | Webhooks (see the [Helius docs](https://www.helius.dev/docs/webhooks)) |
 
 ## Connection Pattern
 
@@ -359,9 +361,9 @@ For Standard WebSockets:
 
 **Use Enhanced WebSockets when**: you need transaction filtering with multiple addresses, auto-parsed transaction data, or monitoring DEX/NFT activity on Developer+ plan.
 
-**Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See Helius docs at `docs.helius.dev`.
+**Use LaserStream when**: you need the lowest latency, historical replay, or are processing high data volumes. See the [Helius docs](https://www.helius.dev/docs/laserstream).
 
-**Use Webhooks when**: you want push notifications without maintaining a connection. See Helius docs at `docs.helius.dev`.
+**Use Webhooks when**: you want push notifications without maintaining a connection. See the [Helius docs](https://www.helius.dev/docs/webhooks).
 
 ## Best Practices
 

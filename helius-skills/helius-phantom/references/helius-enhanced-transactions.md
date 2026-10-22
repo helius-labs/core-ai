@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/enhanced-transactions.md — edit there, not here -->
+
 # Enhanced Transactions — Human-Readable Transaction Data
 
 ## What This Covers
@@ -17,6 +19,7 @@ Use these endpoints for transaction analysis — available via MCP tools, SDK me
 | `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call | REST: `POST /v0/transactions/`, SDK: `helius.enhanced.getTransactions()`, MCP: `parseTransactions` on devnet only (on mainnet it uses Parsed Events, 10 credits per 100 signatures) |
 | `getTransactionsByAddress` | Get parsed transaction history for a wallet via the Enhanced Transactions API. | ~110 | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()` |
 | `getTransactionsForAddress` | Get transaction history via RPC with advanced filters. Handles `getSignaturesForAddress` + enrichment internally. | ~10-110 | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| `getTransfersByAddress` | RPC method that returns **one row per token/SOL transfer** (not per transaction) with rich filters: mint, direction (in/out/any), counterparty (`with`), time/slot/amount ranges, SOL/WSOL display mode. | RPC | SDK: `helius.getTransfersByAddress([address, config])`, MCP: `getTransfersByAddress` |
 
 Related endpoint (Wallet API, covered in `helius-wallet-api.md`):
 
@@ -32,6 +35,8 @@ Related endpoint (Wallet API, covered in `helius-wallet-api.md`):
 | Get a wallet's recent activity (human-readable) | `getTransactionsByAddress` | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`, Parsed Events on mainnet) |
 | Get a lightweight list of signatures for a wallet | `getTransactionsForAddress` (signatures mode) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `signatures`) |
 | Filter by time range, slot range, or status | `getTransactionsForAddress` (with filters) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| List per-transfer rows (mint/amount/from/to) for an address | `getTransfersByAddress` | SDK: `helius.getTransfersByAddress([address, config])`, MCP: `getTransfersByAddress` |
+| Aggregate transfers by mint or counterparty | `getTransfersByAddress` with `mint` / `with` filters | SDK / MCP |
 | See balance changes per transaction | `getWalletHistory` (Wallet API) | REST / MCP |
 | Debug raw instruction data | `parseTransactions` with `showRaw: true` | REST / SDK / MCP |
 
@@ -149,7 +154,7 @@ The Enhanced Transactions API categorizes transactions by type. Common types:
 | `ADD_LIQUIDITY` / `WITHDRAW_LIQUIDITY` | LP operations |
 | `COMPRESSED_NFT_MINT` / `COMPRESSED_NFT_TRANSFER` | cNFT operations |
 
-A longer list of 138+ types is shared with the Webhooks system — see Helius docs at `docs.helius.dev` for the complete transaction type reference and source-to-type mappings.
+A longer list of 138+ types is shared with the Webhooks system — see the [Helius docs](https://www.helius.dev/docs/webhooks) for the complete transaction type reference and source-to-type mappings.
 
 ## Source Programs
 
@@ -273,6 +278,54 @@ const history = await helius.getTransactionsForAddress(
 ```
 
 **Pagination**: use `paginationToken` from the previous response.
+
+### Method 3: `helius.getTransfersByAddress()` — per-transfer rows
+
+Returns **one row per token or native SOL transfer** (not per transaction). Each row carries `{ signature, slot, blockTime, type, fromUserAccount, toUserAccount, mint, amount, uiAmount, decimals, transactionIdx, instructionIdx, innerInstructionIdx, … }`. Use this when you want to aggregate by mint, counterparty, or direction — far easier than parsing transactions and re-extracting transfers.
+
+Signature: `helius.getTransfersByAddress([address, config?])` — note the positional tuple.
+
+```typescript
+// Recent transfers
+const recent = await helius.getTransfersByAddress([
+  'WalletAddress',
+  { limit: 25, sortOrder: 'desc' },
+]);
+
+// Inbound USDC only
+const inboundUsdc = await helius.getTransfersByAddress([
+  'WalletAddress',
+  {
+    mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    direction: 'in',
+    limit: 50,
+  },
+]);
+
+// Transfers with a specific counterparty in the last 24h
+const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
+const withCounterparty = await helius.getTransfersByAddress([
+  'WalletAddress',
+  {
+    with: 'CounterpartyAddress',
+    filters: { blockTime: { gte: oneDayAgo } },
+    limit: 100,
+  },
+]);
+
+// Pagination
+const page1 = await helius.getTransfersByAddress(['WalletAddress', { limit: 50 }]);
+if (page1.paginationToken) {
+  const page2 = await helius.getTransfersByAddress([
+    'WalletAddress',
+    { limit: 50, paginationToken: page1.paginationToken },
+  ]);
+}
+```
+
+**Config options**: `with` (counterparty), `direction` (`in` | `out` | `any`), `mint`, `solMode` (`merged` | `separate`), `filters.amount` / `filters.blockTime` / `filters.slot` (each with `gt`/`gte`/`lt`/`lte`), `limit`, `sortOrder` (`asc` | `desc`), `paginationToken`, `commitment` (`finalized` | `confirmed`).
+
+**MCP**: `heliusTransaction.getTransfersByAddress` with the same fields flattened (e.g., `blockTimeGte`, `amountGte`).
 
 ### Parameter Name Mapping
 

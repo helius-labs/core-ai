@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/laserstream.md — edit there, not here -->
+
 # LaserStream — High-Performance gRPC Streaming
 
 ## What LaserStream Is

@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/websockets.md — edit there, not here -->
+
 # WebSockets — Real-Time Solana Streaming
 
 ## Two WebSocket Tiers

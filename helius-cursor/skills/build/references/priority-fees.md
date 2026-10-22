@@ -1,3 +1,5 @@
+<!-- Generated from helius-skills/shared/references/priority-fees.md — edit there, not here -->
+
 # Priority Fees — Transaction Landing Optimization
 
 ## How Priority Fees Work
