@@ -122,7 +122,11 @@ function buildStoredResult(
   ownerSessionKey: string,
   hint?: ContinuationHint,
 ): StoredResult {
-  const continuation = detectContinuation(params, hint);
+  // Side-effect params stay out of the recipe, so expanding never replays a write.
+  const replayParams = Object.fromEntries(
+    Object.entries(params).filter(([key]) => !entry.replayOmitParams.includes(key)),
+  );
+  const continuation = detectContinuation(replayParams, hint);
   const sectionHints = collectSectionHints(text);
   const stored = putStoredResult({
     kind: entry.responseFamily,
@@ -133,7 +137,7 @@ function buildStoredResult(
       recipe: {
         publicTool,
         action: entry.action,
-        params,
+        params: replayParams,
         responseFamily: entry.responseFamily,
         defaultDetail: entry.defaultDetail,
       },

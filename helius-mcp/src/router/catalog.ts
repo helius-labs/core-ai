@@ -55,13 +55,17 @@ function makeEntry(
         : 'standard'
   );
 
+  const mutability = overrides.mutability ?? (responseFamily === 'mutationReceipt' ? 'write' : 'read');
+
   return {
     action,
     publicTool,
     aliases: overrides.aliases ?? [],
     authRequirement: overrides.authRequirement ?? 'apiKey',
     capabilityGate: overrides.capabilityGate ?? gate('agent', 'Available on every plan'),
-    mutability: overrides.mutability ?? (responseFamily === 'mutationReceipt' ? 'write' : 'read'),
+    mutability,
+    ...(overrides.nonDestructiveWrite ? { nonDestructiveWrite: true as const } : {}),
+    replayOmitParams: overrides.replayOmitParams ?? [],
     responseFamily,
     defaultDetail,
     handleEligibility: overrides.handleEligibility ?? !['scalar', 'mutationReceipt'].includes(responseFamily),
@@ -269,9 +273,15 @@ for (const action of documentActions) {
   });
 }
 
+// `remember: true` saves budget/complexity preferences to the local config.
+// That is a write, but additive, and it is confined to `remember`, which is
+// left out of stored recipes so expanding a result never saves again.
 catalog.recommendStack = makeEntry('recommendStack', {
   responseFamily: 'catalog',
   defaultDetail: 'summary',
+  mutability: 'write',
+  nonDestructiveWrite: true,
+  replayOmitParams: ['remember'],
 });
 
 for (const action of ['transactionSubscribe', 'accountSubscribe', 'laserstreamSubscribe'] as const) {
@@ -291,9 +301,11 @@ catalog.setHeliusApiKey = makeEntry('setHeliusApiKey', {
   handleEligibility: false,
 });
 
+// Writes a new signing keypair to disk when none exists.
 catalog.generateKeypair = makeEntry('generateKeypair', {
   authRequirement: 'none',
   capabilityGate: gate('agent', 'Local keypair generation'),
+  mutability: 'write',
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
@@ -316,8 +328,10 @@ catalog.signup = makeEntry('signup', {
   handleEligibility: false,
 });
 
+// `mode: "autopay"` pays USDC from the local keypair, like upgradePlan and
+// payRenewal, so it needs a signer as well as the dashboard session.
 catalog.purchaseCredits = makeEntry('purchaseCredits', {
-  authRequirement: 'jwt',
+  authRequirement: 'jwtAndSigner',
   capabilityGate: gate('agent', 'Prepaid credits top-up'),
   mutability: 'write',
   responseFamily: 'record',
