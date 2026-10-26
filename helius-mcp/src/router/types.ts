@@ -34,6 +34,11 @@ export function needsHostSecret(auth: AuthRequirement): boolean {
   }
 }
 export type Mutability = 'read' | 'write';
+
+/** Whether an action can delete, overwrite, or irreversibly change state. Drives `destructiveHint`. */
+export function isDestructive(entry: { mutability: Mutability; nonDestructiveWrite?: true }): boolean {
+  return entry.mutability === 'write' && !entry.nonDestructiveWrite;
+}
 export type ContinuationModel = 'none' | 'transactionHistory' | 'page';
 
 export type GatePredicate =
@@ -62,6 +67,17 @@ export type ActionCatalogEntry = {
   authRequirement: AuthRequirement;
   capabilityGate: CapabilityGate;
   mutability: Mutability;
+  /**
+   * Set only on a write that is purely additive, such as saving preferences.
+   * Every other write is destructive; see `isDestructive`. Left unset by
+   * default so rebuilding an entry by spreading it cannot carry a stale value.
+   */
+  nonDestructiveWrite?: true;
+  /**
+   * Params that carry the action's side effect. They are left out of the
+   * stored recipe, so `expandResult` never replays the write.
+   */
+  replayOmitParams: readonly string[];
   responseFamily: ResponseFamily;
   defaultDetail: DetailLevel;
   handleEligibility: boolean;

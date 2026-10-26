@@ -74,3 +74,13 @@ If you change the router surface, routed tool descriptions, action-routing guida
 - generated `helius-mcp/system-prompts/` output
 
 Do not leave router/runtime changes documented in only one layer.
+
+### Tool titles and annotations
+
+Every public tool carries a `title` and explicit `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The Anthropic and OpenAI directories both require them. Titles live in `helius-mcp/src/router/annotations.ts`; the hints are derived from the action catalog, so they follow each action's labels:
+
+- `mutability: 'write'` on any action makes its tool non-read-only. Label every action that changes state, including local config.
+- Writes are destructive unless marked `nonDestructiveWrite` (purely additive, like `recommendStack` saving preferences).
+- A write that is handle-eligible must be non-destructive and list the params that carry its side effect in `replayOmitParams`, so `expandResult` never replays it. `pnpm validate` enforces this, which is what keeps `expandResult` read-only.
+
+`tests/tool-annotations.test.ts` snapshots every tool's hints; update it deliberately.

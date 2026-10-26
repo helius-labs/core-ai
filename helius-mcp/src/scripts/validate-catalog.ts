@@ -14,6 +14,9 @@
  * 8. Every heliusWrite action is labelled a write
  * 9. Every action needing a signer is labelled a write
  * 10. No heliusWrite action reaches the hosted surface
+ * 11. expandResult never replays a write: a stored (handle-eligible) action is
+ *     a read, or a non-destructive write whose side effect sits in params the
+ *     stored recipe omits
  */
 
 import fs from 'fs';
@@ -22,7 +25,7 @@ import { PRODUCT_CATALOG, PLAN_RANK } from '../tools/product-catalog.js';
 import { ACTION_NAME_SET } from '../router/actions.js';
 import { ACTION_CATALOG, getHostedActions } from '../router/catalog.js';
 import { ACTION_NAMES } from '../router/actions.js';
-import { needsHostSecret } from '../router/types.js';
+import { isDestructive, needsHostSecret } from '../router/types.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -102,6 +105,17 @@ for (const entry of Object.values(ACTION_CATALOG)) {
   if (needsHostSecret(entry.authRequirement) && entry.authRequirement !== 'jwt'
       && entry.mutability !== 'write') {
     error(entry.action, `requires "${entry.authRequirement}" but is labelled a read`);
+  }
+}
+
+// 11. expandResult re-runs stored recipes, and it is annotated read-only. That
+// only holds if no stored recipe can perform a write when replayed.
+for (const entry of Object.values(ACTION_CATALOG)) {
+  if (!entry.handleEligibility || entry.mutability === 'read') continue;
+  if (isDestructive(entry)) {
+    error(entry.action, 'is a destructive write but is handle-eligible, so expandResult could replay it');
+  } else if (entry.replayOmitParams.length === 0) {
+    error(entry.action, 'is a handle-eligible write with no replayOmitParams, so expandResult could replay its side effect');
   }
 }
 
