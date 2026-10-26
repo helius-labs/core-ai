@@ -222,7 +222,7 @@ export function registerAuthTools(server: McpServer) {
         .enum(['monthly', 'yearly'])
         .optional()
         .describe('Billing period for subscription plans (default: monthly). Ignored for agent.'),
-      email: z.string().email().optional().describe('Email. Required for a new account; not needed if this wallet already has one, or for resume.'),
+      email: z.email().optional().describe('Email. Required for a new account; not needed if this wallet already has one, or for resume.'),
       firstName: z.string().optional().describe('First name. Required for a new account; not needed if this wallet already has one, or for resume.'),
       lastName: z.string().optional().describe('Last name. Required for a new account; not needed if this wallet already has one, or for resume.'),
       couponCode: z.string().optional().describe('Coupon code'),
@@ -499,7 +499,7 @@ export function registerAuthTools(server: McpServer) {
       plan: z.enum(['developer', 'business', 'professional']).describe('Target plan name'),
       period: z.enum(['monthly', 'yearly']).default('monthly').describe('Billing period'),
       couponCode: z.string().optional().describe('Optional coupon code'),
-      email: z.string().email().optional().describe('Email (only for first-time upgrades)'),
+      email: z.email().optional().describe('Email (only for first-time upgrades)'),
       firstName: z.string().optional().describe('First name (only for first-time upgrades)'),
       lastName: z.string().optional().describe('Last name (only for first-time upgrades)'),
     },
