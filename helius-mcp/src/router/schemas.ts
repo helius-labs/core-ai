@@ -14,13 +14,13 @@ import { withTelemetry } from './telemetry.js';
 
 const detailField = z.enum(['summary', 'standard', 'full']).optional();
 const argsField = z.union([
-  z.object({}).passthrough(),
+  z.looseObject({}),
   z.string().transform((s, ctx) => {
     try { return JSON.parse(s); } catch {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'args must be a JSON object string' });
+      ctx.addIssue({ code: 'custom', message: 'args must be a JSON object string' });
       return z.NEVER;
     }
-  }).pipe(z.object({}).passthrough()),
+  }).pipe(z.looseObject({})),
 ]).optional();
 
 const stringArray = () => z.array(z.string()).optional();

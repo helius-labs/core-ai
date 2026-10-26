@@ -1,5 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z, type ZodRawShape, type ZodTypeAny } from 'zod';
+import { z, type ZodRawShape } from 'zod';
 import { registerAuthTools } from '../tools/auth.js';
 import { registerConfigTools } from '../tools/config.js';
 import { registerPlanTools } from '../tools/plans.js';
@@ -46,13 +46,13 @@ export type ActionHandlerDefinition = {
   handler: ActionHandler;
 };
 
-function isZodType(value: unknown): value is ZodTypeAny {
-  return typeof value === 'object' && value !== null && typeof (value as ZodTypeAny).safeParse === 'function';
+function isZodType(value: unknown): value is z.ZodType {
+  return typeof value === 'object' && value !== null && typeof (value as z.ZodType).safeParse === 'function';
 }
 
 function buildRuntimeSchema(inputSchema: unknown): z.ZodObject<ZodRawShape> | null {
-  if (isZodType(inputSchema) && 'passthrough' in inputSchema && typeof inputSchema.passthrough === 'function') {
-    return inputSchema.passthrough() as z.ZodObject<ZodRawShape>;
+  if (isZodType(inputSchema) && 'loose' in inputSchema && typeof inputSchema.loose === 'function') {
+    return inputSchema.loose() as z.ZodObject<ZodRawShape>;
   }
 
   if (!inputSchema || typeof inputSchema !== 'object' || Array.isArray(inputSchema)) {
@@ -60,7 +60,7 @@ function buildRuntimeSchema(inputSchema: unknown): z.ZodObject<ZodRawShape> | nu
   }
 
   // Zod 4 types `ZodRawShape` as read-only, so collect into a plain record.
-  const rawShape: Record<string, ZodTypeAny> = {};
+  const rawShape: Record<string, z.ZodType> = {};
   for (const [key, value] of Object.entries(inputSchema)) {
     if (isZodType(value)) {
       rawShape[key] = value;
@@ -71,7 +71,7 @@ function buildRuntimeSchema(inputSchema: unknown): z.ZodObject<ZodRawShape> | nu
     return null;
   }
 
-  return z.object(rawShape).passthrough();
+  return z.looseObject(rawShape);
 }
 
 function materializeActionParams(tool: ActionHandlerDefinition, params: Record<string, unknown>): Record<string, unknown> {

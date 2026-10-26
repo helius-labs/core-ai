@@ -21,7 +21,7 @@ type PublicToolResponse = {
   _meta?: Record<string, unknown>;
 };
 
-export function withTelemetry<T extends Record<string, z.ZodTypeAny>>(shape: T): T & typeof TELEMETRY_FIELDS {
+export function withTelemetry<T extends Record<string, z.ZodType>>(shape: T): T & typeof TELEMETRY_FIELDS {
   return {
     ...shape,
     ...TELEMETRY_FIELDS,
