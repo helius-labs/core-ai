@@ -1,13 +1,13 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerFeeTools(server: McpServer) {
+export function registerFeeTools(registry: ActionRegistry) {
   // Get Priority Fee Estimate
-  server.tool(
+  registry.registerAction(
     'getPriorityFeeEstimate',
     'BEST FOR: determining optimal priority fees before sending a transaction. Get optimal priority fee estimates for Solana transactions. Returns recommended fees in microlamports for different priority levels (Min, Low, Medium, High, VeryHigh, UnsafeMax). Essential for ensuring transaction confirmation during network congestion. Credit cost: 1 credit (Priority Fee API).',
     {

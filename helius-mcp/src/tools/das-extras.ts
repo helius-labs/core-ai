@@ -1,13 +1,13 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { mcpText, mcpError, handleToolError, addressError, notFoundError, paginationError } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerDasExtraTools(server: McpServer) {
-  server.tool(
+export function registerDasExtraTools(registry: ActionRegistry) {
+  registry.registerAction(
     'getAssetProof',
     'BEST FOR: getting Merkle proof required for transferring or burning a cNFT. PREFER getAssetProofBatch when you need proofs for multiple cNFTs. Get Merkle proof for a compressed NFT. Required for transferring or burning cNFTs. DAS API (10 credits/call).',
     {
@@ -30,7 +30,7 @@ export function registerDasExtraTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getAssetProofBatch',
     'BEST FOR: batch Merkle proofs for multiple cNFT operations. PREFER getAssetProof for a single cNFT. Get Merkle proofs for multiple compressed NFTs in one request (up to 1000). DAS API (10 credits/call).',
     {
@@ -59,7 +59,7 @@ export function registerDasExtraTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getSignaturesForAsset',
     'BEST FOR: transaction history for a specific asset by mint address. PREFER getTransactionHistory for wallet-level transaction history. Get transaction history for any DAS asset. DAS API (10 credits/call).',
     {
@@ -93,7 +93,7 @@ export function registerDasExtraTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getNftEditions',
     'BEST FOR: finding numbered edition prints of a master NFT. Get all edition NFTs for a master NFT. DAS API (10 credits/call).',
     {

@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, getNetwork, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatAddress, formatTimestamp, LAMPORTS_PER_SOL } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
@@ -288,9 +288,9 @@ function formatSwapSummary(
   return `${inputSide} → ${outputSide}`;
 }
 
-export function registerTransactionTools(server: McpServer) {
+export function registerTransactionTools(registry: ActionRegistry) {
   // Parse Transactions (Parsed Events on mainnet, Enhanced Transactions on devnet)
-  server.tool(
+  registry.registerAction(
     'parseTransactions',
     'BEST FOR: decoding specific transaction(s) by signature. Parse one or more Solana transactions into human-readable format. Returns type, decoded instructions, transfers, fees, timestamp, status with decoded program errors, and description. Use showRaw=true for full instruction data. Mainnet uses the Parsed Events API (decoded program and instruction names, 10 credits per 100 signatures); devnet uses the legacy Enhanced Transactions API (100 credits/call).',
     {
@@ -570,7 +570,7 @@ export function registerTransactionTools(server: McpServer) {
   );
 
   // Simulate Transaction (preflight dry-run — does NOT submit on-chain)
-  server.tool(
+  registry.registerAction(
     'simulateTransaction',
     'BEST FOR: dry-running a transaction before sending. Simulates a base64-encoded transaction against current chain state and returns whether it would succeed/fail, the program error (if any), compute units consumed, program logs, return data, and — when `addresses` are provided — post-simulation account state. Does NOT submit anything on-chain. Defaults: replaces the recent blockhash (so unsigned or stale-blockhash transactions can still be simulated) and skips signature verification. Set sigVerify=true to verify signatures (requires a valid recent blockhash; mutually exclusive with replaceRecentBlockhash). Credit cost: 1 credit/call.',
     {
@@ -684,7 +684,7 @@ export function registerTransactionTools(server: McpServer) {
   );
 
   // Get Transaction History (unified: parsed, signatures, or raw mode)
-  server.tool(
+  registry.registerAction(
     'getTransactionHistory',
     'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~20 credits on mainnet via Parsed Events, ~110 on devnet), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges.',
     {
@@ -1017,7 +1017,7 @@ export function registerTransactionTools(server: McpServer) {
   );
 
   // Get Transfers By Address — parsed token + native SOL transfers (one row per transfer)
-  server.tool(
+  registry.registerAction(
     'getTransfersByAddress',
     'BEST FOR: parsed token + native SOL transfers for an address — one row per transfer (not per transaction). Filters: mint, direction (in/out/any), counterparty (with), time/slot/amount ranges, solMode. Use getTransactionHistory when you need whole-transaction context. Paginated via paginationToken.',
     {

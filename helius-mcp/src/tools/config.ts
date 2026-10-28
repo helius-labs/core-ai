@@ -1,14 +1,14 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { setApiKey, setNetwork, hasApiKey, getHeliusClient } from '../utils/helius.js';
 import { isSharedCredentialMode } from '../utils/runtime.js';
 import { mcpText, mcpError, validateEnum, getErrorMessage } from '../utils/errors.js';
 import { setSharedApiKey, SHARED_CONFIG_PATH } from '../utils/config.js';
 
-export function registerConfigTools(server: McpServer) {
+export function registerConfigTools(registry: ActionRegistry) {
   const keyFromEnv = hasApiKey();
 
-  server.tool(
+  registry.registerAction(
     'setHeliusApiKey',
     keyFromEnv
       ? 'API key is already configured via environment. You do NOT need to call this tool - just use the other Helius tools directly.'

@@ -1,4 +1,3 @@
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z, type ZodRawShape } from 'zod';
 import { registerAuthTools } from '../tools/auth.js';
 import { registerConfigTools } from '../tools/config.js';
@@ -24,6 +23,7 @@ import { registerTransferTools } from '../tools/transfers.js';
 import { registerZkCompressionTools } from '../tools/zk-compression.js';
 import { registerStakingTools } from '../tools/staking.js';
 import type { ActionName } from './actions.js';
+import type { ActionArgs, ActionRegistry } from './action-registry.js';
 import type { ContinuationHint } from '../results/types.js';
 
 export type ActionHandlerResponse = {
@@ -91,22 +91,15 @@ function materializeActionParams(tool: ActionHandlerDefinition, params: Record<s
   throw new Error(message);
 }
 
-class ActionHandlerCollector {
+class ActionHandlerCollector implements ActionRegistry {
   readonly tools = new Map<ActionName, ActionHandlerDefinition>();
 
-  tool(name: string, ...rest: unknown[]): void {
-    let description: string | undefined;
-    let inputSchema: unknown;
-
-    if (typeof rest[0] === 'string') {
-      description = rest.shift() as string;
-    }
-
-    if (rest.length > 1 && typeof rest[0] === 'object' && rest[0] !== null) {
-      inputSchema = rest.shift();
-    }
-
-    const handler = rest[0];
+  registerAction<Shape extends ZodRawShape>(
+    name: ActionName,
+    description: string,
+    inputSchema: Shape,
+    handler: (args: ActionArgs<Shape>, extra: unknown) => ActionHandlerResponse | Promise<ActionHandlerResponse>,
+  ): void {
     if (typeof handler !== 'function') {
       throw new Error(`Action handler "${name}" is missing a callable handler`);
     }
@@ -121,10 +114,7 @@ class ActionHandlerCollector {
     // parameter or a differently quoted tool name defeats a scanner, while
     // arity is what the call site actually depends on. An empty-schema tool
     // that wants no args declares `(_args, extra)`.
-    const schemaIsEmpty = inputSchema !== undefined
-      && typeof inputSchema === 'object'
-      && inputSchema !== null
-      && Object.keys(inputSchema).length === 0;
+    const schemaIsEmpty = Object.keys(inputSchema).length === 0;
 
     if (schemaIsEmpty && handler.length === 1) {
       throw new Error(
@@ -134,8 +124,8 @@ class ActionHandlerCollector {
       );
     }
 
-    this.tools.set(name as ActionName, {
-      name: name as ActionName,
+    this.tools.set(name, {
+      name,
       description,
       inputSchema,
       handler: handler as ActionHandler,
@@ -145,30 +135,30 @@ class ActionHandlerCollector {
 
 let cachedActionHandlers: Map<ActionName, ActionHandlerDefinition> | null = null;
 
-export function registerActionHandlers(server: McpServer): void {
-  registerAuthTools(server);
-  registerConfigTools(server);
-  registerPlanTools(server);
-  registerBalanceTools(server);
-  registerTransactionTools(server);
-  registerAssetTools(server);
-  registerAccountTools(server);
-  registerFeeTools(server);
-  registerNetworkTools(server);
-  registerBlockTools(server);
-  registerTokenTools(server);
-  registerDasExtraTools(server);
-  registerWebhookTools(server);
-  registerEnhancedWebSocketTools(server);
-  registerLaserstreamTools(server);
-  registerWalletTools(server);
-  registerDocsTools(server);
-  registerGuideTools(server);
-  registerRecommendTools(server);
-  registerSolanaKnowledgeTools(server);
-  registerTransferTools(server);
-  registerZkCompressionTools(server);
-  registerStakingTools(server);
+export function registerActionHandlers(registry: ActionRegistry): void {
+  registerAuthTools(registry);
+  registerConfigTools(registry);
+  registerPlanTools(registry);
+  registerBalanceTools(registry);
+  registerTransactionTools(registry);
+  registerAssetTools(registry);
+  registerAccountTools(registry);
+  registerFeeTools(registry);
+  registerNetworkTools(registry);
+  registerBlockTools(registry);
+  registerTokenTools(registry);
+  registerDasExtraTools(registry);
+  registerWebhookTools(registry);
+  registerEnhancedWebSocketTools(registry);
+  registerLaserstreamTools(registry);
+  registerWalletTools(registry);
+  registerDocsTools(registry);
+  registerGuideTools(registry);
+  registerRecommendTools(registry);
+  registerSolanaKnowledgeTools(registry);
+  registerTransferTools(registry);
+  registerZkCompressionTools(registry);
+  registerStakingTools(registry);
 }
 
 export function getActionHandlers(): Map<ActionName, ActionHandlerDefinition> {
@@ -177,7 +167,7 @@ export function getActionHandlers(): Map<ActionName, ActionHandlerDefinition> {
   }
 
   const collector = new ActionHandlerCollector();
-  registerActionHandlers(collector as unknown as McpServer);
+  registerActionHandlers(collector);
   cachedActionHandlers = collector.tools;
   return cachedActionHandlers;
 }

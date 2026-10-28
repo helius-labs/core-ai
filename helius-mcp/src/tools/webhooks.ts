@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
@@ -7,8 +7,8 @@ import { TRANSACTION_TYPES } from '../types/transaction-types.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, http400Error } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerWebhookTools(server: McpServer) {
-  server.tool(
+export function registerWebhookTools(registry: ActionRegistry) {
+  registry.registerAction(
     'getAllWebhooks',
     'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses. Credit cost: 100 credits/call (management operation).',
     {},
@@ -41,7 +41,7 @@ export function registerWebhookTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getWebhookByID',
     'Get detailed information about a specific webhook by its ID. Credit cost: 100 credits/call (management operation).',
     {
@@ -82,7 +82,7 @@ export function registerWebhookTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'createWebhook',
     'BEST FOR: fire-and-forget event notifications (server-to-server push). PREFER transactionSubscribe for live client-side streaming. PREFER laserstreamSubscribe for lowest-latency production streaming. Create a webhook to monitor Solana events in real-time with powerful filtering. Use this to track NFT sales, token swaps, staking, and 150+ transaction types. Webhooks send HTTP POST with parsed transaction data to your URL. Enhanced webhooks include human-readable descriptions. Credit cost: 100 credits to create (management operation). Each event delivered subsequently costs 1 credit.',
     {
@@ -123,7 +123,7 @@ export function registerWebhookTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'updateWebhook',
     'Update webhook configuration including URL, monitored addresses, or transaction type filters. Use this to add/remove addresses or change which transaction types trigger notifications. Credit cost: 100 credits/call (management operation).',
     {
@@ -177,7 +177,7 @@ export function registerWebhookTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'deleteWebhook',
     'Delete a webhook by its ID. This permanently removes the webhook and stops all notifications. Credit cost: 100 credits/call (management operation).',
     {

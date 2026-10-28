@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { fetchDoc, fetchDocs, extractSections, truncateDoc } from '../utils/docs.js';
 
 // Error codes and their meanings — no canonical llms.txt equivalent
@@ -128,9 +128,9 @@ const ERROR_CODES: Record<string, { meaning: string; causes: string[]; fixes: st
   },
 };
 
-export function registerGuideTools(server: McpServer) {
+export function registerGuideTools(registry: ActionRegistry) {
   // Tool 1: getRateLimitInfo — fetches live billing docs
-  server.tool(
+  registry.registerAction(
     'getRateLimitInfo',
     'BEST FOR: per-method rate limits and credit costs. PREFER getHeliusPlanInfo for plan pricing/features. Get official Helius rate limits and credit costs per API method. Fetches live from billing docs.',
     {},
@@ -161,7 +161,7 @@ export function registerGuideTools(server: McpServer) {
   );
 
   // Tool 2: getSenderInfo — fetches live sender docs
-  server.tool(
+  registry.registerAction(
     'getSenderInfo',
     'Get information about Helius Sender for transaction submission. Fetches live from official documentation covering SWQoS routing, tips, latency, and best practices.',
     {},
@@ -193,7 +193,7 @@ export function registerGuideTools(server: McpServer) {
   );
 
   // Tool 3: getWebhookGuide — fetches live webhooks docs
-  server.tool(
+  registry.registerAction(
     'getWebhookGuide',
     'Get official Helius webhook documentation including delivery guarantees, latency, configuration, and troubleshooting. Fetches live from documentation.',
     {},
@@ -225,7 +225,7 @@ export function registerGuideTools(server: McpServer) {
   );
 
   // Tool 4: troubleshootError — kept hardcoded (no llms.txt equivalent)
-  server.tool(
+  registry.registerAction(
     'troubleshootError',
     'BEST FOR: diagnosing specific error codes — use this first for any error. Get detailed explanation and fixes for Helius/Solana error codes. Covers JSON-RPC errors, HTTP status codes, and WebSocket close codes.',
     {
@@ -273,7 +273,7 @@ export function registerGuideTools(server: McpServer) {
   );
 
   // Tool 5: getLatencyComparison — fetches live docs for all streaming products
-  server.tool(
+  registry.registerAction(
     'getLatencyComparison',
     'Compare latency across Helius streaming products: Standard WebSockets, Enhanced WebSockets, Laserstream (gRPC), and Shred Stream. Fetches live from official documentation.',
     {},
@@ -314,7 +314,7 @@ export function registerGuideTools(server: McpServer) {
   );
 
   // Tool 6: getPumpFunGuide — kept hardcoded (no llms.txt equivalent)
-  server.tool(
+  registry.registerAction(
     'getPumpFunGuide',
     'Guide for working with pump.fun tokens on Helius. Covers why getAssetsByCreator does not work, how to track migrations/graduates, and best practices for pump.fun token queries.',
     {},

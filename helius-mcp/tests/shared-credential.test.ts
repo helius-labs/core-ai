@@ -195,15 +195,15 @@ async function captureAuthTools(): Promise<Record<string, (args: unknown) => Pro
 }>>> {
   const { registerAuthTools } = await import('../src/tools/auth.js');
   const handlers: Record<string, (args: unknown) => Promise<never>> = {};
-  const fakeServer = {
+  const fakeRegistry = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tool: (...args: any[]) => {
+    registerAction: (...args: any[]) => {
       handlers[args[0]] = args[args.length - 1];
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
-  registerAuthTools(fakeServer);
+  registerAuthTools(fakeRegistry);
   return handlers;
 }
 

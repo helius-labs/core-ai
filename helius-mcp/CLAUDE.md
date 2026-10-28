@@ -21,7 +21,7 @@ src/
 
 ## Tool Registration Pattern
 
-Each tool file exports tool definitions registered in `index.ts`. Tools use the helius-sdk `createHelius()` for SDK methods and `restRequest()`/`rpcRequest()`/`dasRequest()` for non-SDK endpoints.
+Each tool file exports a `register*Tools(registry: ActionRegistry)` function that registers its actions with `registry.registerAction(name, description, inputSchema, handler)` (see `src/router/action-registry.ts`). Tool modules never register on the MCP server directly: their handlers are collected in `src/router/action-handlers.ts` and reached through the 10 routed public tools in `src/router/register.ts`. Handlers take `(args, extra)`; pass `extra` to `contextFromExtra`. Tools use the helius-sdk `createHelius()` for SDK methods and `restRequest()`/`rpcRequest()`/`dasRequest()` for non-SDK endpoints.
 
 ## SDK vs Raw Fetch
 

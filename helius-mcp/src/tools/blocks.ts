@@ -1,13 +1,13 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatTimestamp } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, validateEnum, handleToolError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerBlockTools(server: McpServer) {
-  server.tool(
+export function registerBlockTools(registry: ActionRegistry) {
+  registry.registerAction(
     'getBlock',
     'BEST FOR: inspecting a specific block by slot number. Get detailed information about a specific Solana block by slot number. Returns block time, blockhash, parent slot, transaction count, and reward summary. Use transactionDetails to control how much transaction data is included: "none" for just block metadata, "signatures" for a list of transaction signatures, or "full" for complete transaction data. Credit cost: 10 credits/call (historical data).',
     {

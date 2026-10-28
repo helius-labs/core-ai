@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import type { HistoryTransaction, Transfer } from 'helius-sdk/wallet/types';
 import { getHeliusClient, hasApiKey, restRequest } from '../utils/helius.js';
 import { formatAddress, formatTimestamp } from '../utils/formatters.js';
@@ -7,9 +7,9 @@ import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, addressError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerWalletTools(server: McpServer) {
+export function registerWalletTools(registry: ActionRegistry) {
   // ─── Get Wallet Identity ───
-  server.tool(
+  registry.registerAction(
     'getWalletIdentity',
     'BEST FOR: identifying a single known wallet. PREFER batchWalletIdentity for multiple addresses. Identify known wallets (exchanges, protocols, institutions). Returns name, type, category, tags. Also accepts SNS/ANS domains (e.g., `toly.sol`, `helius.bonk`) — mainnet only. Credit cost: 100 credits.',
     {
@@ -42,7 +42,7 @@ export function registerWalletTools(server: McpServer) {
   );
 
   // ─── Batch Wallet Identity ───
-  server.tool(
+  registry.registerAction(
     'batchWalletIdentity',
     'BEST FOR: identifying multiple wallets at once (up to 100). PREFER getWalletIdentity for a single address. Look up identities for up to 100 entries. Returns names, types, and categories. Entries may be addresses or SNS/ANS domains (mainnet only); unresolved domains are returned with `unresolved: true`. Credit cost: 100 credits.',
     {
@@ -100,7 +100,7 @@ export function registerWalletTools(server: McpServer) {
   );
 
   // ─── Get Wallet Balances ───
-  server.tool(
+  registry.registerAction(
     'getWalletBalances',
     'BEST FOR: complete portfolio view with USD values. PREFER getBalance for SOL-only, getTokenBalances for cheaper per-token lookups. Get all token and NFT balances with USD values, sorted by value. Includes SOL, SPL, Token-2022, and optionally NFTs. Credit cost: 100 credits.',
     {
@@ -173,7 +173,7 @@ export function registerWalletTools(server: McpServer) {
   );
 
   // ─── Get Historical Token Balance ───
-  server.tool(
+  registry.registerAction(
     'getWalletBalanceAt',
     'BEST FOR: a wallet\'s exact balance of a specific token (or native SOL) at a past timestamp, datetime, or slot. PREFER getWalletBalances for current holdings. Reads the post-transaction balance from the wallet\'s most recent transaction at or before the requested point — an exact value, not an estimate. Provide exactly ONE of time, datetime, or slot. For native SOL pass mint=So11111111111111111111111111111111111111111. Credit cost: 100 credits. Requires Developer+ plan.',
     {
@@ -233,7 +233,7 @@ export function registerWalletTools(server: McpServer) {
   );
 
   // ─── Get Wallet History ───
-  server.tool(
+  registry.registerAction(
     'getWalletHistory',
     'BEST FOR: balance change deltas per transaction. PREFER getTransactionHistory for general history, getWalletTransfers for sends/receives. Get transaction history with balance changes per transaction. Credit cost: 100 credits. Requires Developer+ plan.',
     {
@@ -307,7 +307,7 @@ export function registerWalletTools(server: McpServer) {
   );
 
   // ─── Get Wallet Transfers ───
-  server.tool(
+  registry.registerAction(
     'getWalletTransfers',
     'BEST FOR: tracking sends/receives with direction and counterparty. PREFER getTransactionHistory for general history, getWalletHistory for balance deltas. Get all token transfers with sender/recipient info, direction (in/out), and amounts. Credit cost: 100 credits.',
     {
@@ -364,7 +364,7 @@ export function registerWalletTools(server: McpServer) {
   );
 
   // ─── Get Wallet Funded By ───
-  server.tool(
+  registry.registerAction(
     'getWalletFundedBy',
     'BEST FOR: wallet provenance — who funded this wallet. PREFER getWalletIdentity for identifying a wallet entity. Find the original funding source of a wallet. Shows funder identity if known. Credit cost: 100 credits.',
     {

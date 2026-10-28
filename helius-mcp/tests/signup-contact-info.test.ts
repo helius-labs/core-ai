@@ -40,14 +40,14 @@ type Handler = (args: unknown) => Promise<{ content: { type: string; text: strin
 async function captureSignup(): Promise<Handler> {
   const { registerAuthTools } = await import('../src/tools/auth.js');
   const handlers: Record<string, Handler> = {};
-  const fakeServer = {
+  const fakeRegistry = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tool: (...args: any[]) => {
+    registerAction: (...args: any[]) => {
       handlers[args[0]] = args[args.length - 1];
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
-  registerAuthTools(fakeServer);
+  registerAuthTools(fakeRegistry);
   return handlers.signup;
 }
 
