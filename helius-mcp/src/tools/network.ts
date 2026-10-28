@@ -1,13 +1,13 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSolCompact } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, handleToolError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerNetworkTools(server: McpServer) {
-  server.tool(
+export function registerNetworkTools(registry: ActionRegistry) {
+  registry.registerAction(
     'getNetworkStatus',
     'BEST FOR: quick Solana network health check — epoch, slot, TPS, supply, version. Get current Solana network status including epoch info (current epoch, slot, progress), current TPS (transactions per second), total SOL supply, cluster version, and current block height. Optionally pass "samples" to control the TPS averaging window (each sample ≈ 60s; default 4 ≈ 4 min, max 720 ≈ 12 hours). Credit cost: 4 credits (4 standard RPC calls).',
     {

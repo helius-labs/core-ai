@@ -1,14 +1,14 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatSol, formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, getErrorMessage, handleToolError, addressError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerBalanceTools(server: McpServer) {
+export function registerBalanceTools(registry: ActionRegistry) {
   // Get SOL Balance
-  server.tool(
+  registry.registerAction(
     'getBalance',
     'BEST FOR: SOL-only balance checks. PREFER getTokenBalances for SPL tokens, getWalletBalances for full portfolio with USD. Get native SOL balance for a wallet. Returns balance in SOL and lamports. Credit cost: 1 credit.',
     {
@@ -32,7 +32,7 @@ export function registerBalanceTools(server: McpServer) {
   );
 
   // Get Token Balances
-  server.tool(
+  registry.registerAction(
     'getTokenBalances',
     'BEST FOR: listing SPL token holdings with prices. PREFER getBalance for SOL-only, getWalletBalances for full portfolio with USD and SOL. Get all SPL token balances for a wallet with names, symbols, amounts, and USD prices. Auto-paginates. Credit cost: 10 credits/page (DAS API).',
     {

@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, handleToolError, addressError, missingParamError } from '../utils/errors.js';
@@ -9,11 +9,11 @@ import { contextFromExtra } from '../utils/request-context.js';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const bigintReplacer = (_: string, v: any) => typeof v === 'bigint' ? Number(v) : v;
 
-export function registerZkCompressionTools(server: McpServer) {
+export function registerZkCompressionTools(registry: ActionRegistry) {
 
   // ─── Account Queries ───
 
-  server.tool(
+  registry.registerAction(
     'getCompressedAccount',
     'BEST FOR: fetching a single compressed account by address or hash. Returns account data, lamports, owner, tree info. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -59,7 +59,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressedAccountsByOwner',
     'BEST FOR: listing all compressed accounts owned by a wallet. Returns paginated compressed accounts with data, lamports, tree info. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -102,7 +102,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getMultipleCompressedAccounts',
     'BEST FOR: batch-fetching multiple compressed accounts by addresses or hashes. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -146,7 +146,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Balance Queries ───
 
-  server.tool(
+  registry.registerAction(
     'getCompressedBalance',
     'BEST FOR: checking compressed SOL balance of a single account by address or hash. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -176,7 +176,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressedBalanceByOwner',
     'BEST FOR: checking total compressed SOL balance across all accounts owned by a wallet. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -200,7 +200,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Token Queries ───
 
-  server.tool(
+  registry.registerAction(
     'getCompressedMintTokenHolders',
     'BEST FOR: listing holders of a compressed token mint. Returns paginated list of owners and balances. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -242,7 +242,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressedTokenAccountBalance',
     'BEST FOR: checking token balance of a single compressed token account by address or hash. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -271,7 +271,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressedTokenAccountsByOwner',
     'BEST FOR: listing compressed token accounts owned by a wallet, optionally filtered by mint. Returns account data with token info. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -318,7 +318,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressedTokenAccountsByDelegate',
     'BEST FOR: listing compressed token accounts delegated to an address, optionally filtered by mint. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -365,7 +365,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressedTokenBalancesByOwnerV2',
     'BEST FOR: summarizing compressed token balances per mint for a wallet. Returns mint addresses and raw balances. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -411,7 +411,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Merkle Proof Queries ───
 
-  server.tool(
+  registry.registerAction(
     'getCompressedAccountProof',
     'BEST FOR: getting Merkle proof for a compressed account. Required for building ZK Compression transactions. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -443,7 +443,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getMultipleCompressedAccountProofs',
     'BEST FOR: batch Merkle proofs for multiple compressed accounts. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -474,7 +474,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getMultipleNewAddressProofs',
     'BEST FOR: getting non-inclusion proofs for new addresses with specific Merkle trees. Required for creating new compressed accounts. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -510,7 +510,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Signature Queries ───
 
-  server.tool(
+  registry.registerAction(
     'getCompressionSignaturesForAccount',
     'BEST FOR: getting compression transaction signatures for a specific compressed account by hash. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -544,7 +544,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressionSignaturesForAddress',
     'BEST FOR: getting compression transaction signatures for a specific address. Returns paginated results. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -588,7 +588,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressionSignaturesForOwner',
     'BEST FOR: getting all compression transaction signatures for a wallet owner. Returns paginated results. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -632,7 +632,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getCompressionSignaturesForTokenOwner',
     'BEST FOR: getting compression transaction signatures specifically for token operations by a wallet owner. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -676,7 +676,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getLatestCompressionSignatures',
     'BEST FOR: getting the most recent compression transactions across the network. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -716,7 +716,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getLatestNonVotingSignatures',
     'BEST FOR: getting the most recent non-voting compression transactions across the network. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -760,7 +760,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Transaction ───
 
-  server.tool(
+  registry.registerAction(
     'getTransactionWithCompressionInfo',
     'BEST FOR: inspecting a transaction\'s compression state changes — accounts opened and closed. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -812,7 +812,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Validity Proof ───
 
-  server.tool(
+  registry.registerAction(
     'getValidityProof',
     'BEST FOR: generating a ZK validity proof for compressed account operations. Required for building transactions that modify compressed state. Credit cost: 10 credits (ZK Compression RPC).',
     {
@@ -857,7 +857,7 @@ export function registerZkCompressionTools(server: McpServer) {
 
   // ─── Indexer Health ───
 
-  server.tool(
+  registry.registerAction(
     'getIndexerHealth',
     'BEST FOR: checking if the ZK Compression indexer is healthy and responsive. Credit cost: 10 credits (ZK Compression RPC).',
     {},
@@ -874,7 +874,7 @@ export function registerZkCompressionTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getIndexerSlot',
     'BEST FOR: checking the latest slot processed by the ZK Compression indexer. Useful for monitoring indexer lag. Credit cost: 10 credits (ZK Compression RPC).',
     {},

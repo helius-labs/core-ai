@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { mcpText, mcpError } from '../utils/errors.js';
 import type { ErrorMeta } from '../utils/errors.js';
@@ -90,8 +90,8 @@ export async function detectCurrentPlan(): Promise<string | undefined> {
   return undefined;
 }
 
-export function registerPlanTools(server: McpServer) {
-  server.tool(
+export function registerPlanTools(registry: ActionRegistry) {
+  registry.registerAction(
     'getHeliusPlanInfo',
     'BEST FOR: pricing and plan questions. PREFER compareHeliusPlans for side-by-side category comparisons, getRateLimitInfo for per-method credit costs. Get Helius plan pricing, credits, rate limits, and feature availability. Fetches live from billing docs.',
     {
@@ -152,7 +152,7 @@ export function registerPlanTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'compareHeliusPlans',
     'BEST FOR: side-by-side plan comparison in a specific category. Compare Helius plans for rate limits, features, or pricing. Fetches live from billing docs.',
     {
@@ -194,7 +194,7 @@ export function registerPlanTools(server: McpServer) {
 
   // ── getAccountPlan — lightweight pre-flight check ──
 
-  server.tool(
+  registry.registerAction(
     'getAccountPlan',
     'Lightweight pre-flight check: returns current plan, credit balance, and which MCP tools require an upgrade. 0 credits. Call before gated tools (transactionSubscribe, laserstreamSubscribe, etc.).',
     {},

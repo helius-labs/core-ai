@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { MCP_USER_AGENT } from '../http.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
 
@@ -280,11 +280,11 @@ const BLOG_INDEX: Record<string, { title: string; category: string }> = {
 // Tool registration
 // ---------------------------------------------------------------------------
 
-export function registerSolanaKnowledgeTools(server: McpServer) {
+export function registerSolanaKnowledgeTools(registry: ActionRegistry) {
   // =========================================================================
   // Tool 1: getSIMD — Fetch a Solana Improvement Document by number
   // =========================================================================
-  server.tool(
+  registry.registerAction(
     'getSIMD',
     'Fetch a Solana Improvement Document (SIMD) proposal by number. Returns the full proposal markdown including motivation, design, specification, and security considerations. SIMDs are the formal governance mechanism for Solana protocol changes.',
     {
@@ -336,7 +336,7 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
   // =========================================================================
   // Tool 2: listSIMDs — List available SIMD proposals
   // =========================================================================
-  server.tool(
+  registry.registerAction(
     'listSIMDs',
     'List all available Solana Improvement Document (SIMD) proposals. Returns proposal numbers and titles. Use getSIMD to fetch the full content of a specific proposal.',
     {},
@@ -367,7 +367,7 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
   // =========================================================================
   // Tool 3: readSolanaSourceFile — Read a file from the Agave/Firedancer repo
   // =========================================================================
-  server.tool(
+  registry.registerAction(
     'readSolanaSourceFile',
     'Read a source file from the Agave (Solana validator) or Firedancer codebase on GitHub. Use this to look up how specific components are implemented (e.g., banking stage, vote program, BPF loader, SVM runtime). Provide the file path relative to the repo root.',
     {
@@ -446,7 +446,7 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
   // =========================================================================
   // Tool 4: searchSolanaDocs — Fetch official Solana documentation
   // =========================================================================
-  server.tool(
+  registry.registerAction(
     'searchSolanaDocs',
     'Search the official Solana documentation (solana.com/docs). Covers core concepts (accounts, transactions, programs, PDAs, CPIs), RPC API reference, token standards, and development guides. Returns sections matching your query from the AI-optimized documentation.',
     {
@@ -568,7 +568,7 @@ export function registerSolanaKnowledgeTools(server: McpServer) {
   // =========================================================================
   // Tool 5: fetchHeliusBlog — Fetch a Helius blog post
   // =========================================================================
-  server.tool(
+  registry.registerAction(
     'fetchHeliusBlog',
     'Fetch a technical blog post from Helius (helius.dev/blog). The Helius blog covers SVM internals, consensus, transactions, fees, MEV, validator economics, development frameworks, security, and more. Use "list" to see available posts or "fetch" to read one.',
     {

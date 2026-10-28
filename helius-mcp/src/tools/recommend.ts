@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { mcpText } from '../utils/errors.js';
 import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
@@ -227,8 +227,8 @@ const SCALE_TIERS: Record<string, string[]> = {
 
 // ─── Tool Registration ───
 
-export function registerRecommendTools(server: McpServer) {
-  server.tool(
+export function registerRecommendTools(registry: ActionRegistry) {
+  registry.registerAction(
     'recommendStack',
     'BEST FOR: project architecture when user describes a Solana app to build. PREFER getHeliusPlanInfo for pricing-only, lookupHeliusDocs for API docs. Get tiered architecture recommendations. Returns Helius products, MCP tools, credit costs, minimum plan, and reference files.',
     {

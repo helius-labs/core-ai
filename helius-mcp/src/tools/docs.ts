@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { fetchDoc, fetchDocs, getDocsIndex, extractSections, truncateDoc, inferDocTopic, DOCS_INDEX } from '../utils/docs.js';
 
 const DOC_TOPICS = Object.keys(DOCS_INDEX) as [string, ...string[]];
@@ -11,11 +11,11 @@ function getDocHeadings(content: string): string[] {
     .slice(0, 12);
 }
 
-export function registerDocsTools(server: McpServer) {
+export function registerDocsTools(registry: ActionRegistry) {
   /**
    * Lookup Helius documentation - fetches official docs for accurate information
    */
-  server.tool(
+  registry.registerAction(
     'lookupHeliusDocs',
     'BEST FOR: API documentation and technical details. NOT for pricing (use getHeliusPlanInfo) or errors (use troubleshootError). Fetch official Helius documentation by topic. Use `section` parameter to fetch only relevant sections and save tokens.',
     {
@@ -114,7 +114,7 @@ export function registerDocsTools(server: McpServer) {
   /**
    * List available documentation topics
    */
-  server.tool(
+  registry.registerAction(
     'listHeliusDocTopics',
     'List all available Helius documentation topics that can be fetched with lookupHeliusDocs.',
     {},
@@ -137,7 +137,7 @@ export function registerDocsTools(server: McpServer) {
   /**
    * Get credits information from official docs
    */
-  server.tool(
+  registry.registerAction(
     'getHeliusCreditsInfo',
     'BEST FOR: credit cost lookup table. PREFER getRateLimitInfo for per-method rate limits, getHeliusPlanInfo for plan pricing. Get official Helius credit costs from documentation.',
     {},

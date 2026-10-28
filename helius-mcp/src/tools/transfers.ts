@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { address } from '@solana/kit';
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
@@ -19,11 +19,11 @@ const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
 // ── Tool Registration ──
 
-export function registerTransferTools(server: McpServer) {
+export function registerTransferTools(registry: ActionRegistry) {
 
   // ── Transfer SOL ──
 
-  server.tool(
+  registry.registerAction(
     'transferSol',
     'BEST FOR: sending native SOL from your MCP wallet to another address. ' +
     'PREFER transferToken for SPL tokens. ' +
@@ -148,7 +148,7 @@ export function registerTransferTools(server: McpServer) {
 
   // ── Transfer SPL Token ──
 
-  server.tool(
+  registry.registerAction(
     'transferToken',
     'BEST FOR: sending SPL tokens (USDC, BONK, JUP, etc.) from your MCP wallet to another address. ' +
     'PREFER transferSol for native SOL. ' +

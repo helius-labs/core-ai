@@ -21,7 +21,7 @@ let recommend: Handler;
 
 beforeEach(() => {
   registerRecommendTools({
-    tool: (_name: string, _desc: string, _schema: unknown, handler: Handler) => { recommend = handler; },
+    registerAction: (_name: string, _desc: string, _schema: unknown, handler: Handler) => { recommend = handler; },
   } as never);
 });
 

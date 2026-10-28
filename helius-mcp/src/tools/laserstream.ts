@@ -1,14 +1,14 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getLaserstreamUrl, getNetwork, hasApiKey } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnAddressConflicts } from '../utils/errors.js';
 import { noApiKeyResponse } from './shared.js';
 import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerLaserstreamTools(server: McpServer) {
+export function registerLaserstreamTools(registry: ActionRegistry) {
 
-  server.tool(
+  registry.registerAction(
     'laserstreamSubscribe',
     'BEST FOR: lowest-latency production streaming via gRPC (slots, accounts, transactions, blocks). PREFER transactionSubscribe for simpler WebSocket-based streaming. PREFER createWebhook for fire-and-forget notifications. Get Laserstream gRPC config for high-performance Solana streaming. Subscribe to slots, accounts, transactions, blocks, or entries. 24h historical replay. Business+ plan for mainnet. Returns connection config and code example.',
     {
@@ -167,7 +167,7 @@ export function registerLaserstreamTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getLaserstreamInfo',
     'Get Helius Laserstream gRPC capabilities, regions, pricing, and plan requirements. Lowest latency Solana streaming with 24h replay. Fetches live from official documentation.',
     {},

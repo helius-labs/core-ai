@@ -1,14 +1,14 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, handleToolError, addressError, paginationError, notFoundError, missingParamError, exclusiveParamError, batchLimitError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerAssetTools(server: McpServer) {
+export function registerAssetTools(registry: ActionRegistry) {
   // Get Assets by Owner (NFTs and tokens via DAS)
-  server.tool(
+  registry.registerAction(
     'getAssetsByOwner',
     'BEST FOR: listing NFTs/digital assets owned by a wallet. PREFER getTokenBalances for fungible tokens, getAsset for a specific mint. Get all NFTs and digital assets owned by a wallet. Returns asset names, types, and mint addresses. Supports regular NFTs and cNFTs. Credit cost: 10 credits (DAS API).',
     {
@@ -87,7 +87,7 @@ export function registerAssetTools(server: McpServer) {
   );
 
   // Get Asset (single or batch)
-  server.tool(
+  registry.registerAction(
     'getAsset',
     'Get detailed information about one or more NFTs/tokens by mint address. For a single asset: returns name, symbol, description, image, owner, creators, authorities, supply, decimals, royalties, mutability. For batch: pass an array of up to 1000 mint addresses in "ids" for fast bulk lookups. Use this to find who created/deployed a token, verify token details, or get full NFT metadata. DAS API (10 credits/call).',
     {
@@ -270,7 +270,7 @@ export function registerAssetTools(server: McpServer) {
   );
 
   // Search Assets — unified search with smart routing for creator/authority/general queries
-  server.tool(
+  registry.registerAction(
     'searchAssets',
     'BEST FOR: filtered multi-criteria asset search. PREFER getAssetsByOwner for simple wallet NFT listing, getAssetsByGroup for collection browsing. Search digital assets by owner, creator, authority, name, compression, burnt, or frozen status. Also supports getAssetsByCreator and getAssetsByAuthority queries. Credit cost: 10 credits (DAS API).',
     {
@@ -411,7 +411,7 @@ export function registerAssetTools(server: McpServer) {
   );
 
   // Get Assets by Group (Collection)
-  server.tool(
+  registry.registerAction(
     'getAssetsByGroup',
     'Get all NFTs in a collection by group key/value. The groupKey is usually "collection" and groupValue is the collection mint address. Use this to browse all NFTs in a specific collection. DAS API (10 credits/call).',
     {

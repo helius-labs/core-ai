@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatSol } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
@@ -36,9 +36,9 @@ function formatParsedAccountData(account: {
   return lines;
 }
 
-export function registerAccountTools(server: McpServer) {
+export function registerAccountTools(registry: ActionRegistry) {
   // Get Account Info (single or batch) — uses SDK standard Solana RPC (Kit, bigint)
-  server.tool(
+  registry.registerAction(
     'getAccountInfo',
     'BEST FOR: raw on-chain account inspection (owner program, data size, executable status, Token-2022 extensions). PREFER getAsset for token/NFT metadata. PREFER getBalance for SOL balance. Get detailed Solana account information for one or more accounts. For a single account: returns owner program, lamport balance, data size, executable status, and rent epoch. For batch: pass up to 100 addresses in "addresses" for fast bulk lookups. Use jsonParsed encoding (default) on token mint addresses to see Token-2022 extensions, authorities, and supply data. Use this to inspect any on-chain account. Credit cost: 1 credit (standard RPC).',
     {
@@ -133,7 +133,7 @@ export function registerAccountTools(server: McpServer) {
   );
 
   // Get Token Accounts
-  server.tool(
+  registry.registerAction(
     'getTokenAccounts',
     'BEST FOR: advanced token account queries with flexible filters (by mint, owner, or both). PREFER getTokenHolders for a quick top-holders list. PREFER getTokenBalances for a wallet\'s token holdings with prices. Query token accounts with advanced filters. Can filter by mint address, owner address, or both. Returns token account addresses and balances. Credit cost: 10 credits/call (DAS API).',
     {
@@ -215,7 +215,7 @@ export function registerAccountTools(server: McpServer) {
   );
 
   // Get Program Accounts (V2 with pagination) — uses SDK RpcCaller (no bigint)
-  server.tool(
+  registry.registerAction(
     'getProgramAccounts',
     'BEST FOR: investigating protocol state — finding DEX pools, lending positions, or all accounts created by a specific program. PREFER searchAssets for NFT/token asset searches by creator or authority. Get all accounts owned by a specific program. Returns account addresses, balances, and data sizes. Use dataSize to filter by account data length (e.g. 165 for token accounts). Useful for finding all accounts created by a program like a DEX, lending protocol, or custom program. Credit cost: 10 credits/call.',
     {

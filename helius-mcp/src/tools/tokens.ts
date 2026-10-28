@@ -1,13 +1,13 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getHeliusClient, hasApiKey } from '../utils/helius.js';
 import { formatAddress, formatTokenAmount } from '../utils/formatters.js';
 import { noApiKeyResponse } from './shared.js';
 import { mcpText, handleToolError, addressError } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerTokenTools(server: McpServer) {
-  server.tool(
+export function registerTokenTools(registry: ActionRegistry) {
+  registry.registerAction(
     'getTokenHolders',
     'BEST FOR: top holders of a specific token by mint. PREFER getTokenAccounts for advanced token account queries with flexible filters. Get the top 20 holders of a specific SPL token by mint address. Returns holder wallet addresses and their token balances (raw amounts). Useful for checking token distribution, finding whale wallets, or verifying token decentralization. Credit cost: ~20 credits/call (10 for token accounts + 10 for token metadata via DAS API).',
     {

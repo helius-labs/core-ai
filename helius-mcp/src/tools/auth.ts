@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { generateKeypair } from 'helius-sdk/auth/generateKeypair';
 import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
@@ -64,10 +64,10 @@ const renderPaymentLink = (
   `- **Plan:** ${paymentLink.planName}\n\n` +
   `After paying, call \`${resumeCmd}\` to confirm activation locally.`;
 
-export function registerAuthTools(server: McpServer) {
+export function registerAuthTools(registry: ActionRegistry) {
   // ── Getting Started ──
 
-  server.tool(
+  registry.registerAction(
     'getStarted',
     'Get setup instructions for Helius. Checks whether an API key is configured (not validated), whether a keypair exists on disk, and whether a JWT session is present, then tells you exactly what to do next. Call this when a user asks "how do I get started?" or needs onboarding help.',
     {},
@@ -156,7 +156,7 @@ export function registerAuthTools(server: McpServer) {
 
   // ── Keypair Generation ──
 
-  server.tool(
+  registry.registerAction(
     'generateKeypair',
     'Generate a new Solana keypair (or load the existing one from disk). Returns the wallet address. Required before any `signup` call — the wallet address is bound to the payment intent in both link and autopay modes.',
     {},
@@ -204,7 +204,7 @@ export function registerAuthTools(server: McpServer) {
 
   // ── Signup ──
 
-  server.tool(
+  registry.registerAction(
     'signup',
     'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Creating a new account requires `email`, `firstName`, and `lastName` (the wallet is only the payment method); they are not needed if this wallet already has an account. Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
     {
@@ -336,7 +336,7 @@ export function registerAuthTools(server: McpServer) {
 
   // ── Account Status ──
 
-  server.tool(
+  registry.registerAction(
     'getAccountStatus',
     'Check your Helius account status: current plan, remaining credits, rate limits, and billing cycle. Requires a JWT session (i.e., you signed up via `signup`). If you only have an API key configured, auth status is confirmed but credit data is unavailable — call `signup` to enable full status.',
     {},
@@ -428,7 +428,7 @@ export function registerAuthTools(server: McpServer) {
 
   // ── Upgrade ──
 
-  server.tool(
+  registry.registerAction(
     'previewUpgrade',
     'Preview pricing for a plan upgrade with proration details. Shows current plan, new plan cost, prorated credits, and amount due today.',
     {
@@ -491,7 +491,7 @@ export function registerAuthTools(server: McpServer) {
     },
   );
 
-  server.tool(
+  registry.registerAction(
     'upgradePlan',
     'Upgrade your Helius plan via crypto checkout. Default `mode: "link"` returns a hosted-checkout URL. `mode: "autopay"` pays USDC from the local keypair and polls. Contact info (email/firstName/lastName) is only needed for first-time upgrades — backend auto-fetches from existing customer otherwise.',
     {
@@ -572,7 +572,7 @@ export function registerAuthTools(server: McpServer) {
 
   // ── Prepaid Credits ──
 
-  server.tool(
+  registry.registerAction(
     'purchaseCredits',
     'Buy prepaid credits as a one-time USDC top-up. AGENT PLAN ONLY: each unit of `qty` is 1,000,000 credits at $10 USDC, no recurring sub. Subscription plans (Developer / Business / Professional) get monthly allotments and overage is auto-billed at $5/M on the next invoice — they can NOT use this tool; this tool will reject the call with UNSUPPORTED_PLAN. Default `mode: "link"` returns a hosted-checkout URL; `mode: "autopay"` pays USDC from the local keypair and polls.',
     {
@@ -655,7 +655,7 @@ export function registerAuthTools(server: McpServer) {
 
   // ── Renewal Pay ──
 
-  server.tool(
+  registry.registerAction(
     'payRenewal',
     'Pay an existing renewal payment intent. Default `mode: "link"` returns the hosted-checkout URL for the renewal. `mode: "autopay"` pays USDC from the local keypair.',
     {

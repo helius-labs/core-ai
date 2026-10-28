@@ -1,5 +1,5 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { address } from '@solana/kit';
 import { getHeliusClient, hasApiKey, getSessionWalletAddress } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError, isValidAddressFormat, missingParamError } from '../utils/errors.js';
@@ -9,11 +9,11 @@ import { contextFromExtra } from '../utils/request-context.js';
 
 // ── Tool Registration ──
 
-export function registerStakingTools(server: McpServer) {
+export function registerStakingTools(registry: ActionRegistry) {
 
   // ── Stake SOL ──
 
-  server.tool(
+  registry.registerAction(
     'stakeSOL',
     'BEST FOR: staking native SOL to the Helius validator to earn yield. ' +
     'PREFER getStakeAccounts to view existing stake accounts, getWithdrawableAmount to check withdrawal eligibility. ' +
@@ -82,7 +82,7 @@ export function registerStakingTools(server: McpServer) {
 
   // ── Unstake SOL ──
 
-  server.tool(
+  registry.registerAction(
     'unstakeSOL',
     'BEST FOR: deactivating (unstaking) a stake account to begin the cooldown period before withdrawal. ' +
     'PREFER getStakeAccounts to find stake account addresses first. ' +
@@ -145,7 +145,7 @@ export function registerStakingTools(server: McpServer) {
 
   // ── Withdraw Stake ──
 
-  server.tool(
+  registry.registerAction(
     'withdrawStake',
     'BEST FOR: withdrawing SOL from a deactivated stake account back to your wallet. ' +
     'PREFER getWithdrawableAmount to check if funds are available before withdrawing. ' +
@@ -239,7 +239,7 @@ export function registerStakingTools(server: McpServer) {
 
   // ── Get Stake Accounts ──
 
-  server.tool(
+  registry.registerAction(
     'getStakeAccounts',
     'BEST FOR: listing all stake accounts delegated to the Helius validator for a wallet. ' +
     'PREFER getWithdrawableAmount to check withdrawal eligibility for a specific stake account. ' +
@@ -333,7 +333,7 @@ export function registerStakingTools(server: McpServer) {
 
   // ── Get Withdrawable Amount ──
 
-  server.tool(
+  registry.registerAction(
     'getWithdrawableAmount',
     'BEST FOR: checking how much SOL can be withdrawn from a stake account. ' +
     'PREFER getStakeAccounts to find stake account addresses, withdrawStake to actually withdraw. ' +

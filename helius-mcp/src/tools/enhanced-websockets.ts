@@ -1,13 +1,13 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import type { ActionRegistry } from '../router/action-registry.js';
 import { getEnhancedWebSocketUrl } from '../utils/helius.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
 import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
-export function registerEnhancedWebSocketTools(server: McpServer) {
+export function registerEnhancedWebSocketTools(registry: ActionRegistry) {
 
-  server.tool(
+  registry.registerAction(
     'transactionSubscribe',
     'BEST FOR: real-time transaction streaming for live UI updates (WebSocket). PREFER createWebhook for fire-and-forget server-to-server notifications. PREFER laserstreamSubscribe for lowest-latency production streaming. Get Enhanced WebSocket config for real-time Solana transaction streaming. Filter by accounts, vote/failed txns, or signatures. Up to 50,000 addresses per filter. Developer+ plans only. Returns connection config and code example. Data streaming cost: 2 credits per 0.1 MB received.',
     {
@@ -125,7 +125,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'accountSubscribe',
     'BEST FOR: real-time account change monitoring for live UI updates (WebSocket). PREFER createWebhook for fire-and-forget notifications on account changes. PREFER laserstreamSubscribe for lowest-latency production streaming. Get Enhanced WebSocket config for real-time Solana account monitoring. Track balance changes and data updates. Developer+ plans only. Returns connection config and code example. Data streaming cost: 2 credits per 0.1 MB received.',
     {
@@ -199,7 +199,7 @@ export function registerEnhancedWebSocketTools(server: McpServer) {
     }
   );
 
-  server.tool(
+  registry.registerAction(
     'getEnhancedWebSocketInfo',
     'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets. Fetches live from official documentation.',
     {},
