@@ -136,6 +136,8 @@ The server exposes 10 public tools total: 9 routed domain tools plus `expandResu
 
 The 9 domain tools take a Helius action name in `action`, for example `heliusWallet` + `getBalance` or `heliusStreaming` + `createWebhook`. Heavy responses are summary-first; use `expandResult` to fetch a full section, range, page, or continuation on demand.
 
+Start the server with `--read-only` (or set `HELIUS_MCP_READ_ONLY=1`) to serve only actions that do not change state: 9 tools, without `heliusWrite`, webhook changes, signup, or billing. See the [helius-mcp README](helius-mcp/README.md#read-only-mode).
+
 ### Add to Claude
 
 ```bash

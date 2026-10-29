@@ -72,6 +72,8 @@ The routed domain tools take a Helius action name in `action`. Example:
 
 Heavy responses are summary-first. Use `expandResult({ resultId: "..." })` to fetch a full section, range, page, or continuation on demand.
 
+Run with `--read-only` (or `HELIUS_MCP_READ_ONLY=1`) for a read-only server: 9 tools, no `heliusWrite`, and no action that changes state. See `helius-mcp/README.md`.
+
 ## Skills
 
 Skills are in `.agents/skills/`. Each provides expert routing, rules, and reference docs for a domain:

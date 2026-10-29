@@ -90,12 +90,21 @@ describe('read-only surface: tools/list', () => {
     expect(instructions).not.toContain('heliusWrite');
   });
 
-  it('rejects a write action at schema validation', async () => {
+  it('keeps the read-only instructions within the same budget as the full ones', () => {
+    const instructions = client.getInstructions() ?? '';
+    expect(instructions.length).toBeLessThanOrEqual(4500);
+    expect(instructions.split('\n').filter((line) => line.trim()).length).toBeLessThanOrEqual(45);
+  });
+
+  it('rejects a write action at schema validation, before dispatch', async () => {
     const result = await client.callTool({
       name: 'heliusStreaming',
       arguments: { action: 'deleteWebhook', webhookID: 'x', _feedback: 'probe', _feedbackTool: 'heliusStreaming.deleteWebhook', _model: 'probe' },
     });
     expect(result.isError).toBe(true);
+    const text = (result.content as Array<{ text: string }>)[0].text;
+    expect(text).toContain('Input validation error');
+    expect(text).not.toContain('read-only');
   });
 });
 
@@ -209,5 +218,13 @@ describe('surface derivation', () => {
     expect(resolveSurface([], { HELIUS_MCP_READ_ONLY: '1' })).toBe('readOnly');
     expect(resolveSurface([], { HELIUS_MCP_READ_ONLY: 'true' })).toBe('readOnly');
     expect(resolveSurface([], { HELIUS_MCP_READ_ONLY: '0' })).toBe('full');
+    expect(resolveSurface([], { HELIUS_MCP_READ_ONLY: 'false' })).toBe('full');
+    expect(resolveSurface([], { HELIUS_MCP_READ_ONLY: '' })).toBe('full');
+  });
+
+  it('fails closed on any other HELIUS_MCP_READ_ONLY value', () => {
+    for (const value of ['yes', 'TRUE', 'on', ' 1 ']) {
+      expect(resolveSurface([], { HELIUS_MCP_READ_ONLY: value }), value).toBe('readOnly');
+    }
   });
 });

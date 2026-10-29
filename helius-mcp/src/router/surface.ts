@@ -62,16 +62,22 @@ export function getSurfaceTools(surface: Surface): PublicToolName[] {
   );
 }
 
+export const READ_ONLY_FLAG = '--read-only';
+
 /**
  * Resolve the stdio server's surface from `--read-only` or
- * `HELIUS_MCP_READ_ONLY=1`. Defaults to `full`.
+ * `HELIUS_MCP_READ_ONLY`. Defaults to `full`.
+ *
+ * The env var fails closed: any value other than empty, `0`, or `false` means
+ * read-only, so `yes` or `TRUE` cannot quietly serve writes.
  */
 export function resolveSurface(
   argv: readonly string[] = process.argv.slice(2),
   env: NodeJS.ProcessEnv = process.env,
 ): Surface {
-  const raw = env.HELIUS_MCP_READ_ONLY;
-  return argv.includes('--read-only') || raw === '1' || raw === 'true' ? 'readOnly' : 'full';
+  const raw = env.HELIUS_MCP_READ_ONLY?.trim().toLowerCase();
+  const envReadOnly = raw !== undefined && raw !== '' && raw !== '0' && raw !== 'false';
+  return argv.includes(READ_ONLY_FLAG) || envReadOnly ? 'readOnly' : 'full';
 }
 
 /**
