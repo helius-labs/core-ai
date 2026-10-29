@@ -1,38 +1,23 @@
 #!/usr/bin/env node
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { registerTools } from './tools/index.js';
-import { ROUTER_INSTRUCTIONS } from './router/instructions.js';
+import { createServer } from './server.js';
+import { READ_ONLY_FLAG, resolveSurface } from './router/surface.js';
 import { setApiKey, setSessionSecretKey, setSessionWalletAddress } from './utils/helius.js';
 import { getSharedApiKey, loadKeypairFromDisk } from './utils/config.js';
 import { isSharedCredentialMode } from './utils/runtime.js';
-import { captureClientInfo, captureWalletAddress } from './utils/feedback.js';
+import { captureWalletAddress } from './utils/feedback.js';
 import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
-import { version } from './version.js';
 
-const server = new McpServer(
-  {
-    name: 'helius-mcp',
-    version
-  },
-  {
-    instructions: ROUTER_INSTRUCTIONS
-  }
-);
+// `--read-only` or HELIUS_MCP_READ_ONLY=1 serves only actions that do not change state.
+const server = createServer({ surface: resolveSurface() });
 
-registerTools(server);
-
-// Capture MCP client identity (Cursor, Claude Code, etc.) after handshake
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(server.server as any).oninitialized = () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const clientVersion = (server.server as any).getClientVersion?.();
-  if (clientVersion) {
-    captureClientInfo(clientVersion);
-  }
-};
+// A mistyped `--read-only` would otherwise serve the full surface without a word.
+const unknownArgs = process.argv.slice(2).filter((arg) => arg !== READ_ONLY_FLAG);
+if (unknownArgs.length > 0) {
+  console.error(`helius-mcp: ignoring unrecognized argument(s): ${unknownArgs.join(' ')}. The only flag is ${READ_ONLY_FLAG}.`);
+}
 
 async function main() {
   if (isSharedCredentialMode()) {

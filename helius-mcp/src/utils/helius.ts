@@ -3,7 +3,7 @@ import { MCP_USER_AGENT } from '../http.js';
 import { getSharedApiKey } from './config.js';
 import { wrapClientWithResilience, withResilience, READ_TIMEOUT_MS } from './resilience.js';
 import { registerSecret, API_KEY_PLACEHOLDER } from './redact.js';
-import { isSharedCredentialMode } from './runtime.js';
+import { isReadOnlySurface, isSharedCredentialMode } from './runtime.js';
 import type { RequestContext } from './request-context.js';
 
 let sessionApiKey: string | null = null;
@@ -72,7 +72,9 @@ export function getApiKey(ctx?: RequestContext | null): string {
 
   const apiKey = sessionApiKey || process.env.HELIUS_API_KEY || getSharedApiKey();
   if (!apiKey) {
-    throw new Error('NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
+    throw new Error(isReadOnlySurface()
+      ? 'NO_API_KEY: Set the HELIUS_API_KEY environment variable for this MCP server and restart it'
+      : 'NO_API_KEY: Set HELIUS_API_KEY environment variable or use setHeliusApiKey tool');
   }
   // Register wherever the key came from so the output scrubber can catch it.
   registerSecret(apiKey);

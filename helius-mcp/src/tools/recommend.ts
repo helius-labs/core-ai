@@ -5,7 +5,8 @@ import { hasApiKey } from '../utils/helius.js';
 import { getPreferences, savePreferences } from '../utils/config.js';
 import { HELIUS_PLANS, detectCurrentPlan } from './plans.js';
 import { PRODUCT_CATALOG, CatalogProduct, PLAN_RANK } from './product-catalog.js';
-import { ACTION_NAME_SET } from '../router/actions.js';
+import { ACTION_NAME_SET, type ActionName } from '../router/actions.js';
+import { isAvailableOnCurrentSurface } from '../router/surface.js';
 import { contextFromExtra } from '../utils/request-context.js';
 // fetchDoc/extractSections no longer needed — live billing fetch removed
 
@@ -90,8 +91,12 @@ function formatProduct(product: CatalogProduct): string {
     ? ` | Docs: \`${product.referenceFile}\``
     : ` | Docs: \`lookupHeliusDocs\` topic \`${product.docKey}\``;
   const lines = [`- **${product.name}**${status} \u2014 ${product.description} (${product.creditCostPerCall})${docs}`];
-  if (product.mcpTools.length > 0) {
-    lines.push(`  Tools: ${product.mcpTools.map(t => '`' + t + '`').join(', ')}`);
+  // Only actions this server exposes: the read-only surface has no sends or webhook changes.
+  const tools = product.mcpTools.filter((t) => isAvailableOnCurrentSurface(t as ActionName));
+  if (tools.length > 0) {
+    lines.push(`  Tools: ${tools.map(t => '`' + t + '`').join(', ')}`);
+  } else if (product.mcpTools.length > 0) {
+    lines.push('  Tools: none on this read-only server; the full Helius MCP (`npx helius-mcp@latest`) has them');
   } else {
     lines.push('  Tools: none in this MCP yet');
   }
