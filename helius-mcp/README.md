@@ -109,6 +109,16 @@ Each routed tool takes an `action` field with the Helius action name:
 
 Heavy responses are summary-first. Routed tools return a compact summary plus `resultId` when the full response would be large or when `detail: "summary"` is requested. Use `expandResult` with that `resultId` to fetch a specific section, range, page, or continuation slice on demand.
 
+### Read-only mode
+
+Start the server with `--read-only`, or set `HELIUS_MCP_READ_ONLY=1`, to serve only actions that do not change state:
+
+```bash
+claude mcp add helius-read-only -- npx helius-mcp@latest --read-only
+```
+
+The read-only server lists 9 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
+
 ## System Prompts
 
 This package ships with pre-built system prompts that teach AI models how to use Helius tools effectively. Find them in `system-prompts/`:

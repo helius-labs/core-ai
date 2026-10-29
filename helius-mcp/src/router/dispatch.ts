@@ -6,6 +6,7 @@ import { getRouterContext } from './context.js';
 import type { RoutedPublicToolName } from './action-groups.js';
 import type { ActionName } from './actions.js';
 import { ACTION_REQUIRED_PARAMS } from './required-params.js';
+import { getStrippedParams, isOnSurface, surfaceRefusal, type Surface } from './surface.js';
 import type { ActionCatalogEntry, DetailLevel, ResponseFamily } from './types.js';
 import {
   applyItemSelection,
@@ -237,14 +238,24 @@ export async function dispatchRoutedTool(
   publicTool: RoutedPublicToolName,
   params: Record<string, unknown>,
   extra: unknown,
+  surface: Surface = 'full',
 ): Promise<RouterResponse> {
   const action = params.action as ActionName | undefined;
   if (!action) {
     return mcpErrorCompact('Missing required "action" field.', { code: 'MISSING_ACTION' });
   }
 
-  const requestedDetail = pickRequestedDetail(getActionCatalogEntry(action), params.detail);
+  const entry = getActionCatalogEntry(action);
+  if (!isOnSurface(entry, surface)) {
+    return mcpErrorCompact(surfaceRefusal(action), { code: 'NOT_ON_SURFACE', action, surface });
+  }
+
+  const requestedDetail = pickRequestedDetail(entry, params.detail);
   const actionParams = buildActionParams(params);
+  // The schema already leaves these out, but `args` is an open object.
+  for (const param of getStrippedParams(entry, surface)) {
+    delete actionParams[param];
+  }
 
   const requiredFields = ACTION_REQUIRED_PARAMS[action];
   if (requiredFields) {
@@ -300,6 +311,7 @@ function applyContinuation(params: Record<string, unknown>, stored: StoredResult
 export async function expandStoredResult(
   params: Record<string, unknown>,
   extra: unknown,
+  surface: Surface = 'full',
 ): Promise<RouterResponse> {
   const resultId = typeof params.resultId === 'string' ? params.resultId : '';
   if (!resultId) {
@@ -316,9 +328,23 @@ export async function expandStoredResult(
     });
   }
 
+  // Stored recipes are never destructive writes, but a handle stored by a
+  // fuller surface sharing this process must not run an action this one hides.
+  const recipeEntry = getActionCatalogEntry(stored.payload.recipe.action);
+  if (!isOnSurface(recipeEntry, surface)) {
+    return mcpErrorCompact(surfaceRefusal(recipeEntry.action), {
+      code: 'NOT_ON_SURFACE',
+      action: recipeEntry.action,
+      surface,
+    });
+  }
+
   let nextParams = {
     ...stored.payload.recipe.params,
   };
+  for (const param of getStrippedParams(recipeEntry, surface)) {
+    delete nextParams[param];
+  }
 
   if (typeof params.page === 'number') {
     nextParams.page = params.page;

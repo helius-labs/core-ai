@@ -9,8 +9,13 @@ import {
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
   HELIUS_WRITE_ACTIONS,
+  type ActionName,
 } from './actions.js';
-import { withTelemetry } from './telemetry.js';
+import { ACTION_GROUPS, type PublicToolName } from './action-groups.js';
+import { getActionHandlers } from './action-handlers.js';
+import { ACTION_CATALOG } from './catalog.js';
+import { getStrippedParams, getSurfaceActions, type Surface } from './surface.js';
+import { TELEMETRY_FIELDS, withTelemetry } from './telemetry.js';
 
 const detailField = z.enum(['summary', 'standard', 'full']).optional();
 const argsField = z.union([
@@ -222,3 +227,57 @@ export const EXPAND_RESULT_SCHEMA = withTelemetry({
   continuation: optionalString(),
   detail: detailField,
 });
+
+const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
+  heliusAccount: HELIUS_ACCOUNT_SCHEMA,
+  heliusWallet: HELIUS_WALLET_SCHEMA,
+  heliusAsset: HELIUS_ASSET_SCHEMA,
+  heliusTransaction: HELIUS_TRANSACTION_SCHEMA,
+  heliusChain: HELIUS_CHAIN_SCHEMA,
+  heliusStreaming: HELIUS_STREAMING_SCHEMA,
+  heliusKnowledge: HELIUS_KNOWLEDGE_SCHEMA,
+  heliusWrite: HELIUS_WRITE_SCHEMA,
+  heliusCompression: HELIUS_COMPRESSION_SCHEMA,
+  expandResult: EXPAND_RESULT_SCHEMA,
+};
+
+/** Fields every routed tool takes regardless of action. */
+const ROUTING_FIELDS = new Set(['action', 'detail', 'args', ...Object.keys(TELEMETRY_FIELDS)]);
+
+/**
+ * A public tool's input schema on a surface.
+ *
+ * The full surface uses the schemas above unchanged. On a narrower surface the
+ * `action` enum lists only the surface's actions, and a field is removed when
+ * every action that reads it is off the surface (`email` goes with `signup`),
+ * or when the surface strips it (`remember`). Fields no action declares are
+ * left alone, since a handler may still read them through normalization.
+ */
+export function getToolSchema(tool: PublicToolName, surface: Surface): Record<string, z.ZodType> {
+  const schema = TOOL_SCHEMAS[tool];
+  if (surface === 'full' || tool === 'expandResult') {
+    return schema;
+  }
+
+  const handlers = getActionHandlers();
+  const actions = getSurfaceActions(tool, surface);
+  const kept = new Set<string>();
+  const removed = new Set<string>();
+  for (const action of ACTION_GROUPS[tool]) {
+    const fields = Object.keys((handlers.get(action)?.inputSchema ?? {}) as object);
+    const stripped = getStrippedParams(ACTION_CATALOG[action], surface);
+    for (const field of fields) {
+      (actions.includes(action) && !stripped.includes(field) ? kept : removed).add(field);
+    }
+  }
+
+  const narrowed: Record<string, z.ZodType> = {};
+  for (const [field, type] of Object.entries(schema)) {
+    if (field === 'action') {
+      narrowed.action = z.enum(actions as [ActionName, ...ActionName[]]);
+    } else if (ROUTING_FIELDS.has(field) || kept.has(field) || !removed.has(field)) {
+      narrowed[field] = type;
+    }
+  }
+  return narrowed;
+}

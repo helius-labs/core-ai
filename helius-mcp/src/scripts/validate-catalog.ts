@@ -26,6 +26,7 @@ import { ACTION_NAME_SET } from '../router/actions.js';
 import { ACTION_CATALOG, getHostedActions } from '../router/catalog.js';
 import { ACTION_NAMES } from '../router/actions.js';
 import { isDestructive, needsHostSecret } from '../router/types.js';
+import { isOnSurface } from '../router/surface.js';
 import { HELIUS_PLANS } from '../tools/plans.js';
 import { DOCS_INDEX } from '../utils/docs.js';
 
@@ -142,8 +143,9 @@ if (errors.length > 0) {
   process.exit(1);
 } else {
   const productCount = Object.keys(PRODUCT_CATALOG).length;
+  const readOnlyCount = Object.values(ACTION_CATALOG).filter((entry) => isOnSurface(entry, 'readOnly')).length;
   console.log(
     `\u2705 Valid: ${productCount} products, ${ACTION_NAMES.length} actions `
-    + `(${hosted.size} hosted-eligible)`,
+    + `(${readOnlyCount} read-only, ${hosted.size} hosted-eligible)`,
   );
 }

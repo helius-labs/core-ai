@@ -1,112 +1,70 @@
-import type { McpServer, ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { ZodRawShapeCompat } from '@modelcontextprotocol/sdk/server/zod-compat.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { PublicToolName } from './action-groups.js';
 import { getToolAnnotations } from './annotations.js';
 import { dispatchRoutedTool, expandStoredResult } from './dispatch.js';
+import { getToolSchema } from './schemas.js';
+import { getSurfaceTools, type Surface } from './surface.js';
 import { withTelemetryHandler } from './telemetry.js';
-import {
-  EXPAND_RESULT_SCHEMA,
-  HELIUS_ACCOUNT_SCHEMA,
-  HELIUS_ASSET_SCHEMA,
-  HELIUS_CHAIN_SCHEMA,
-  HELIUS_COMPRESSION_SCHEMA,
-  HELIUS_KNOWLEDGE_SCHEMA,
-  HELIUS_STREAMING_SCHEMA,
-  HELIUS_TRANSACTION_SCHEMA,
-  HELIUS_WALLET_SCHEMA,
-  HELIUS_WRITE_SCHEMA,
-} from './schemas.js';
 
-/** Register a public tool with the title and annotations derived for it. */
-function registerPublicTool<Shape extends ZodRawShapeCompat>(
-  server: McpServer,
-  name: PublicToolName,
-  description: string,
-  inputSchema: Shape,
-  handler: ToolCallback<Shape>,
-): void {
-  const annotations = getToolAnnotations(name);
-  server.registerTool(name, { title: annotations.title, description, inputSchema, annotations }, handler);
-}
+type ToolDescription = { full: string; readOnly?: string };
 
-export function registerRouterTools(server: McpServer): void {
-  registerPublicTool(
-    server,
-    'heliusAccount',
-    'Account setup, API keys, signup, plans, and billing. Use for pricing or account state, not per-method rate limits.',
-    HELIUS_ACCOUNT_SCHEMA,
-    withTelemetryHandler('heliusAccount', (params, extra) => dispatchRoutedTool('heliusAccount', params, extra)),
-  );
+/**
+ * Public tool descriptions. A tool whose full description names capabilities
+ * the read-only surface removes gets its own read-only wording.
+ */
+const TOOL_DESCRIPTIONS: Record<PublicToolName, ToolDescription> = {
+  heliusAccount: {
+    full: 'Account setup, API keys, signup, plans, and billing. Use for pricing or account state, not per-method rate limits.',
+    readOnly: 'Account status, plans, pricing, and upgrade previews. Use for pricing or account state, not per-method rate limits.',
+  },
+  heliusWallet: {
+    full: 'Wallet-centric balances, holdings, identity, and wallet history. Use for portfolio views, not raw token accounts.',
+  },
+  heliusAsset: {
+    full: 'Assets, NFTs, collections, proofs, and token holders. Use for DAS ownership or metadata, not transaction history.',
+  },
+  heliusTransaction: {
+    full: 'Parsed transactions and wallet transaction history. Use for activity analysis, not raw account state.',
+  },
+  heliusChain: {
+    full: 'Raw chain state, token accounts, stake reads, blocks, network status, priority fees, and transaction simulation. Use for token accounts or blocks, not wallet portfolio summaries.',
+  },
+  heliusStreaming: {
+    full: 'Webhook CRUD and live subscription configuration. Use for actual webhook/subscription setup, not how-to guides.',
+    readOnly: 'Webhook lookups and live subscription configuration. Use to inspect webhooks or generate subscription configs, not how-to guides.',
+  },
+  heliusKnowledge: {
+    full: 'Docs, guides, pricing references, troubleshooting, source, blog, and SIMD research. Use for guides, rate limits, or errors, not live mutations.',
+  },
+  heliusWrite: {
+    full: 'Mutating SOL/token transfer and staking actions. Use for sends or staking, not read-only queries.',
+  },
+  heliusCompression: {
+    full: 'Compressed account, proof, balance, and compression history queries. Use for zk-compression state, not standard DAS assets.',
+  },
+  expandResult: {
+    full: 'Expand a prior summary-first result by resultId, section, range, page, or continuation.',
+  },
+};
 
-  registerPublicTool(
-    server,
-    'heliusWallet',
-    'Wallet-centric balances, holdings, identity, and wallet history. Use for portfolio views, not raw token accounts.',
-    HELIUS_WALLET_SCHEMA,
-    withTelemetryHandler('heliusWallet', (params, extra) => dispatchRoutedTool('heliusWallet', params, extra)),
-  );
+/**
+ * Register the public tools of one surface, each with the description, input
+ * schema, title, and annotations derived for that surface.
+ */
+export function registerRouterTools(server: McpServer, surface: Surface = 'full'): void {
+  for (const tool of getSurfaceTools(surface)) {
+    const annotations = getToolAnnotations(tool, surface);
+    const description = surface === 'readOnly'
+      ? TOOL_DESCRIPTIONS[tool].readOnly ?? TOOL_DESCRIPTIONS[tool].full
+      : TOOL_DESCRIPTIONS[tool].full;
+    const handler = tool === 'expandResult'
+      ? withTelemetryHandler(tool, (params, extra) => expandStoredResult(params, extra, surface))
+      : withTelemetryHandler(tool, (params, extra) => dispatchRoutedTool(tool, params, extra, surface));
 
-  registerPublicTool(
-    server,
-    'heliusAsset',
-    'Assets, NFTs, collections, proofs, and token holders. Use for DAS ownership or metadata, not transaction history.',
-    HELIUS_ASSET_SCHEMA,
-    withTelemetryHandler('heliusAsset', (params, extra) => dispatchRoutedTool('heliusAsset', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'heliusTransaction',
-    'Parsed transactions and wallet transaction history. Use for activity analysis, not raw account state.',
-    HELIUS_TRANSACTION_SCHEMA,
-    withTelemetryHandler('heliusTransaction', (params, extra) => dispatchRoutedTool('heliusTransaction', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'heliusChain',
-    'Raw chain state, token accounts, stake reads, blocks, network status, priority fees, and transaction simulation. Use for token accounts or blocks, not wallet portfolio summaries.',
-    HELIUS_CHAIN_SCHEMA,
-    withTelemetryHandler('heliusChain', (params, extra) => dispatchRoutedTool('heliusChain', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'heliusStreaming',
-    'Webhook CRUD and live subscription configuration. Use for actual webhook/subscription setup, not how-to guides.',
-    HELIUS_STREAMING_SCHEMA,
-    withTelemetryHandler('heliusStreaming', (params, extra) => dispatchRoutedTool('heliusStreaming', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'heliusKnowledge',
-    'Docs, guides, pricing references, troubleshooting, source, blog, and SIMD research. Use for guides, rate limits, or errors, not live mutations.',
-    HELIUS_KNOWLEDGE_SCHEMA,
-    withTelemetryHandler('heliusKnowledge', (params, extra) => dispatchRoutedTool('heliusKnowledge', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'heliusWrite',
-    'Mutating SOL/token transfer and staking actions. Use for sends or staking, not read-only queries.',
-    HELIUS_WRITE_SCHEMA,
-    withTelemetryHandler('heliusWrite', (params, extra) => dispatchRoutedTool('heliusWrite', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'heliusCompression',
-    'Compressed account, proof, balance, and compression history queries. Use for zk-compression state, not standard DAS assets.',
-    HELIUS_COMPRESSION_SCHEMA,
-    withTelemetryHandler('heliusCompression', (params, extra) => dispatchRoutedTool('heliusCompression', params, extra)),
-  );
-
-  registerPublicTool(
-    server,
-    'expandResult',
-    'Expand a prior summary-first result by resultId, section, range, page, or continuation.',
-    EXPAND_RESULT_SCHEMA,
-    withTelemetryHandler('expandResult', (params, extra) => expandStoredResult(params, extra)),
-  );
+    server.registerTool(
+      tool,
+      { title: annotations.title, description, inputSchema: getToolSchema(tool, surface), annotations },
+      handler,
+    );
+  }
 }
