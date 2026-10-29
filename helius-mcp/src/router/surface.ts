@@ -7,6 +7,7 @@ import {
 import type { ActionName } from './actions.js';
 import { ACTION_CATALOG } from './catalog.js';
 import { isDestructive, type ActionCatalogEntry, type Mutability } from './types.js';
+import { getCurrentSurface, type Surface } from '../utils/runtime.js';
 
 /**
  * Which actions a server exposes. Fixed per server instance, so one deployment
@@ -18,8 +19,10 @@ import { isDestructive, type ActionCatalogEntry, type Mutability } from './types
  *   Anthropic, OpenAI, and xAI directories, whose policies do not allow an
  *   assistant to execute crypto transfers, and both directories reject tools
  *   that mix reads and writes.
+ *
+ * Defined in `utils/runtime.ts`, where the tool layer reads the current one.
  */
-export type Surface = 'full' | 'readOnly';
+export type { Surface };
 
 /**
  * A write whose only side effect is carried by params that can be removed,
@@ -48,6 +51,14 @@ export function getExposedMutability(entry: ActionCatalogEntry, surface: Surface
 
 export function isExposedDestructive(entry: ActionCatalogEntry, surface: Surface): boolean {
   return getExposedMutability(entry, surface) === 'write' && isDestructive(entry);
+}
+
+/**
+ * Whether an action exists on the surface serving the current handler call,
+ * for tool output that names actions, such as `recommendStack`'s product list.
+ */
+export function isAvailableOnCurrentSurface(action: ActionName): boolean {
+  return isOnSurface(ACTION_CATALOG[action], getCurrentSurface());
 }
 
 /** A routed tool's actions on a surface, in the order its `action` enum lists them. */

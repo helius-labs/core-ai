@@ -10,6 +10,9 @@ import { getProject } from 'helius-sdk/auth/getProject';
 import { MCP_USER_AGENT } from '../http.js';
 import { PRODUCT_CATALOG, PLAN_RANK } from './product-catalog.js';
 import { contextFromExtra } from '../utils/request-context.js';
+import { isReadOnlySurface, READ_ONLY_GUIDANCE } from '../utils/runtime.js';
+import type { ActionName } from '../router/actions.js';
+import { isAvailableOnCurrentSurface } from '../router/surface.js';
 
 /**
  * Static plan metadata — NOT the source of truth for pricing or billing data.
@@ -141,9 +144,16 @@ export function registerPlanTools(registry: ActionRegistry) {
         '',
         '## Actions',
         '',
-        '- To sign up for the Agent plan ($10 one-time, 1M credits), use the `signup` tool',
-        '- To upgrade an existing account, use the `upgradePlan` tool with a plan name (developer, business, professional)',
-        '- To preview pricing before upgrading, use the `previewUpgrade` tool',
+        ...(isReadOnlySurface()
+          ? [
+            '- To preview pricing before upgrading, use the `previewUpgrade` tool',
+            `- ${READ_ONLY_GUIDANCE.accountChanges}`,
+          ]
+          : [
+            '- To sign up for the Agent plan ($10 one-time, 1M credits), use the `signup` tool',
+            '- To upgrade an existing account, use the `upgradePlan` tool with a plan name (developer, business, professional)',
+            '- To preview pricing before upgrading, use the `previewUpgrade` tool',
+          ]),
         '',
         'Source: https://www.helius.dev/docs/billing (fetched live)',
       );
@@ -200,14 +210,18 @@ export function registerPlanTools(registry: ActionRegistry) {
     {},
     async (_args, extra) => {
       const ctx = contextFromExtra(extra);
+      const readOnly = isReadOnlySurface();
       // ── Tier 1: not authenticated at all ──
       if (!hasApiKey(ctx)) {
         return mcpText(
           `## Account Plan\n\n` +
           `**Auth:** Not authenticated\n\n` +
           `No API key or session found. To get started:\n` +
-          `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
-          `- If you need an account: use \`generateKeypair\` → \`signup\` (link mode prints a payment URL)`
+          (readOnly
+            ? `- **Have a key?** ${READ_ONLY_GUIDANCE.apiKey}\n` +
+              `- **Need an account?** ${READ_ONLY_GUIDANCE.account}`
+            : `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
+              `- If you need an account: use \`generateKeypair\` → \`signup\` (link mode prints a payment URL)`)
         );
       }
 
@@ -217,8 +231,10 @@ export function registerPlanTools(registry: ActionRegistry) {
         return mcpText(
           `## Account Plan\n\n` +
           `**Auth:** API key configured, plan unknown\n\n` +
-          `To see your plan and tool eligibility, call \`signup\`.\n` +
-          `Your existing account will be detected automatically — no payment needed.`
+          (readOnly
+            ? `To see your plan and tool eligibility, sign in. ${READ_ONLY_GUIDANCE.session}`
+            : `To see your plan and tool eligibility, call \`signup\`.\n` +
+              `Your existing account will be detected automatically — no payment needed.`)
         );
       }
 
@@ -226,7 +242,9 @@ export function registerPlanTools(registry: ActionRegistry) {
       try {
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` with email, firstName, and lastName to create an account first.');
+          return mcpError(readOnly
+            ? `No projects found on this account. ${READ_ONLY_GUIDANCE.project}`
+            : 'No projects found. Call `signup` with email, firstName, and lastName to create an account first.');
         }
 
         const projectId = projects[0].id;
@@ -307,7 +325,7 @@ function computeToolEligibility(planKey: string): ToolEligibilityEntry[] {
 
   for (const product of Object.values(PRODUCT_CATALOG)) {
     if (product.minimumPlan === 'agent') continue;
-    for (const tool of product.mcpTools) {
+    for (const tool of product.mcpTools.filter((t) => isAvailableOnCurrentSurface(t as ActionName))) {
       if (!toolProducts[tool]) toolProducts[tool] = [];
       toolProducts[tool].push({ productName: product.name, minimumPlan: product.minimumPlan });
     }

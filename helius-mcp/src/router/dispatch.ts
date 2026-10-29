@@ -7,6 +7,7 @@ import type { RoutedPublicToolName } from './action-groups.js';
 import type { ActionName } from './actions.js';
 import { ACTION_REQUIRED_PARAMS } from './required-params.js';
 import { getStrippedParams, isOnSurface, surfaceRefusal, type Surface } from './surface.js';
+import { runOnSurface } from '../utils/runtime.js';
 import type { ActionCatalogEntry, DetailLevel, ResponseFamily } from './types.js';
 import {
   applyItemSelection,
@@ -222,11 +223,12 @@ async function executeActionViaRouter(
   requestedDetail: DetailLevel,
   extra: unknown,
   allowHandles: boolean,
+  surface: Surface,
 ): Promise<RouterResponse> {
   const entry = getActionCatalogEntry(action);
   try {
     const { sessionKey } = getRouterContext(extra);
-    const result = await callActionHandler(action, params, extra);
+    const result = await runOnSurface(surface, () => callActionHandler(action, params, extra));
     return normalizeActionResponse(entry, publicTool, params, result, requestedDetail, allowHandles, sessionKey);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -268,7 +270,7 @@ export async function dispatchRoutedTool(
     }
   }
 
-  return executeActionViaRouter(publicTool, action, actionParams, requestedDetail, extra, true);
+  return executeActionViaRouter(publicTool, action, actionParams, requestedDetail, extra, true, surface);
 }
 
 function applyContinuation(params: Record<string, unknown>, stored: StoredResult, continuation?: string): Record<string, unknown> {
@@ -356,7 +358,7 @@ export async function expandStoredResult(
     : 'full';
 
   try {
-    const rawResponse = await callActionHandler(stored.payload.recipe.action, nextParams, extra);
+    const rawResponse = await runOnSurface(surface, () => callActionHandler(stored.payload.recipe.action, nextParams, extra));
     const rawText = toPlainText(rawResponse);
     if (rawResponse.isError) {
       return mcpErrorCompact(compactErrorText(rawText), {

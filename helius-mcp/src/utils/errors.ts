@@ -2,6 +2,7 @@
 
 import type { ContinuationHint } from '../results/types.js';
 import { redactSecrets } from './redact.js';
+import { isReadOnlySurface } from './runtime.js';
 
 type McpToolResponse = {
   content: [{ type: 'text'; text: string }];
@@ -106,10 +107,17 @@ const HTTP_GUIDANCE: Record<string, string> = {
   '504': 'Gateway timeout — the request took too long. Try reducing the query scope (fewer addresses, smaller limit, narrower time range).',
 };
 
+// The read-only surface cannot set a key, so a 401 there points at the environment.
+const READ_ONLY_401_GUIDANCE = 'API key is invalid or expired. Check it at https://dashboard.helius.dev/api-keys and update `HELIUS_API_KEY` in this MCP server\'s environment, or call `getAccountStatus` to check your current auth state.';
+
+function guidanceFor(status: string): string {
+  return status === '401' && isReadOnlySurface() ? READ_ONLY_401_GUIDANCE : HTTP_GUIDANCE[status];
+}
+
 function extractHttpGuidance(msg: string): string | null {
-  for (const [status, guidance] of Object.entries(HTTP_GUIDANCE)) {
+  for (const status of Object.keys(HTTP_GUIDANCE)) {
     if (msg.includes(`HTTP ${status}`) || msg.includes(`status: ${status}`) || msg.includes(`(${status})`)) {
-      return guidance;
+      return guidanceFor(status);
     }
   }
   return null;
@@ -126,7 +134,7 @@ const HTTP_META: Record<string, ErrorMeta> = {
 function extractHttpMeta(msg: string, _guidance: string): ErrorMeta {
   for (const [status, meta] of Object.entries(HTTP_META)) {
     if (msg.includes(`HTTP ${status}`) || msg.includes(`status: ${status}`) || msg.includes(`(${status})`)) {
-      return meta;
+      return { ...meta, recovery: guidanceFor(status) };
     }
   }
   return { type: 'API', code: 'UNKNOWN', retryable: false, recovery: 'Check the error message for details' };

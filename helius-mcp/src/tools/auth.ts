@@ -23,7 +23,13 @@ import {
   loadSignerOrFail,
 } from '../utils/helius.js';
 import { mcpText, mcpError, handleToolError } from '../utils/errors.js';
-import { isSharedCredentialMode, sharedCredentialRefusal, SHARED_CREDENTIAL_META } from '../utils/runtime.js';
+import {
+  isReadOnlySurface,
+  isSharedCredentialMode,
+  READ_ONLY_GUIDANCE,
+  sharedCredentialRefusal,
+  SHARED_CREDENTIAL_META,
+} from '../utils/runtime.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
 import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import {
@@ -64,6 +70,22 @@ const renderPaymentLink = (
   `- **Plan:** ${paymentLink.planName}\n\n` +
   `After paying, call \`${resumeCmd}\` to confirm activation locally.`;
 
+/** No project on this session. Shared by getAccountStatus and previewUpgrade. */
+function noProjectError() {
+  if (isReadOnlySurface()) {
+    return mcpError(`No projects found on this account. ${READ_ONLY_GUIDANCE.project}`, {
+      type: 'AUTH',
+      code: 'NO_PROJECT',
+      retryable: false,
+      recovery: READ_ONLY_GUIDANCE.project,
+    });
+  }
+  return mcpError(
+    'No projects found. Call `signup` with email, firstName, and lastName to create an account first.',
+    { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `signup` with email, firstName, and lastName.' },
+  );
+}
+
 export function registerAuthTools(registry: ActionRegistry) {
   // ── Getting Started ──
 
@@ -82,6 +104,7 @@ export function registerAuthTools(registry: ActionRegistry) {
       // question with another's state.
       const hasKeypair = ctx ? false : keypairExistsOnDisk();
       const jwt = getJwt(ctx);
+      const readOnly = isReadOnlySurface();
 
       // Already fully set up
       if (apiKeyConfigured && jwt) {
@@ -93,7 +116,9 @@ export function registerAuthTools(registry: ActionRegistry) {
           '- Query NFTs and tokens: `getAssetsByOwner`, `searchAssets`',
           '- Check balances: `getBalance`, `getTokenAccounts`',
           '- Parse transactions: `parseTransactions`',
-          '- Manage webhooks: `createWebhook`, `getAllWebhooks`',
+          readOnly
+            ? '- Inspect webhooks: `getAllWebhooks`, `getWebhookByID`'
+            : '- Manage webhooks: `createWebhook`, `getAllWebhooks`',
           '- Check your account: `getAccountStatus`',
           '',
           'Just ask a question in plain English and the right tool will be used automatically.',
@@ -109,7 +134,30 @@ export function registerAuthTools(registry: ActionRegistry) {
           '',
           'Your API key is configured — all Helius tools are ready to use.',
           '',
-          'To enable account-status info (plan, credits, rate limits), call `signup`. It will detect your existing account, no payment required.',
+          readOnly
+            ? `To enable account-status info (plan, credits, rate limits), sign in. ${READ_ONLY_GUIDANCE.session}`
+            : 'To enable account-status info (plan, credits, rate limits), call `signup`. It will detect your existing account, no payment required.',
+        );
+        return mcpText(lines.join('\n'));
+      }
+
+      // No API key, and this server cannot set one or sign up
+      if (readOnly) {
+        lines.push(
+          '',
+          'You need a Helius API key to use these tools. This server is read-only, so it cannot set a key or create an account itself.',
+          '',
+          '## I already have an API key',
+          '',
+          READ_ONLY_GUIDANCE.apiKey,
+          '',
+          '## I need an account',
+          '',
+          READ_ONLY_GUIDANCE.account,
+          '',
+          '## Plan, credits, and rate limits',
+          '',
+          READ_ONLY_GUIDANCE.session,
         );
         return mcpText(lines.join('\n'));
       }
@@ -342,14 +390,18 @@ export function registerAuthTools(registry: ActionRegistry) {
     {},
     async (_args, extra) => {
       const ctx = contextFromExtra(extra);
+      const readOnly = isReadOnlySurface();
       try {
         if (!hasApiKey(ctx)) {
           return mcpText(
             `## Account Status\n\n` +
               `**Auth:** Not authenticated\n\n` +
               `No API key or session found. To get started:\n` +
-              `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
-              `- If you need an account: use \`signup\` with email, firstName, and lastName`,
+              (readOnly
+                ? `- **Have a key?** ${READ_ONLY_GUIDANCE.apiKey}\n` +
+                  `- **Need an account?** ${READ_ONLY_GUIDANCE.account}`
+                : `- If you have a key: use the \`setHeliusApiKey\` tool\n` +
+                  `- If you need an account: use \`signup\` with email, firstName, and lastName`),
           );
         }
 
@@ -359,16 +411,15 @@ export function registerAuthTools(registry: ActionRegistry) {
             `## Account Status\n\n` +
               `**Auth:** Authenticated (API key configured)\n` +
               `**Credit usage:** Not available — no JWT session found\n\n` +
-              `To see your plan, rate limits, and credit balance, call \`signup\`. Your existing account will be detected automatically — no payment needed.`,
+              (readOnly
+                ? `To see your plan, rate limits, and credit balance, sign in. ${READ_ONLY_GUIDANCE.session}`
+                : `To see your plan, rate limits, and credit balance, call \`signup\`. Your existing account will be detected automatically — no payment needed.`),
           );
         }
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError(
-            'No projects found. Call `signup` with email, firstName, and lastName to create an account first.',
-            { type: 'AUTH', code: 'NO_PROJECT', retryable: false, recovery: 'Call `signup` with email, firstName, and lastName.' },
-          );
+          return noProjectError();
         }
 
         const projectId = projects[0].id;
@@ -440,6 +491,14 @@ export function registerAuthTools(registry: ActionRegistry) {
       try {
         const jwt = getJwt();
         if (!jwt) {
+          if (isReadOnlySurface()) {
+            return mcpError(`Not authenticated. ${READ_ONLY_GUIDANCE.session}`, {
+              type: 'AUTH',
+              code: 'NOT_AUTHENTICATED',
+              retryable: false,
+              recovery: READ_ONLY_GUIDANCE.session,
+            });
+          }
           return mcpError('Not authenticated. Call `signup`, or run `helius login` in your terminal if you have a dashboard.helius.dev account.', {
             type: 'AUTH',
             code: 'NOT_AUTHENTICATED',
@@ -450,12 +509,7 @@ export function registerAuthTools(registry: ActionRegistry) {
 
         const projects = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return mcpError('No projects found. Call `signup` with email, firstName, and lastName to create an account first.', {
-            type: 'AUTH',
-            code: 'NO_PROJECT',
-            retryable: false,
-            recovery: 'Call `signup` with email, firstName, and lastName.',
-          });
+          return noProjectError();
         }
 
         const projectId = projects[0].id;
@@ -483,7 +537,9 @@ export function registerAuthTools(registry: ActionRegistry) {
           text += `- Coupon (${preview.coupon.code}): ${preview.coupon.description || 'Applied'}\n`;
         }
         text += `\n**Due Today: $${(preview.dueToday / 100).toFixed(2)}**\n`;
-        text += `\nTo proceed, use the \`upgradePlan\` tool with plan: '${plan}'.`;
+        text += isReadOnlySurface()
+          ? `\n${READ_ONLY_GUIDANCE.accountChanges}`
+          : `\nTo proceed, use the \`upgradePlan\` tool with plan: '${plan}'.`;
         return mcpText(text);
       } catch (err) {
         return handleToolError(err, 'Error previewing upgrade');

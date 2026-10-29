@@ -93,5 +93,6 @@ Every public tool carries a `title` and explicit `readOnlyHint`, `destructiveHin
 - A routed tool left with no actions (`heliusWrite`) is not registered. Each `action` enum lists only the surface's actions, and a schema field is removed when only off-surface actions read it.
 - Dispatch and `expandResult` refuse anything off the surface as a second line of defense.
 - A routed tool whose description names removed capabilities has a `readOnly` description in `router/register.ts`, and `router/instructions.ts` has read-only instructions. Keep both in step with the full versions.
+- Handler output must not send the model to an action the surface removed. Dispatch runs every handler inside `runOnSurface`, so a message that would say "call `setHeliusApiKey`", "`signup`", or "`upgradePlan`" checks `isReadOnlySurface()` and uses `READ_ONLY_GUIDANCE` (both in `utils/runtime.ts`) instead. Output that lists actions by name filters them with `isAvailableOnCurrentSurface`.
 
-`tests/read-only-surface.test.ts` pins it.
+`tests/read-only-surface.test.ts` pins the surface, and `tests/read-only-guidance.test.ts` fails if any account or setup message on it names a removed action. Add a case there when you add a message that names one.

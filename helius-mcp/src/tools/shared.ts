@@ -1,4 +1,5 @@
 import type { ErrorMeta } from '../utils/errors.js';
+import { isReadOnlySurface, READ_ONLY_GUIDANCE } from '../utils/runtime.js';
 
 const NO_API_KEY_META: ErrorMeta = {
   type: 'AUTH',
@@ -21,8 +22,23 @@ I need a Helius API key to query the Solana blockchain.
 2. Copy your API key
 3. Call \`setHeliusApiKey\` with your key`;
 
+const READ_ONLY_NO_API_KEY_META: ErrorMeta = {
+  ...NO_API_KEY_META,
+  recovery: 'Set HELIUS_API_KEY in this MCP server\'s environment and restart it',
+};
+
+const READ_ONLY_NO_API_KEY_MESSAGE = `**Helius API Key Required**
+
+I need a Helius API key to query the Solana blockchain. This server is read-only, so it cannot sign up or set a key itself.
+
+- ${READ_ONLY_GUIDANCE.apiKey}
+- No account yet? ${READ_ONLY_GUIDANCE.account}`;
+
 export function noApiKeyResponse() {
-  const body = '```json\n' + JSON.stringify(NO_API_KEY_META) + '\n```\n\n' + NO_API_KEY_MESSAGE;
+  const [meta, message] = isReadOnlySurface()
+    ? [READ_ONLY_NO_API_KEY_META, READ_ONLY_NO_API_KEY_MESSAGE]
+    : [NO_API_KEY_META, NO_API_KEY_MESSAGE];
+  const body = '```json\n' + JSON.stringify(meta) + '\n```\n\n' + message;
   return {
     content: [{ type: 'text' as const, text: body }],
     isError: true,
