@@ -128,8 +128,10 @@ Each skill has:
 - Always include a Jito tip (minimum 0.0002 SOL) and priority fee
 - Use `heliusChain` + `getPriorityFeeEstimate` to get fee levels — never hardcode fees
 - Use `heliusChain` + `simulateTransaction` to dry-run a transaction before sending — checks success/failure, compute units, and logs without submitting on-chain
+- Use `heliusChain` + `simulateBundle` to dry-run a Jito bundle of up to 5 transactions, and `getBundleStatuses` to check whether sent bundles landed
 
 ### Data Queries
+- Use `heliusStreaming` + `describeProgram` before building a Parsed Streams filter — it returns the exact instruction and account role names the filter must use
 - Use `heliusTransaction` + `parseTransactions` over raw RPC for human-readable transaction data
 - Use `heliusAsset` + `getAssetsByOwner` with `showFungible: true` for both NFTs and fungible tokens
 - Use `heliusAsset` + `searchAssets` for multi-criteria queries instead of client-side filtering

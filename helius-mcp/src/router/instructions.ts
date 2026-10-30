@@ -9,8 +9,8 @@ Routing:
 - Wallet-centric balances, holdings, identity, wallet history: \`heliusWallet\`
 - Assets, NFTs, collections, token holders: \`heliusAsset\`
 - Parsed transactions or wallet transaction history: \`heliusTransaction\`
-- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction simulation: \`heliusChain\`
-- Webhook CRUD or live subscription configuration: \`heliusStreaming\`
+- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction or Jito bundle simulation, bundle status: \`heliusChain\`
+- Webhook CRUD, live subscription configuration, Parsed Streams program discovery, Preconfirmations coverage: \`heliusStreaming\`
 - Docs, guides, pricing references, troubleshooting, source, blog, SIMDs: \`heliusKnowledge\`
 - SOL/token transfers or staking mutations: \`heliusWrite\`
 - Compressed account, proof, balance, compression history: \`heliusCompression\`
@@ -37,8 +37,8 @@ Routing:
 - Wallet-centric balances, holdings, identity, wallet history: \`heliusWallet\`
 - Assets, NFTs, collections, token holders: \`heliusAsset\`
 - Parsed transactions or wallet transaction history: \`heliusTransaction\`
-- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction simulation: \`heliusChain\`
-- Webhook lookups or live subscription configuration: \`heliusStreaming\`
+- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction or Jito bundle simulation, bundle status: \`heliusChain\`
+- Webhook lookups, live subscription configuration, Parsed Streams program discovery, Preconfirmations coverage: \`heliusStreaming\`
 - Docs, guides, pricing references, troubleshooting, source, blog, SIMDs: \`heliusKnowledge\`
 - Compressed account, proof, balance, compression history: \`heliusCompression\`
 

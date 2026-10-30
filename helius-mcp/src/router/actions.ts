@@ -51,6 +51,8 @@ export const HELIUS_CHAIN_ACTIONS = [
   'getNetworkStatus',
   'getPriorityFeeEstimate',
   'simulateTransaction',
+  'simulateBundle',
+  'getBundleStatuses',
   'getStakeAccounts',
   'getWithdrawableAmount',
 ] as const;
@@ -64,6 +66,8 @@ export const HELIUS_STREAMING_ACTIONS = [
   'transactionSubscribe',
   'accountSubscribe',
   'laserstreamSubscribe',
+  'describeProgram',
+  'getPreConfCoverage',
 ] as const;
 
 export const HELIUS_KNOWLEDGE_ACTIONS = [

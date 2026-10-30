@@ -37,6 +37,8 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getProgramAccounts: ['programId'],
   getBlock: ['slot'],
   simulateTransaction: ['transaction'],
+  simulateBundle: ['transactions'],
+  getBundleStatuses: ['bundleIds'],
   getWithdrawableAmount: ['stakeAccount'],
 
   // Streaming
@@ -45,6 +47,7 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   updateWebhook: ['webhookID'],
   deleteWebhook: ['webhookID'],
   accountSubscribe: ['account'],
+  describeProgram: ['program'],
 
   // Knowledge
   troubleshootError: ['errorCode'],

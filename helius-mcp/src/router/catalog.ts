@@ -488,6 +488,19 @@ catalog.getLaserstreamInfo = makeEntry('getLaserstreamInfo', {
   defaultDetail: 'summary',
 });
 
+// Discovery and coverage reads that sit beside the streaming products they serve.
+catalog.describeProgram = makeEntry('describeProgram', {
+  capabilityGate: gate('agent', 'Parsed Streams program discovery'),
+  responseFamily: 'record',
+});
+
+catalog.getPreConfCoverage = makeEntry('getPreConfCoverage', {
+  capabilityGate: gate('agent', 'Preconfirmations coverage'),
+  responseFamily: 'scalar',
+  defaultDetail: 'full',
+  handleEligibility: false,
+});
+
 catalog.getTransactionHistory = makeEntry('getTransactionHistory', {
   responseFamily: 'history',
   defaultDetail: 'standard',

@@ -95,7 +95,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'parsed-streams': {
     name: 'Parsed Streams',
-    mcpTools: [],
+    mcpTools: ['describeProgram'],
     creditCostPerCall: '1 credit per delivered event',
     minimumPlan: 'agent',
     docKey: 'parsed-streams',
@@ -113,7 +113,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'helius-sender': {
     name: 'Helius Sender',
-    mcpTools: ['getSenderInfo'],
+    mcpTools: ['getSenderInfo', 'simulateBundle', 'getBundleStatuses'],
     creditCostPerCall: '0 credits',
     minimumPlan: 'agent',
     docKey: 'sender',
@@ -176,7 +176,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'pre-confirmations': {
     name: 'Preconfirmations',
-    mcpTools: [],
+    mcpTools: ['getPreConfCoverage'],
     creditCostPerCall: '10 credits per message, 300-credit minimum per subscription in slots that deliver messages',
     minimumPlan: 'developer',
     docKey: 'pre-confirmations',

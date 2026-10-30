@@ -27,11 +27,11 @@ const TOOL_DESCRIPTIONS: Record<PublicToolName, ToolDescription> = {
     full: 'Parsed transactions and wallet transaction history. Use for activity analysis, not raw account state.',
   },
   heliusChain: {
-    full: 'Raw chain state, token accounts, stake reads, blocks, network status, priority fees, and transaction simulation. Use for token accounts or blocks, not wallet portfolio summaries.',
+    full: 'Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction and Jito bundle simulation, and bundle status. Use for token accounts or blocks, not wallet portfolio summaries.',
   },
   heliusStreaming: {
-    full: 'Webhook CRUD and live subscription configuration. Use for actual webhook/subscription setup, not how-to guides.',
-    readOnly: 'Webhook lookups and live subscription configuration. Use to inspect webhooks or generate subscription configs, not how-to guides.',
+    full: 'Webhook CRUD, live subscription configuration, Parsed Streams program discovery, and Preconfirmations coverage. Use for actual webhook/subscription setup, not how-to guides.',
+    readOnly: 'Webhook lookups, live subscription configuration, Parsed Streams program discovery, and Preconfirmations coverage. Use to inspect webhooks or generate subscription configs, not how-to guides.',
   },
   heliusKnowledge: {
     full: 'Docs, guides, pricing references, troubleshooting, source, blog, and SIMD research. Use for guides, rate limits, or errors, not live mutations.',

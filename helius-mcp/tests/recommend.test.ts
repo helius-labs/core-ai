@@ -80,13 +80,13 @@ describe('recommendStack tiers', () => {
 describe('recommendStack product lines', () => {
   it('shows how to integrate products the MCP cannot call yet', async () => {
     const text = await catalogText();
-    const block = text.slice(text.indexOf('**Parsed Streams**'));
+    const block = text.slice(text.indexOf('**Preprocessed Transactions**'));
     const entry = block.slice(0, block.indexOf('\n- **'));
 
     expect(entry).toContain('Tools: none in this MCP yet');
     expect(entry).toContain('Use from your app:');
-    expect(entry).toContain('parsedTransactionSubscribe');
-    expect(entry).toContain('`lookupHeliusDocs` topic `parsed-streams`');
+    expect(entry).toContain('preprocessedSubscribe');
+    expect(entry).toContain('`lookupHeliusDocs` topic `preprocessed-transactions`');
   });
 
   it('labels legacy and beta products', async () => {
