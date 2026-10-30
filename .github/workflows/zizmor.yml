@@ -1,0 +1,41 @@
+name: Zizmor
+
+# Security-audits the workflows and dependabot.yml: template injection,
+# unpinned actions, excessive permissions, cache poisoning, and more.
+# Blocking: any finding fails the job. Config lives in .github/zizmor.yml.
+#
+# Runs on every PR rather than only when .github/ changes, so it can be a
+# required check: a path-filtered required check never reports on PRs that
+# skip it, and those PRs wait on it forever. A run takes about 15 seconds.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: Audit GitHub Actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install zizmor
+        run: |
+          curl -fsSLo zizmor.tar.gz https://github.com/zizmorcore/zizmor/releases/download/v1.31.1/zizmor-x86_64-unknown-linux-gnu.tar.gz
+          echo 'd185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99  zizmor.tar.gz' | sha256sum -c -
+          tar -xzf zizmor.tar.gz zizmor
+
+      - name: Run zizmor
+        # GH_TOKEN enables the online audits (known-vulnerable-actions,
+        # impostor-commit, ref-confusion).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./zizmor --no-progress --format=github .github/

@@ -4,6 +4,10 @@ updates:
     directory: /helius-mcp
     schedule:
       interval: weekly
+    # Wait a week before proposing a new release, so a compromised or
+    # yanked version has time to be caught. Security updates are not delayed.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
@@ -15,6 +19,10 @@ updates:
     directory: /helius-cli
     schedule:
       interval: weekly
+    # Wait a week before proposing a new release, so a compromised or
+    # yanked version has time to be caught. Security updates are not delayed.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
@@ -26,5 +34,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait a week before proposing a new release, so a compromised or
+    # yanked version has time to be caught. Security updates are not delayed.
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "chore(ci)"

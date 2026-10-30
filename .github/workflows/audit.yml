@@ -7,6 +7,9 @@ on:
     - cron: '0 9 * * 1' # Mondays 09:00 UTC
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   audit:
     name: Audit ${{ matrix.package }}
@@ -21,8 +24,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 9
 
