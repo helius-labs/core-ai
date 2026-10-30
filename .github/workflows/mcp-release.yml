@@ -22,10 +22,12 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Nothing here pushes with git: the changelog is committed through the
+          # GitHub API below, with GH_TOKEN.
+          persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 9
           run_install: false
@@ -34,17 +36,12 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: "22"
-
-      - name: Cache dependencies
-        uses: actions/cache@v6
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('helius-mcp/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
+          # This job holds a write token, so it never restores a cache that
+          # another workflow could have written.
+          package-manager-cache: false
 
       - name: Install dependencies
-        run: pnpm install --prefer-offline
+        run: pnpm install --frozen-lockfile
 
       - name: Generate changelog
         run: pnpm changelog
@@ -56,8 +53,7 @@ jobs:
         # from github-actions[bot] is unsigned and fails verify-signed-commits.yml.
         run: |
           set -euo pipefail
-          BRANCH="chore/mcp-changelog-${{ github.ref_name }}"
-          REPO="${{ github.repository }}"
+          BRANCH="chore/mcp-changelog-$TAG"
 
           if git diff --quiet -- helius-mcp/CHANGELOG.md; then
             echo "No changelog changes, skipping PR"
@@ -76,35 +72,42 @@ jobs:
 
           # Commit the regenerated changelog via the API -> verified bot commit.
           gh api --method PUT "repos/$REPO/contents/helius-mcp/CHANGELOG.md" \
-            -f message="chore: update CHANGELOG.md for ${{ github.ref_name }}" \
+            -f message="chore: update CHANGELOG.md for $TAG" \
             -f branch="$BRANCH" \
             -f sha="$FILE_SHA" \
             -f content="$(base64 -w0 helius-mcp/CHANGELOG.md)"
 
           gh pr create \
-            --title "chore: update CHANGELOG.md for ${{ github.ref_name }}" \
-            --body "Automated changelog update for release ${{ github.ref_name }}. Merge before publishing the draft release to trigger npm publish." \
+            --title "chore: update CHANGELOG.md for $TAG" \
+            --body "Automated changelog update for release $TAG. Merge before publishing the draft release to trigger npm publish." \
             --base main \
             --head "$BRANCH"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
 
       - name: Extract release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#helius-mcp@}"
-          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md > /tmp/release-notes.md
+          # Headings are `## [helius-mcp@X.Y.Z](compare-url) - date`, so match
+          # the full tag. The tag is passed as data (-v) and matched literally,
+          # never spliced into the awk program.
+          awk -v heading="## [${TAG}]" 'index($0, heading) == 1 {found=1; next} found && /^## / {exit} found {print}' CHANGELOG.md > /tmp/release-notes.md
           # Fall back to a placeholder if the section wasn't found
           if [ ! -s /tmp/release-notes.md ]; then
-            echo "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/helius-mcp/CHANGELOG.md) for details." > /tmp/release-notes.md
+            echo "See [CHANGELOG.md](https://github.com/$REPO/blob/main/helius-mcp/CHANGELOG.md) for details." > /tmp/release-notes.md
           fi
 
       - name: Create draft GitHub Release
         working-directory: .
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
+          gh release create "$TAG" \
+            --title "$TAG" \
             --notes-file /tmp/release-notes.md \
             --draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}

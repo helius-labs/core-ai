@@ -1,0 +1,12 @@
+# Config for zizmor, run by .github/workflows/zizmor.yml.
+# https://docs.zizmor.sh/configuration/
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # First-party GitHub actions may pin to a tag; every other action
+        # must pin to a full commit SHA. Dependabot keeps both current.
+        actions/*: ref-pin
+        github/*: ref-pin
+        dependabot/*: ref-pin
+        '*': hash-pin
