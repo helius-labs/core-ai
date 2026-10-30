@@ -138,8 +138,10 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
   dataSize: optionalNumber(),
   owner: optionalString(),
   mint: optionalString(),
-  // simulateTransaction
+  // simulateTransaction, simulateBundle, getBundleStatuses
   transaction: optionalString(),
+  transactions: stringArray(),
+  bundleIds: stringArray(),
   sigVerify: optionalBoolean(),
   replaceRecentBlockhash: optionalBoolean(),
   commitment: optionalString(),
@@ -167,6 +169,7 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
   transactionAccountInclude: stringArray(),
   transactionAccountExclude: stringArray(),
   transactionAccountRequired: stringArray(),
+  program: optionalString(),
 });
 
 export const HELIUS_KNOWLEDGE_SCHEMA = withTelemetry({

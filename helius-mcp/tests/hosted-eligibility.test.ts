@@ -22,13 +22,14 @@ import { ACTION_NAMES } from '../src/router/actions.js';
 describe('the hosted surface', () => {
   it('is exactly this set', () => {
     // A snapshot rather than a count: swapping one action for another keeps a
-    // count at 77 and passes, while this names both the entrant and the leaver
+    // count at 81 and passes, while this names both the entrant and the leaver
     // in the failing diff. Update deliberately, and say why in the PR.
     expect(getHostedActions()).toEqual([
       'accountSubscribe',
       'batchWalletIdentity',
       'createWebhook',
       'deleteWebhook',
+      'describeProgram',
       'fetchHeliusBlog',
       'getAccountInfo',
       'getAllWebhooks',
@@ -39,6 +40,7 @@ describe('the hosted surface', () => {
       'getAssetsByOwner',
       'getBalance',
       'getBlock',
+      'getBundleStatuses',
       'getCompressedAccount',
       'getCompressedAccountProof',
       'getCompressedAccountsByOwner',
@@ -66,6 +68,7 @@ describe('the hosted surface', () => {
       'getMultipleNewAddressProofs',
       'getNetworkStatus',
       'getNftEditions',
+      'getPreConfCoverage',
       'getPriorityFeeEstimate',
       'getProgramAccounts',
       'getPumpFunGuide',
@@ -98,6 +101,7 @@ describe('the hosted surface', () => {
       'readSolanaSourceFile',
       'searchAssets',
       'searchSolanaDocs',
+      'simulateBundle',
       'simulateTransaction',
       'transactionSubscribe',
       'troubleshootError',

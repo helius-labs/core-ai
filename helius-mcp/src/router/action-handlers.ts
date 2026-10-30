@@ -22,6 +22,9 @@ import { registerSolanaKnowledgeTools } from '../tools/solana-knowledge.js';
 import { registerTransferTools } from '../tools/transfers.js';
 import { registerZkCompressionTools } from '../tools/zk-compression.js';
 import { registerStakingTools } from '../tools/staking.js';
+import { registerBundleTools } from '../tools/bundles.js';
+import { registerParsedStreamsTools } from '../tools/parsed-streams.js';
+import { registerPreconfirmationTools } from '../tools/preconfirmations.js';
 import type { ActionName } from './actions.js';
 import type { ActionArgs, ActionRegistry } from './action-registry.js';
 import type { ContinuationHint } from '../results/types.js';
@@ -159,6 +162,9 @@ export function registerActionHandlers(registry: ActionRegistry): void {
   registerTransferTools(registry);
   registerZkCompressionTools(registry);
   registerStakingTools(registry);
+  registerBundleTools(registry);
+  registerParsedStreamsTools(registry);
+  registerPreconfirmationTools(registry);
 }
 
 export function getActionHandlers(): Map<ActionName, ActionHandlerDefinition> {

@@ -210,6 +210,54 @@ export async function loadSignerOrFail(): Promise<{ secretKey: Uint8Array; walle
   return { secretKey, walletAddress };
 }
 
+/**
+ * Helius's Gatekeeper endpoint. Serves Preconfirmations, Parsed Streams, and
+ * Preprocessed Transactions, on mainnet only.
+ */
+export const GATEKEEPER_RPC_URL = 'https://beta.helius-rpc.com';
+
+/**
+ * Call a JSON-RPC method helius-sdk does not wrap, such as `simulateBundle`.
+ * For reads only: transient failures are retried.
+ *
+ * Defaults to the caller's network RPC endpoint; pass `GATEKEEPER_RPC_URL` for
+ * Gatekeeper methods. A JSON-RPC error is thrown as `RPC error <code>: <message>`,
+ * and an HTTP failure as `HTTP <status>: <body>` so `handleToolError` maps it.
+ */
+export async function rpcRequest<T>(
+  method: string,
+  params: unknown[] | undefined,
+  ctx?: RequestContext | null,
+  baseUrl?: string,
+): Promise<T> {
+  const apiKey = getApiKey(ctx);
+  const base = baseUrl ?? (getNetwork(ctx) === 'devnet' ? 'https://devnet.helius-rpc.com' : 'https://mainnet.helius-rpc.com');
+  const url = `${base}/?api-key=${apiKey}`;
+  const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, ...(params ? { params } : {}) });
+
+  return withResilience(async () => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': MCP_USER_AGENT },
+      body,
+      signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      const error = new Error(`HTTP ${response.status}: ${text}`) as Error & { statusCode?: number };
+      error.statusCode = response.status;
+      throw error;
+    }
+
+    const json = await response.json() as { result?: T; error?: { code?: number; message?: string } };
+    if (json.error) {
+      throw new Error(`RPC error ${json.error.code ?? 'unknown'}: ${json.error.message ?? 'no message'}`);
+    }
+    return json.result as T;
+  }, `rpcRequest ${method}`, { timeoutMs: 0 });
+}
+
 export async function restRequest(
   endpoint: string,
   ctx?: RequestContext | null,
