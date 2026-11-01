@@ -111,3 +111,17 @@ export function validateSolanaAddresses(raw: string): string | null {
   }
   return null;
 }
+
+const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+export function validateBase64Transaction(base64Tx: string): string | null {
+  const trimmed = base64Tx.trim();
+  if (!trimmed || !BASE64_RE.test(trimmed)) {
+    return "Invalid base64 transaction payload. Provide a valid base64-encoded serialized transaction.";
+  }
+  const byteLength = Buffer.from(trimmed, "base64").length;
+  if (byteLength < 64) {
+    return "Invalid transaction payload: decoded transaction is shorter than a 64-byte Solana signature.";
+  }
+  return null;
+}
