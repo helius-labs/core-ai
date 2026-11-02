@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
-<!-- Version: 1.1.5 -->
+<!-- Version: 1.1.6 -->
 
 ## Runtime Notes
 
@@ -85,7 +85,7 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 ### Event Pipelines (Webhooks)
 **Reference**: See webhooks.md
 **APIs**: Webhooks REST API (`createWebhook`, `getAllWebhooks`, `getWebhookByID`, `editWebhook`, `deleteWebhook`)
-**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `deleteWebhook`, `getWebhookGuide`
+**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `toggleWebhook`, `deleteWebhook`, `getWebhookGuide`
 **When**: on-chain event notifications, event-driven backends, address monitoring (transfers, swaps, NFT sales), Telegram/Discord alerts
 
 ### Wallet Analysis

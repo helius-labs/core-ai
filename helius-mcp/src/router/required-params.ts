@@ -46,6 +46,7 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getWebhookByID: ['webhookID'],
   updateWebhook: ['webhookID'],
   deleteWebhook: ['webhookID'],
+  toggleWebhook: ['webhookID', 'active'],
   accountSubscribe: ['account'],
   describeProgram: ['program'],
 

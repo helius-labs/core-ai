@@ -6,11 +6,25 @@ import { noApiKeyResponse } from './shared.js';
 import { TRANSACTION_TYPES } from '../types/transaction-types.js';
 import { mcpText, mcpError, validateEnum, handleToolError, http404Error, http400Error } from '../utils/errors.js';
 import { contextFromExtra } from '../utils/request-context.js';
+import { isAvailableOnCurrentSurface } from '../router/surface.js';
+
+/**
+ * A webhook's delivery state. `active` defaults to true; Helius sets it false
+ * when it auto-disables a webhook whose endpoint keeps failing.
+ */
+function webhookStatus(active: boolean | undefined): string {
+  if (active !== false) return 'enabled';
+  // The read-only surface has no toggleWebhook, so point at the dashboard there.
+  const fix = isAvailableOnCurrentSurface('toggleWebhook')
+    ? 're-enable with `toggleWebhook` once the endpoint is fixed'
+    : 're-enable at https://dashboard.helius.dev/webhooks once the endpoint is fixed';
+  return `**disabled**, no deliveries (${fix})`;
+}
 
 export function registerWebhookTools(registry: ActionRegistry) {
   registry.registerAction(
     'getAllWebhooks',
-    'List all active webhooks for your Helius account. Shows webhook IDs, URLs, and monitored addresses. Credit cost: 100 credits/call (management operation).',
+    'List all webhooks for your Helius account, enabled or disabled. Shows webhook IDs, URLs, monitored addresses, and whether each is receiving deliveries. Credit cost: 100 credits/call (management operation).',
     {},
     async (_args, extra) => {
       const ctx = contextFromExtra(extra);
@@ -28,6 +42,7 @@ export function registerWebhookTools(registry: ActionRegistry) {
           lines.push(`${i + 1}. **${webhook.webhookType || 'Webhook'}**`);
           lines.push(`   ID: ${webhook.webhookID}`);
           lines.push(`   URL: ${webhook.webhookURL}`);
+          lines.push(`   Status: ${webhookStatus(webhook.active)}`);
           if (webhook.accountAddresses && webhook.accountAddresses.length > 0) {
             lines.push(`   Monitoring: ${webhook.accountAddresses.length} address(es)`);
           }
@@ -60,6 +75,7 @@ export function registerWebhookTools(registry: ActionRegistry) {
           `**ID:** ${webhook.webhookID}`,
           `**Type:** ${webhook.webhookType}`,
           `**URL:** ${webhook.webhookURL}`,
+          `**Status:** ${webhookStatus(webhook.active)}`,
         ];
 
         if (webhook.accountAddresses && webhook.accountAddresses.length > 0) {
@@ -195,6 +211,35 @@ export function registerWebhookTools(registry: ActionRegistry) {
         return handleToolError(err, 'Error deleting webhook', [
           http404Error('Webhook Delete', `Webhook not found. The ID "${webhookID}" does not exist. Use getAllWebhooks to list your webhooks.`),
           http400Error('Webhook Delete'),
+        ]);
+      }
+    }
+  );
+
+  registry.registerAction(
+    'toggleWebhook',
+    'Enable or disable a webhook without deleting it. Use it to pause deliveries, or to re-enable a webhook Helius auto-disabled for a high endpoint failure rate (getAllWebhooks shows which are disabled). A re-enabled webhook gets a 24-hour grace period before it can be auto-disabled again. Credit cost: 100 credits/call (management operation).',
+    {
+      webhookID: z.string().describe('Webhook ID to enable or disable'),
+      active: z.boolean().describe('true to enable deliveries, false to pause them'),
+    },
+    async ({ webhookID, active }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+      try {
+        const helius = getHeliusClient(ctx);
+        const webhook = await helius.webhooks.toggle(webhookID, active);
+        const enabled = webhook.active ?? active;
+        return mcpText(
+          `✅ **Webhook ${enabled ? 'Enabled' : 'Disabled'}**\n\n**ID:** ${webhook.webhookID}\n**URL:** ${webhook.webhookURL}\n\n`
+          + (enabled
+            ? 'Deliveries resume now. It cannot be auto-disabled again for 24 hours, so check that the endpoint is healthy within that window.'
+            : 'Deliveries are paused until the webhook is enabled again. Its configuration is kept.'),
+        );
+      } catch (err) {
+        return handleToolError(err, 'Error toggling webhook', [
+          http404Error('Webhook Toggle', `Webhook not found. The ID "${webhookID}" does not exist. Use getAllWebhooks to list your webhooks.`),
+          http400Error('Webhook Toggle'),
         ]);
       }
     }
