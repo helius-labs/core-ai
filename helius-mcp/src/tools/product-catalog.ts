@@ -95,7 +95,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'parsed-streams': {
     name: 'Parsed Streams',
-    mcpTools: ['describeProgram'],
+    mcpTools: ['describeProgram', 'parsedTransactionSubscribe'],
     creditCostPerCall: '1 credit per delivered event',
     minimumPlan: 'agent',
     docKey: 'parsed-streams',
@@ -176,7 +176,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'pre-confirmations': {
     name: 'Preconfirmations',
-    mcpTools: ['getPreConfCoverage'],
+    mcpTools: ['getPreConfCoverage', 'preconfSubscribe'],
     creditCostPerCall: '10 credits per message, 300-credit minimum per subscription in slots that deliver messages',
     minimumPlan: 'developer',
     docKey: 'pre-confirmations',
@@ -185,7 +185,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'preprocessed-transactions': {
     name: 'Preprocessed Transactions',
-    mcpTools: [],
+    mcpTools: ['preprocessedSubscribe'],
     creditCostPerCall: '0.1 credits per message',
     minimumPlan: 'developer',
     docKey: 'preprocessed-transactions',

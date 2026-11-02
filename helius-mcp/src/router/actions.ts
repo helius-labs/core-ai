@@ -68,6 +68,9 @@ export const HELIUS_STREAMING_ACTIONS = [
   'laserstreamSubscribe',
   'describeProgram',
   'getPreConfCoverage',
+  'parsedTransactionSubscribe',
+  'preconfSubscribe',
+  'preprocessedSubscribe',
 ] as const;
 
 export const HELIUS_KNOWLEDGE_ACTIONS = [
