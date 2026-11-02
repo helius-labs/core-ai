@@ -154,6 +154,7 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
   account: optionalString(),
   accountAddresses: stringArray(),
   webhookID: optionalString(),
+  active: optionalBoolean(),
   webhookURL: optionalString(),
   transactionTypes: stringArray(),
   signature: optionalString(),

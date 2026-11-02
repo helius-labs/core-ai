@@ -176,6 +176,7 @@ const mutationActions: ActionName[] = [
   'createWebhook',
   'updateWebhook',
   'deleteWebhook',
+  'toggleWebhook',
   'transferSol',
   'transferToken',
   'stakeSOL',

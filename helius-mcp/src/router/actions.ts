@@ -63,6 +63,7 @@ export const HELIUS_STREAMING_ACTIONS = [
   'getWebhookByID',
   'updateWebhook',
   'deleteWebhook',
+  'toggleWebhook',
   'transactionSubscribe',
   'accountSubscribe',
   'laserstreamSubscribe',
