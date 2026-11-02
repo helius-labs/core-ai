@@ -131,7 +131,8 @@ Each skill has:
 - Use `heliusChain` + `simulateBundle` to dry-run a Jito bundle of up to 5 transactions, and `getBundleStatuses` to check whether sent bundles landed
 
 ### Data Queries
-- Use `heliusStreaming` + `describeProgram` before building a Parsed Streams filter — it returns the exact instruction and account role names the filter must use
+- Use `heliusStreaming` + `describeProgram` before building a Parsed Streams filter — it returns the exact instruction and account role names the filter must use — then `parsedTransactionSubscribe` to generate the subscription and SDK code
+- Use `heliusStreaming` + `preconfSubscribe` for the earliest transaction signal (before shredding) and `preprocessedSubscribe` for broad pre-execution coverage; both generate a subscription and code, and neither opens a connection
 - Use `heliusTransaction` + `parseTransactions` over raw RPC for human-readable transaction data
 - Use `heliusAsset` + `getAssetsByOwner` with `showFungible: true` for both NFTs and fungible tokens
 - Use `heliusAsset` + `searchAssets` for multi-criteria queries instead of client-side filtering

@@ -80,13 +80,13 @@ describe('recommendStack tiers', () => {
 describe('recommendStack product lines', () => {
   it('shows how to integrate products the MCP cannot call yet', async () => {
     const text = await catalogText();
-    const block = text.slice(text.indexOf('**Preprocessed Transactions**'));
+    const block = text.slice(text.indexOf('**Gatekeeper**'));
     const entry = block.slice(0, block.indexOf('\n- **'));
 
     expect(entry).toContain('Tools: none in this MCP yet');
     expect(entry).toContain('Use from your app:');
-    expect(entry).toContain('preprocessedSubscribe');
-    expect(entry).toContain('`lookupHeliusDocs` topic `preprocessed-transactions`');
+    expect(entry).toContain('beta.helius-rpc.com');
+    expect(entry).toContain('`lookupHeliusDocs` topic `gatekeeper`');
   });
 
   it('labels legacy and beta products', async () => {

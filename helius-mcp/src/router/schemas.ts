@@ -170,6 +170,22 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
   transactionAccountExclude: stringArray(),
   transactionAccountRequired: stringArray(),
   program: optionalString(),
+  // parsedTransactionSubscribe
+  programs: stringArray(),
+  instructionNames: stringArray(),
+  accountRoles: z.record(z.string(), z.string()).optional(),
+  includeFailed: optionalBoolean(),
+  includeCpi: optionalBoolean(),
+  notificationDetails: optionalString(),
+  // preconfSubscribe
+  includeSource: stringArray(),
+  failed: optionalBoolean(),
+  regionInclude: stringArray(),
+  signerInclude: stringArray(),
+  signerExclude: stringArray(),
+  signatures: stringArray(),
+  instructions: z.array(z.looseObject({})).optional(),
+  slots: optionalBoolean(),
 });
 
 export const HELIUS_KNOWLEDGE_SCHEMA = withTelemetry({
