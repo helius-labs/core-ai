@@ -136,9 +136,13 @@ export function registerParsedStreamsTools(registry: ActionRegistry) {
       if (tooLong.length > 0) {
         warnings.push(`Instruction and role names are at most ${LIMITS.nameLength} characters; the server rejects: ${tooLong.map((n) => `\`${n.slice(0, 20)}…\``).join(', ')}.`);
       }
-      const checksNames = (params.instructionNames?.length ?? 0) > 0 || roles.length > 0;
-      if (checksNames) {
-        warnings.push('Instruction and role names must match the catalog exactly, or the filter is valid but matches nothing. The code below checks them with describeProgram before subscribing.');
+      const namesGiven = (params.instructionNames?.length ?? 0) > 0 || roles.length > 0;
+      // The generated check calls describeProgram per program, so it needs programs to look up.
+      const checksNames = namesGiven && (params.programs?.length ?? 0) > 0;
+      if (namesGiven) {
+        warnings.push(checksNames
+          ? 'Instruction and role names must match the catalog exactly, or the filter is valid but matches nothing. The code below checks them with describeProgram before subscribing.'
+          : 'Instruction and role names must match the catalog exactly, or the filter is valid but matches nothing, with no error. Without `programs`, the code below cannot check them: confirm each name with describeProgram for the program that emits it, or add that program to `programs` so the code checks them.');
       }
 
       const filter: Record<string, unknown> = {};
@@ -154,7 +158,7 @@ export function registerParsedStreamsTools(registry: ActionRegistry) {
       if (params.includeCpi !== undefined) filter.includeCpi = params.includeCpi;
       const options = { commitment: 'confirmed', details: params.notificationDetails };
 
-      const check = checksNames && params.programs?.length
+      const check = checksNames
         ? [
           '',
           '// A guessed name is valid but matches nothing: check names against the catalog first',

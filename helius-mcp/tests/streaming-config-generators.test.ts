@@ -67,7 +67,15 @@ describe('parsedTransactionSubscribe', () => {
     expect(code(text)).toContain('streams.describeProgram(p)');
     expect(code(text)).toContain('Unknown instruction names');
     expect(code(text)).toContain('Unknown account roles');
-    expect(text).toContain('must match the catalog exactly');
+    expect(text).toContain('The code below checks them with describeProgram');
+  });
+
+  it('does not promise a name check it cannot generate when programs is missing', async () => {
+    const { text } = await call('parsedTransactionSubscribe', { accountInclude: [SOL], instructionNames: ['route'], accountRoles: { owner: WALLET } });
+    expect(code(text)).not.toContain('describeProgram');
+    expect(text).not.toContain('The code below checks them');
+    expect(text).toContain('Without `programs`, the code below cannot check them');
+    expect(text).toContain('confirm each name with describeProgram');
   });
 
   it('skips the name check when the filter names nothing', async () => {
