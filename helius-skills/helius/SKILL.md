@@ -3,7 +3,7 @@ name: helius
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
   author: Helius Labs
-  version: "1.1.5"
+  version: "1.1.6"
   mcp-server: helius-mcp
 ---
 
@@ -80,7 +80,7 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 ### Event Pipelines (Webhooks)
 **Read**: `references/webhooks.md`
 **APIs**: Webhooks REST API (`createWebhook`, `getAllWebhooks`, `getWebhookByID`, `editWebhook`, `deleteWebhook`)
-**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `deleteWebhook`, `getWebhookGuide`
+**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `toggleWebhook`, `deleteWebhook`, `getWebhookGuide`
 **When**: on-chain event notifications, event-driven backends, address monitoring (transfers, swaps, NFT sales), Telegram/Discord alerts
 
 ### Wallet Analysis

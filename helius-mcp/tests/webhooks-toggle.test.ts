@@ -55,6 +55,12 @@ describe('toggleWebhook', () => {
     expect(text).toContain('24 hours');
   });
 
+  it('falls back to the requested state when the response omits active', async () => {
+    webhooks.toggle.mockResolvedValueOnce(hook());
+    const { text } = await call('toggleWebhook', { webhookID: ID, active: false });
+    expect(text).toContain('Webhook Disabled');
+  });
+
   it('requires active, so a missing flag never toggles anything', async () => {
     const { text, isError } = await call('toggleWebhook', { webhookID: ID });
     expect(isError).toBe(true);

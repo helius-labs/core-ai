@@ -229,7 +229,7 @@ export function registerWebhookTools(registry: ActionRegistry) {
       try {
         const helius = getHeliusClient(ctx);
         const webhook = await helius.webhooks.toggle(webhookID, active);
-        const enabled = webhook.active !== false;
+        const enabled = webhook.active ?? active;
         return mcpText(
           `✅ **Webhook ${enabled ? 'Enabled' : 'Disabled'}**\n\n**ID:** ${webhook.webhookID}\n**URL:** ${webhook.webhookURL}\n\n`
           + (enabled

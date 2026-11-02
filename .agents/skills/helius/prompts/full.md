@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
-<!-- Version: 1.1.5 -->
+<!-- Version: 1.1.6 -->
 
 
 # Helius — Build on Solana
@@ -75,7 +75,7 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 ### Event Pipelines (Webhooks)
 **Reference**: See webhooks.md (inlined below)
 **APIs**: Webhooks REST API (`createWebhook`, `getAllWebhooks`, `getWebhookByID`, `editWebhook`, `deleteWebhook`)
-**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `deleteWebhook`, `getWebhookGuide`
+**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `toggleWebhook`, `deleteWebhook`, `getWebhookGuide`
 **When**: on-chain event notifications, event-driven backends, address monitoring (transfers, swaps, NFT sales), Telegram/Discord alerts
 
 ### Wallet Analysis
@@ -2518,7 +2518,7 @@ Webhooks deliver real-time Solana on-chain events to your server via HTTP POST. 
 - Up to 100,000 addresses per webhook
 - 150+ supported transaction types with filtering
 - 1 credit per event delivered
-- 100 credits per management operation (create, update, delete, list, get)
+- 100 credits per management operation (create, update, enable/disable, delete, list, get)
 - Three webhook types: Enhanced (parsed), Raw (unfiltered), Discord (channel notifications)
 
 ## MCP Tools
@@ -2528,9 +2528,10 @@ All webhook operations have direct MCP tools. Use these for managing webhooks:
 | MCP Tool | What It Does |
 |---|---|
 | `createWebhook` | Create a new webhook to monitor addresses for specific transaction types |
-| `getAllWebhooks` | List all active webhooks on your account |
+| `getAllWebhooks` | List all webhooks on your account, with whether each is enabled |
 | `getWebhookByID` | Get details for a specific webhook |
 | `updateWebhook` | Modify webhook URL, addresses, or transaction type filters |
+| `toggleWebhook` | Enable or disable a webhook without deleting it |
 | `deleteWebhook` | Permanently remove a webhook |
 | `getWebhookGuide` | Fetch live official webhook documentation |
 
@@ -2688,9 +2689,15 @@ app.post('/webhook', (req, res) => {
 
 ### List / Update / Delete
 
-Use MCP tools: `getAllWebhooks`, `updateWebhook`, `deleteWebhook`.
+Use MCP tools: `getAllWebhooks`, `updateWebhook`, `toggleWebhook`, `deleteWebhook`.
 
 The `updateWebhook` MCP tool only requires the fields you want to change — it fetches the existing webhook and merges automatically. When using the SDK directly (`helius.webhooks.update()`), you must pass all fields since the API requires the full webhook object.
+
+### Disabled Webhooks
+
+Helius auto-disables a webhook whose endpoint keeps failing, and a disabled webhook receives no deliveries. `getAllWebhooks` and `getWebhookByID` show each webhook's status. When events stop arriving, check the status before debugging the endpoint.
+
+To pause deliveries without losing the configuration, call `toggleWebhook` with `active: false`. To re-enable, fix the endpoint first, then call `toggleWebhook` with `active: true`. A re-enabled webhook cannot be auto-disabled again for 24 hours, so confirm the endpoint is healthy within that window. With the SDK directly, use `helius.webhooks.toggle(webhookID, active)`.
 
 ## Common Patterns
 
