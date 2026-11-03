@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 2.2.0 — Parsed Events scan
+
+### New
+- **`helius tx scan <address>`** searches an address's history server-side for transactions that call specific programs or instructions, or touch specific token mints, and returns only the matches. It uses the Parsed Events scan endpoint, mainnet only.
+  - Match with `--programs`, `--instructions`, `--discriminators`, and `--mints`, each comma-separated, plus `--program-scope` and `--mint-scope`. For a different instruction list per program, pass the full match as JSON with `--match`.
+  - `--return-shape` picks parsed transactions (the default), signatures, or a count. Also takes `--limit`, `--max-scanned`, `--sort-order`, `--status`, `--token-accounts`, time and slot bounds, `--pagination-token`, and `--json`.
+  - The match, flags, and network are validated before any request is sent.
+  - A page can return no matches and still print a pagination token: pass it back with `--pagination-token` to scan further.
+  - Costs 10 credits plus 1 per history page scanned (a page holds up to 1,000 transactions), so at most 20 per request at the default budget. (#222)
+
+### Changed
+- Dependency updates: **helius-sdk 3.4.0** and `@solana-program/token` 0.18. (#212, #222)
+
+## 2.1.1 — Signup contact info
 
 ### Changed
 - **New signups need contact info.** `helius signup` asks for `--email`, `--first-name` and `--last-name` when the wallet has no account yet. A wallet that already has an account can still re-run `helius signup` without them to recover its key.
