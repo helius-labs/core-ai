@@ -3,7 +3,7 @@ name: helius
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
   author: Helius Labs
-  version: "1.1.7"
+  version: "1.1.8"
   mcp-server: helius-mcp
 ---
 
@@ -15,7 +15,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 1. Helius MCP Server
 
-**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `claude mcp add helius npx helius-mcp@2.3.0` then restart Claude. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `claude mcp add helius npx helius-mcp@3.0.0` then restart Claude. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 ### 2. MCP Router Surface
 
@@ -61,8 +61,8 @@ Identify what the user is building, then read the relevant reference files befor
 ### Transaction Sending & Swaps
 **Read**: `references/sender.md`, `references/priority-fees.md`
 **APIs**: Sender endpoint, Priority Fee API (`getPriorityFeeEstimate`), Enhanced Transactions API
-**MCP tools** (if available): `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`
-**When**: sending SOL/SPL tokens, sending transactions, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
+**MCP tools** (if available): `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`, `simulateTransaction`, `simulateBundle`, `getBundleStatuses`
+**When**: sending SOL/SPL tokens, sending transactions, Jito bundles, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
 
 ### Asset & NFT Queries
 **Read**: `references/das.md`
@@ -72,10 +72,11 @@ Identify what the user is building, then read the relevant reference files befor
 
 ### Real-Time Streaming
 **Read**: `references/laserstream.md` OR `references/websockets.md`
-**APIs**: Enhanced WebSockets (`transactionSubscribe`, `accountSubscribe`), Laserstream gRPC
-**MCP tools** (if available): `transactionSubscribe`, `accountSubscribe`, `laserstreamSubscribe`
+**APIs**: Enhanced WebSockets (`transactionSubscribe`, `accountSubscribe`), Laserstream gRPC, Gatekeeper WebSocket (`parsedTransactionSubscribe`, `preconfSubscribe`, `preprocessedSubscribe`)
+**MCP tools** (if available): `transactionSubscribe`, `accountSubscribe`, `laserstreamSubscribe`, `parsedTransactionSubscribe`, `describeProgram`, `preconfSubscribe`, `getPreConfCoverage`, `preprocessedSubscribe`
 **When**: real-time monitoring, live dashboards, alerting, trading apps, block/slot streaming, indexing, program/account tracking
 Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mainnet) for lowest latency and replay.
+The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves three more streams: Parsed Streams (`parsedTransactionSubscribe`, all plans) for transactions decoded into named instructions, events, and accounts, filtered by program; Preconfirmations (`preconfSubscribe`, paid plans) and Preprocessed Transactions (`preprocessedSubscribe`, paid plans) for seeing transactions before they execute. The MCP tools return a validated subscription and code; they don't open a connection. Confirm instruction and account role names with `describeProgram` before filtering on them.
 
 ### Event Pipelines (Webhooks)
 **Read**: `references/webhooks.md`
