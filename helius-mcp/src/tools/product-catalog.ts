@@ -57,12 +57,12 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'parsed-events': {
     name: 'Parsed Events API',
-    mcpTools: ['parseTransactions', 'getTransactionHistory'],
+    mcpTools: ['parseTransactions', 'getTransactionHistory', 'scanTransactionHistory'],
     creditCostPerCall: '10 credits per request',
     minimumPlan: 'agent',
     docKey: 'parsed-events',
-    integration: 'REST `POST https://mainnet.helius-rpc.com/v1/parsed-events/transactions` and `/v1/parsed-events/transaction-history`, or `helius.parsedEvents.parseTransactions()` / `getTransactionHistory()` in helius-sdk 3.3.0+. Mainnet only.',
-    description: 'Decode transactions through the IDL catalog into named instructions, arguments, and accounts, and fetch parsed transaction history for an address. Replaces the legacy Enhanced Transactions API.',
+    integration: 'REST `POST https://mainnet.helius-rpc.com/v1/parsed-events/transactions`, `/v1/parsed-events/transaction-history`, and `/v1/parsed-events/scan`, or `helius.parsedEvents.parseTransactions()` / `getTransactionHistory()` in helius-sdk 3.3.0+ and `scan()` in 3.4.0+. Mainnet only.',
+    description: 'Decode transactions through the IDL catalog into named instructions, arguments, and accounts, fetch parsed transaction history for an address, and scan the history of an address server-side for specific instructions or token mints. Replaces the legacy Enhanced Transactions API.',
   },
   'wallet-api': {
     name: 'Wallet API',

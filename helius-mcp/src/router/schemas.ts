@@ -118,6 +118,15 @@ export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
   mode: optionalString(),
   transactionDetails: optionalString(),
   tokenAccounts: optionalString(),
+  blockTimeGte: optionalNumber(),
+  blockTimeLte: optionalNumber(),
+  slotGte: optionalNumber(),
+  slotLte: optionalNumber(),
+  // scanTransactionHistory
+  programs: z.array(z.looseObject({})).optional(),
+  mints: z.array(z.looseObject({})).optional(),
+  returnShape: optionalString(),
+  maxScannedTransactions: optionalNumber(),
 });
 
 export const HELIUS_CHAIN_SCHEMA = withTelemetry({

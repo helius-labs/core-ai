@@ -528,6 +528,12 @@ catalog.getTransactionHistory = makeEntry('getTransactionHistory', {
   continuationModel: 'transactionHistory',
 });
 
+catalog.scanTransactionHistory = makeEntry('scanTransactionHistory', {
+  responseFamily: 'history',
+  defaultDetail: 'standard',
+  continuationModel: 'transactionHistory',
+});
+
 catalog.getTransfersByAddress = makeEntry('getTransfersByAddress', {
   responseFamily: 'history',
   defaultDetail: 'standard',

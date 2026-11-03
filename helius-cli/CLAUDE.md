@@ -9,7 +9,7 @@ bin/helius.ts          # Entry point — Commander.js program, registers all com
 src/
   commands/            # One file per command group
     balance.ts         # balance, tokens, token-holders
-    tx.ts              # tx parse, tx history, tx fees
+    tx.ts              # tx parse, tx history, tx transfers, tx scan, tx fees
     asset.ts           # 12 DAS API subcommands
     account.ts         # account info
     network-status.ts  # network status

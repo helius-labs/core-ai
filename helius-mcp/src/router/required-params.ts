@@ -22,6 +22,7 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   // Transaction
   parseTransactions: ['signatures'],
   getTransactionHistory: ['address'],
+  scanTransactionHistory: ['address'],
   getTransfersByAddress: ['address'],
 
   // Asset
