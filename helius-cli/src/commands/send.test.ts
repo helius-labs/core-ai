@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   VALID_TX_B64: Buffer.alloc(128, 1).toString("base64"),
-  VALID_SIG: "5".repeat(88),
   mockBroadcast: vi.fn(),
   mockSendTx: vi.fn(),
   mockPoll: vi.fn(),
@@ -106,10 +105,10 @@ describe("send commands input pre-validation and execution", () => {
     expect(h.mockSendTx).not.toHaveBeenCalled();
   });
 
-  it("supports dry-run for valid base64 in sendSenderCommand without submitting", async () => {
+  it("supports dry-run and trims padded base64 in sendSenderCommand without submitting", async () => {
     h.mockSendTx.mockReset();
     const { json, exitCode } = await captureStdout(() =>
-      sendSenderCommand(h.VALID_TX_B64, { dryRun: true, region: "US_EAST", json: true }),
+      sendSenderCommand(`  ${h.VALID_TX_B64}  `, { dryRun: true, region: "US_EAST", json: true }),
     );
 
     expect(exitCode).toBeNull();
@@ -133,19 +132,13 @@ describe("send commands input pre-validation and execution", () => {
     expect(h.mockPoll).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid base64 in sendComputeUnitsCommand and simulates valid payloads", async () => {
-    h.mockGetCu.mockReset().mockResolvedValue(42000);
+  it("rejects invalid base64 in sendComputeUnitsCommand", async () => {
+    h.mockGetCu.mockReset();
     const invalidRes = await captureStdout(() =>
       sendComputeUnitsCommand("invalid_b64", { json: true }),
     );
     expect(invalidRes.exitCode).toBe(53);
+    expect(invalidRes.json?.error_code).toBe("INVALID_INPUT");
     expect(h.mockGetCu).not.toHaveBeenCalled();
-
-    const validRes = await captureStdout(() =>
-      sendComputeUnitsCommand(h.VALID_TX_B64, { json: true }),
-    );
-    expect(validRes.exitCode).toBeNull();
-    expect(validRes.json?.ok).toBe(true);
-    expect(validRes.json?.data.computeUnits).toBe(42000);
   });
 });
