@@ -523,7 +523,8 @@ txCmd
   .addHelpText('after', `
 A request scans up to 10,000 transactions and can return no matches with a
 pagination token: pass it back with --pagination-token to scan further.
-Cost: 10 credits plus 1 per 1,000 transactions scanned.
+Cost: 10 credits plus 1 per history page scanned (a page holds up to 1,000
+transactions), so at most 20 credits per request at the default budget.
 
 Examples:
   $ helius tx scan 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P --programs 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P --instructions buy,sell

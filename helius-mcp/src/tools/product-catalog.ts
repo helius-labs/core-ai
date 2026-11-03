@@ -58,7 +58,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   'parsed-events': {
     name: 'Parsed Events API',
     mcpTools: ['parseTransactions', 'getTransactionHistory', 'scanTransactionHistory'],
-    creditCostPerCall: '10 credits per request',
+    creditCostPerCall: '10 credits per request; scan adds 1 per history page scanned (up to 1,000 transactions each)',
     minimumPlan: 'agent',
     docKey: 'parsed-events',
     integration: 'REST `POST https://mainnet.helius-rpc.com/v1/parsed-events/transactions`, `/v1/parsed-events/transaction-history`, and `/v1/parsed-events/scan`, or `helius.parsedEvents.parseTransactions()` / `getTransactionHistory()` in helius-sdk 3.3.0+ and `scan()` in 3.4.0+. Mainnet only.',

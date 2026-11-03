@@ -12,7 +12,7 @@ import type {
 import { resolveNetwork, setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
-import { validateAddress, validateAddresses, validateSignature } from "../lib/validation.js";
+import { validateAddress, validateAddresses, validateScanMatch, validateSignature } from "../lib/validation.js";
 
 interface TxOptions extends OutputOptions, ResolveOptions, RetryOptions {}
 
@@ -294,7 +294,7 @@ export async function txScanCommand(address: string, options: TxScanOptions = {}
       return n;
     };
 
-    let match: ScanMatch;
+    let match: unknown;
     const usesMatchFlags = [options.programs, options.instructions, options.discriminators, options.programScope, options.mints, options.mintScope]
       .some((v) => v !== undefined);
     if (options.match !== undefined) {
@@ -306,6 +306,8 @@ export async function txScanCommand(address: string, options: TxScanOptions = {}
       } catch {
         exitWithError("INVALID_INPUT", `--match must be a JSON object, e.g. '{"programs":[{"programId":"...","instructions":["buy"]}]}'`, undefined, json);
       }
+      const matchErr = validateScanMatch(match);
+      if (matchErr) exitWithError("INVALID_INPUT", `--match: ${matchErr}`, undefined, json);
     } else {
       const programIds = options.programs ? splitList(options.programs) : [];
       const mints = options.mints ? splitList(options.mints) : [];
@@ -331,11 +333,14 @@ export async function txScanCommand(address: string, options: TxScanOptions = {}
           })),
         }),
         ...(mints.length > 0 && { mints: mints.map((mint) => ({ mint, ...(mintScope && { scope: mintScope }) })) }),
-      } as ScanMatch;
+      };
+      // Same rules as --match: counts, duplicates, and discriminator format
+      const matchErr = validateScanMatch(match);
+      if (matchErr) exitWithError("INVALID_INPUT", matchErr, undefined, json);
     }
 
     const returnShape = (options.returnShape ?? "transactions") as ScanReturnShape;
-    const request: ScanParsedTransactionHistoryRequest<ScanReturnShape> = { address, match: match!, returnShape };
+    const request: ScanParsedTransactionHistoryRequest<ScanReturnShape> = { address, match: match as ScanMatch, returnShape };
     if (returnShape === "transactions") request.limit = int("--limit", options.limit, 1, 100) ?? 25;
     const maxScanned = int("--max-scanned", options.maxScanned, 1, 10_000);
     if (maxScanned !== undefined) request.budget = { maxScannedTransactions: maxScanned };
