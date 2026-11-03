@@ -18,7 +18,7 @@ Routing:
 Rules:
 - Use the chosen routed tool plus the Helius action name in \`action\`.
 - Wallet holdings use \`heliusWallet.getTokenBalances\`; raw token accounts use \`heliusChain.getTokenAccounts\`.
-- Parsed transaction details use \`heliusTransaction.parseTransactions\`; wallet activity listing uses \`heliusTransaction.getTransactionHistory\`; per-transfer rows (token + SOL with mint/direction/counterparty filters) use \`heliusTransaction.getTransfersByAddress\`.
+- Parsed transaction details use \`heliusTransaction.parseTransactions\`; wallet activity listing uses \`heliusTransaction.getTransactionHistory\`; per-transfer rows (token + SOL with mint/direction/counterparty filters) use \`heliusTransaction.getTransfersByAddress\`; searching an address's history for specific programs, instructions, or token mints uses \`heliusTransaction.scanTransactionHistory\`.
 - Streaming or webhook setup guides live under \`heliusKnowledge\`; actual webhook/subscription config lives under \`heliusStreaming\`.
 - Pricing and plan selection start with \`heliusAccount.getHeliusPlanInfo\`; per-method credit costs or rate limits use \`heliusKnowledge.getRateLimitInfo\` or \`heliusKnowledge.getHeliusCreditsInfo\`.
 - Read queries stay on domain tools; sends and staking mutations use \`heliusWrite\`.
@@ -45,7 +45,7 @@ Routing:
 Rules:
 - Use the chosen routed tool plus the Helius action name in \`action\`.
 - Wallet holdings use \`heliusWallet.getTokenBalances\`; raw token accounts use \`heliusChain.getTokenAccounts\`.
-- Parsed transaction details use \`heliusTransaction.parseTransactions\`; wallet activity listing uses \`heliusTransaction.getTransactionHistory\`; per-transfer rows (token + SOL with mint/direction/counterparty filters) use \`heliusTransaction.getTransfersByAddress\`.
+- Parsed transaction details use \`heliusTransaction.parseTransactions\`; wallet activity listing uses \`heliusTransaction.getTransactionHistory\`; per-transfer rows (token + SOL with mint/direction/counterparty filters) use \`heliusTransaction.getTransfersByAddress\`; searching an address's history for specific programs, instructions, or token mints uses \`heliusTransaction.scanTransactionHistory\`.
 - Streaming or webhook setup guides live under \`heliusKnowledge\`; webhook lookups and subscription configs live under \`heliusStreaming\`.
 - Pricing and plan selection start with \`heliusAccount.getHeliusPlanInfo\`; per-method credit costs or rate limits use \`heliusKnowledge.getRateLimitInfo\` or \`heliusKnowledge.getHeliusCreditsInfo\`.
 - Heavy content is summary-first. Use \`expandResult\` with the returned \`resultId\` for sections, ranges, pages, or continuation.

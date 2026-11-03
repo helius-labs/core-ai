@@ -1,9 +1,18 @@
 import chalk from "chalk";
 import type { GetEnhancedTransactionsByAddressRequest } from "helius-sdk/enhanced/types";
-import { setupClient, type ResolveOptions } from "../lib/helius.js";
+import type {
+  ParsedTransactionResult,
+  ScanMatch,
+  ScanMatchScope,
+  ScanParsedTransactionHistoryRequest,
+  ScanParsedTransactionHistoryResponse,
+  ScanReturnShape,
+  ScanSignature,
+} from "helius-sdk/parsedEvents/types";
+import { resolveNetwork, setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
-import { validateAddress, validateSignature } from "../lib/validation.js";
+import { validateAddress, validateAddresses, validateScanMatch, validateSignature } from "../lib/validation.js";
 
 interface TxOptions extends OutputOptions, ResolveOptions, RetryOptions {}
 
@@ -214,6 +223,187 @@ export async function txTransfersCommand(address: string, options: TxTransfersOp
     }
     console.log(chalk.gray(`\n  ${data.length} transfer(s) shown`));
     if (result?.paginationToken) {
+      console.log(chalk.gray(`  Next: --pagination-token ${result.paginationToken}`));
+    }
+  } catch (error) {
+    handleCommandError(error, options, spinner);
+  }
+}
+
+interface TxScanOptions extends TxOptions {
+  programs?: string;
+  instructions?: string;
+  discriminators?: string;
+  programScope?: string;
+  mints?: string;
+  mintScope?: string;
+  match?: string;
+  returnShape?: string;
+  limit?: string;
+  maxScanned?: string;
+  sortOrder?: string;
+  status?: string;
+  tokenAccounts?: string;
+  blockTimeGte?: string;
+  blockTimeLte?: string;
+  slotGte?: string;
+  slotLte?: string;
+  paginationToken?: string;
+}
+
+const SCAN_STOP_REASONS: Record<string, string> = {
+  windowEnd: "reached the end of the history or window",
+  limit: "returned --limit matches",
+  budget: "scanned --max-scanned transactions",
+  deadline: "reached the request time limit",
+};
+
+const splitList = (value: string) => value.split(",").map((s) => s.trim()).filter(Boolean);
+
+/** Parsed Events scan: search an address's history server-side for program instructions or token mints. */
+export async function txScanCommand(address: string, options: TxScanOptions = {}): Promise<void> {
+  const spinner = createSpinner(options);
+  try {
+    const json = !!options.json;
+    const addrErr = validateAddress(address);
+    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, json);
+
+    if (resolveNetwork(options) === "devnet") {
+      exitWithError("INVALID_INPUT", "tx scan uses the Parsed Events API, which serves mainnet only. Re-run with --network mainnet.", undefined, json);
+    }
+
+    const oneOf = (flag: string, value: string | undefined, allowed: string[]) => {
+      if (value !== undefined && !allowed.includes(value)) {
+        exitWithError("INVALID_INPUT", `${flag} must be ${allowed.map((a) => `"${a}"`).join(", ")} (got "${value}")`, undefined, json);
+      }
+    };
+    oneOf("--program-scope", options.programScope, ["address", "transaction"]);
+    oneOf("--mint-scope", options.mintScope, ["address", "transaction"]);
+    oneOf("--return-shape", options.returnShape, ["transactions", "signatures", "count"]);
+    oneOf("--sort-order", options.sortOrder, ["asc", "desc"]);
+    oneOf("--status", options.status, ["succeeded", "failed", "any"]);
+    oneOf("--token-accounts", options.tokenAccounts, ["none", "balanceChanged", "all"]);
+
+    const int = (flag: string, raw: string | undefined, min?: number, max?: number): number | undefined => {
+      if (raw === undefined) return undefined;
+      const n = Number(raw);
+      if (!Number.isInteger(n) || (min !== undefined && n < min) || (max !== undefined && n > max)) {
+        const range = min !== undefined && max !== undefined ? ` from ${min} to ${max}` : "";
+        exitWithError("INVALID_INPUT", `${flag} must be an integer${range} (got "${raw}")`, undefined, json);
+      }
+      return n;
+    };
+
+    let match: unknown;
+    const usesMatchFlags = [options.programs, options.instructions, options.discriminators, options.programScope, options.mints, options.mintScope]
+      .some((v) => v !== undefined);
+    if (options.match !== undefined) {
+      if (usesMatchFlags) {
+        exitWithError("INVALID_INPUT", "--match replaces --programs, --instructions, --discriminators, --mints, and the scope flags. Use one or the other.", undefined, json);
+      }
+      try {
+        match = JSON.parse(options.match);
+      } catch {
+        exitWithError("INVALID_INPUT", `--match must be a JSON object, e.g. '{"programs":[{"programId":"...","instructions":["buy"]}]}'`, undefined, json);
+      }
+      const matchErr = validateScanMatch(match);
+      if (matchErr) exitWithError("INVALID_INPUT", `--match: ${matchErr}`, undefined, json);
+    } else {
+      const programIds = options.programs ? splitList(options.programs) : [];
+      const mints = options.mints ? splitList(options.mints) : [];
+      const listErr = validateAddresses([...programIds, ...mints]);
+      if (listErr) exitWithError("INVALID_ADDRESS", listErr, undefined, json);
+      if (programIds.length === 0 && mints.length === 0) {
+        exitWithError("INVALID_INPUT", "Pass --programs, --mints, or both (or --match): a scan returns only the transactions that match them.", undefined, json);
+      }
+      const instructions = options.instructions ? splitList(options.instructions) : [];
+      const discriminators = options.discriminators ? splitList(options.discriminators) : [];
+      if ((instructions.length > 0 || discriminators.length > 0) && programIds.length !== 1) {
+        exitWithError("INVALID_INPUT", "--instructions and --discriminators apply to a single program. With several programs, pass per-program lists in --match.", undefined, json);
+      }
+      const programScope = options.programScope as ScanMatchScope | undefined;
+      const mintScope = options.mintScope as ScanMatchScope | undefined;
+      match = {
+        ...(programIds.length > 0 && {
+          programs: programIds.map((programId) => ({
+            programId,
+            ...(instructions.length > 0 && { instructions }),
+            ...(discriminators.length > 0 && { discriminators }),
+            ...(programScope && { scope: programScope }),
+          })),
+        }),
+        ...(mints.length > 0 && { mints: mints.map((mint) => ({ mint, ...(mintScope && { scope: mintScope }) })) }),
+      };
+      // Same rules as --match: counts, duplicates, and discriminator format
+      const matchErr = validateScanMatch(match);
+      if (matchErr) exitWithError("INVALID_INPUT", matchErr, undefined, json);
+    }
+
+    const returnShape = (options.returnShape ?? "transactions") as ScanReturnShape;
+    const request: ScanParsedTransactionHistoryRequest<ScanReturnShape> = { address, match: match as ScanMatch, returnShape };
+    if (returnShape === "transactions") request.limit = int("--limit", options.limit, 1, 100) ?? 25;
+    const maxScanned = int("--max-scanned", options.maxScanned, 1, 10_000);
+    if (maxScanned !== undefined) request.budget = { maxScannedTransactions: maxScanned };
+    if (options.sortOrder) request.sortOrder = options.sortOrder as "asc" | "desc";
+    if (options.status) request.status = options.status as "succeeded" | "failed" | "any";
+    if (options.tokenAccounts) request.tokenAccounts = options.tokenAccounts as "none" | "balanceChanged" | "all";
+    const bounds = (gteFlag: string, gte: string | undefined, lteFlag: string, lte: string | undefined) => {
+      const lower = int(gteFlag, gte);
+      const upper = int(lteFlag, lte);
+      if (lower === undefined && upper === undefined) return undefined;
+      return { ...(lower !== undefined && { gte: lower }), ...(upper !== undefined && { lte: upper }) };
+    };
+    const time = bounds("--block-time-gte", options.blockTimeGte, "--block-time-lte", options.blockTimeLte);
+    if (time) request.time = time;
+    const slot = bounds("--slot-gte", options.slotGte, "--slot-lte", options.slotLte);
+    if (slot) request.slot = slot;
+    if (options.paginationToken) request.paginationToken = options.paginationToken;
+
+    const helius = await setupClient(spinner, options, "Scanning transaction history...");
+    const result = await withRetry<ScanParsedTransactionHistoryResponse<ScanReturnShape>>(() => helius.parsedEvents.scan(request), options, spinner);
+    spinner?.stop();
+
+    if (json) {
+      outputJson(result);
+      return;
+    }
+
+    const { scan } = result;
+    const through = scan.scannedThrough
+      ? ` through slot ${scan.scannedThrough.slot.toLocaleString()}${scan.scannedThrough.blockTime ? ` (${formatTimestamp(scan.scannedThrough.blockTime)})` : ""}`
+      : "";
+    console.log(chalk.bold(`\nScan of ${chalk.cyan(address)}:\n`));
+    console.log(chalk.gray(`  Scanned ${scan.scannedTransactions.toLocaleString()} transactions${through}, matched ${scan.matchedTransactions.toLocaleString()}.`));
+    console.log(chalk.gray(`  Stopped on ${scan.stoppedOn}: ${SCAN_STOP_REASONS[scan.stoppedOn] ?? scan.stoppedOn}. Credits charged: ${scan.creditsCharged}.\n`));
+
+    if (returnShape === "count") {
+      console.log(`  ${chalk.gray("Matches:")} ${chalk.cyan(scan.matchedTransactions.toLocaleString())}`);
+    } else if (!result.data || result.data.length === 0) {
+      console.log(chalk.yellow("  No matches in the range scanned."));
+    } else if (returnShape === "signatures") {
+      for (const item of result.data as ScanSignature[]) {
+        const time = item.blockTime ? formatTimestamp(item.blockTime) : "N/A";
+        console.log(`  ${chalk.cyan(item.signature)}  ${chalk.gray(`slot ${item.slot}`)}  ${chalk.gray(time)}`);
+      }
+    } else {
+      for (const item of result.data as ParsedTransactionResult[]) {
+        if (item.parserStatus !== "OK") {
+          console.log(`  ${chalk.cyan(item.signature)}  ${chalk.yellow(`could not be parsed: ${item.parserError.code}`)}`);
+          continue;
+        }
+        const tx = item.parsed;
+        const type = tx.summary?.type ? formatEnumLabel(tx.summary.type) : "Unknown";
+        const time = tx.blockTime ? formatTimestamp(tx.blockTime) : "N/A";
+        const status = tx.transactionStatus === "OK" ? "" : chalk.red(" failed");
+        console.log(`  ${chalk.cyan(item.signature)}`);
+        console.log(`    ${chalk.yellow(type.padEnd(16))}  ${chalk.gray(time)}${status}`);
+        if (tx.summary?.description) console.log(`    ${chalk.gray(tx.summary.description)}`);
+      }
+    }
+
+    if (result.paginationToken) {
+      const partial = returnShape === "count" ? " The count covers only the range scanned; add up the counts across pages." : "";
+      console.log(chalk.gray(`\n  The history continues.${partial}`));
       console.log(chalk.gray(`  Next: --pagination-token ${result.paginationToken}`));
     }
   } catch (error) {

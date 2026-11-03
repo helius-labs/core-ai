@@ -18,7 +18,7 @@ import { rpcCommand } from "../src/commands/rpc.js";
 import { keygenCommand, getDefaultKeypairPath } from "../src/commands/keygen.js";
 import { configShowCommand, configSetApiKeyCommand, configSetNetworkCommand, configSetProjectCommand, configClearCommand } from "../src/commands/config-cmd.js";
 import { balanceCommand, tokensCommand, tokenHoldersCommand } from "../src/commands/balance.js";
-import { txParseCommand, txHistoryCommand, txTransfersCommand, txFeesCommand } from "../src/commands/tx.js";
+import { txParseCommand, txHistoryCommand, txTransfersCommand, txScanCommand, txFeesCommand } from "../src/commands/tx.js";
 import {
   assetGetCommand, assetBatchCommand, assetOwnerCommand, assetCreatorCommand,
   assetAuthorityCommand, assetCollectionCommand, assetSearchCommand,
@@ -497,6 +497,40 @@ Examples:
   $ helius tx transfers <addr> --mint EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --direction in
   $ helius tx transfers <addr> --with <counterparty> --block-time-gte 1700000000 --json`)
   .action(function(this: any, address: string) { txTransfersCommand(address, opts(this)); });
+
+txCmd
+  .command("scan <address>")
+  .description("Search an address's history for program instructions or token mints (Parsed Events, mainnet)")
+  .option("--programs <ids>", "Comma-separated program addresses to match")
+  .option("--instructions <names>", "Comma-separated instruction names (one program only)")
+  .option("--discriminators <hex>", "Comma-separated hex instruction prefixes (one program only)")
+  .option("--program-scope <scope>", "address | transaction")
+  .option("--mints <mints>", "Comma-separated token mints to match (So11111111111111111111111111111111111111111 = SOL lamport changes)")
+  .option("--mint-scope <scope>", "address | transaction")
+  .option("--match <json>", "Full match object as JSON, e.g. per-program instruction lists (replaces the flags above)")
+  .option("--return-shape <shape>", "transactions | signatures | count (default transactions)")
+  .option("-l, --limit <n>", "Max parsed matches (1-100, default 25; transactions only)")
+  .option("--max-scanned <n>", "Max transactions to scan in this request (1-10000, default 10000)")
+  .option("--sort-order <order>", "asc | desc (default desc)")
+  .option("--status <status>", "succeeded | failed | any (default succeeded)")
+  .option("--token-accounts <mode>", "none | balanceChanged | all (use balanceChanged to scan a wallet for a mint)")
+  .option("--block-time-gte <ts>", "Unix seconds lower bound")
+  .option("--block-time-lte <ts>", "Unix seconds upper bound")
+  .option("--slot-gte <slot>", "Slot lower bound")
+  .option("--slot-lte <slot>", "Slot upper bound")
+  .option("--pagination-token <token>", "Cursor from a previous response")
+  .option("--json", "Output JSON envelope")
+  .addHelpText('after', `
+A request scans up to 10,000 transactions and can return no matches with a
+pagination token: pass it back with --pagination-token to scan further.
+Cost: 10 credits plus 1 per history page scanned (a page holds up to 1,000
+transactions), so at most 20 credits per request at the default budget.
+
+Examples:
+  $ helius tx scan 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P --programs 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P --instructions buy,sell
+  $ helius tx scan <wallet> --mints EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --token-accounts balanceChanged --return-shape count
+  $ helius tx scan <wallet> --match '{"programs":[{"programId":"<pump>","instructions":["buy"]},{"programId":"<pumpswap>"}]}' --json`)
+  .action(function(this: any, address: string) { txScanCommand(address, opts(this)); });
 
 txCmd
   .command("fees")

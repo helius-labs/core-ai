@@ -24,7 +24,7 @@ Exit code ranges:
 
 - [Account management](README.md#account-management): `keygen`, `signup`, `login`, `upgrade`, `pay`, `projects`, `project`, `apikeys`, `usage`, `rpc`, `status`, `plans`, `config`
 - [Balances & tokens](README.md#balances--tokens): `balance`, `tokens`, `token-holders`
-- [Transactions](README.md#transactions): `tx parse`, `tx history`, `tx fees`
+- [Transactions](README.md#transactions): `tx parse`, `tx history`, `tx scan`, `tx fees`
 - [Digital assets (DAS)](README.md#digital-assets-das-api): `asset get`, `asset batch`, `asset owner`, `asset creator`, `asset authority`, `asset collection`, `asset search`, `asset proof`, `asset proof-batch`, `asset editions`, `asset signatures`, `asset token-accounts`
 - [Account & network](README.md#account--network): `account`, `network-status`, `block`
 - [Wallet API](README.md#wallet-api): `wallet identity`, `wallet identity-batch`, `wallet balances`, `wallet history`, `wallet transfers`, `wallet funded-by`

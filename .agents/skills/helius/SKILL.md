@@ -2,7 +2,7 @@
 
 ---
 name: helius
-version: "1.1.6"
+version: "1.1.7"
 description: >
   Build Solana applications with Helius infrastructure. Use this skill when:
   sending transactions (SOL, SPL tokens, swaps), querying assets/NFTs (DAS API),
@@ -101,7 +101,7 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 ### Transaction History & Parsing
 **Read**: `references/enhanced-transactions.md`
 **APIs**: Enhanced Transactions API (`getTransactionsByAddress`, `parseTransactions`), RPC (`getTransactionsForAddress`, `getTransfersByAddress`)
-**MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `getTransfersByAddress`
+**MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `scanTransactionHistory`, `getTransfersByAddress`
 **When**: human-readable tx data, transaction explorers, swap/transfer/NFT sale analysis, history filtering by type/time/slot
 
 ### Getting Started / Onboarding
@@ -195,3 +195,4 @@ Follow these rules in ALL implementations:
 - **Don't roll your own transaction history pipeline** — Manually calling `getSignaturesForAddress` then `getTransaction` for each signature is slower, more expensive, and misses Enhanced Transaction parsing. Use `getTransactionsByAddress` (REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`) or `getTransactionsForAddress` ([REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`) for application code, or `getTransactionHistory` (MCP) for agent queries. These combine fetching and parsing in one call. Note: `getTransactionsByAddress` and `getTransactionsForAddress` have **different parameter shapes and pagination** — see `references/enhanced-transactions.md`.
 - **Don't confuse `getTransactionHistory` with `getWalletHistory`** — `getTransactionHistory` (MCP, parsed with the Parsed Events API on mainnet) returns parsed transaction data (summary type, decoded instructions, transfers). `getWalletHistory` (Wallet API) returns balance changes per transaction. They have different response formats and use cases. See `references/enhanced-transactions.md` vs `references/wallet-api.md`.
 - **Don't confuse `getTransactionHistory` with `getTransfersByAddress`** — `getTransactionHistory` returns one row per transaction (full parsed tx). `getTransfersByAddress` returns one row per transfer (mint, amount, from/to, direction). Pick the granularity that matches what you actually need — per-transfer rows are easier to aggregate by mint/counterparty; per-transaction rows are easier for narrative descriptions.
+- **Search a long history with `scanTransactionHistory`, not by paging and filtering** — To find the transactions that call a program's instructions or touch a token mint, use `scanTransactionHistory` (Parsed Events scan, mainnet only). The server filters each page of up to 1,000 transactions and returns only the matches, as parsed transactions, signatures, or a count. A request can return no matches and still return a `paginationToken`; keep calling with it to scan further.

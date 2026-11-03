@@ -17,6 +17,7 @@ Use these endpoints for transaction analysis — available via MCP tools, SDK me
 | `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call | REST: `POST /v0/transactions/`, SDK: `helius.enhanced.getTransactions()`, MCP: `parseTransactions` on devnet only (on mainnet it uses Parsed Events, 10 credits per 100 signatures) |
 | `getTransactionsByAddress` | Get parsed transaction history for a wallet via the Enhanced Transactions API. | ~110 | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()` |
 | `getTransactionsForAddress` | Get transaction history via RPC with advanced filters. Handles `getSignaturesForAddress` + enrichment internally. | ~10-110 | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| `scanTransactionHistory` | Search an address's history server-side for transactions that call specific programs or instructions, or touch specific token mints. Returns only the matches. Mainnet only. | 10 + 1 per history page scanned (up to 1,000 txs a page; at most 20 at the default budget) | REST: `POST /v1/parsed-events/scan`, SDK: `helius.parsedEvents.scan()` (helius-sdk 3.4.0+), MCP: `scanTransactionHistory` |
 | `getTransfersByAddress` | RPC method that returns **one row per token/SOL transfer** (not per transaction) with rich filters: mint, direction (in/out/any), counterparty (`with`), time/slot/amount ranges, SOL/WSOL display mode. | RPC | SDK: `helius.getTransfersByAddress([address, config])`, MCP: `getTransfersByAddress` |
 
 Related endpoint (Wallet API, covered in `wallet-api.md`):
@@ -33,6 +34,7 @@ Related endpoint (Wallet API, covered in `wallet-api.md`):
 | Get a wallet's recent activity (human-readable) | `getTransactionsByAddress` | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`, Parsed Events on mainnet) |
 | Get a lightweight list of signatures for a wallet | `getTransactionsForAddress` (signatures mode) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `signatures`) |
 | Filter by time range, slot range, or status | `getTransactionsForAddress` (with filters) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| Find the transactions in a long history that call a program's instructions or touch a mint | `scanTransactionHistory` | REST: `POST /v1/parsed-events/scan`, SDK: `helius.parsedEvents.scan()`, MCP: `scanTransactionHistory` |
 | List per-transfer rows (mint/amount/from/to) for an address | `getTransfersByAddress` | SDK: `helius.getTransfersByAddress([address, config])`, MCP: `getTransfersByAddress` |
 | Aggregate transfers by mint or counterparty | `getTransfersByAddress` with `mint` / `with` filters | SDK / MCP |
 | See balance changes per transaction | `getWalletHistory` (Wallet API) | REST / MCP |
@@ -118,6 +120,21 @@ Full transaction data with advanced Helius filters. Cheapest for bulk data (~10 
 - `tokenAccounts`: `"none"` | `"balanceChanged"` | `"all"` (see Token Account Filtering below)
 - `blockTimeGte` / `blockTimeLte`: Unix timestamp range filters
 - `slotGte` / `slotLte`: slot range filters
+
+## scanTransactionHistory
+
+Searches one address's history server-side with the Parsed Events scan endpoint (`POST /v1/parsed-events/scan`, mainnet only) and returns only the transactions that match. Use it instead of paging through `getTransactionHistory` and filtering client-side.
+
+**Key parameters:**
+- `address`: the wallet, program, or token mint whose history is scanned. Prefer the narrowest one: every transaction it has counts toward the budget. For one token's trades, scan its mint rather than the program.
+- `programs`: up to 20 `{ programId, instructions?, discriminators?, scope? }`. Matches an instruction of any of them, top-level or CPI. Instruction names must exist in the program's IDLs (confirm them with `describeProgram`); use `discriminators` (hex prefixes) for programs without an IDL.
+- `mints`: up to 20 `{ mint, scope? }`. Matches a token balance of any of them. The native SOL mint `So11111111111111111111111111111111111111111` matches lamport changes instead. With `programs` too, a transaction must match both.
+- `scope`: `"address"` (default) counts only instructions and balances that involve the scanned address; `"transaction"` counts them anywhere in the transaction. Use `"transaction"` for a program's token balances, which belong to PDAs.
+- `returnShape`: `"transactions"` (parsed, default, up to `limit`), `"signatures"`, or `"count"`
+- `maxScannedTransactions` (1-10,000, default 10,000), `sortOrder`, `status`, `tokenAccounts`, time and slot bounds, `paginationToken`
+- When scanning a wallet for a mint, set `tokenAccounts: "balanceChanged"`, or transfers that touch only the wallet's token account are missed.
+
+A request stops at the first of: `limit` matches, the budget, the end of the history or window, or the request time limit. It can return no matches and still return a `paginationToken`, so keep calling while one is present. Cost: 10 credits plus 1 per history page scanned (a page holds up to 1,000 transactions), so at most 20 credits per request at the default budget.
 
 ## Token Account Filtering
 

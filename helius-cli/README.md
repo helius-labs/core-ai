@@ -126,6 +126,7 @@ helius config clear               # Reset config
 |---|---|
 | `helius tx parse <signatures...>` | Parse transactions into human-readable format |
 | `helius tx history <address>` | Get enhanced transaction history |
+| `helius tx scan <address>` | Search an address's history for program instructions or token mints (Parsed Events, mainnet) |
 | `helius tx fees` | Get priority fee estimates |
 
 ### Digital Assets (DAS API)
