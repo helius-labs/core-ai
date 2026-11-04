@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
-import { validateSignature } from "../lib/validation.js";
+import { validateBase64Transaction, validateSignature } from "../lib/validation.js";
 
 interface SendOptions extends OutputOptions, ResolveOptions, RetryOptions {
   dryRun?: boolean;
@@ -11,9 +11,13 @@ interface SendOptions extends OutputOptions, ResolveOptions, RetryOptions {
 export async function sendBroadcastCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
+    const txErr = validateBase64Transaction(base64Tx);
+    if (txErr) exitWithError("INVALID_INPUT", txErr, undefined, !!options.json);
+    const trimmedTx = base64Tx.trim();
+
     if (options.dryRun) {
       spinner?.succeed("Dry run — transaction not submitted");
-      if (options.json) { outputJson({ dryRun: true, transaction: base64Tx }); return; }
+      if (options.json) { outputJson({ dryRun: true, transaction: trimmedTx }); return; }
       console.log(chalk.yellow("\n  Dry run — transaction would be broadcast but was not submitted."));
       return;
     }
@@ -27,7 +31,7 @@ export async function sendBroadcastCommand(base64Tx: string, options: SendOption
     }
 
     const helius = await setupClient(spinner, options, "Broadcasting transaction...");
-    const signature = await withRetry(() => helius.tx.broadcastTransaction(base64Tx), options, spinner);
+    const signature = await withRetry(() => helius.tx.broadcastTransaction(trimmedTx), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ signature }); return; }
@@ -41,9 +45,13 @@ export async function sendBroadcastCommand(base64Tx: string, options: SendOption
 export async function sendRawCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
+    const txErr = validateBase64Transaction(base64Tx);
+    if (txErr) exitWithError("INVALID_INPUT", txErr, undefined, !!options.json);
+    const trimmedTx = base64Tx.trim();
+
     if (options.dryRun) {
       spinner?.succeed("Dry run — transaction not submitted");
-      if (options.json) { outputJson({ dryRun: true, transaction: base64Tx }); return; }
+      if (options.json) { outputJson({ dryRun: true, transaction: trimmedTx }); return; }
       console.log(chalk.yellow("\n  Dry run — transaction would be sent but was not submitted."));
       return;
     }
@@ -57,7 +65,7 @@ export async function sendRawCommand(base64Tx: string, options: SendOptions = {}
     }
 
     const helius = await setupClient(spinner, options, "Sending transaction...");
-    const signature = await withRetry(() => helius.tx.sendTransaction({ base64: base64Tx }), options, spinner);
+    const signature = await withRetry(() => helius.tx.sendTransaction({ base64: trimmedTx }), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ signature: String(signature) }); return; }
@@ -71,10 +79,14 @@ export async function sendRawCommand(base64Tx: string, options: SendOptions = {}
 export async function sendSenderCommand(base64Tx: string, options: SendOptions & { region?: string } = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
+    const txErr = validateBase64Transaction(base64Tx);
+    if (txErr) exitWithError("INVALID_INPUT", txErr, undefined, !!options.json);
+    const trimmedTx = base64Tx.trim();
+
     if (options.dryRun) {
       const region = options.region || "Default";
       spinner?.succeed("Dry run — transaction not submitted");
-      if (options.json) { outputJson({ dryRun: true, transaction: base64Tx, region }); return; }
+      if (options.json) { outputJson({ dryRun: true, transaction: trimmedTx, region }); return; }
       console.log(chalk.yellow(`\n  Dry run — transaction would be sent via Helius Sender (${region}) but was not submitted.`));
       return;
     }
@@ -92,7 +104,7 @@ export async function sendSenderCommand(base64Tx: string, options: SendOptions &
     const region = (options.region || "Default") as any;
     spinner?.start(`Sending via Helius Sender (${region})...`);
     const signature = await withRetry(() => helius.tx.sendTransaction({
-      base64: base64Tx,
+      base64: trimmedTx,
       sendOptions: { region },
     } as any), options, spinner);
     spinner?.stop();
@@ -125,8 +137,12 @@ export async function sendPollCommand(signature: string, options: SendOptions = 
 export async function sendComputeUnitsCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
+    const txErr = validateBase64Transaction(base64Tx);
+    if (txErr) exitWithError("INVALID_INPUT", txErr, undefined, !!options.json);
+    const trimmedTx = base64Tx.trim();
+
     const helius = await setupClient(spinner, options, "Simulating for compute units...");
-    const result = await withRetry(() => helius.tx.getComputeUnits(base64Tx as any), options, spinner);
+    const result = await withRetry(() => helius.tx.getComputeUnits(trimmedTx as any), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson({ computeUnits: result }); return; }
