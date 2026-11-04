@@ -57,12 +57,12 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'parsed-events': {
     name: 'Parsed Events API',
-    mcpTools: ['parseTransactions', 'getTransactionHistory'],
-    creditCostPerCall: '10 credits per request',
+    mcpTools: ['parseTransactions', 'getTransactionHistory', 'scanTransactionHistory'],
+    creditCostPerCall: '10 credits per request; scan adds 1 per history page scanned (up to 1,000 transactions each)',
     minimumPlan: 'agent',
     docKey: 'parsed-events',
-    integration: 'REST `POST https://mainnet.helius-rpc.com/v1/parsed-events/transactions` and `/v1/parsed-events/transaction-history`, or `helius.parsedEvents.parseTransactions()` / `getTransactionHistory()` in helius-sdk 3.3.0+. Mainnet only.',
-    description: 'Decode transactions through the IDL catalog into named instructions, arguments, and accounts, and fetch parsed transaction history for an address. Replaces the legacy Enhanced Transactions API.',
+    integration: 'REST `POST https://mainnet.helius-rpc.com/v1/parsed-events/transactions`, `/v1/parsed-events/transaction-history`, and `/v1/parsed-events/scan`, or `helius.parsedEvents.parseTransactions()` / `getTransactionHistory()` in helius-sdk 3.3.0+ and `scan()` in 3.4.0+. Mainnet only.',
+    description: 'Decode transactions through the IDL catalog into named instructions, arguments, and accounts, fetch parsed transaction history for an address, and scan the history of an address server-side for specific instructions or token mints. Replaces the legacy Enhanced Transactions API.',
   },
   'wallet-api': {
     name: 'Wallet API',
@@ -86,7 +86,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'webhooks': {
     name: 'Webhooks',
-    mcpTools: ['createWebhook', 'getAllWebhooks', 'getWebhookByID', 'updateWebhook', 'deleteWebhook'],
+    mcpTools: ['createWebhook', 'getAllWebhooks', 'getWebhookByID', 'updateWebhook', 'deleteWebhook', 'toggleWebhook'],
     creditCostPerCall: '100 credits to create, 1 credit per event',
     minimumPlan: 'agent',
     docKey: 'webhooks',
@@ -95,7 +95,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'parsed-streams': {
     name: 'Parsed Streams',
-    mcpTools: ['describeProgram'],
+    mcpTools: ['describeProgram', 'parsedTransactionSubscribe'],
     creditCostPerCall: '1 credit per delivered event',
     minimumPlan: 'agent',
     docKey: 'parsed-streams',
@@ -176,7 +176,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'pre-confirmations': {
     name: 'Preconfirmations',
-    mcpTools: ['getPreConfCoverage'],
+    mcpTools: ['getPreConfCoverage', 'preconfSubscribe'],
     creditCostPerCall: '10 credits per message, 300-credit minimum per subscription in slots that deliver messages',
     minimumPlan: 'developer',
     docKey: 'pre-confirmations',
@@ -185,7 +185,7 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'preprocessed-transactions': {
     name: 'Preprocessed Transactions',
-    mcpTools: [],
+    mcpTools: ['preprocessedSubscribe'],
     creditCostPerCall: '0.1 credits per message',
     minimumPlan: 'developer',
     docKey: 'preprocessed-transactions',

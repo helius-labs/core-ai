@@ -1,6 +1,6 @@
 {
   "name": "helius-mcp",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "description": "Official Helius MCP Server - Complete Solana blockchain data access for AI assistants",
   "type": "module",
   "main": "dist/index.js",
@@ -45,7 +45,7 @@
     "@solana-program/token": "^0.18.0",
     "@solana/kit": "^6.10.0",
     "bs58": "^6.0.0",
-    "helius-sdk": "^3.3.0",
+    "helius-sdk": "^3.4.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

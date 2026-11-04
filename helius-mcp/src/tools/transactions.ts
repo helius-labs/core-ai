@@ -6,7 +6,16 @@ import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, getErrorMessage, validateEnum, handleToolError, http400Error } from '../utils/errors.js';
 import bs58 from 'bs58';
 import { contextFromExtra } from '../utils/request-context.js';
-import type { ParsedTransactionResult } from 'helius-sdk/parsedEvents/types';
+import type {
+  ComparisonBounds,
+  ParsedTransactionResult,
+  ScanMatch,
+  ScanParsedTransactionHistoryRequest,
+  ScanReturnShape,
+  ScanSignature,
+  ScanStopReason,
+  ScanSummary,
+} from 'helius-sdk/parsedEvents/types';
 import {
   PARSED_EVENTS_BATCH_SIZE,
   collectParsedMints,
@@ -286,6 +295,45 @@ function formatSwapSummary(
   const outputSide = parts.join(' + ');
 
   return `${inputSide} → ${outputSide}`;
+}
+
+// ─── Parsed Events scan ───
+
+const SCAN_TITLE = 'Scan Transaction History';
+
+const SCAN_STOP_REASONS: Record<ScanStopReason, string> = {
+  windowEnd: 'reached the end of the history or window, so the scan is complete',
+  limit: 'returned `limit` matches; the next page resumes right after the last one',
+  budget: 'scanned `maxScannedTransactions` transactions; the next page resumes at the next history page',
+  deadline: 'reached the request time limit; the next page resumes where this one stopped',
+};
+
+const scanScope = z.enum(['address', 'transaction']).optional();
+
+function scanBounds(gte?: number, lte?: number): ComparisonBounds | undefined {
+  if (gte === undefined && lte === undefined) return undefined;
+  return { ...(gte !== undefined && { gte }), ...(lte !== undefined && { lte }) };
+}
+
+function describeScanMatch(match: ScanMatch): string[] {
+  const where = (scope?: string) => (scope === 'transaction' ? ' (anywhere in the transaction)' : '');
+  const lines: string[] = [];
+  for (const p of match.programs ?? []) {
+    const names = [...(p.instructions ?? []), ...(p.discriminators ?? [])];
+    lines.push(`- Program \`${p.programId}\`${names.length > 0 ? `: ${names.join(', ')}` : ''}${where(p.scope)}`);
+  }
+  for (const m of match.mints ?? []) {
+    lines.push(`- Mint \`${m.mint}\`${where(m.scope)}`);
+  }
+  return lines;
+}
+
+function formatScanSummary(scan: ScanSummary): string {
+  const through = scan.scannedThrough
+    ? ` through slot ${scan.scannedThrough.slot.toLocaleString()}${scan.scannedThrough.blockTime ? ` (${formatTimestamp(scan.scannedThrough.blockTime)})` : ''}`
+    : '';
+  return `Scanned ${scan.scannedTransactions.toLocaleString()} transactions${through} and matched ${scan.matchedTransactions.toLocaleString()}. `
+    + `Stopped on \`${scan.stoppedOn}\`: ${SCAN_STOP_REASONS[scan.stoppedOn]}. Credits charged: ${scan.creditsCharged}.`;
 }
 
 export function registerTransactionTools(registry: ActionRegistry) {
@@ -686,7 +734,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
   // Get Transaction History (unified: parsed, signatures, or raw mode)
   registry.registerAction(
     'getTransactionHistory',
-    'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~20 credits on mainnet via Parsed Events, ~110 on devnet), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges.',
+    'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~20 credits on mainnet via Parsed Events, ~110 on devnet), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges. To find specific programs, instructions, or token mints in a long history, use scanTransactionHistory.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
@@ -1013,6 +1061,124 @@ export function registerTransactionTools(registry: ActionRegistry) {
       } catch (err) {
         return handleToolError(err, 'Error fetching transaction history');
       }
+    }
+  );
+
+  // Scan Transaction History (Parsed Events scan, mainnet only)
+  registry.registerAction(
+    'scanTransactionHistory',
+    'BEST FOR: finding the transactions in an address\'s history that call specific programs or instructions, or touch specific token mints, without paging through the whole history. PREFER getTransactionHistory for recent activity with no filter, getTransfersByAddress for transfers by amount or counterparty. The server walks the history of a wallet, program, or mint in pages of up to 1,000 transactions and returns only the matches: parsed (default), as signatures, or as a count. A request can stop early with few or no matches and still return a paginationToken; call again with it to cover more history. Mainnet only (Parsed Events API). Cost: 10 credits plus 1 per history page scanned (a page holds up to 1,000 transactions), so at most 20 per request at the default budget.',
+    {
+      address: z.string().describe('Address whose history is scanned: a wallet, program, or token mint. Prefer the narrowest address, since every transaction it has counts toward the budget. For one token\'s trades, scan its mint rather than the program.'),
+      programs: z.array(z.object({
+        programId: z.string().describe('Program address. Each program can appear once.'),
+        instructions: z.array(z.string()).max(50).optional().describe('Instruction names from any IDL version, as the IDL spells them or in snake_case. A name the program\'s IDLs do not have is rejected; confirm names with heliusStreaming.describeProgram.'),
+        discriminators: z.array(z.string()).max(50).optional().describe('Instruction data prefixes, 1 to 8 hex bytes each (optional 0x), for programs without an IDL.'),
+        scope: scanScope.describe('"address" (default): the instruction involves the scanned address. "transaction": anywhere in the transaction, e.g. when the address only pays the fee.'),
+      })).max(20).optional().describe('Match transactions with an instruction (top-level or CPI) of any of these programs. Omit instructions and discriminators to match any instruction of the program. Up to 20.'),
+      mints: z.array(z.object({
+        mint: z.string().describe('Token mint. The native SOL mint So11111111111111111111111111111111111111111 matches lamport changes (not the fee); wrapped SOL is ...112.'),
+        scope: scanScope.describe('"address" (default): a balance of the scanned address. "transaction": any balance in the transaction. Use "transaction" when scanning a program, whose token accounts belong to PDAs.'),
+      })).max(20).optional().describe('Match transactions with a token balance of any of these mints. With programs too, a transaction must match both. Up to 20.'),
+      returnShape: z.enum(['transactions', 'signatures', 'count']).optional().default('transactions').describe('"transactions" = parsed matches (default), "signatures" = signatures and slots of every match in the scanned range, "count" = only the number of matches'),
+      limit: z.number().int().min(1).max(100).optional().default(10).describe('Most matches to return with returnShape "transactions" (1-100). Ignored by "signatures" and "count".'),
+      maxScannedTransactions: z.number().int().min(1).max(10_000).optional().describe('Most transactions to scan in this request (1-10,000, default 10,000). Lower it to cap credits on a busy address.'),
+      sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first'),
+      status: z.enum(['succeeded', 'failed', 'any']).optional().describe('Execution result to scan. Defaults to "succeeded"; failed transactions are skipped unless you pass "failed" or "any".'),
+      tokenAccounts: z.enum(['none', 'balanceChanged', 'all']).optional().describe('Transactions that touch only a token account the address owns. Defaults to "none". Set "balanceChanged" when scanning a wallet for a mint, or many incoming transfers are missed.'),
+      blockTimeGte: z.number().int().optional().describe('Only transactions with block time >= this Unix timestamp (seconds)'),
+      blockTimeLte: z.number().int().optional().describe('Only transactions with block time <= this Unix timestamp (seconds)'),
+      slotGte: z.number().int().optional().describe('Only transactions at slot >= this value'),
+      slotLte: z.number().int().optional().describe('Only transactions at slot <= this value'),
+      paginationToken: z.string().optional().describe('Cursor from a previous scan, to continue it. Keep the other parameters the same.'),
+    },
+    async ({ address, programs, mints, returnShape, limit, maxScannedTransactions, sortOrder, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte, paginationToken }, extra) => {
+      const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
+
+      if (getNetwork(ctx) === 'devnet') {
+        return mcpError(`**${SCAN_TITLE}**\n\nScan is part of the Parsed Events API, which serves mainnet only.`, {
+          type: 'UNSUPPORTED',
+          code: 'MAINNET_ONLY',
+          retryable: false,
+          recovery: 'Scan a mainnet address with the session network set to mainnet-beta. On devnet, page through getTransactionHistory and filter the results instead.',
+        });
+      }
+
+      if (!programs?.length && !mints?.length) {
+        return mcpError(`**${SCAN_TITLE}**\n\nSet \`programs\`, \`mints\`, or both: a scan returns only the transactions that match them.`, {
+          type: 'VALIDATION',
+          code: 'MISSING_MATCH',
+          retryable: false,
+          recovery: 'Pass `programs` (e.g. [{ "programId": "...", "instructions": ["buy"] }]) or `mints` (e.g. [{ "mint": "..." }]). To list every transaction, use getTransactionHistory.',
+        });
+      }
+
+      const match = {
+        ...(programs?.length && { programs }),
+        ...(mints?.length && { mints }),
+      } as ScanMatch;
+      const request: ScanParsedTransactionHistoryRequest<ScanReturnShape> = { address, match, returnShape, sortOrder };
+      if (returnShape === 'transactions') request.limit = limit;
+      if (maxScannedTransactions !== undefined) request.budget = { maxScannedTransactions };
+      if (status) request.status = status;
+      if (tokenAccounts) request.tokenAccounts = tokenAccounts;
+      const time = scanBounds(blockTimeGte, blockTimeLte);
+      if (time) request.time = time;
+      const slot = scanBounds(slotGte, slotLte);
+      if (slot) request.slot = slot;
+      if (paginationToken) request.paginationToken = paginationToken;
+
+      const helius = getHeliusClient(ctx);
+      let result;
+      try {
+        result = await helius.parsedEvents.scan(request);
+      } catch (err) {
+        return handleToolError(err, 'Error scanning transaction history', [
+          http400Error(`${SCAN_TITLE} Error`),
+        ]);
+      }
+
+      const statusNote = status === 'any' ? '' : status === 'failed' ? ', failed only' : ', succeeded only — use status="any" to include failed txs';
+      const orderLabel = sortOrder === 'asc' ? 'oldest first' : 'newest first';
+      const lines = [
+        `**${SCAN_TITLE} for ${formatAddress(address)}** (${orderLabel}${statusNote})`,
+        '',
+        '**Match:**',
+        ...describeScanMatch(match),
+        '',
+        `**Scan:** ${formatScanSummary(result.scan)}`,
+        '',
+      ];
+
+      const token = result.paginationToken || undefined;
+      const continues = token ? ' The history continues: call again with the `paginationToken` below to scan further.' : '';
+
+      if (returnShape === 'count') {
+        lines.push(`**Matches:** ${result.scan.matchedTransactions.toLocaleString()}`);
+        if (token) lines.push('', 'This counts only the range this request scanned. To count the whole window, keep calling with `paginationToken` and add up the counts.');
+      } else if (!result.data || result.data.length === 0) {
+        lines.push(`No matches in the range this request scanned.${continues}`);
+      } else if (returnShape === 'signatures') {
+        for (const item of result.data as ScanSignature[]) {
+          const time = item.blockTime ? formatTimestamp(item.blockTime) : 'N/A';
+          lines.push(`- \`${item.signature}\` | Slot: ${item.slot.toLocaleString()} | ${time}`);
+        }
+      } else {
+        const { parsed, notFound, unparseable } = splitParsedResults(result.data as ParsedTransactionResult[]);
+        const tokenLabel = tokenLabelFrom(await fetchTokenMetadata(helius, collectParsedMints(parsed.map((p) => p.tx))));
+        for (const { signature, tx } of parsed) {
+          lines.push(...formatParsedHistoryEntry(signature, tx, tokenLabel), '');
+        }
+        for (const sig of notFound) lines.push(`⚠️ \`${sig}\` matched but was not found by the parser`, '');
+        for (const u of unparseable) lines.push(`⚠️ \`${u.signature}\` matched but could not be parsed: ${u.code}`, '');
+      }
+
+      if (token) lines.push('', `**Next Page Token:** \`${token}\``);
+
+      return mcpText(truncateResponse(lines.join('\n')), token
+        ? { continuation: { kind: 'paginationToken', api: 'history', token } }
+        : undefined);
     }
   );
 

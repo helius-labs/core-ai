@@ -176,6 +176,7 @@ const mutationActions: ActionName[] = [
   'createWebhook',
   'updateWebhook',
   'deleteWebhook',
+  'toggleWebhook',
   'transferSol',
   'transferToken',
   'stakeSOL',
@@ -501,7 +502,33 @@ catalog.getPreConfCoverage = makeEntry('getPreConfCoverage', {
   handleEligibility: false,
 });
 
+// Gatekeeper subscription config generators: they validate a filter and
+// print code, like transactionSubscribe, and never open a connection.
+catalog.parsedTransactionSubscribe = makeEntry('parsedTransactionSubscribe', {
+  capabilityGate: gate('agent', 'Parsed Streams on every plan'),
+  responseFamily: 'streamingConfig',
+  defaultDetail: 'summary',
+});
+
+catalog.preconfSubscribe = makeEntry('preconfSubscribe', {
+  capabilityGate: gate('developer', 'Preconfirmations on paid plans'),
+  responseFamily: 'streamingConfig',
+  defaultDetail: 'summary',
+});
+
+catalog.preprocessedSubscribe = makeEntry('preprocessedSubscribe', {
+  capabilityGate: gate('developer', 'Preprocessed Transactions on paid plans'),
+  responseFamily: 'streamingConfig',
+  defaultDetail: 'summary',
+});
+
 catalog.getTransactionHistory = makeEntry('getTransactionHistory', {
+  responseFamily: 'history',
+  defaultDetail: 'standard',
+  continuationModel: 'transactionHistory',
+});
+
+catalog.scanTransactionHistory = makeEntry('scanTransactionHistory', {
   responseFamily: 'history',
   defaultDetail: 'standard',
   continuationModel: 'transactionHistory',

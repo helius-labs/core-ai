@@ -2,7 +2,7 @@
 name: phantom
 description: Build frontend Solana applications with Phantom Connect SDK and Helius infrastructure. Covers React, React Native, and browser SDK integration, transaction signing via Helius Sender, API key proxying, token gating, NFT minting, crypto payments, real-time updates, and secure frontend architecture.
 metadata:
-  version: "1.0.5"
+  version: "1.0.6"
 ---
 
 # Helius x Phantom — Build Frontend Solana Apps
@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Claude Code.
 If the problem persists, you can add it manually:
-claude mcp add helius npx helius-mcp@2.3.0
+claude mcp add helius npx helius-mcp@3.0.0
 Then restart Claude so the tools become available.
 ```
 
@@ -328,7 +328,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@2.3.0`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.0.0`
 - Orb Explorer: `https://orbmarkets.io`
 
 ## Common Pitfalls

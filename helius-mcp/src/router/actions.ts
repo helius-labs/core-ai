@@ -40,6 +40,7 @@ export const HELIUS_ASSET_ACTIONS = [
 export const HELIUS_TRANSACTION_ACTIONS = [
   'parseTransactions',
   'getTransactionHistory',
+  'scanTransactionHistory',
   'getTransfersByAddress',
 ] as const;
 
@@ -63,11 +64,15 @@ export const HELIUS_STREAMING_ACTIONS = [
   'getWebhookByID',
   'updateWebhook',
   'deleteWebhook',
+  'toggleWebhook',
   'transactionSubscribe',
   'accountSubscribe',
   'laserstreamSubscribe',
   'describeProgram',
   'getPreConfCoverage',
+  'parsedTransactionSubscribe',
+  'preconfSubscribe',
+  'preprocessedSubscribe',
 ] as const;
 
 export const HELIUS_KNOWLEDGE_ACTIONS = [

@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
-<!-- Version: 1.1.5 -->
+<!-- Version: 1.1.8 -->
 
 
 # Helius — Build on Solana
@@ -10,7 +10,7 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 1. Helius MCP Server
 
-**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `npx helius-mcp@2.3.0` (configure in your MCP client) then restart your AI assistant. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `npx helius-mcp@3.0.0` (configure in your MCP client) then restart your AI assistant. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 ### 2. MCP Router Surface
 
@@ -56,8 +56,8 @@ Identify what the user is building, then read the relevant reference files befor
 ### Transaction Sending & Swaps
 **Reference**: See sender.md (inlined below), `references/priority-fees.md`
 **APIs**: Sender endpoint, Priority Fee API (`getPriorityFeeEstimate`), Enhanced Transactions API
-**MCP tools** (if available): `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`
-**When**: sending SOL/SPL tokens, sending transactions, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
+**MCP tools** (if available): `getPriorityFeeEstimate`, `getSenderInfo`, `parseTransactions`, `transferSol`, `transferToken`, `simulateTransaction`, `simulateBundle`, `getBundleStatuses`
+**When**: sending SOL/SPL tokens, sending transactions, Jito bundles, swap APIs (DFlow, Jupiter, Titan), trading bots, swap interfaces, transaction optimization
 
 ### Asset & NFT Queries
 **Reference**: See das.md (inlined below)
@@ -67,15 +67,16 @@ Identify what the user is building, then read the relevant reference files befor
 
 ### Real-Time Streaming
 **Reference**: See laserstream.md (inlined below) OR `references/websockets.md`
-**APIs**: Enhanced WebSockets (`transactionSubscribe`, `accountSubscribe`), Laserstream gRPC
-**MCP tools** (if available): `transactionSubscribe`, `accountSubscribe`, `laserstreamSubscribe`
+**APIs**: Enhanced WebSockets (`transactionSubscribe`, `accountSubscribe`), Laserstream gRPC, Gatekeeper WebSocket (`parsedTransactionSubscribe`, `preconfSubscribe`, `preprocessedSubscribe`)
+**MCP tools** (if available): `transactionSubscribe`, `accountSubscribe`, `laserstreamSubscribe`, `parsedTransactionSubscribe`, `describeProgram`, `preconfSubscribe`, `getPreConfCoverage`, `preprocessedSubscribe`
 **When**: real-time monitoring, live dashboards, alerting, trading apps, block/slot streaming, indexing, program/account tracking
 Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mainnet) for lowest latency and replay.
+The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves three more streams: Parsed Streams (`parsedTransactionSubscribe`, all plans) for transactions decoded into named instructions, events, and accounts, filtered by program; Preconfirmations (`preconfSubscribe`, paid plans) and Preprocessed Transactions (`preprocessedSubscribe`, paid plans) for seeing transactions before they execute. The MCP tools return a validated subscription and code; they don't open a connection. Confirm instruction and account role names with `describeProgram` before filtering on them.
 
 ### Event Pipelines (Webhooks)
 **Reference**: See webhooks.md (inlined below)
 **APIs**: Webhooks REST API (`createWebhook`, `getAllWebhooks`, `getWebhookByID`, `editWebhook`, `deleteWebhook`)
-**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `deleteWebhook`, `getWebhookGuide`
+**MCP tools** (if available): `createWebhook`, `getAllWebhooks`, `getWebhookByID`, `updateWebhook`, `toggleWebhook`, `deleteWebhook`, `getWebhookGuide`
 **When**: on-chain event notifications, event-driven backends, address monitoring (transfers, swaps, NFT sales), Telegram/Discord alerts
 
 ### Wallet Analysis
@@ -92,7 +93,7 @@ Enhanced WebSockets (Developer+) for most needs; Laserstream gRPC (Business+ mai
 ### Transaction History & Parsing
 **Reference**: See enhanced-transactions.md (inlined below)
 **APIs**: Enhanced Transactions API (`getTransactionsByAddress`, `parseTransactions`), RPC (`getTransactionsForAddress`, `getTransfersByAddress`)
-**MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `getTransfersByAddress`
+**MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `scanTransactionHistory`, `getTransfersByAddress`
 **When**: human-readable tx data, transaction explorers, swap/transfer/NFT sale analysis, history filtering by type/time/slot
 
 ### Getting Started / Onboarding
@@ -186,6 +187,7 @@ Follow these rules in ALL implementations:
 - **Don't roll your own transaction history pipeline** — Manually calling `getSignaturesForAddress` then `getTransaction` for each signature is slower, more expensive, and misses Enhanced Transaction parsing. Use `getTransactionsByAddress` (REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`) or `getTransactionsForAddress` ([REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`) for application code, or `getTransactionHistory` (MCP) for agent queries. These combine fetching and parsing in one call. Note: `getTransactionsByAddress` and `getTransactionsForAddress` have **different parameter shapes and pagination** — see `references/enhanced-transactions.md`.
 - **Don't confuse `getTransactionHistory` with `getWalletHistory`** — `getTransactionHistory` (MCP, parsed with the Parsed Events API on mainnet) returns parsed transaction data (summary type, decoded instructions, transfers). `getWalletHistory` (Wallet API) returns balance changes per transaction. They have different response formats and use cases. See `references/enhanced-transactions.md` vs `references/wallet-api.md`.
 - **Don't confuse `getTransactionHistory` with `getTransfersByAddress`** — `getTransactionHistory` returns one row per transaction (full parsed tx). `getTransfersByAddress` returns one row per transfer (mint, amount, from/to, direction). Pick the granularity that matches what you actually need — per-transfer rows are easier to aggregate by mint/counterparty; per-transaction rows are easier for narrative descriptions.
+- **Search a long history with `scanTransactionHistory`, not by paging and filtering** — To find the transactions that call a program's instructions or touch a token mint, use `scanTransactionHistory` (Parsed Events scan, mainnet only). The server filters each page of up to 1,000 transactions and returns only the matches, as parsed transactions, signatures, or a count. A request can return no matches and still return a `paginationToken`; keep calling with it to scan further.
 
 
 ---
@@ -511,6 +513,7 @@ Use these endpoints for transaction analysis — available via MCP tools, SDK me
 | `parseTransactions` | Parse signatures into human-readable format. Returns type, source program, transfers, fees, description. Use `showRaw: true` for instruction-level data. | 100/call | REST: `POST /v0/transactions/`, SDK: `helius.enhanced.getTransactions()`, MCP: `parseTransactions` on devnet only (on mainnet it uses Parsed Events, 10 credits per 100 signatures) |
 | `getTransactionsByAddress` | Get parsed transaction history for a wallet via the Enhanced Transactions API. | ~110 | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()` |
 | `getTransactionsForAddress` | Get transaction history via RPC with advanced filters. Handles `getSignaturesForAddress` + enrichment internally. | ~10-110 | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| `scanTransactionHistory` | Search an address's history server-side for transactions that call specific programs or instructions, or touch specific token mints. Returns only the matches. Mainnet only. | 10 + 1 per history page scanned (up to 1,000 txs a page; at most 20 at the default budget) | REST: `POST /v1/parsed-events/scan`, SDK: `helius.parsedEvents.scan()` (helius-sdk 3.4.0+), MCP: `scanTransactionHistory` |
 | `getTransfersByAddress` | RPC method that returns **one row per token/SOL transfer** (not per transaction) with rich filters: mint, direction (in/out/any), counterparty (`with`), time/slot/amount ranges, SOL/WSOL display mode. | RPC | SDK: `helius.getTransfersByAddress([address, config])`, MCP: `getTransfersByAddress` |
 
 Related endpoint (Wallet API, covered in `wallet-api.md`):
@@ -527,6 +530,7 @@ Related endpoint (Wallet API, covered in `wallet-api.md`):
 | Get a wallet's recent activity (human-readable) | `getTransactionsByAddress` | REST: `GET /v0/addresses/{addr}/transactions`, SDK: `helius.enhanced.getTransactionsByAddress()`, MCP: `getTransactionHistory` (mode: `parsed`, Parsed Events on mainnet) |
 | Get a lightweight list of signatures for a wallet | `getTransactionsForAddress` (signatures mode) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `signatures`) |
 | Filter by time range, slot range, or status | `getTransactionsForAddress` (with filters) | [REST RPC](https://www.helius.dev/docs/api-reference/rpc/http/gettransactionsforaddress), SDK: `helius.getTransactionsForAddress()`, MCP: `getTransactionHistory` (mode: `raw`) |
+| Find the transactions in a long history that call a program's instructions or touch a mint | `scanTransactionHistory` | REST: `POST /v1/parsed-events/scan`, SDK: `helius.parsedEvents.scan()`, MCP: `scanTransactionHistory` |
 | List per-transfer rows (mint/amount/from/to) for an address | `getTransfersByAddress` | SDK: `helius.getTransfersByAddress([address, config])`, MCP: `getTransfersByAddress` |
 | Aggregate transfers by mint or counterparty | `getTransfersByAddress` with `mint` / `with` filters | SDK / MCP |
 | See balance changes per transaction | `getWalletHistory` (Wallet API) | REST / MCP |
@@ -612,6 +616,21 @@ Full transaction data with advanced Helius filters. Cheapest for bulk data (~10 
 - `tokenAccounts`: `"none"` | `"balanceChanged"` | `"all"` (see Token Account Filtering below)
 - `blockTimeGte` / `blockTimeLte`: Unix timestamp range filters
 - `slotGte` / `slotLte`: slot range filters
+
+## scanTransactionHistory
+
+Searches one address's history server-side with the Parsed Events scan endpoint (`POST /v1/parsed-events/scan`, mainnet only) and returns only the transactions that match. Use it instead of paging through `getTransactionHistory` and filtering client-side.
+
+**Key parameters:**
+- `address`: the wallet, program, or token mint whose history is scanned. Prefer the narrowest one: every transaction it has counts toward the budget. For one token's trades, scan its mint rather than the program.
+- `programs`: up to 20 `{ programId, instructions?, discriminators?, scope? }`. Matches an instruction of any of them, top-level or CPI. Instruction names must exist in the program's IDLs (confirm them with `describeProgram`); use `discriminators` (hex prefixes) for programs without an IDL.
+- `mints`: up to 20 `{ mint, scope? }`. Matches a token balance of any of them. The native SOL mint `So11111111111111111111111111111111111111111` matches lamport changes instead. With `programs` too, a transaction must match both.
+- `scope`: `"address"` (default) counts only instructions and balances that involve the scanned address; `"transaction"` counts them anywhere in the transaction. Use `"transaction"` for a program's token balances, which belong to PDAs.
+- `returnShape`: `"transactions"` (parsed, default, up to `limit`), `"signatures"`, or `"count"`
+- `maxScannedTransactions` (1-10,000, default 10,000), `sortOrder`, `status`, `tokenAccounts`, time and slot bounds, `paginationToken`
+- When scanning a wallet for a mint, set `tokenAccounts: "balanceChanged"`, or transfers that touch only the wallet's token account are missed.
+
+A request stops at the first of: `limit` matches, the budget, the end of the history or window, or the request time limit. It can return no matches and still return a `paginationToken`, so keep calling while one is present. Cost: 10 credits plus 1 per history page scanned (a page holds up to 1,000 transactions), so at most 20 credits per request at the default budget.
 
 ## Token Account Filtering
 
@@ -1438,7 +1457,7 @@ The MCP persists API keys and JWTs to shared config files so they survive across
 ### Installing the MCP
 
 ```bash
-npx helius-mcp@2.3.0  # configure in your MCP client
+npx helius-mcp@3.0.0  # configure in your MCP client
 ```
 
 ## Choosing the Right Setup Path
@@ -2518,7 +2537,7 @@ Webhooks deliver real-time Solana on-chain events to your server via HTTP POST. 
 - Up to 100,000 addresses per webhook
 - 150+ supported transaction types with filtering
 - 1 credit per event delivered
-- 100 credits per management operation (create, update, delete, list, get)
+- 100 credits per management operation (create, update, enable/disable, delete, list, get)
 - Three webhook types: Enhanced (parsed), Raw (unfiltered), Discord (channel notifications)
 
 ## MCP Tools
@@ -2528,9 +2547,10 @@ All webhook operations have direct MCP tools. Use these for managing webhooks:
 | MCP Tool | What It Does |
 |---|---|
 | `createWebhook` | Create a new webhook to monitor addresses for specific transaction types |
-| `getAllWebhooks` | List all active webhooks on your account |
+| `getAllWebhooks` | List all webhooks on your account, with whether each is enabled |
 | `getWebhookByID` | Get details for a specific webhook |
 | `updateWebhook` | Modify webhook URL, addresses, or transaction type filters |
+| `toggleWebhook` | Enable or disable a webhook without deleting it |
 | `deleteWebhook` | Permanently remove a webhook |
 | `getWebhookGuide` | Fetch live official webhook documentation |
 
@@ -2688,9 +2708,15 @@ app.post('/webhook', (req, res) => {
 
 ### List / Update / Delete
 
-Use MCP tools: `getAllWebhooks`, `updateWebhook`, `deleteWebhook`.
+Use MCP tools: `getAllWebhooks`, `updateWebhook`, `toggleWebhook`, `deleteWebhook`.
 
 The `updateWebhook` MCP tool only requires the fields you want to change — it fetches the existing webhook and merges automatically. When using the SDK directly (`helius.webhooks.update()`), you must pass all fields since the API requires the full webhook object.
+
+### Disabled Webhooks
+
+Helius auto-disables a webhook whose endpoint keeps failing, and a disabled webhook receives no deliveries. `getAllWebhooks` and `getWebhookByID` show each webhook's status. When events stop arriving, check the status before debugging the endpoint.
+
+To pause deliveries without losing the configuration, call `toggleWebhook` with `active: false`. To re-enable, fix the endpoint first, then call `toggleWebhook` with `active: true`. A re-enabled webhook cannot be auto-disabled again for 24 hours, so confirm the endpoint is healthy within that window. With the SDK directly, use `helius.webhooks.toggle(webhookID, active)`.
 
 ## Common Patterns
 

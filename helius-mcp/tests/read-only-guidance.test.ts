@@ -17,6 +17,19 @@ vi.mock('../src/utils/config.js', async (importOriginal) => {
 
 vi.mock('helius-sdk/auth/listProjects', () => ({ listProjects: vi.fn(async () => []) }));
 
+// A disabled webhook, so the webhook status line has to say how to re-enable it.
+vi.mock('../src/utils/helius.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/utils/helius.js')>();
+  return {
+    ...original,
+    getHeliusClient: vi.fn(() => ({
+      webhooks: {
+        getAll: async () => [{ webhookID: 'id', webhookURL: 'https://example.com', webhookType: 'enhanced', active: false }],
+      },
+    })),
+  };
+});
+
 vi.mock('../src/utils/docs.js', async (importOriginal) => {
   const original = await importOriginal<typeof import('../src/utils/docs.js')>();
   return {
@@ -89,6 +102,7 @@ const CASES: Array<{ name: string; setup: () => void; tool: RoutedPublicToolName
   { name: 'previewUpgrade, session with no project', setup: keyAndSession, tool: 'heliusAccount', action: 'previewUpgrade', params: { plan: 'developer' } },
   { name: 'getHeliusPlanInfo', setup: keyOnly, tool: 'heliusAccount', action: 'getHeliusPlanInfo' },
   { name: 'recommendStack', setup: keyOnly, tool: 'heliusKnowledge', action: 'recommendStack', params: { description: 'a trading bot that sends tokens', scale: 'all' } },
+  { name: 'getAllWebhooks, a disabled webhook', setup: keyOnly, tool: 'heliusStreaming', action: 'getAllWebhooks' },
   { name: 'a data action with no key', setup: signedOut, tool: 'heliusWallet', action: 'getBalance', params: { address: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' } },
 ];
 
@@ -107,7 +121,7 @@ describe('read-only guidance never sends the model to a removed action', () => {
       full.push(await call(tool, action, 'full', params));
     }
     const text = full.join('\n');
-    for (const name of ['setHeliusApiKey', 'generateKeypair', 'signup', 'upgradePlan', 'createWebhook', 'transferSol']) {
+    for (const name of ['setHeliusApiKey', 'generateKeypair', 'signup', 'upgradePlan', 'createWebhook', 'toggleWebhook', 'transferSol']) {
       expect(text, name).toMatch(new RegExp(`\\b${name}\\b`));
     }
   });

@@ -118,6 +118,15 @@ export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
   mode: optionalString(),
   transactionDetails: optionalString(),
   tokenAccounts: optionalString(),
+  blockTimeGte: optionalNumber(),
+  blockTimeLte: optionalNumber(),
+  slotGte: optionalNumber(),
+  slotLte: optionalNumber(),
+  // scanTransactionHistory
+  programs: z.array(z.looseObject({})).optional(),
+  mints: z.array(z.looseObject({})).optional(),
+  returnShape: optionalString(),
+  maxScannedTransactions: optionalNumber(),
 });
 
 export const HELIUS_CHAIN_SCHEMA = withTelemetry({
@@ -154,6 +163,7 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
   account: optionalString(),
   accountAddresses: stringArray(),
   webhookID: optionalString(),
+  active: optionalBoolean(),
   webhookURL: optionalString(),
   transactionTypes: stringArray(),
   signature: optionalString(),
@@ -170,6 +180,22 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
   transactionAccountExclude: stringArray(),
   transactionAccountRequired: stringArray(),
   program: optionalString(),
+  // parsedTransactionSubscribe
+  programs: stringArray(),
+  instructionNames: stringArray(),
+  accountRoles: z.record(z.string(), z.string()).optional(),
+  includeFailed: optionalBoolean(),
+  includeCpi: optionalBoolean(),
+  notificationDetails: optionalString(),
+  // preconfSubscribe
+  includeSource: stringArray(),
+  failed: optionalBoolean(),
+  regionInclude: stringArray(),
+  signerInclude: stringArray(),
+  signerExclude: stringArray(),
+  signatures: stringArray(),
+  instructions: z.array(z.looseObject({})).optional(),
+  slots: optionalBoolean(),
 });
 
 export const HELIUS_KNOWLEDGE_SCHEMA = withTelemetry({

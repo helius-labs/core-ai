@@ -154,6 +154,20 @@ export function getEnhancedWebSocketUrl(ctx?: RequestContext | null): string {
   return `${host}/?api-key=${getApiKey(ctx)}`;
 }
 
+/**
+ * Gatekeeper WebSocket URL for Parsed Streams, Preconfirmations, and
+ * Preprocessed Transactions. Gatekeeper serves mainnet only, so this ignores
+ * the network setting. Shared-credential mode gets the placeholder, for the
+ * reason `getEnhancedWebSocketUrl` gives.
+ */
+export function getGatekeeperWebSocketUrl(ctx?: RequestContext | null): string {
+  const host = 'wss://beta.helius-rpc.com';
+  if (isSharedCredentialMode()) {
+    return `${host}/?api-key=${API_KEY_PLACEHOLDER}`;
+  }
+  return `${host}/?api-key=${getApiKey(ctx)}`;
+}
+
 export function getLaserstreamUrl(
   ctx?: RequestContext | null,
   region?: 'ewr' | 'pitt' | 'slc' | 'lax' | 'lon' | 'ams' | 'fra' | 'tyo' | 'sgp',
