@@ -37,7 +37,7 @@ export async function tokensCommand(address: string, options: BalanceOptions & {
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
     const helius = await setupClient(spinner, options, "Fetching token balances...");
     const limit = options.limit ? parseInt(options.limit, 10) : 100;
-    const result = await withRetry(() => helius.getAssetsByOwner({ ownerAddress: address, page: 1, limit, displayOptions: { showFungible: true } }), options, spinner) as any;
+    const result = await withRetry(() => helius.getAssetsByOwner({ ownerAddress: address, page: 1, limit, options: { showFungible: true } }), options, spinner) as any;
     spinner?.stop();
 
     // Filter to fungible tokens
