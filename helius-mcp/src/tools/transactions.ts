@@ -16,6 +16,7 @@ import type {
   ScanStopReason,
   ScanSummary,
 } from 'helius-sdk/parsedEvents/types';
+import type { GetTransfersByAddressConfig, GetTransfersByAddressResult, TokenTransfer as TransferRow } from 'helius-sdk/types/types';
 import {
   PARSED_EVENTS_BATCH_SIZE,
   collectParsedMints,
@@ -1238,13 +1239,6 @@ export function registerTransactionTools(registry: ActionRegistry) {
         if (err) return err;
       }
 
-      type AmountFilter = { gt?: number; gte?: number; lt?: number; lte?: number };
-      type Filters = {
-        amount?: AmountFilter;
-        blockTime?: AmountFilter;
-        slot?: AmountFilter;
-      };
-
       // SDK's TransferComparisonFilter types amount as `number`, so values outside JS safe-integer
       // range (>2^53) can't be passed without precision loss. u64 raw amounts on high-decimal tokens
       // can exceed this. Surface a clear error rather than silently dropping the filter.
@@ -1262,7 +1256,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
         return n;
       };
 
-      const filters: Filters = {};
+      const filters: NonNullable<GetTransfersByAddressConfig['filters']> = {};
       const aGte = parseAmountBound(amountGte, 'amountGte');
       const aLte = parseAmountBound(amountLte, 'amountLte');
       const amountErrMeta = {
@@ -1289,43 +1283,23 @@ export function registerTransactionTools(registry: ActionRegistry) {
         if (slotLte !== undefined) filters.slot.lte = slotLte;
       }
 
-      const config: Record<string, unknown> = {
-        direction,
+      // The enums were validated above
+      const config: GetTransfersByAddressConfig = {
+        direction: direction as GetTransfersByAddressConfig['direction'],
         limit: Math.min(Math.max(limit, 1), 100),
-        sortOrder,
+        sortOrder: sortOrder as GetTransfersByAddressConfig['sortOrder'],
       };
       if (counterparty) config.with = counterparty;
       if (mint) config.mint = mint;
-      if (solMode) config.solMode = solMode;
+      if (solMode) config.solMode = solMode as GetTransfersByAddressConfig['solMode'];
       if (paginationToken) config.paginationToken = paginationToken;
-      if (commitment) config.commitment = commitment;
+      if (commitment) config.commitment = commitment as GetTransfersByAddressConfig['commitment'];
       if (Object.keys(filters).length > 0) config.filters = filters;
 
-      type TransferRow = {
-        signature: string;
-        slot: number;
-        blockTime: number;
-        type: string;
-        fromUserAccount: string | null;
-        toUserAccount: string | null;
-        fromTokenAccount?: string;
-        toTokenAccount?: string;
-        mint: string;
-        amount: string;
-        decimals: number;
-        uiAmount: string;
-        feeAmount?: string;
-        feeUiAmount?: string;
-        confirmationStatus: string;
-        transactionIdx: number;
-        instructionIdx: number;
-        innerInstructionIdx: number;
-      };
-      type TransfersResult = { data: ReadonlyArray<TransferRow>; paginationToken: string | null };
-
-      let result: TransfersResult;
+      let result: GetTransfersByAddressResult;
       try {
-        result = await (helius as any).getTransfersByAddress(address, config) as TransfersResult;
+        // The SDK takes a single [address, config] tuple as the JSON-RPC params
+        result = await helius.getTransfersByAddress([address, config]);
       } catch (e) {
         return handleToolError(e, 'Error fetching transfers');
       }
@@ -1334,9 +1308,17 @@ export function registerTransactionTools(registry: ActionRegistry) {
         return mcpText(`**Transfers for ${formatAddress(address)}**\n\nNo transfers found.`);
       }
 
+      const WSOL = 'So11111111111111111111111111111111111111112';
+      const NATIVE_SOL = 'So11111111111111111111111111111111111111111';
+      // Native SOL transfers come back with the native mint (or WSOL) and no token accounts. JSON
+      // deserialization can surface either `undefined` (key absent) or `null` (key present with null
+      // value) — accept both.
+      const isNativeSol = (t: TransferRow) =>
+        (t.mint === NATIVE_SOL || t.mint === WSOL) && t.fromTokenAccount == null && t.toTokenAccount == null;
+
       const mints = new Set<string>();
       for (const t of result.data) {
-        if (t.mint) mints.add(t.mint);
+        if (t.mint && !isNativeSol(t)) mints.add(t.mint);
       }
       const tokenMetadata = await fetchTokenMetadata(helius, mints);
 
@@ -1345,18 +1327,9 @@ export function registerTransactionTools(registry: ActionRegistry) {
         return asset?.token_info?.symbol || asset?.content?.metadata?.symbol || asset?.content?.metadata?.name || formatAddress(m);
       };
 
-      const WSOL = 'So11111111111111111111111111111111111111112';
-      // SDK contract: native SOL transfers omit fromTokenAccount/toTokenAccount. JSON deserialization
-      // can surface either `undefined` (key absent) or `null` (key present with null value) — accept both.
-      const isNativeSol = (t: TransferRow) => t.mint === WSOL && t.fromTokenAccount == null && t.toTokenAccount == null;
-
       const formatAmount = (t: TransferRow): string => {
-        if (isNativeSol(t)) {
-          // amount is raw lamports as string
-          const n = Number(t.amount);
-          if (Number.isFinite(n)) return formatSol(n);
-        }
-        // Use uiAmount (string, precision-preserving) directly and trim trailing zeros for readability
+        // Use uiAmount (string, precision-preserving) directly and trim trailing zeros for readability.
+        // Native SOL rows carry it too, already scaled from lamports.
         const ui = t.uiAmount ?? '';
         if (!ui.includes('.')) return ui;
         return ui.replace(/0+$/, '').replace(/\.$/, '');

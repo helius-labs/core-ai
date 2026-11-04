@@ -13,6 +13,7 @@ import { resolveNetwork, setupClient, type ResolveOptions } from "../lib/helius.
 import { formatSol, formatTimestamp, formatAddress, formatEnumLabel } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
 import { validateAddress, validateAddresses, validateScanMatch, validateSignature } from "../lib/validation.js";
+import type { GetTransfersByAddressConfig, GetTransfersByAddressResult } from "helius-sdk/types/types";
 
 interface TxOptions extends OutputOptions, ResolveOptions, RetryOptions {}
 
@@ -151,12 +152,17 @@ export async function txTransfersCommand(address: string, options: TxTransfersOp
     const sortOrder = options.sortOrder || "desc";
     const direction = options.direction || "any";
 
-    const config: Record<string, unknown> = { direction, limit, sortOrder };
+    // The enums were validated above
+    const config: GetTransfersByAddressConfig = {
+      direction: direction as GetTransfersByAddressConfig["direction"],
+      limit,
+      sortOrder: sortOrder as GetTransfersByAddressConfig["sortOrder"],
+    };
     if (options.mint) config.mint = options.mint;
     if (options.with) config.with = options.with;
     if (options.paginationToken) config.paginationToken = options.paginationToken;
-    if (options.commitment) config.commitment = options.commitment;
-    if (options.solMode) config.solMode = options.solMode;
+    if (options.commitment) config.commitment = options.commitment as GetTransfersByAddressConfig["commitment"];
+    if (options.solMode) config.solMode = options.solMode as GetTransfersByAddressConfig["solMode"];
 
     // SDK's TransferComparisonFilter types amount as `number`, so raw u64 values outside JS safe-integer
     // range (>2^53) can't be passed without precision loss. Mirror the MCP handler: surface a clear error
@@ -173,7 +179,7 @@ export async function txTransfersCommand(address: string, options: TxTransfersOp
       return n;
     };
 
-    const filters: Record<string, { gte?: number; lte?: number }> = {};
+    const filters: NonNullable<GetTransfersByAddressConfig["filters"]> = {};
     if (options.blockTimeGte || options.blockTimeLte) {
       filters.blockTime = {};
       if (options.blockTimeGte) filters.blockTime.gte = parseInt(options.blockTimeGte, 10);
@@ -193,7 +199,8 @@ export async function txTransfersCommand(address: string, options: TxTransfersOp
     }
     if (Object.keys(filters).length > 0) config.filters = filters;
 
-    const result: any = await withRetry(() => (helius as any).getTransfersByAddress(address, config), options, spinner);
+    // The SDK takes a single [address, config] tuple as the JSON-RPC params
+    const result = await withRetry<GetTransfersByAddressResult>(() => helius.getTransfersByAddress([address, config]), options, spinner);
     spinner?.stop();
 
     if (options.json) {
@@ -208,16 +215,16 @@ export async function txTransfersCommand(address: string, options: TxTransfersOp
     }
 
     const WSOL = "So11111111111111111111111111111111111111112";
+    const NATIVE_SOL = "So11111111111111111111111111111111111111111";
     console.log(chalk.bold(`\nTransfers for ${chalk.cyan(address)}:\n`));
     for (const t of data) {
-      // SDK omits from/toTokenAccount for native SOL transfers; accept null or undefined from JSON.
-      const isSol = t.mint === WSOL && t.fromTokenAccount == null && t.toTokenAccount == null;
-      const amount = isSol ? formatSol(Number(t.amount)) : `${t.uiAmount} ${formatAddress(t.mint)}`;
-      const symbol = isSol ? "SOL" : "";
+      // Native SOL transfers come back with the native mint (or WSOL) and no token accounts; accept null or undefined from JSON.
+      const isSol = (t.mint === NATIVE_SOL || t.mint === WSOL) && t.fromTokenAccount == null && t.toTokenAccount == null;
+      const amount = `${t.uiAmount} ${isSol ? "SOL" : formatAddress(t.mint)}`;
       const from = t.fromUserAccount ? formatAddress(t.fromUserAccount) : (t.type === "mint" ? "mint" : "?");
       const to = t.toUserAccount ? formatAddress(t.toUserAccount) : (t.type === "burn" ? "burn" : "?");
       const time = t.blockTime ? formatTimestamp(Number(t.blockTime)) : "N/A";
-      console.log(`  ${chalk.yellow((t.type || "transfer").padEnd(10))} ${amount}${symbol ? " " + symbol : ""}`);
+      console.log(`  ${chalk.yellow((t.type || "transfer").padEnd(10))} ${amount}`);
       console.log(`    ${from} ${chalk.gray("→")} ${to}`);
       console.log(`    ${chalk.gray("sig:")} ${chalk.cyan(formatAddress(t.signature))}  ${chalk.gray("slot:")} ${t.slot.toString()}  ${chalk.gray(time)}`);
     }

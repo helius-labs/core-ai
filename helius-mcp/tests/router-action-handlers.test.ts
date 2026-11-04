@@ -99,14 +99,16 @@ describe('action handler bridge', () => {
     );
 
     expect(result.isError).not.toBe(true);
-    expect(getTransfersByAddress).toHaveBeenCalledWith(
+    // The SDK sends its single argument as the JSON-RPC params, so it takes an
+    // [address, config] tuple. Two arguments send a bare address: "Parse error".
+    expect(getTransfersByAddress).toHaveBeenCalledWith([
       'BenchWallet11111111111111111111111111111111',
       {
         direction: 'any',
         limit: 5,
         sortOrder: 'desc',
       },
-    );
+    ]);
     expect(result.content?.[0]?.text).toContain('No transfers found.');
   });
 
@@ -149,7 +151,7 @@ describe('action handler bridge', () => {
     );
 
     expect(result.isError).not.toBe(true);
-    expect(getTransfersByAddress).toHaveBeenCalledWith(
+    expect(getTransfersByAddress).toHaveBeenCalledWith([
       'BenchWallet11111111111111111111111111111111',
       {
         direction: 'in',
@@ -159,8 +161,41 @@ describe('action handler bridge', () => {
         paginationToken: 'PREV',
         filters: { blockTime: { gte: 1700000000 } },
       },
-    );
+    ]);
     expect(result.content?.[0]?.text).toContain('**Next Page Token:** `NEXT_TOKEN`');
+  });
+
+  it('labels native SOL transfers, which use the native mint and no token accounts', async () => {
+    getTransfersByAddress.mockResolvedValueOnce({
+      data: [
+        {
+          signature: '5J8' + 'b'.repeat(85),
+          slot: 123457,
+          blockTime: 1700000001,
+          type: 'transfer',
+          fromUserAccount: 'AAA11111111111111111111111111111111111111111',
+          toUserAccount: 'BBB22222222222222222222222222222222222222222',
+          mint: 'So11111111111111111111111111111111111111111',
+          amount: '50000',
+          decimals: 9,
+          uiAmount: '0.00005',
+          confirmationStatus: 'finalized',
+          transactionIdx: 0,
+          instructionIdx: 0,
+          innerInstructionIdx: 0,
+        },
+      ],
+      paginationToken: null,
+    } as any);
+
+    const result = await callActionHandler(
+      'getTransfersByAddress',
+      { address: 'BenchWallet11111111111111111111111111111111' },
+      {},
+    );
+
+    expect(result.content?.[0]?.text).toContain('TRANSFER 0.00005 SOL (So11111111111111111111111111111111111111111)');
+    expect(getAssetBatch).not.toHaveBeenCalledWith(expect.objectContaining({ ids: expect.arrayContaining(['So11111111111111111111111111111111111111111']) }));
   });
 
   it('rejects amount bounds that exceed JS safe-integer range', async () => {
