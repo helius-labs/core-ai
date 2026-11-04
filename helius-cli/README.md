@@ -218,7 +218,7 @@ helius config clear               # Reset config
 | `helius send raw <base64-tx>` | Send a raw transaction |
 | `helius send sender <base64-tx>` | Send via Helius Sender for ultra-low latency |
 | `helius send poll <signature>` | Poll transaction status until confirmed |
-| `helius send compute-units <base64-tx>` | Simulate and return compute unit estimate |
+| `helius send compute-units <base64-tx>` | Estimate a transaction's compute unit limit by simulating it (works unsigned) |
 
 ### WebSocket Streaming
 
