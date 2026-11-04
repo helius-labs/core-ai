@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+- **`helius tx parse` and `helius tx history` use the Parsed Events API on mainnet** instead of the legacy Enhanced Transactions API, which Helius has put in maintenance mode. Requests cost 10 credits instead of 100, and output includes decoded program and instruction names and decoded program errors. Devnet, where Parsed Events is unavailable, still uses Enhanced Transactions with the old output.
+- **New `--json` shape on mainnet.** `tx parse` returns one `{ signature, parserStatus, parsed }` item per signature (or `parserError` for one that couldn't be found or parsed), and `tx history` returns `{ data, paginationToken }`. Inside `parsed`, `timestamp` is now `blockTime`, `type` is the lowercase `summary.type` (`swap`, `transfer`, ...), and token amounts are raw integers with `decimals`. See the [migration guide](https://www.helius.dev/docs/parsed-events/guides/migrate-from-enhanced-transactions) for the full field mapping.
+- **`tx history --type` is removed.** Parsed Events has no transaction type filter. Passing `--type` exits with an error that points to `helius tx scan`, which filters server-side by program, instruction, or token mint.
+- **History defaults on mainnet:** `confirmed` commitment instead of `finalized`, and successful transactions only. Pass `--commitment finalized` or `--status any` for the old behavior.
+
+### New
+- `tx history` takes `--after`, `--sort-order`, `--status`, `--token-accounts`, `--commitment`, block time and slot bounds, and `--pagination-token`, and prints the next page's token. On devnet, `--status`, `--token-accounts`, and `--pagination-token` exit with an error, since Enhanced Transactions doesn't support them.
+- `tx parse` takes any number of signatures, sending at most 100 per request.
+
 ## 2.2.0 — Parsed Events scan
 
 ### New

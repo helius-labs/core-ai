@@ -124,8 +124,8 @@ helius config clear               # Reset config
 
 | Command | Description |
 |---|---|
-| `helius tx parse <signatures...>` | Parse transactions into human-readable format |
-| `helius tx history <address>` | Get enhanced transaction history |
+| `helius tx parse <signatures...>` | Parse transactions into human-readable format (Parsed Events on mainnet) |
+| `helius tx history <address>` | Get parsed transaction history (Parsed Events on mainnet), with time, slot, status, and pagination filters |
 | `helius tx scan <address>` | Search an address's history for program instructions or token mints (Parsed Events, mainnet) |
 | `helius tx fees` | Get priority fee estimates |
 

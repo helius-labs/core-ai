@@ -1,7 +1,12 @@
 import chalk from "chalk";
 import type { GetEnhancedTransactionsByAddressRequest } from "helius-sdk/enhanced/types";
 import type {
+  ComparisonBounds,
+  GetParsedTransactionHistoryRequest,
+  GetParsedTransactionHistoryResponse,
+  ParsedTransaction,
   ParsedTransactionResult,
+  ParseTransactionsResponse,
   ScanMatch,
   ScanMatchScope,
   ScanParsedTransactionHistoryRequest,
@@ -16,6 +21,126 @@ import { validateAddress, validateAddresses, validateScanMatch, validateSignatur
 
 interface TxOptions extends OutputOptions, ResolveOptions, RetryOptions {}
 
+// ─── Parsed Events (mainnet) with an Enhanced Transactions fallback (devnet) ───
+
+/** Parsed Events parses at most this many signatures per request. */
+const PARSED_EVENTS_BATCH_SIZE = 100;
+
+/** Exit with INVALID_INPUT unless `value` is one of `allowed`. */
+function checkOneOf(flag: string, value: string | undefined, allowed: string[], json: boolean): void {
+  if (value !== undefined && !allowed.includes(value)) {
+    exitWithError("INVALID_INPUT", `${flag} must be ${allowed.map((a) => `"${a}"`).join(", ")} (got "${value}")`, undefined, json);
+  }
+}
+
+/** Parse an integer flag, optionally within [min, max], or exit with INVALID_INPUT. */
+function parseIntFlag(flag: string, raw: string | undefined, json: boolean, min?: number, max?: number): number | undefined {
+  if (raw === undefined) return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || (min !== undefined && n < min) || (max !== undefined && n > max)) {
+    const range = min !== undefined && max !== undefined ? ` from ${min} to ${max}` : "";
+    exitWithError("INVALID_INPUT", `${flag} must be an integer${range} (got "${raw}")`, undefined, json);
+  }
+  return n;
+}
+
+/** A `{ gte, lte }` bound from a pair of `--*-gte` / `--*-lte` flags, or undefined when neither is set. */
+function parseBounds(gteFlag: string, gte: string | undefined, lteFlag: string, lte: string | undefined, json: boolean): ComparisonBounds | undefined {
+  const lower = parseIntFlag(gteFlag, gte, json);
+  const upper = parseIntFlag(lteFlag, lte, json);
+  if (lower === undefined && upper === undefined) return undefined;
+  return { ...(lower !== undefined && { gte: lower }), ...(upper !== undefined && { lte: upper }) };
+}
+
+function formatTokenAmount(rawAmount: number, decimals: number): string {
+  return (rawAmount / Math.pow(10, decimals)).toLocaleString(undefined, { maximumFractionDigits: Math.min(decimals || 6, 6) });
+}
+
+/** A failed transaction's error, preferring the program's decoded error. */
+function formatParsedError(tx: ParsedTransaction): string | null {
+  if (tx.transactionStatus !== "ERROR") return null;
+  const decoded = tx.decodedError;
+  if (decoded) {
+    return `${decoded.programName} error ${decoded.code} ${decoded.name}${decoded.msg ? `: ${decoded.msg}` : ""} (instruction ${decoded.instructionIndex})`;
+  }
+  return tx.error ? JSON.stringify(tx.error) : "Transaction failed";
+}
+
+function summaryLabel(tx: ParsedTransaction): string {
+  return tx.summary?.type ? formatEnumLabel(tx.summary.type) : "Unknown";
+}
+
+function printParsedTransaction(signature: string, tx: ParsedTransaction): void {
+  const protocol = typeof tx.summary?.parsedData?.protocol === "string" ? tx.summary.parsedData.protocol : null;
+  const error = formatParsedError(tx);
+  console.log(chalk.bold(`\n${"─".repeat(60)}`));
+  console.log(`${chalk.gray("Signature:")}    ${chalk.cyan(signature)}`);
+  console.log(`${chalk.gray("Type:")}         ${chalk.yellow(summaryLabel(tx))}`);
+  if (protocol) console.log(`${chalk.gray("Protocol:")}     ${formatEnumLabel(protocol)}`);
+  console.log(`${chalk.gray("Status:")}       ${error ? chalk.red(`Failed — ${error}`) : chalk.green("Success")}`);
+  console.log(`${chalk.gray("Timestamp:")}    ${tx.blockTime ? formatTimestamp(tx.blockTime) : "N/A"}`);
+  console.log(`${chalk.gray("Fee:")}          ${formatSol(tx.fee)}`);
+  if (tx.summary?.description) {
+    console.log(`${chalk.gray("Description:")} ${tx.summary.description}`);
+  }
+  const topLevel = tx.instructions.filter((ix) => ix.innerInstructionIndex === null);
+  if (topLevel.length > 0) {
+    console.log(chalk.bold("\n  Instructions:"));
+    for (const ix of topLevel) {
+      const program = ix.programName ?? formatAddress(ix.programId);
+      console.log(`    [${ix.instructionIndex}] ${ix.instructionName ? `${program}.${ix.instructionName}` : `${program} ${chalk.gray("(not decoded)")}`}`);
+    }
+  }
+  if (tx.tokenTransfers.length > 0) {
+    console.log(chalk.bold("\n  Token Transfers:"));
+    for (const t of tx.tokenTransfers) {
+      console.log(`    ${t.fromUserAccount || "?"} → ${t.toUserAccount || "?"}: ${formatTokenAmount(t.rawTokenAmount, t.decimals)} ${t.mint}`);
+    }
+  }
+  if (tx.nativeTransfers.length > 0) {
+    console.log(chalk.bold("\n  Native Transfers:"));
+    for (const t of tx.nativeTransfers) {
+      console.log(`    ${t.fromUserAccount || "?"} → ${t.toUserAccount || "?"}: ${formatSol(t.amount)}`);
+    }
+  }
+}
+
+/** Legacy Enhanced Transactions output, still used on devnet. */
+function printEnhancedTransaction(tx: any): void {
+  console.log(chalk.bold(`\n${"─".repeat(60)}`));
+  console.log(`${chalk.gray("Signature:")}    ${chalk.cyan(tx.signature || "N/A")}`);
+  console.log(`${chalk.gray("Type:")}         ${chalk.yellow(tx.type ? formatEnumLabel(tx.type) : "Unknown")}`);
+  console.log(`${chalk.gray("Source:")}       ${tx.source ? formatEnumLabel(tx.source) : "N/A"}`);
+  console.log(`${chalk.gray("Timestamp:")}    ${tx.timestamp ? formatTimestamp(tx.timestamp) : "N/A"}`);
+  console.log(`${chalk.gray("Fee:")}          ${tx.fee != null ? formatSol(tx.fee) : "N/A"}`);
+  if (tx.description) {
+    console.log(`${chalk.gray("Description:")} ${tx.description}`);
+  }
+  if (tx.nativeTransfers?.length) {
+    console.log(chalk.bold("\n  Native Transfers:"));
+    for (const t of tx.nativeTransfers) {
+      console.log(`    ${t.fromUserAccount || "?"} → ${t.toUserAccount || "?"}: ${formatSol(t.amount)}`);
+    }
+  }
+  if (tx.tokenTransfers?.length) {
+    console.log(chalk.bold("\n  Token Transfers:"));
+    for (const t of tx.tokenTransfers) {
+      console.log(`    ${t.fromUserAccount || "?"} → ${t.toUserAccount || "?"}: ${t.tokenAmount} ${t.mint || ""}`);
+    }
+  }
+}
+
+/** Per-signature parser errors: missing transactions and ones the parser could not decode. */
+function printParserErrors(results: ParsedTransactionResult[]): void {
+  for (const result of results) {
+    if (result.parserStatus === "OK") continue;
+    const reason = result.parserError.code === "transaction_not_found"
+      ? "not found on mainnet (may be pending, very old, or nonexistent)"
+      : `could not be parsed: ${result.parserError.code} — ${result.parserError.message}`;
+    console.log(chalk.yellow(`  ${result.signature} ${reason}`));
+  }
+}
+
 export async function txParseCommand(signatures: string[], options: TxOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
@@ -24,42 +149,43 @@ export async function txParseCommand(signatures: string[], options: TxOptions = 
       if (sigErr) exitWithError("INVALID_INPUT", sigErr, undefined, !!options.json);
     }
     const helius = await setupClient(spinner, options, `Parsing ${signatures.length} transaction(s)...`);
-    const result = await withRetry(() => helius.enhanced.getTransactions({ transactions: signatures }), options, spinner);
+
+    // Parsed Events serves mainnet only, so devnet keeps the legacy Enhanced Transactions API.
+    if (resolveNetwork(options) === "devnet") {
+      const result = await withRetry(() => helius.enhanced.getTransactions({ transactions: signatures }), options, spinner);
+      spinner?.stop();
+      if (options.json) {
+        outputJson(result);
+        return;
+      }
+      const txs = Array.isArray(result) ? result : result ? [result] : [];
+      if (txs.length === 0) {
+        console.log(chalk.yellow("\nNo transactions found."));
+        return;
+      }
+      txs.forEach(printEnhancedTransaction);
+      console.log();
+      return;
+    }
+
+    const results: ParsedTransactionResult[] = [];
+    for (let i = 0; i < signatures.length; i += PARSED_EVENTS_BATCH_SIZE) {
+      const batch = signatures.slice(i, i + PARSED_EVENTS_BATCH_SIZE);
+      results.push(...await withRetry<ParseTransactionsResponse>(() => helius.parsedEvents.parseTransactions({ transactions: batch }), options, spinner));
+    }
     spinner?.stop();
 
     if (options.json) {
-      outputJson(result);
+      outputJson(results);
       return;
     }
 
-    if (!result || (Array.isArray(result) && result.length === 0)) {
-      console.log(chalk.yellow("\nNo transactions found."));
-      return;
-    }
-
-    const txs = Array.isArray(result) ? result : [result];
-    for (const tx of txs) {
-      console.log(chalk.bold(`\n${"─".repeat(60)}`));
-      console.log(`${chalk.gray("Signature:")}    ${chalk.cyan(tx.signature || "N/A")}`);
-      console.log(`${chalk.gray("Type:")}         ${chalk.yellow(tx.type ? formatEnumLabel(tx.type) : "Unknown")}`);
-      console.log(`${chalk.gray("Source:")}       ${tx.source ? formatEnumLabel(tx.source) : "N/A"}`);
-      console.log(`${chalk.gray("Timestamp:")}    ${tx.timestamp ? formatTimestamp(tx.timestamp) : "N/A"}`);
-      console.log(`${chalk.gray("Fee:")}          ${tx.fee != null ? formatSol(tx.fee) : "N/A"}`);
-      if (tx.description) {
-        console.log(`${chalk.gray("Description:")} ${tx.description}`);
-      }
-      if (tx.nativeTransfers?.length) {
-        console.log(chalk.bold("\n  Native Transfers:"));
-        for (const t of tx.nativeTransfers) {
-          console.log(`    ${t.fromUserAccount || "?"} → ${t.toUserAccount || "?"}: ${formatSol(t.amount)}`);
-        }
-      }
-      if (tx.tokenTransfers?.length) {
-        console.log(chalk.bold("\n  Token Transfers:"));
-        for (const t of tx.tokenTransfers) {
-          console.log(`    ${t.fromUserAccount || "?"} → ${t.toUserAccount || "?"}: ${t.tokenAmount} ${t.mint || ""}`);
-        }
-      }
+    const parsed = results.filter((r) => r.parserStatus === "OK");
+    if (parsed.length === 0) console.log(chalk.yellow("\nNo transactions could be parsed."));
+    for (const result of parsed) printParsedTransaction(result.signature, result.parsed);
+    if (parsed.length < results.length) {
+      console.log(chalk.bold("\nWarnings:"));
+      printParserErrors(results);
     }
     console.log();
   } catch (error) {
@@ -67,43 +193,138 @@ export async function txParseCommand(signatures: string[], options: TxOptions = 
   }
 }
 
-export async function txHistoryCommand(address: string, options: TxOptions & { limit?: string; before?: string; type?: string } = {}): Promise<void> {
+interface TxHistoryOptions extends TxOptions {
+  limit?: string;
+  before?: string;
+  after?: string;
+  type?: string;
+  sortOrder?: string;
+  status?: string;
+  tokenAccounts?: string;
+  commitment?: string;
+  blockTimeGte?: string;
+  blockTimeLte?: string;
+  slotGte?: string;
+  slotLte?: string;
+  paginationToken?: string;
+}
+
+export async function txHistoryCommand(address: string, options: TxHistoryOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
+    const json = !!options.json;
     const addrErr = validateAddress(address);
-    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, json);
+
+    if (options.type !== undefined) {
+      exitWithError(
+        "INVALID_INPUT",
+        "--type was removed in helius-cli 3.0: transaction history now comes from the Parsed Events API, which has no type filter. "
+          + "To find transactions that call a program or instruction, or touch a token mint, use `helius tx scan <address> --programs <id> --instructions <names>` "
+          + "or `--mints <mint>`. To filter by summary type, use --json and filter on data[].parsed.summary.type.",
+        undefined,
+        json,
+      );
+    }
+    for (const signature of [options.before, options.after]) {
+      const sigErr = signature === undefined ? null : validateSignature(signature);
+      if (sigErr) exitWithError("INVALID_INPUT", sigErr, undefined, json);
+    }
+    checkOneOf("--sort-order", options.sortOrder, ["asc", "desc"], json);
+    checkOneOf("--status", options.status, ["succeeded", "failed", "any"], json);
+    checkOneOf("--token-accounts", options.tokenAccounts, ["none", "balanceChanged", "all"], json);
+    checkOneOf("--commitment", options.commitment, ["finalized", "confirmed"], json);
+    const limit = parseIntFlag("--limit", options.limit, json, 1, 100) ?? 10;
+    const time = parseBounds("--block-time-gte", options.blockTimeGte, "--block-time-lte", options.blockTimeLte, json);
+    const slot = parseBounds("--slot-gte", options.slotGte, "--slot-lte", options.slotLte, json);
+    const sortOrder = options.sortOrder as "asc" | "desc" | undefined;
+    const commitment = options.commitment as "finalized" | "confirmed" | undefined;
+
+    // Parsed Events serves mainnet only, so devnet keeps the legacy Enhanced Transactions API,
+    // which has no status, token-account, or pagination-token options.
+    if (resolveNetwork(options) === "devnet") {
+      const mainnetOnly = ([["--status", options.status], ["--token-accounts", options.tokenAccounts], ["--pagination-token", options.paginationToken]] as const)
+        .filter(([, value]) => value !== undefined)
+        .map(([flag]) => flag);
+      if (mainnetOnly.length > 0) {
+        exitWithError("INVALID_INPUT", `${mainnetOnly.join(", ")} ${mainnetOnly.length > 1 ? "are" : "is"} only available on mainnet (Parsed Events). On devnet, page with --before.`, undefined, json);
+      }
+      const params: GetEnhancedTransactionsByAddressRequest = { address, limit };
+      if (options.before) params.beforeSignature = options.before;
+      if (options.after) params.afterSignature = options.after;
+      if (sortOrder) params.sortOrder = sortOrder;
+      if (commitment) params.commitment = commitment;
+      if (time?.gte !== undefined) params.gteTime = time.gte;
+      if (time?.lte !== undefined) params.lteTime = time.lte;
+      if (slot?.gte !== undefined) params.gteSlot = slot.gte;
+      if (slot?.lte !== undefined) params.lteSlot = slot.lte;
+
+      const helius = await setupClient(spinner, options, "Fetching transaction history...");
+      const result = await withRetry(() => helius.enhanced.getTransactionsByAddress(params), options, spinner);
+      spinner?.stop();
+      if (json) {
+        outputJson(result);
+        return;
+      }
+      const txs = Array.isArray(result) ? result : [];
+      if (txs.length === 0) {
+        console.log(chalk.yellow("\nNo transactions found."));
+        return;
+      }
+      console.log(chalk.bold(`\nTransaction history for ${chalk.cyan(address)}:\n`));
+      for (const tx of txs) {
+        const time = tx.timestamp ? formatTimestamp(tx.timestamp) : "N/A";
+        const type = tx.type ? formatEnumLabel(tx.type) : "Unknown";
+        console.log(`  ${chalk.cyan(tx.signature || "N/A")}`);
+        console.log(`    ${chalk.yellow(type.padEnd(16))}  ${chalk.gray(time)}`);
+        if (tx.description) console.log(`    ${chalk.gray(tx.description)}`);
+      }
+      console.log(chalk.gray(`\n  ${txs.length} transaction(s) shown`));
+      return;
+    }
+
+    const request: GetParsedTransactionHistoryRequest = { address, limit };
+    if (options.before) request.beforeSignature = options.before;
+    if (options.after) request.afterSignature = options.after;
+    if (sortOrder) request.sortOrder = sortOrder;
+    if (commitment) request.commitment = commitment;
+    if (options.status) request.status = options.status as "succeeded" | "failed" | "any";
+    if (options.tokenAccounts) request.tokenAccounts = options.tokenAccounts as "none" | "balanceChanged" | "all";
+    if (time) request.time = time;
+    if (slot) request.slot = slot;
+    if (options.paginationToken) request.paginationToken = options.paginationToken;
+
     const helius = await setupClient(spinner, options, "Fetching transaction history...");
-    const params: GetEnhancedTransactionsByAddressRequest = { address };
-    if (options.limit) params.limit = parseInt(options.limit, 10);
-    // SDK ignores unknown keys; `before` was a silent no-op (see enhanced-transactions docs).
-    if (options.before) params.beforeSignature = options.before;
-    if (options.type) params.type = options.type;
-    const result = await withRetry(() => helius.enhanced.getTransactionsByAddress(params), options, spinner);
+    const result = await withRetry<GetParsedTransactionHistoryResponse>(() => helius.parsedEvents.getTransactionHistory(request), options, spinner);
     spinner?.stop();
 
-    if (options.json) {
+    if (json) {
       outputJson(result);
       return;
     }
 
-    const txs = Array.isArray(result) ? result : [];
-    if (txs.length === 0) {
+    if (result.data.length === 0) {
       console.log(chalk.yellow("\nNo transactions found."));
-      return;
-    }
-
-    console.log(chalk.bold(`\nTransaction history for ${chalk.cyan(address)}:\n`));
-    for (const tx of txs) {
-      const sig = tx.signature || "N/A";
-      const shortSig = formatAddress(sig);
-      const time = tx.timestamp ? formatTimestamp(tx.timestamp) : "N/A";
-      const type = tx.type ? formatEnumLabel(tx.type) : "Unknown";
-      console.log(`  ${chalk.cyan(shortSig)}  ${chalk.yellow(type.padEnd(16))}  ${chalk.gray(time)}`);
-      if (tx.description) {
-        console.log(`    ${chalk.gray(tx.description)}`);
+    } else {
+      console.log(chalk.bold(`\nTransaction history for ${chalk.cyan(address)}:\n`));
+      for (const item of result.data) {
+        if (item.parserStatus !== "OK") continue;
+        const tx = item.parsed;
+        const time = tx.blockTime ? formatTimestamp(tx.blockTime) : "N/A";
+        const status = tx.transactionStatus === "OK" ? "" : chalk.red(" failed");
+        console.log(`  ${chalk.cyan(item.signature)}`);
+        console.log(`    ${chalk.yellow(summaryLabel(tx).padEnd(16))}  ${chalk.gray(time)}${status}`);
+        if (tx.summary?.description) console.log(`    ${chalk.gray(tx.summary.description)}`);
       }
+      printParserErrors(result.data);
+      console.log(chalk.gray(`\n  ${result.data.length} transaction(s) shown`));
     }
-    console.log(chalk.gray(`\n  ${txs.length} transaction(s) shown`));
+    if (!options.status || options.status === "succeeded") {
+      console.log(chalk.gray("  Successful transactions only; pass --status any to include failed ones."));
+    }
+    if (result.paginationToken) {
+      console.log(chalk.gray(`  Next: --pagination-token ${result.paginationToken}`));
+    }
   } catch (error) {
     handleCommandError(error, options, spinner);
   }
@@ -272,11 +493,7 @@ export async function txScanCommand(address: string, options: TxScanOptions = {}
       exitWithError("INVALID_INPUT", "tx scan uses the Parsed Events API, which serves mainnet only. Re-run with --network mainnet.", undefined, json);
     }
 
-    const oneOf = (flag: string, value: string | undefined, allowed: string[]) => {
-      if (value !== undefined && !allowed.includes(value)) {
-        exitWithError("INVALID_INPUT", `${flag} must be ${allowed.map((a) => `"${a}"`).join(", ")} (got "${value}")`, undefined, json);
-      }
-    };
+    const oneOf = (flag: string, value: string | undefined, allowed: string[]) => checkOneOf(flag, value, allowed, json);
     oneOf("--program-scope", options.programScope, ["address", "transaction"]);
     oneOf("--mint-scope", options.mintScope, ["address", "transaction"]);
     oneOf("--return-shape", options.returnShape, ["transactions", "signatures", "count"]);
@@ -284,15 +501,7 @@ export async function txScanCommand(address: string, options: TxScanOptions = {}
     oneOf("--status", options.status, ["succeeded", "failed", "any"]);
     oneOf("--token-accounts", options.tokenAccounts, ["none", "balanceChanged", "all"]);
 
-    const int = (flag: string, raw: string | undefined, min?: number, max?: number): number | undefined => {
-      if (raw === undefined) return undefined;
-      const n = Number(raw);
-      if (!Number.isInteger(n) || (min !== undefined && n < min) || (max !== undefined && n > max)) {
-        const range = min !== undefined && max !== undefined ? ` from ${min} to ${max}` : "";
-        exitWithError("INVALID_INPUT", `${flag} must be an integer${range} (got "${raw}")`, undefined, json);
-      }
-      return n;
-    };
+    const int = (flag: string, raw: string | undefined, min?: number, max?: number) => parseIntFlag(flag, raw, json, min, max);
 
     let match: unknown;
     const usesMatchFlags = [options.programs, options.instructions, options.discriminators, options.programScope, options.mints, options.mintScope]
@@ -347,15 +556,9 @@ export async function txScanCommand(address: string, options: TxScanOptions = {}
     if (options.sortOrder) request.sortOrder = options.sortOrder as "asc" | "desc";
     if (options.status) request.status = options.status as "succeeded" | "failed" | "any";
     if (options.tokenAccounts) request.tokenAccounts = options.tokenAccounts as "none" | "balanceChanged" | "all";
-    const bounds = (gteFlag: string, gte: string | undefined, lteFlag: string, lte: string | undefined) => {
-      const lower = int(gteFlag, gte);
-      const upper = int(lteFlag, lte);
-      if (lower === undefined && upper === undefined) return undefined;
-      return { ...(lower !== undefined && { gte: lower }), ...(upper !== undefined && { lte: upper }) };
-    };
-    const time = bounds("--block-time-gte", options.blockTimeGte, "--block-time-lte", options.blockTimeLte);
+    const time = parseBounds("--block-time-gte", options.blockTimeGte, "--block-time-lte", options.blockTimeLte, json);
     if (time) request.time = time;
-    const slot = bounds("--slot-gte", options.slotGte, "--slot-lte", options.slotLte);
+    const slot = parseBounds("--slot-gte", options.slotGte, "--slot-lte", options.slotLte, json);
     if (slot) request.slot = slot;
     if (options.paginationToken) request.paginationToken = options.paginationToken;
 

@@ -115,7 +115,7 @@ Streaming commands (`ws.ts`) do **not** use the envelope — they emit line-deli
 `classifyError(error)` in `src/lib/output.ts` returns `{ exitCode, errorCode, retryable }` using three tiers:
 
 1. **`HeliusHttpError`** (from `restRequest()` — wallet.ts REST path): exact `status` property → precise code
-2. **Status in message** (enhanced TX: `"Helius HTTP 429: ..."`, webhooks: `"HTTP error! status: 429 - ..."`): regex extracts status → same mapping
+2. **Status in message** (Parsed Events and enhanced TX: `"Helius HTTP 429: ..."`, webhooks: `"HTTP error! status: 429 - ..."`): regex extracts status → same mapping
 3. **Keyword matching** (RPC caller path — DAS, ZK, staking, raw, payment): matches phrases like `"insufficient sol"`, `"insufficient usdc"`, `"checkout failed"`, `"invalid api key"`, `"rate limit"`, `"not found"`, `"ECONNREFUSED"`, `SyntaxError`, etc.
 
 `restRequest()` throws `HeliusHttpError` (defined in `src/lib/helius.ts`) so the REST path always hits Tier 1. The SDK paths hit Tier 2 or 3 depending on the client.
@@ -124,7 +124,7 @@ Streaming commands (`ws.ts`) do **not** use the envelope — they emit line-deli
 
 ## SDK vs REST
 
-- **SDK (`helius-sdk`)**: DAS API, enhanced transactions, webhooks, staking, ZK compression, WebSockets, program accounts, priority fees
+- **SDK (`helius-sdk`)**: DAS API, Parsed Events (`tx parse`, `tx history`, `tx scan` on mainnet; `tx parse` and `tx history` fall back to enhanced transactions on devnet, where Parsed Events is unavailable), webhooks, staking, ZK compression, WebSockets, program accounts, priority fees
 - **REST (`restRequest()`)**: Wallet API (`/v1/wallet/...`) — identity, balances, history, transfers, funded-by
 
 ## Build / Dev / Test
