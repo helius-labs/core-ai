@@ -1305,9 +1305,15 @@ Examples:
 
 sendCmd
   .command("compute-units <base64-tx>")
-  .description("Simulate and return compute unit estimate")
+  .description("Estimate a transaction's compute unit limit by simulating it")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
+Simulates the transaction at the maximum compute unit limit, with signatures
+unchecked and its blockhash replaced (durable nonces are kept), so unsigned
+transactions work. Returns the units it used plus a 10% margin (at least
+1,000). Exits with INVALID_INPUT and the program logs if the transaction fails
+in simulation.
+
 Examples:
   $ helius send compute-units <base64-tx> --json`)
   .action(function(this: any, tx: string) { sendComputeUnitsCommand(tx, opts(this)); });

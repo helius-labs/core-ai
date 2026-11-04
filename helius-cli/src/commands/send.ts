@@ -1,4 +1,14 @@
 import chalk from "chalk";
+import {
+  decompileTransactionMessageFetchingLookupTables,
+  getBase64Encoder,
+  getCompiledTransactionMessageDecoder,
+  getTransactionDecoder,
+  isSolanaError,
+  SOLANA_ERROR__TRANSACTION__FAILED_WHEN_SIMULATING_TO_ESTIMATE_COMPUTE_LIMIT,
+  type CompiledTransactionMessage,
+  type CompiledTransactionMessageWithLifetime,
+} from "@solana/kit";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
 import { validateBase64Transaction, validateSignature } from "../lib/validation.js";
@@ -134,6 +144,16 @@ export async function sendPollCommand(signature: string, options: SendOptions = 
   }
 }
 
+function decodeTransactionMessage(base64Tx: string, json: boolean): CompiledTransactionMessage & CompiledTransactionMessageWithLifetime {
+  try {
+    const { messageBytes } = getTransactionDecoder().decode(getBase64Encoder().encode(base64Tx));
+    return getCompiledTransactionMessageDecoder().decode(messageBytes);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    exitWithError("INVALID_INPUT", "The input does not decode to a serialized Solana transaction.", { reason }, json);
+  }
+}
+
 export async function sendComputeUnitsCommand(base64Tx: string, options: SendOptions = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
@@ -141,14 +161,32 @@ export async function sendComputeUnitsCommand(base64Tx: string, options: SendOpt
     if (txErr) exitWithError("INVALID_INPUT", txErr, undefined, !!options.json);
     const trimmedTx = base64Tx.trim();
 
+    const compiled = decodeTransactionMessage(trimmedTx, !!options.json);
     const helius = await setupClient(spinner, options, "Simulating for compute units...");
-    const result = await withRetry(() => helius.tx.getComputeUnits(trimmedTx as any), options, spinner);
+    // Rebuilding the message fetches any address lookup tables a v0 transaction uses
+    const message = await withRetry(() => decompileTransactionMessageFetchingLookupTables(compiled, helius.kitRpc), options, spinner);
+    const computeUnits = await withRetry<number>(() => helius.tx.getComputeUnits(message), options, spinner);
     spinner?.stop();
 
-    if (options.json) { outputJson({ computeUnits: result }); return; }
+    if (options.json) { outputJson({ computeUnits }); return; }
     console.log(chalk.bold("\nCompute Unit Estimate:\n"));
-    console.log(`  ${chalk.cyan(String(result))} CU`);
+    console.log(`  ${chalk.cyan(computeUnits.toLocaleString())} CU`);
+    console.log(chalk.gray("\n  Simulated usage plus a 10% margin, at least 1,000 CU. Set it as the transaction's compute unit limit."));
   } catch (error) {
+    if (isSolanaError(error, SOLANA_ERROR__TRANSACTION__FAILED_WHEN_SIMULATING_TO_ESTIMATE_COMPUTE_LIMIT)) {
+      spinner?.stop();
+      const reason = error.cause instanceof Error ? error.cause.message : "unknown error";
+      const logs = error.context.logs ?? [];
+      if (!options.json && logs.length > 0) {
+        console.error(chalk.gray(`\n  Program logs:\n${logs.map((line) => `    ${line}`).join("\n")}\n`));
+      }
+      exitWithError(
+        "INVALID_INPUT",
+        `The transaction fails in simulation (${reason}), so it has no compute unit estimate.`,
+        { unitsConsumed: Number(error.context.unitsConsumed), logs },
+        !!options.json,
+      );
+    }
     handleCommandError(error, options, spinner);
   }
 }
