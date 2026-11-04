@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import chalk from "chalk";
 import { signupCommand } from "../src/commands/signup.js";
 import { upgradeCommand } from "../src/commands/upgrade.js";
@@ -452,9 +452,13 @@ const txCmd = program
 
 txCmd
   .command("parse <signatures...>")
-  .description("Parse transaction(s) into human-readable format")
+  .description("Parse transaction(s) into human-readable format (Parsed Events on mainnet)")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
+On mainnet, transactions are decoded with the Parsed Events API into named
+programs, instructions, and program errors (10 credits per 100 signatures).
+Devnet uses the legacy Enhanced Transactions API.
+
 Examples:
   $ helius tx parse 5UfDuX7hXbDjdMRbQMCbNvPZQEr4mEAMq3fNM7oKnUFqpEygPoAEsm2MFVwfCaG1CjprB2og8LmNVBLMrACG7L4
   $ helius tx parse sig1 sig2 sig3 --json`)
@@ -462,15 +466,31 @@ Examples:
 
 txCmd
   .command("history <address>")
-  .description("Get enhanced transaction history")
-  .option("--limit <n>", "Max transactions")
-  .option("--before <sig>", "Cursor: start before this signature")
-  .option("--type <type>", "Filter by transaction type")
+  .description("Get parsed transaction history (Parsed Events on mainnet)")
+  .option("-l, --limit <n>", "Max transactions (1-100, default 10)")
+  .option("--before <sig>", "Only transactions before this signature")
+  .option("--after <sig>", "Only transactions after this signature")
+  .option("--sort-order <order>", "asc | desc (default desc)")
+  .option("--status <status>", "succeeded | failed | any (default succeeded; mainnet only)")
+  .option("--token-accounts <mode>", "none | balanceChanged | all (mainnet only)")
+  .option("--commitment <level>", "finalized | confirmed (default confirmed on mainnet)")
+  .option("--block-time-gte <ts>", "Unix seconds lower bound")
+  .option("--block-time-lte <ts>", "Unix seconds upper bound")
+  .option("--slot-gte <slot>", "Slot lower bound")
+  .option("--slot-lte <slot>", "Slot upper bound")
+  .option("--pagination-token <token>", "Cursor from a previous response (mainnet only)")
+  // Removed in 3.0; kept hidden so passing it explains the replacement instead of "unknown option".
+  .addOption(new Option("--type <type>").hideHelp())
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
+On mainnet, history comes from the Parsed Events API (10 credits per request).
+Devnet uses the legacy Enhanced Transactions API. To find transactions by
+program, instruction, or token mint, use \`helius tx scan\`.
+
 Examples:
   $ helius tx history 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY
-  $ helius tx history 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY --limit 5 --type SWAP --json`)
+  $ helius tx history 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY --limit 5 --status any --json
+  $ helius tx history <address> --pagination-token <token>`)
   .action(function(this: any, address: string) { txHistoryCommand(address, opts(this)); });
 
 txCmd
