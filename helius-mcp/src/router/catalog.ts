@@ -4,6 +4,7 @@ import {
   HELIUS_CHAIN_ACTIONS,
   HELIUS_COMPRESSION_ACTIONS,
   HELIUS_KNOWLEDGE_ACTIONS,
+  HELIUS_PRIVACY_ACTIONS,
   HELIUS_STREAMING_ACTIONS,
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
@@ -133,6 +134,11 @@ addEntries(catalog, HELIUS_WRITE_ACTIONS, {
 addEntries(catalog, HELIUS_COMPRESSION_ACTIONS, {
   capabilityGate: gate('agent', 'Compression state queries'),
   responseFamily: 'record',
+});
+
+addEntries(catalog, HELIUS_PRIVACY_ACTIONS, {
+  capabilityGate: gate('agent', 'Solana Privacy Rings indexer reads'),
+  responseFamily: 'list',
 });
 
 const developerWalletGate = gate('developer', 'Developer plan or higher');
@@ -538,6 +544,22 @@ catalog.getTransfersByAddress = makeEntry('getTransfersByAddress', {
   responseFamily: 'history',
   defaultDetail: 'standard',
   continuationModel: 'transactionHistory',
+});
+
+// Shielded history pages by slot and signature; a token replays the next page.
+for (const action of ['getEncryptedUtxosByTags', 'getShieldedTransactionsByTags', 'getShieldedTransactionsByNullifiers'] as const) {
+  catalog[action] = makeEntry(action, {
+    ...catalog[action],
+    responseFamily: 'history',
+    defaultDetail: 'standard',
+    continuationModel: 'transactionHistory',
+  });
+}
+
+catalog.getShieldedTransactionsBySignature = makeEntry('getShieldedTransactionsBySignature', {
+  ...catalog.getShieldedTransactionsBySignature,
+  responseFamily: 'history',
+  defaultDetail: 'standard',
 });
 
 for (const action of ACTION_NAMES) {

@@ -21,6 +21,7 @@ import { registerRecommendTools } from '../tools/recommend.js';
 import { registerSolanaKnowledgeTools } from '../tools/solana-knowledge.js';
 import { registerTransferTools } from '../tools/transfers.js';
 import { registerZkCompressionTools } from '../tools/zk-compression.js';
+import { registerPrivacyTools } from '../tools/privacy.js';
 import { registerStakingTools } from '../tools/staking.js';
 import { registerBundleTools } from '../tools/bundles.js';
 import { registerParsedStreamsTools } from '../tools/parsed-streams.js';
@@ -162,6 +163,7 @@ export function registerActionHandlers(registry: ActionRegistry): void {
   registerSolanaKnowledgeTools(registry);
   registerTransferTools(registry);
   registerZkCompressionTools(registry);
+  registerPrivacyTools(registry);
   registerStakingTools(registry);
   registerBundleTools(registry);
   registerParsedStreamsTools(registry);

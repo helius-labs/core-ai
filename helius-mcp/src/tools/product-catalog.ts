@@ -271,13 +271,16 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     description: 'Non-custodial embedded Solana wallets with passkey or email sign-in and no seed phrases. Keys are secured in Turnkey enclaves. For consumer apps that need wallets without a browser extension.',
   },
   'privacy': {
-    name: 'Helius Privacy',
-    mcpTools: [],
-    creditCostPerCall: 'Devnet beta; pricing not published',
+    name: 'Solana Privacy Rings',
+    mcpTools: [
+      'getEncryptedUtxosByTags', 'getShieldedTransactionsByTags', 'getShieldedTransactionsByNullifiers',
+      'getShieldedTransactionsBySignature', 'getMerkleProofs', 'getNonInclusionProofs', 'getUserRecords',
+    ],
+    creditCostPerCall: '10 credits per indexer call',
     minimumPlan: 'agent',
     docKey: 'privacy',
     status: 'beta',
-    integration: '`@heliuslabs/zolana` (TypeScript, with @solana/kit) or `zolana-client` (Rust), against devnet.',
-    description: 'Confidential transfers secured by zero-knowledge proofs that settle onchain in a single Solana transaction. Devnet only; mainnet has not launched.',
+    integration: '`@heliuslabs/spr` (TypeScript) for wallet sync, decryption, and proving. The MCP reads the indexer at `/v1/spr/<method>` on mainnet and devnet.',
+    description: 'Private transfers on Solana secured by zero-knowledge proofs: UTXOs are encrypted to the recipient and spends reveal only nullifiers. The indexer serves encrypted UTXOs and shielded transactions by view tag, nullifier, or signature, Merkle and non-inclusion proofs, and user records.',
   },
 };

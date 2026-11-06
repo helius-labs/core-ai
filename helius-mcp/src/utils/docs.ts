@@ -114,7 +114,7 @@ export const DOCS_INDEX: Record<string, { path: string; description: string }> =
   },
   privacy: {
     path: '/privacy/llms.txt',
-    description: 'Helius Privacy (beta, devnet only): confidential transfers with zero-knowledge proofs via @heliuslabs/zolana',
+    description: 'Solana Privacy Rings (beta): private transfers with zero-knowledge proofs via @heliuslabs/spr, and the shielded-pool indexer',
   },
 };
 

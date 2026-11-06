@@ -42,6 +42,9 @@ const TOOL_DESCRIPTIONS: Record<PublicToolName, ToolDescription> = {
   heliusCompression: {
     full: 'Compressed account, proof, balance, and compression history queries. Use for zk-compression state, not standard DAS assets.',
   },
+  heliusPrivacy: {
+    full: 'Solana Privacy Rings shielded-pool indexer reads: encrypted UTXOs and shielded transactions by view tag, nullifier, or signature, Merkle and non-inclusion proofs, and user records. Returns ciphertext and proofs; it cannot decrypt or sign.',
+  },
   expandResult: {
     full: 'Expand a prior summary-first result by resultId, section, range, page, or continuation.',
   },

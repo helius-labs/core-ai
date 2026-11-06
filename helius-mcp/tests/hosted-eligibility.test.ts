@@ -22,7 +22,7 @@ import { ACTION_NAMES } from '../src/router/actions.js';
 describe('the hosted surface', () => {
   it('is exactly this set', () => {
     // A snapshot rather than a count: swapping one action for another keeps a
-    // count at 86 and passes, while this names both the entrant and the leaver
+    // count at 93 and passes, while this names both the entrant and the leaver
     // in the failing diff. Update deliberately, and say why in the PR.
     expect(getHostedActions()).toEqual([
       'accountSubscribe',
@@ -55,6 +55,7 @@ describe('the hosted surface', () => {
       'getCompressionSignaturesForAddress',
       'getCompressionSignaturesForOwner',
       'getCompressionSignaturesForTokenOwner',
+      'getEncryptedUtxosByTags',
       'getEnhancedWebSocketInfo',
       'getHeliusCreditsInfo',
       'getIndexerHealth',
@@ -63,11 +64,13 @@ describe('the hosted surface', () => {
       'getLatencyComparison',
       'getLatestCompressionSignatures',
       'getLatestNonVotingSignatures',
+      'getMerkleProofs',
       'getMultipleCompressedAccountProofs',
       'getMultipleCompressedAccounts',
       'getMultipleNewAddressProofs',
       'getNetworkStatus',
       'getNftEditions',
+      'getNonInclusionProofs',
       'getPreConfCoverage',
       'getPriorityFeeEstimate',
       'getProgramAccounts',
@@ -75,6 +78,9 @@ describe('the hosted surface', () => {
       'getRateLimitInfo',
       'getSIMD',
       'getSenderInfo',
+      'getShieldedTransactionsByNullifiers',
+      'getShieldedTransactionsBySignature',
+      'getShieldedTransactionsByTags',
       'getSignaturesForAsset',
       'getStakeAccounts',
       'getTokenAccounts',
@@ -83,6 +89,7 @@ describe('the hosted surface', () => {
       'getTransactionHistory',
       'getTransactionWithCompressionInfo',
       'getTransfersByAddress',
+      'getUserRecords',
       'getValidityProof',
       'getWalletBalanceAt',
       'getWalletBalances',

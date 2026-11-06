@@ -72,7 +72,7 @@ Ask questions in plain English — the right tool is selected automatically:
 
 ## Public Tool Surface
 
-Helius MCP exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
+Helius MCP exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
 
 - `heliusAccount` — account setup, auth, plans, billing
 - `heliusWallet` — wallet balances, holdings, wallet history, identity
@@ -83,9 +83,10 @@ Helius MCP exposes 10 public tools total: 9 routed domain tools plus `expandResu
 - `heliusKnowledge` — docs, guides, pricing, troubleshooting, source, blog, SIMDs
 - `heliusWrite` — transfers and staking mutations
 - `heliusCompression` — compressed account, balance, proof, and history actions
+- `heliusPrivacy` — Solana Privacy Rings indexer reads: encrypted UTXOs and shielded transactions by view tag, nullifier, or signature, Merkle and non-inclusion proofs, and user records
 - `expandResult` — expand summary-first outputs by `resultId`
 
-The 9 routed domain tools share a common shape:
+The 10 routed domain tools share a common shape:
 
 - `action` — the Helius action name to run, such as `getBalance` or `createWebhook`
 - domain-specific params — for example `address`, `signatures`, or `webhookURL`
@@ -117,7 +118,7 @@ Start the server with `--read-only`, or set `HELIUS_MCP_READ_ONLY=1`, to serve o
 claude mcp add helius-read-only -- npx helius-mcp@latest --read-only
 ```
 
-The read-only server lists 9 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
+The read-only server lists 10 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
 
 ## System Prompts
 

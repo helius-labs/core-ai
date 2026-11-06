@@ -4,6 +4,7 @@ import {
   HELIUS_CHAIN_ACTIONS,
   HELIUS_COMPRESSION_ACTIONS,
   HELIUS_KNOWLEDGE_ACTIONS,
+  HELIUS_PRIVACY_ACTIONS,
   HELIUS_STREAMING_ACTIONS,
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
@@ -21,6 +22,7 @@ export const PUBLIC_TOOL_NAMES = [
   'heliusKnowledge',
   'heliusWrite',
   'heliusCompression',
+  'heliusPrivacy',
   'expandResult',
 ] as const;
 
@@ -37,6 +39,7 @@ export const ACTION_GROUPS: Record<RoutedPublicToolName, readonly ActionName[]> 
   heliusKnowledge: HELIUS_KNOWLEDGE_ACTIONS,
   heliusWrite: HELIUS_WRITE_ACTIONS,
   heliusCompression: HELIUS_COMPRESSION_ACTIONS,
+  heliusPrivacy: HELIUS_PRIVACY_ACTIONS,
 };
 
 export function findPublicToolForAction(action: ActionName): RoutedPublicToolName {
