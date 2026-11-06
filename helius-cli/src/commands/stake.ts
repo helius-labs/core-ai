@@ -1,8 +1,10 @@
 import chalk from "chalk";
+import { address, createKeyPairSignerFromBytes, type KeyPairSigner } from "@solana/kit";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
 import { validateAddress } from "../lib/validation.js";
+import { loadKeypairFromFile } from "../lib/wallet.js";
 
 interface StakeOptions extends OutputOptions, ResolveOptions, RetryOptions {
   yes?: boolean;
@@ -87,6 +89,16 @@ function resolveLamports(
     exitWithError("INVALID_INPUT", "Amount must be greater than 0 lamports.", undefined, json);
   }
   return lamports;
+}
+
+/** Load the --keypair file as the signer the SDK's stake transaction builders take first. */
+async function loadSigner(keypairPath: string, json: boolean): Promise<KeyPairSigner> {
+  try {
+    const keypair = await loadKeypairFromFile(keypairPath);
+    return await createKeyPairSignerFromBytes(keypair.secretKey);
+  } catch (e) {
+    return exitWithError("KEYPAIR_NOT_FOUND", (e as Error).message, undefined, json);
+  }
 }
 
 export async function stakeAccountsCommand(wallet: string, options: StakeOptions = {}): Promise<void> {
@@ -198,8 +210,11 @@ export async function stakeCreateCommand(
   }
   try {
     const lamports = resolveLamports(amount, options, !!options.json);
+    const signer = await loadSigner(options.keypair!, !!options.json);
     const helius = await setupClient(spinner, options, "Creating stake transaction...");
-    const result = await withRetry(() => helius.stake.createStakeTransaction(lamports), options, spinner);
+    // The SDK takes (owner signer, amount in SOL) and converts back with Math.round(amountSol * 1e9)
+    const amountSol = Number(lamports) / 1e9;
+    const result = await withRetry(() => helius.stake.createStakeTransaction(signer, amountSol), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson(result); return; }
@@ -227,8 +242,9 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
       console.log(chalk.gray("  Cancelled."));
       return;
     }
+    const signer = await loadSigner(options.keypair!, !!options.json);
     const helius = await setupClient(spinner, options, "Creating unstake transaction...");
-    const result = await withRetry(() => helius.stake.createUnstakeTransaction(stakeAccount as any), options, spinner);
+    const result = await withRetry(() => helius.stake.createUnstakeTransaction(signer, address(stakeAccount)), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson(result); return; }
