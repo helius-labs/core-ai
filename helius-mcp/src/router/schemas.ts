@@ -5,6 +5,7 @@ import {
   HELIUS_CHAIN_ACTIONS,
   HELIUS_COMPRESSION_ACTIONS,
   HELIUS_KNOWLEDGE_ACTIONS,
+  HELIUS_PRIVACY_ACTIONS,
   HELIUS_STREAMING_ACTIONS,
   HELIUS_TRANSACTION_ACTIONS,
   HELIUS_WALLET_ACTIONS,
@@ -42,6 +43,7 @@ export const HeliusStreamingActionSchema = z.enum(HELIUS_STREAMING_ACTIONS);
 export const HeliusKnowledgeActionSchema = z.enum(HELIUS_KNOWLEDGE_ACTIONS);
 export const HeliusWriteActionSchema = z.enum(HELIUS_WRITE_ACTIONS);
 export const HeliusCompressionActionSchema = z.enum(HELIUS_COMPRESSION_ACTIONS);
+export const HeliusPrivacyActionSchema = z.enum(HELIUS_PRIVACY_ACTIONS);
 
 export const HELIUS_ACCOUNT_SCHEMA = withTelemetry({
   action: HeliusAccountActionSchema,
@@ -247,6 +249,21 @@ export const HELIUS_COMPRESSION_SCHEMA = withTelemetry({
   cursor: optionalString(),
 });
 
+export const HELIUS_PRIVACY_SCHEMA = withTelemetry({
+  action: HeliusPrivacyActionSchema,
+  detail: detailField,
+  args: argsField,
+  tags: stringArray(),
+  ringProgramId: optionalString(),
+  nullifiers: stringArray(),
+  signature: optionalString(),
+  treeAccount: optionalString(),
+  leaves: stringArray(),
+  owners: stringArray(),
+  limit: optionalNumber(),
+  paginationToken: optionalString(),
+});
+
 export const EXPAND_RESULT_SCHEMA = withTelemetry({
   resultId: z.string(),
   section: optionalString(),
@@ -267,6 +284,7 @@ const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
   heliusKnowledge: HELIUS_KNOWLEDGE_SCHEMA,
   heliusWrite: HELIUS_WRITE_SCHEMA,
   heliusCompression: HELIUS_COMPRESSION_SCHEMA,
+  heliusPrivacy: HELIUS_PRIVACY_SCHEMA,
   expandResult: EXPAND_RESULT_SCHEMA,
 };
 

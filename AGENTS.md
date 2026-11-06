@@ -9,14 +9,14 @@ This monorepo contains Helius developer tools for building on Solana:
 
 | Package | What it does |
 |---|---|
-| `helius-mcp/` | MCP server (`npx helius-mcp@latest`) — exposes 10 public tools total: 9 routed domain tools plus `expandResult` |
+| `helius-mcp/` | MCP server (`npx helius-mcp@latest`) — exposes 11 public tools total: 10 routed domain tools plus `expandResult` |
 | `helius-skills/` | Canonical skill source — SKILL.md + reference files for each domain |
 | `helius-plugin/` | Claude Code plugin — bundles skills + auto-starts MCP server |
 | `helius-cli/` | CLI for account setup, blockchain queries, and staking (`npx helius-cli@latest`) |
 
 ## MCP Server Setup
 
-The Helius MCP server provides live blockchain access through 10 public tools total: 9 routed domain tools plus `expandResult`. Configure it as an MCP tool source:
+The Helius MCP server provides live blockchain access through 11 public tools total: 10 routed domain tools plus `expandResult`. Configure it as an MCP tool source:
 
 ```
 npx helius-mcp@latest
@@ -59,9 +59,9 @@ Get keys from https://dashboard.helius.dev.
 
 ## Public Tool Surface
 
-Helius MCP exposes 10 public tools total:
+Helius MCP exposes 11 public tools total:
 
-- Routed domain tools: `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`
+- Routed domain tools: `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`
 - Expansion tool: `expandResult`
 
 The routed domain tools take a Helius action name in `action`. Example:
@@ -72,7 +72,7 @@ The routed domain tools take a Helius action name in `action`. Example:
 
 Heavy responses are summary-first. Use `expandResult({ resultId: "..." })` to fetch a full section, range, page, or continuation on demand.
 
-Run with `--read-only` (or `HELIUS_MCP_READ_ONLY=1`) for a read-only server: 9 tools, no `heliusWrite`, and no action that changes state. See `helius-mcp/README.md`.
+Run with `--read-only` (or `HELIUS_MCP_READ_ONLY=1`) for a read-only server: 10 tools, no `heliusWrite`, and no action that changes state. See `helius-mcp/README.md`.
 
 ## Skills
 

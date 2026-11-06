@@ -244,9 +244,29 @@ export async function rpcRequest<T>(
   ctx?: RequestContext | null,
   baseUrl?: string,
 ): Promise<T> {
-  const apiKey = getApiKey(ctx);
-  const base = baseUrl ?? (getNetwork(ctx) === 'devnet' ? 'https://devnet.helius-rpc.com' : 'https://mainnet.helius-rpc.com');
-  const url = `${base}/?api-key=${apiKey}`;
+  const base = baseUrl ?? networkRpcUrl(ctx);
+  return postJsonRpc<T>(`${base}/?api-key=${getApiKey(ctx)}`, method, params);
+}
+
+/**
+ * Call a Solana Privacy Rings indexer method. The gateway routes and bills
+ * these by path, so each goes to `/v1/spr/<method>` on the caller's network
+ * endpoint with named params; the root endpoint does not serve them. Reads
+ * only, with errors thrown as `rpcRequest` throws them.
+ */
+export async function sprRequest<T>(
+  method: string,
+  params: Record<string, unknown>,
+  ctx?: RequestContext | null,
+): Promise<T> {
+  return postJsonRpc<T>(`${networkRpcUrl(ctx)}/v1/spr/${method}?api-key=${getApiKey(ctx)}`, method, params);
+}
+
+function networkRpcUrl(ctx?: RequestContext | null): string {
+  return getNetwork(ctx) === 'devnet' ? 'https://devnet.helius-rpc.com' : 'https://mainnet.helius-rpc.com';
+}
+
+async function postJsonRpc<T>(url: string, method: string, params: unknown): Promise<T> {
   const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, ...(params ? { params } : {}) });
 
   return withResilience(async () => {

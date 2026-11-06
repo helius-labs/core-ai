@@ -57,6 +57,7 @@ describe('tools/list annotations', () => {
       heliusChain: { readOnly: true, destructive: false },
       heliusCompression: { readOnly: true, destructive: false },
       heliusKnowledge: { readOnly: false, destructive: false },
+      heliusPrivacy: { readOnly: true, destructive: false },
       heliusStreaming: { readOnly: false, destructive: true },
       heliusTransaction: { readOnly: true, destructive: false },
       heliusWallet: { readOnly: true, destructive: false },

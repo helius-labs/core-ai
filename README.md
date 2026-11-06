@@ -7,7 +7,7 @@ The official Helius AI tooling repository — everything you need to interact wi
 | Package | Description | Install |
 |---|---|---|
 | [`helius-cli`](./helius-cli) | CLI for managing Helius accounts and querying Solana data | `npm install -g helius-cli` |
-| [`helius-mcp`](./helius-mcp) | MCP server with 10 public tools total: 9 routed domains plus `expandResult` | `claude mcp add helius npx helius-mcp@latest` |
+| [`helius-mcp`](./helius-mcp) | MCP server with 11 public tools total: 10 routed domains plus `expandResult` | `claude mcp add helius npx helius-mcp@latest` |
 | [`helius-skills`](./helius-skills) | Standalone Claude Code skills for building on Solana | `./install.sh` |
 | [`helius-plugin`](./helius-plugin) | Claude Code plugin — bundles all skills and auto-starts the MCP server | `/plugin install helius@claude-community` |
 | [`helius-cursor`](./helius-cursor) | Cursor plugin — live blockchain tools and expert coding patterns | `/add-plugin` → search "Helius" |
@@ -121,7 +121,7 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server that exposes 
 
 ### Public Tool Surface
 
-The server exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
+The server exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
 
 - `heliusAccount` — account setup, auth, plans, billing
 - `heliusWallet` — wallet balances, holdings, identity, wallet history
@@ -132,11 +132,12 @@ The server exposes 10 public tools total: 9 routed domain tools plus `expandResu
 - `heliusKnowledge` — docs, guides, pricing references, troubleshooting, source, blog, SIMDs
 - `heliusWrite` — SOL/token transfers and staking mutations
 - `heliusCompression` — compressed account, proof, balance, and history queries
+- `heliusPrivacy` — Solana Privacy Rings indexer reads: encrypted UTXOs, shielded transactions, Merkle and non-inclusion proofs, user records
 - `expandResult` — expand summary-first results by `resultId`
 
 The 9 domain tools take a Helius action name in `action`, for example `heliusWallet` + `getBalance` or `heliusStreaming` + `createWebhook`. Heavy responses are summary-first; use `expandResult` to fetch a full section, range, page, or continuation on demand.
 
-Start the server with `--read-only` (or set `HELIUS_MCP_READ_ONLY=1`) to serve only actions that do not change state: 9 tools, without `heliusWrite`, webhook changes, signup, or billing. See the [helius-mcp README](helius-mcp/README.md#read-only-mode).
+Start the server with `--read-only` (or set `HELIUS_MCP_READ_ONLY=1`) to serve only actions that do not change state: 10 tools, without `heliusWrite`, webhook changes, signup, or billing. See the [helius-mcp README](helius-mcp/README.md#read-only-mode).
 
 ### Add to Claude
 

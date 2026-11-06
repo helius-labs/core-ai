@@ -17,6 +17,7 @@ export const TOOL_TITLES: Record<PublicToolName, string> = {
   heliusKnowledge: 'Helius Docs & Knowledge',
   heliusWrite: 'Send & Stake',
   heliusCompression: 'ZK Compression',
+  heliusPrivacy: 'Solana Privacy Rings',
   expandResult: 'Expand Result',
 };
 

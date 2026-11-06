@@ -1,0 +1,111 @@
+{
+  "_source": "Recorded from the deployed Solana Privacy Rings indexer (/v1/spr) on 2026-11-05: mainnet for bySignature and encryptedUtxos, devnet for byNullifiers. Both history pages are the previous indexer version (nextCursor / scannedThrough).",
+  "bySignature": {
+    "signature": "4EDRbJaooxjY2PKq72GgFydVYzARhYHKbp9FvNcYjKiae3v8wjppYTnCF1Yy7JE3MkgCsDaRXRG7YbMLkyTMUdHT",
+    "result": {
+      "context": {
+        "blockTime": 1793922280,
+        "slot": 465895186
+      },
+      "outputTreeId": 0,
+      "transactions": [
+        {
+          "eventIndex": 0,
+          "transaction": {
+            "slot": 465890330,
+            "txSignature": "4EDRbJaooxjY2PKq72GgFydVYzARhYHKbp9FvNcYjKiae3v8wjppYTnCF1Yy7JE3MkgCsDaRXRG7YbMLkyTMUdHT",
+            "eventIndex": 0,
+            "txViewingPk": null,
+            "salt": null,
+            "outputSlots": [
+              {
+                "viewTag": "CuiQbAHZpg3Vc6jZqZ3mRYThM1rTJ7qkbxWQb9jx7tBT",
+                "outputContext": {
+                  "hash": "WvVus1hkBUZpUhmdZLvEgNdEzjZcc4RoerbAz9iDj3z",
+                  "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor",
+                  "treeId": 0,
+                  "leafIndex": 1817
+                },
+                "payload": "AG8AAAAAKAE5KRM1/b2Lq9IH0YPg4e3b/inpl/Kp4v3BdTfepxEAnOr04vuVAFttxLLrkYhrBYwKH6EAcUoqn06d2iy9YgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQEtMAAAAAAAAAAAAAAA="
+              }
+            ],
+            "messages": [],
+            "nullifiers": [],
+            "proofless": true
+          }
+        }
+      ]
+    }
+  },
+  "encryptedUtxosPreviousVersion": {
+    "context": {
+      "blockTime": 1793922280,
+      "slot": 465895188
+    },
+    "outputTreeId": 0,
+    "matches": [
+      {
+        "slot": 463477611,
+        "txSignature": "5vgtcYeyrorJwuDfyMm9GmApPU2yGmHkEBSxMtfwaf1diYwkfMpfGkbbDgNLLM9vGa5hvQG8VXwmK8EwwkVUfVn8",
+        "outputSlot": {
+          "viewTag": "CuiQbAHZpg3Vc6jZqZ3mRYThM1rTJ7qkbxWQb9jx7tBT",
+          "outputContext": {
+            "hash": "3KJf5vpzY8CPM19L4aCWJBdhkTDz2rEsozd78PV9hfAH",
+            "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor",
+            "treeId": 0,
+            "leafIndex": 424
+          },
+          "payload": "AG8AAAAAKAE5KRM1/b2Lq9IH0YPg4e3b/inpl/Kp4v3BdTfepxEAxUv76oCO6ru6DwnziGzzGnw9ldNHBiMFQ6+gEHOLvwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgJaYAAAAAAAAAAAAAAA="
+        },
+        "txViewingPk": null,
+        "salt": null
+      }
+    ],
+    "nextCursor": "AQAAAAAboB2SKW3dX1p0mOOVfhBeTa1UQM/4YbCksBFVbf2inQR1ZYk19J5uevPveaHfUQNuhopovynWu/WsvpRDcWWyN7zLBAAAAAA="
+  },
+  "byNullifiersPreviousVersion": {
+    "context": {
+      "blockTime": 1793922279,
+      "slot": 519107689
+    },
+    "outputTreeId": 0,
+    "transactions": [
+      {
+        "slot": 519099996,
+        "txSignature": "3EJABMs1giNCvU7rfztbTzCsFVBjsAdeLpV6Rim7BejpPDDtzSGwN3XPdvjp7DCkCpfKUZQrvgzmXAz76XtHCuKK",
+        "eventIndex": 0,
+        "txViewingPk": "BO/uWcETmVpKH5weKPgzWtjFMdje30MZ+tgL5sD61V1i",
+        "salt": "zn4n2Dh3B5WQNKXQEM2uqg==",
+        "outputSlots": [
+          {
+            "viewTag": "9Vrvyr8YURu79z4sTrgcL9aYXARxfuNgrhZpJnJTrAPD",
+            "outputContext": {
+              "hash": "2AmYAkUiznSQ3BtVX8TyeWyw4rGJbuyyteopsiqdefDR",
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor",
+              "treeId": 0,
+              "leafIndex": 30561
+            },
+            "payload": "AVQAAAADBLwfUfiAzWsjbbDgqny1DtnGCTbu6ffuh5mB2yLz3KVSAOzf7Kx6pDcTTyIMwmFBSUF9oA93OJEJhMZ37DcyBPVK0nOqRxF2hCjh6a4Z2QzRnr4="
+          },
+          {
+            "viewTag": "9Vrvyr8YURu79z4sTrgcL9aYXARxfuNgrhZpJnJTrAPD",
+            "outputContext": {
+              "hash": "32tZbuEFvgs27pJGtz21MNks7Xz5ediPZDDRUbGvbM26",
+              "tree": "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor",
+              "treeId": 0,
+              "leafIndex": 30562
+            },
+            "payload": "LQMLO+ZX2lHfHIaEa8IbM86bEMOfqdxlW61xRJAkHtEzka0sj8kq5TTy2otr1cts3ToglToRmY+Bgbree0uL8HWfh9UlFwf9P7LX4eugqdyxR3XmkM4g//E="
+          }
+        ],
+        "messages": [],
+        "nullifiers": [
+          "39WDgkvex6HLPsCW2jXKktjxfgXY6qKbaxuWagtQAMCR"
+        ],
+        "proofless": false
+      }
+    ],
+    "nextCursor": "AwAAAAAe8NZcb3/0Cqakk7dg4SXzig+S9O7g4Gdhv1TQHQQnpzm8TZSjsL4jP+DyHl4oV2xOe1R6Jjb4RsCYhnoeilS48aLDDgAA",
+    "scannedThrough": "AwAAAAAe8NZcb3/0Cqakk7dg4SXzig+S9O7g4Gdhv1TQHQQnpzm8TZSjsL4jP+DyHl4oV2xOe1R6Jjb4RsCYhnoeilS48aLDDgAB"
+  }
+}

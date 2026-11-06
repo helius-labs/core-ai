@@ -86,7 +86,7 @@ describe('read-only surface: tools/list', () => {
   it('tells the model the server is read-only and never routes to heliusWrite', () => {
     const instructions = client.getInstructions() ?? '';
     expect(instructions).toContain('read-only');
-    expect(instructions).toContain('9 public tools');
+    expect(instructions).toContain('10 public tools');
     expect(instructions).not.toContain('heliusWrite');
   });
 

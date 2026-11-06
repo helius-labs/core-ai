@@ -129,6 +129,16 @@ export const HELIUS_COMPRESSION_ACTIONS = [
   'getIndexerSlot',
 ] as const;
 
+export const HELIUS_PRIVACY_ACTIONS = [
+  'getEncryptedUtxosByTags',
+  'getShieldedTransactionsByTags',
+  'getShieldedTransactionsByNullifiers',
+  'getShieldedTransactionsBySignature',
+  'getMerkleProofs',
+  'getNonInclusionProofs',
+  'getUserRecords',
+] as const;
+
 export const ACTION_NAMES = [
   ...HELIUS_ACCOUNT_ACTIONS,
   ...HELIUS_WALLET_ACTIONS,
@@ -139,6 +149,7 @@ export const ACTION_NAMES = [
   ...HELIUS_KNOWLEDGE_ACTIONS,
   ...HELIUS_WRITE_ACTIONS,
   ...HELIUS_COMPRESSION_ACTIONS,
+  ...HELIUS_PRIVACY_ACTIONS,
 ] as const;
 
 export type ActionName = typeof ACTION_NAMES[number];

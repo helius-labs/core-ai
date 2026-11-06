@@ -79,4 +79,11 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getCompressionSignaturesForOwner: ['owner'],
   getCompressionSignaturesForTokenOwner: ['owner'],
   getTransactionWithCompressionInfo: ['signature'],
+
+  // Privacy (the tag reads take `tags` or `ringProgramId`, so their handlers check)
+  getShieldedTransactionsByNullifiers: ['nullifiers'],
+  getShieldedTransactionsBySignature: ['signature'],
+  getMerkleProofs: ['treeAccount', 'leaves'],
+  getNonInclusionProofs: ['treeAccount', 'leaves'],
+  getUserRecords: ['owners'],
 };

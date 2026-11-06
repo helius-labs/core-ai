@@ -59,7 +59,7 @@ Skill versions are managed via `versions.json` at the repo root (single source o
 
 ## Router Surface Maintenance
 
-The Helius MCP public surface is a coordinated contract: 10 public tools total, shared `action` routing, and summary-first responses with `expandResult`.
+The Helius MCP public surface is a coordinated contract: 11 public tools total, shared `action` routing, and summary-first responses with `expandResult`.
 
 If you change the router surface, routed tool descriptions, action-routing guidance, or summary-first response behavior, update all of these in the same pass:
 
