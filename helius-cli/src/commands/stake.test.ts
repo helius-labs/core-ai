@@ -8,6 +8,7 @@ import { getAddressDecoder } from "@solana/kit";
 const h = vi.hoisted(() => ({
   mockCreateStake: vi.fn(),
   mockCreateUnstake: vi.fn(),
+  confirmDestructive: vi.fn(),
 }));
 
 vi.mock("../lib/helius.js", () => ({
@@ -18,6 +19,13 @@ vi.mock("../lib/helius.js", () => ({
     },
   }),
 }));
+
+// Pass-through spy, so a test can tell whether the confirmation prompt was reached
+vi.mock("../lib/output.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../lib/output.js")>();
+  h.confirmDestructive.mockImplementation(original.confirmDestructive);
+  return { ...original, confirmDestructive: h.confirmDestructive };
+});
 
 vi.mock("ora", () => {
   const make = () => {
@@ -51,6 +59,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 beforeEach(() => {
   h.mockCreateStake.mockReset().mockResolvedValue({ serializedTx: "AA==", stakeAccountPubkey: STAKE_ACCOUNT });
   h.mockCreateUnstake.mockReset().mockResolvedValue({ serializedTx: "AA==" });
+  h.confirmDestructive.mockClear();
 });
 
 async function run(fn: () => Promise<void>) {
@@ -72,7 +81,7 @@ async function run(fn: () => Promise<void>) {
     exitSpy.mockRestore();
   }
   const json = out.map((l) => { try { return JSON.parse(l); } catch { return null; } }).find(Boolean);
-  return { exitCode, json };
+  return { exitCode, json, raw: out.join("\n") };
 }
 
 describe("stake create", () => {
@@ -91,6 +100,12 @@ describe("stake create", () => {
     const [, amountSol] = h.mockCreateStake.mock.calls[0];
     // The SDK computes lamports as Math.round(amountSol * 1e9)
     expect(Math.round(amountSol * 1e9)).toBe(1500000001);
+  });
+
+  it("says the transaction is already signed and how to send it", async () => {
+    const { raw } = await run(() => stakeCreateCommand("1.5", { keypair: keypairPath }));
+    expect(raw).toContain("Signed with your keypair and ready to send: run `helius send broadcast <serializedTx>`");
+    expect(raw).not.toContain("needs to be signed");
   });
 
   it("fails with KEYPAIR_NOT_FOUND and never calls the SDK when the keypair file is missing", async () => {
@@ -119,6 +134,13 @@ describe("stake unstake", () => {
     );
     expect(exitCode).toBe(11);
     expect(json?.error_code).toBe("KEYPAIR_NOT_FOUND");
+    expect(h.mockCreateUnstake).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing keypair before asking for confirmation", async () => {
+    const { exitCode } = await run(() => stakeUnstakeCommand(STAKE_ACCOUNT, { keypair: join(dir, "missing.json") }));
+    expect(exitCode).toBe(11);
+    expect(h.confirmDestructive).not.toHaveBeenCalled();
     expect(h.mockCreateUnstake).not.toHaveBeenCalled();
   });
 });

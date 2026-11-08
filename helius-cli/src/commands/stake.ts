@@ -91,6 +91,9 @@ function resolveLamports(
   return lamports;
 }
 
+/** The SDK returns stake transactions already signed, with a fresh blockhash. */
+const SIGNED_TX_NOTE = "Signed with your keypair and ready to send: run `helius send broadcast <serializedTx>` within about a minute, before its blockhash expires. After that, run this command again.";
+
 /** Load the --keypair file as the signer the SDK's stake transaction builders take first. */
 async function loadSigner(keypairPath: string, json: boolean): Promise<KeyPairSigner> {
   try {
@@ -220,7 +223,7 @@ export async function stakeCreateCommand(
     if (options.json) { outputJson(result); return; }
 
     console.log(chalk.bold(`\nStake Transaction Created (${formatSol(lamports)}):\n`));
-    console.log(chalk.gray("Transaction needs to be signed and sent with your keypair."));
+    console.log(chalk.gray(SIGNED_TX_NOTE));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
     handleCommandError(error, options, spinner);
@@ -235,6 +238,8 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
   try {
     const addrErr = validateAddress(stakeAccount);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    // Load the keypair before asking, so a bad --keypair path fails without a prompt
+    const signer = await loadSigner(options.keypair!, !!options.json);
     if (!(await confirmDestructive(
       chalk.yellow(`\n  Sign an unstake (deactivate) transaction for ${stakeAccount} with this keypair? (y/N) `),
       options,
@@ -242,7 +247,6 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
       console.log(chalk.gray("  Cancelled."));
       return;
     }
-    const signer = await loadSigner(options.keypair!, !!options.json);
     const helius = await setupClient(spinner, options, "Creating unstake transaction...");
     const result = await withRetry(() => helius.stake.createUnstakeTransaction(signer, address(stakeAccount)), options, spinner);
     spinner?.stop();
@@ -250,6 +254,7 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
     if (options.json) { outputJson(result); return; }
 
     console.log(chalk.bold("\nUnstake Transaction Created:\n"));
+    console.log(chalk.gray(SIGNED_TX_NOTE));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
     handleCommandError(error, options, spinner);
