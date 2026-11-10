@@ -2,7 +2,7 @@
   "mcpServers": {
     "helius": {
       "command": "npx",
-      "args": ["helius-mcp@3.0.0"]
+      "args": ["helius-mcp@3.1.0"]
     }
   }
 }

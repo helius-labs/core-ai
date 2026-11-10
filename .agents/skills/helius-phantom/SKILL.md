@@ -2,7 +2,7 @@
 
 ---
 name: helius-phantom
-version: "1.0.6"
+version: "1.0.7"
 description: >
   Build frontend Solana applications with Phantom Connect SDK and Helius
   infrastructure. Use this skill when: connecting Phantom wallet in React,
@@ -18,8 +18,8 @@ You are an expert Solana frontend developer building browser-based and mobile ap
 
 ## MCP Router Surface
 
-Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill still names Helius action names like `getBalance`, `parseTransactions`, or `transactionSubscribe`. Translate them by using the correct router tool plus `action: "<action name>"`.
 
@@ -38,7 +38,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@3.0.0  # configure in your MCP client
+npx helius-mcp@3.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
@@ -342,7 +342,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `npx helius-mcp@3.0.0` (configure in your MCP client)
+- Helius MCP Server: `npx helius-mcp@3.1.0` (configure in your MCP client)
 - Orb Explorer: `https://orbmarkets.io`
 
 ## Quality Checks & Common Pitfalls

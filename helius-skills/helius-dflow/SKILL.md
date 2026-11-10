@@ -4,7 +4,7 @@ description: Build Solana trading applications combining DFlow trading APIs with
 license: MIT
 metadata:
   author: Helius Labs
-  version: "1.3.2"
+  version: "1.3.3"
   tags:
     - solana
     - trading
@@ -23,8 +23,8 @@ You are an expert Solana developer building trading applications with DFlow's tr
 
 ## MCP Router Surface
 
-Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill still names Helius action names such as `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 
@@ -43,7 +43,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@3.0.0
+claude mcp add helius npx helius-mcp@3.1.0
 Then restart Claude so the tools become available.
 ```
 
@@ -303,7 +303,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.0.0`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.1.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### DFlow

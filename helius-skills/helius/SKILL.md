@@ -3,7 +3,7 @@ name: helius
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
   author: Helius Labs
-  version: "1.1.8"
+  version: "1.1.9"
   mcp-server: helius-mcp
 ---
 
@@ -15,12 +15,12 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 1. Helius MCP Server
 
-**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `claude mcp add helius npx helius-mcp@3.0.0` then restart Claude. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+**Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically. If not available, suggest: `claude mcp add helius npx helius-mcp@3.1.0` then restart Claude. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
 ### 2. MCP Router Surface
 
-If Helius MCP tools are available, they expose 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+If Helius MCP tools are available, they expose 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill refers to Helius action names such as `getBalance`, `lookupHeliusDocs`, or `transactionSubscribe`. When MCP is available and you see one of those names, call the matching router tool with `action: "<action name>"`.
 
@@ -100,6 +100,11 @@ The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves thre
 **APIs**: Enhanced Transactions API (`getTransactionsByAddress`, `parseTransactions`), RPC (`getTransactionsForAddress`, `getTransfersByAddress`)
 **MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `scanTransactionHistory`, `getTransfersByAddress`
 **When**: human-readable tx data, transaction explorers, swap/transfer/NFT sale analysis, history filtering by type/time/slot
+
+### Shielded Transfers (Solana Privacy Rings)
+**APIs**: Solana Privacy Rings indexer (`https://mainnet.helius-rpc.com/v1/spr/<method>`), `@heliuslabs/spr` SDK
+**MCP tools** (if available): `getEncryptedUtxosByTags`, `getShieldedTransactionsByTags`, `getShieldedTransactionsByNullifiers`, `getShieldedTransactionsBySignature`, `getMerkleProofs`, `getNonInclusionProofs`, `getUserRecords`
+**When**: shielded-pool state, syncing a private wallet, Merkle and non-inclusion proofs for a private transfer. The MCP returns ciphertext and proofs only. Decrypting UTXOs and building, proving, and signing deposits, transfers, and withdrawals happen client-side with `@heliuslabs/spr`. No reference file yet: use `lookupHeliusDocs` with `topic: "privacy"`.
 
 ### Getting Started / Onboarding
 **Read**: `references/onboarding.md`

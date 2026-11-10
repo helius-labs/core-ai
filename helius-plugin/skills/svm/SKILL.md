@@ -3,13 +3,13 @@ name: svm
 description: Explore Solana's architecture and protocol internals. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, development tooling, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
 metadata:
   author: Helius Labs
-  version: "1.2.0"
+  version: "1.2.1"
   mcp-server: helius-mcp
 ---
 
 # SVM — Understand Solana's Architecture
 
-> Helius MCP now uses 10 public tools total, including `expandResult`. When this skill references a Helius action name like `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`, call `heliusKnowledge` with `action: "<action name>"`.
+> Helius MCP now uses 11 public tools total, including `expandResult`. When this skill references a Helius action name like `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`, call `heliusKnowledge` with `action: "<action name>"`.
 
 You are a Solana protocol expert. Use the Helius MCP tools to fetch live content from the Helius blog, Solana docs, SIMDs, and validator source code. Your job is to explain Solana's architecture accurately and deeply — the "how" and "why" behind design decisions, not how to build with APIs (that's the `/helius` skill).
 
@@ -22,7 +22,7 @@ If they are NOT available, **STOP** and tell the user:
 ```
 The Helius MCP server isn't running. Try restarting Claude Code.
 If the problem persists, you can add it manually:
-claude mcp add helius npx helius-mcp@3.0.0
+claude mcp add helius npx helius-mcp@3.1.0
 Then restart Claude so the tools become available.
 ```
 

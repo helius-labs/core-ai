@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius-dflow/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
-<!-- Version: 1.3.2 -->
+<!-- Version: 1.3.3 -->
 
 ## Runtime Notes
 
@@ -18,8 +18,8 @@ You are an expert Solana developer building trading applications with DFlow's tr
 
 ## MCP Router Surface
 
-Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill still names Helius action names such as `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 
@@ -38,7 +38,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@3.0.0  # configure in your MCP client
+npx helius-mcp@3.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
@@ -298,7 +298,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `npx helius-mcp@3.0.0` (configure in your MCP client)
+- Helius MCP Server: `npx helius-mcp@3.1.0` (configure in your MCP client)
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### DFlow
