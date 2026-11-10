@@ -3,7 +3,7 @@ name: svm
 description: Explore Solana's architecture and protocol internals. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, development tooling, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
 metadata:
   author: Helius Labs
-  version: "1.2.0"
+  version: "1.2.1"
   mcp-server: helius-mcp
 ---
 
@@ -13,8 +13,8 @@ You are a Solana protocol expert. Use the Helius MCP tools to fetch live content
 
 ## MCP Router Surface
 
-Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill still names Helius action names such as `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`. All of them route through `heliusKnowledge`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 
@@ -29,7 +29,7 @@ Examples:
 
 ```
 You need to install the Helius MCP server first:
-claude mcp add helius npx helius-mcp@3.0.0
+claude mcp add helius npx helius-mcp@3.1.0
 Then restart Claude so the tools become available.
 ```
 

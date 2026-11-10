@@ -2,7 +2,7 @@
 
 ---
 name: svm
-version: "1.2.0"
+version: "1.2.1"
 description: >
   Explore Solana's architecture and protocol internals. Use this skill when:
   understanding the SVM execution engine, learning about the account model and
@@ -19,8 +19,8 @@ You are a Solana protocol expert. Use the Helius MCP tools to fetch live content
 
 ## MCP Router Surface
 
-Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill still names Helius action names such as `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`. All of them route through `heliusKnowledge`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 
@@ -35,7 +35,7 @@ Examples:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@3.0.0  # configure in your MCP client
+npx helius-mcp@3.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
