@@ -11,6 +11,8 @@ import { contextFromExtra, type RequestContext } from '../utils/request-context.
 // @heliuslabs/spr, so these handlers only shape what the indexer returns.
 
 const MAX_ITEMS = 1000;
+// The indexer refuses more leaves than one proof takes as inputs.
+const MAX_PROOF_LEAVES = 64;
 const MAX_OWNERS = 100;
 const COST = 'Cost: 10 credits per request.';
 const PRIVACY_SDK_NOTE = 'Decrypting outputs and building proofs happen client-side with @heliuslabs/spr; this tool cannot do either.';
@@ -272,7 +274,7 @@ function indexerErrors(title: string) {
         type: 'VALIDATION',
         code: 'INDEXER_REJECTED',
         retryable: false,
-        recovery: 'Fix the parameters named in the message. Tags, nullifiers, and leaves are base58 32-byte values, at most 1,000 per request.',
+        recovery: 'Fix the parameters named in the message. Tags, nullifiers, and leaves are base58 32-byte values: at most 1,000 tags or nullifiers, and 64 leaves, per request.',
       }),
     },
   ];
@@ -445,7 +447,7 @@ export function registerPrivacyTools(registry: ActionRegistry) {
     `BEST FOR: fetching the inclusion proofs a Solana Privacy Rings spend needs: a Merkle path from each UTXO hash to the current root of the UTXO tree, with the root index the instruction expects. Fails if any UTXO is not in the tree. ${PRIVACY_SDK_NOTE} ${COST}`,
     {
       treeAccount: pubkey('treeAccount').describe('The Rings tree account (PDA) holding the UTXO tree'),
-      leaves: z.array(hash('Each leaf')).min(1).max(MAX_ITEMS).describe('UTXO hashes to prove, base58, 1 to 1,000'),
+      leaves: z.array(hash('Each leaf')).min(1).max(MAX_PROOF_LEAVES).describe('UTXO hashes to prove, base58, 1 to 64'),
     },
     async ({ treeAccount, leaves }, extra) => {
       const ctx = contextFromExtra(extra);
@@ -473,7 +475,7 @@ export function registerPrivacyTools(registry: ActionRegistry) {
     `BEST FOR: fetching the proofs a Solana Privacy Rings spend needs that its nullifiers are not yet in the nullifier tree: for each, the neighbouring low and high elements, their Merkle path, and the root index the instruction expects. Fails if any nullifier is already used or queued, which means that UTXO is spent. ${PRIVACY_SDK_NOTE} ${COST}`,
     {
       treeAccount: pubkey('treeAccount').describe('The Rings tree account (PDA) holding the nullifier tree'),
-      leaves: z.array(hash('Each leaf')).min(1).max(MAX_ITEMS).describe('Nullifiers to prove absent, base58, 1 to 1,000'),
+      leaves: z.array(hash('Each leaf')).min(1).max(MAX_PROOF_LEAVES).describe('Nullifiers to prove absent, base58, 1 to 64'),
     },
     async ({ treeAccount, leaves }, extra) => {
       const ctx = contextFromExtra(extra);
