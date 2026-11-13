@@ -46,7 +46,9 @@ export const HELIUS_TRANSACTION_ACTIONS = [
 
 export const HELIUS_CHAIN_ACTIONS = [
   'getAccountInfo',
+  'getHistoricalAccountInfo',
   'getTokenAccounts',
+  'getHistoricalTokenAccountsByOwner',
   'getProgramAccounts',
   'getBlock',
   'getNetworkStatus',

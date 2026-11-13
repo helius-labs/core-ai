@@ -50,6 +50,7 @@ describe('DOCS_INDEX', () => {
     for (const key of [
       'parsed-events', 'parsed-streams', 'pre-confirmations', 'preprocessed-transactions',
       'mev-protect', 'backrun-rebates', 'gatekeeper', 'admin-api', 'waas', 'privacy',
+      'historical-account-state',
     ]) {
       expect(DOCS_INDEX[key], key).toBeDefined();
     }
