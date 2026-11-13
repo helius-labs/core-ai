@@ -35,6 +35,8 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
 
   // Chain
   getTokenHolders: ['mint'],
+  getHistoricalAccountInfo: ['address'],
+  getHistoricalTokenAccountsByOwner: ['address'],
   getProgramAccounts: ['programId'],
   getBlock: ['slot'],
   simulateTransaction: ['transaction'],

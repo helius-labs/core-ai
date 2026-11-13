@@ -149,6 +149,10 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
   dataSize: optionalNumber(),
   owner: optionalString(),
   mint: optionalString(),
+  // getHistoricalAccountInfo, getHistoricalTokenAccountsByOwner
+  transactionIndex: optionalNumber(),
+  dataSlice: z.object({ offset: z.coerce.number(), length: z.coerce.number() }).optional(),
+  paginationToken: optionalString(),
   // simulateTransaction, simulateBundle, getBundleStatuses
   transaction: optionalString(),
   transactions: stringArray(),

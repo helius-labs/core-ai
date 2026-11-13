@@ -27,7 +27,7 @@ const TOOL_DESCRIPTIONS: Record<PublicToolName, ToolDescription> = {
     full: 'Parsed transactions and wallet transaction history. Use for activity analysis, not raw account state.',
   },
   heliusChain: {
-    full: 'Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction and Jito bundle simulation, and bundle status. Use for token accounts or blocks, not wallet portfolio summaries.',
+    full: 'Raw chain state, token accounts, historical account state at a past slot or transaction, stake reads, blocks, network status, priority fees, transaction and Jito bundle simulation, and bundle status. Use for token accounts or blocks, not wallet portfolio summaries.',
   },
   heliusStreaming: {
     full: 'Webhook CRUD, live subscription configuration, Parsed Streams program discovery, and Preconfirmations coverage. Use for actual webhook/subscription setup, not how-to guides.',

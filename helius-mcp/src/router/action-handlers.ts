@@ -6,6 +6,7 @@ import { registerBalanceTools } from '../tools/balance.js';
 import { registerTransactionTools } from '../tools/transactions.js';
 import { registerAssetTools } from '../tools/assets.js';
 import { registerAccountTools } from '../tools/accounts.js';
+import { registerHistoricalAccountTools } from '../tools/historical-accounts.js';
 import { registerFeeTools } from '../tools/fees.js';
 import { registerNetworkTools } from '../tools/network.js';
 import { registerBlockTools } from '../tools/blocks.js';
@@ -148,6 +149,7 @@ export function registerActionHandlers(registry: ActionRegistry): void {
   registerTransactionTools(registry);
   registerAssetTools(registry);
   registerAccountTools(registry);
+  registerHistoricalAccountTools(registry);
   registerFeeTools(registry);
   registerNetworkTools(registry);
   registerBlockTools(registry);

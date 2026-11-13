@@ -528,6 +528,24 @@ catalog.preprocessedSubscribe = makeEntry('preprocessedSubscribe', {
   defaultDetail: 'summary',
 });
 
+// Historical account state (beta): Business plan or higher, mainnet only, and
+// 0 credits per call. The token-account read pages by cursor; a token replays
+// the next page.
+const historicalAccountGate = gate('business', 'Business plan or higher, mainnet only');
+
+catalog.getHistoricalAccountInfo = makeEntry('getHistoricalAccountInfo', {
+  capabilityGate: historicalAccountGate,
+  responseFamily: 'record',
+  defaultDetail: 'standard',
+});
+
+catalog.getHistoricalTokenAccountsByOwner = makeEntry('getHistoricalTokenAccountsByOwner', {
+  capabilityGate: historicalAccountGate,
+  responseFamily: 'list',
+  defaultDetail: 'standard',
+  continuationModel: 'transactionHistory',
+});
+
 catalog.getTransactionHistory = makeEntry('getTransactionHistory', {
   responseFamily: 'history',
   defaultDetail: 'standard',

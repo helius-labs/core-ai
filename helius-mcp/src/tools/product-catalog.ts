@@ -242,6 +242,15 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
     referenceFile: 'references/sender.md',
     description: 'Stake, unstake, and withdraw native SOL via the Helius validator. Earn staking yield with one-click delegation. Query stake accounts and withdrawable amounts.',
   },
+  'historical-account-state': {
+    name: 'Historical Account State',
+    mcpTools: ['getHistoricalAccountInfo', 'getHistoricalTokenAccountsByOwner'],
+    creditCostPerCall: '0 credits',
+    minimumPlan: 'business',
+    docKey: 'historical-account-state',
+    status: 'beta',
+    description: 'Read any Solana account, or every token account a wallet owned, as it was at a past slot or right after a specific transaction. For audits, point-in-time balances, tax reporting, and debugging what a transaction changed. Mainnet only, from slot 444959999 (September 7, 2026) onward.',
+  },
   'token-holders': {
     name: 'Token Holders',
     mcpTools: ['getTokenHolders'],
