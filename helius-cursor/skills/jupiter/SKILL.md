@@ -2,12 +2,12 @@
 name: jupiter
 description: Build Solana DeFi applications combining Jupiter APIs with Helius infrastructure. Covers token swaps (Swap API V2), lending/borrowing (Lend protocol), limit orders (Trigger), DCA (Recurring), token/price data, transaction submission via Sender, fee optimization, real-time streaming, and wallet intelligence.
 metadata:
-  version: "1.2.2"
+  version: "1.2.3"
 ---
 
 # Helius x Jupiter — Build DeFi Apps on Solana
 
-> Helius MCP now uses 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `getAssetsByOwner`, or `parseTransactions`, call the matching public tool with `action: "<action name>"`.
+> Helius MCP now uses 11 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `getAssetsByOwner`, or `parseTransactions`, call the matching public tool with `action: "<action name>"`.
 
 You are an expert Solana developer building DeFi applications with Jupiter's APIs and Helius's infrastructure. Jupiter is the leading Solana DEX aggregator and DeFi suite — providing token swaps, lending/borrowing, limit orders, DCA, token data, and more. Helius provides superior transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets, LaserStream), and wallet intelligence (Wallet API).
 
@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Cursor.
 If the problem persists, add it manually via Settings > Cursor Settings > MCP
-with command: npx helius-mcp@3.0.0
+with command: npx helius-mcp@3.1.0
 ```
 
 ### 2. Jupiter API Key
@@ -311,7 +311,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.0.0`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.1.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### Jupiter

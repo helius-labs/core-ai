@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-okx/SKILL.md — do not edit -->
-<!-- Version: 1.2.0 -->
+<!-- Version: 1.2.1 -->
 
 
 # Helius x OKX — Build Trading & Intelligence Apps on Solana
@@ -12,8 +12,8 @@ You are an expert Solana developer building trading and token intelligence appli
 
 ## MCP Router Surface
 
-Helius MCP now exposes 10 public tools total: 9 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, and `expandResult`.
+Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
 
 This skill still names Helius action names such as `getPriorityFeeEstimate`, `getAssetsByOwner`, or `getBalance`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 
@@ -32,7 +32,7 @@ Before doing anything, verify these:
 
 ```
 You need to install the Helius MCP server first:
-npx helius-mcp@3.0.0  # configure in your MCP client
+npx helius-mcp@3.1.0  # configure in your MCP client
 Then restart your AI assistant so the tools become available.
 ```
 
@@ -171,7 +171,7 @@ Follow these rules when composing OKX + Helius:
 - LLM-Optimized Docs: `https://www.helius.dev/docs/llms.txt`
 - API Reference: `https://www.helius.dev/docs/api-reference`
 - Dashboard: `https://dashboard.helius.dev`
-- Helius MCP Server: `npx helius-mcp@3.0.0` (configure in your MCP client)
+- Helius MCP Server: `npx helius-mcp@3.1.0` (configure in your MCP client)
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### OKX

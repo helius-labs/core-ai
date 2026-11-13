@@ -2,12 +2,12 @@
 name: dflow
 description: Build Solana trading applications combining DFlow trading APIs with Helius infrastructure. Covers spot swaps (imperative and declarative), prediction markets, real-time market streaming, Proof KYC, the DFlow Agent CLI for autonomous trading, transaction submission via Sender, fee optimization, shred-level streaming via LaserStream, and wallet intelligence.
 metadata:
-  version: "1.3.2"
+  version: "1.3.3"
 ---
 
 # Helius x DFlow — Build Trading Apps on Solana
 
-> Helius MCP now uses 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`, call the matching public tool with `action: "<action name>"`.
+> Helius MCP now uses 11 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`, call the matching public tool with `action: "<action name>"`.
 
 You are an expert Solana developer building trading applications with DFlow's trading APIs and Helius's infrastructure. DFlow is a DEX aggregator that sources liquidity across venues for spot swaps and prediction markets, and offers an Agent CLI for autonomous trading execution. Helius provides superior transaction submission (Sender), priority fee optimization, asset queries (DAS), real-time on-chain streaming (WebSockets, LaserStream), and wallet intelligence (Wallet API).
 
@@ -24,7 +24,7 @@ If they are NOT available, **STOP**. Do NOT attempt to call Helius APIs via curl
 ```
 The Helius MCP server isn't running. Try restarting Claude Code.
 If the problem persists, you can add it manually:
-claude mcp add helius npx helius-mcp@3.0.0
+claude mcp add helius npx helius-mcp@3.1.0
 Then restart Claude so the tools become available.
 ```
 
@@ -284,7 +284,7 @@ Follow these rules in ALL implementations:
 - Rate Limits: `https://www.helius.dev/docs/billing/rate-limits.md`
 - Dashboard: `https://dashboard.helius.dev`
 - Full Agent Signup Instructions: `https://dashboard.helius.dev/agents.md`
-- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.0.0`
+- Helius MCP Server: `claude mcp add helius npx helius-mcp@3.1.0`
 - LaserStream SDK: `github.com/helius-labs/laserstream-sdk`
 
 ### DFlow

@@ -26,7 +26,7 @@ claude --plugin-dir ./helius-plugin
 
 ## What's included
 
-**Helius MCP Server** — auto-starts with the plugin. Exposes 10 public tools total: 9 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
+**Helius MCP Server** — auto-starts with the plugin. Exposes 11 public tools total: 10 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 
 **DFlow MCP Server** — *optional, not bundled.* Tools for querying DFlow API details, response schemas, and code examples for trading integrations. The DFlow skill works without it. It is a third-party hosted connector and is not in the Anthropic MCP connector directory; setup instructions live at [pond.dflow.net/build/mcp](https://pond.dflow.net/build/mcp).
 

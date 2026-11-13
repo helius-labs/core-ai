@@ -15,7 +15,7 @@ const fetchMock = vi.fn(async (url: unknown) =>
   String(url).includes('helius-rpc.com') ? indexerResponses.shift()! : new Response('{}'));
 vi.stubGlobal('fetch', fetchMock);
 
-// Real responses from the deployed indexer, which still serves the previous
+// Real responses recorded from the indexer while it served the previous
 // history API (nextCursor / scannedThrough).
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures/privacy/indexer-responses.json', import.meta.url), 'utf8'));
 const { bySignature, encryptedUtxosPreviousVersion, byNullifiersPreviousVersion } = fixtures;
@@ -171,6 +171,12 @@ describe('heliusPrivacy single reads', () => {
     expect(request().body.params).toEqual({ treeAccount: TREE, leaves: [TAG] });
     expect(text).toContain('rootIndex 151 | rootSeq 465890330 | path length 2');
     expect(text).toContain(`1. \`${TREE}\`, \`${OWNER}\``);
+  });
+
+  it.each(['getMerkleProofs', 'getNonInclusionProofs'])('refuses more than 64 leaves to %s before reaching the indexer', async (action) => {
+    const { isError } = await call({ action, treeAccount: TREE, leaves: Array(65).fill(TAG) });
+    expect(isError).toBe(true);
+    expect(indexerCalls()).toHaveLength(0);
   });
 });
 

@@ -2,7 +2,7 @@
 name: build
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
-  version: "1.1.9"
+  version: "1.1.10"
 ---
 
 # Helius — Build on Solana
@@ -15,9 +15,9 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 The Helius MCP server should start automatically with this plugin. **Recommended**: If Helius MCP tools are available (e.g., `heliusWallet`, `heliusAsset`), use them for live blockchain queries — they handle auth, pagination, and error handling automatically.
 
-If not available, try restarting Claude Code, or manually add: `claude mcp add helius npx helius-mcp@3.0.0` then restart. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
+If not available, try restarting Claude Code, or manually add: `claude mcp add helius npx helius-mcp@3.1.0` then restart. Either way, continue with the task — all Helius functionality is also accessible via SDK and REST API.
 
-> If MCP tools are available, they expose 10 public tools total, including `expandResult`. When this skill references a Helius action name like `getBalance` or `lookupHeliusDocs`, call the matching public tool with `action: "<action name>"` instead.
+> If MCP tools are available, they expose 11 public tools total, including `expandResult`. When this skill references a Helius action name like `getBalance` or `lookupHeliusDocs`, call the matching public tool with `action: "<action name>"` instead.
 
 ### 2. API Key
 
@@ -89,6 +89,11 @@ The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves thre
 **APIs**: Enhanced Transactions API (`getTransactionsByAddress`, `parseTransactions`), RPC (`getTransactionsForAddress`, `getTransfersByAddress`)
 **MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `scanTransactionHistory`, `getTransfersByAddress`
 **When**: human-readable tx data, transaction explorers, swap/transfer/NFT sale analysis, history filtering by type/time/slot
+
+### Shielded Transfers (Solana Privacy Rings)
+**APIs**: Solana Privacy Rings indexer (`https://mainnet.helius-rpc.com/v1/spr/<method>`), `@heliuslabs/spr` SDK
+**MCP tools** (if available): `getEncryptedUtxosByTags`, `getShieldedTransactionsByTags`, `getShieldedTransactionsByNullifiers`, `getShieldedTransactionsBySignature`, `getMerkleProofs`, `getNonInclusionProofs`, `getUserRecords`
+**When**: shielded-pool state, syncing a private wallet, Merkle and non-inclusion proofs for a private transfer. The MCP returns ciphertext and proofs only. Decrypting UTXOs and building, proving, and signing deposits, transfers, and withdrawals happen client-side with `@heliuslabs/spr`. No reference file yet: use `lookupHeliusDocs` with `topic: "privacy"`.
 
 ### Getting Started / Onboarding
 **Read**: `references/onboarding.md`
