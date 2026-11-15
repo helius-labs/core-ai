@@ -344,7 +344,7 @@ export function registerHistoricalAccountTools(registry: ActionRegistry) {
 
       if (accounts.length === 0) {
         lines.push('', next
-          ? 'No token accounts on this page, but the scan stopped early (each call examines at most 100,000 accounts). More may remain; fetch the next page.'
+          ? 'No token accounts on this page, but the scan stopped early. More may remain; fetch the next page.'
           : 'The wallet owned no matching token accounts at this position.');
       }
 

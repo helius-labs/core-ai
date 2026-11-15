@@ -116,8 +116,8 @@ export const DOCS_INDEX: Record<string, { path: string; description: string }> =
     path: '/privacy/llms.txt',
     description: 'Solana Privacy Rings (beta): private transfers with zero-knowledge proofs via @heliuslabs/spr, and the shielded-pool indexer',
   },
-  'historical-account-state': {
-    path: '/rpc/historical-account-state.md',
+  'historical-accounts': {
+    path: '/rpc/historical-accounts.md',
     description: 'Historical account state (beta): getHistoricalAccountInfo and getHistoricalTokenAccountsByOwner, accounts at a past slot or transaction from slot 444959999 onward',
   },
 };
