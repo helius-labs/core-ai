@@ -116,6 +116,16 @@ describe('getHistoricalAccountInfo', () => {
     expect(text).toContain('`slot: 444999837, transactionIndex: 699`');
   });
 
+  it.each([
+    [{}, 'at the latest indexed slot'],
+    [{ slot: 445000000 }, 'at the end of slot 445,000,000'],
+    [{ slot: 445000000, transactionIndex: 10 }, 'right after transaction 10 in slot 445,000,000'],
+  ])('names the position %j in the header', async (position, expected) => {
+    respond(mintAt445M);
+    const { text } = await call({ action: 'getHistoricalAccountInfo', address: USDC, ...position });
+    expect(text.split('\n')[0]).toBe(`**Account ${USDC}** ${expected}`);
+  });
+
   it('sends an empty query object for the latest slot, never nulls', async () => {
     respond(mintAt445M);
     await call({ action: 'getHistoricalAccountInfo', address: USDC });

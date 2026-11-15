@@ -12,8 +12,8 @@ import { contextFromExtra } from '../utils/request-context.js';
 // where the query object `{ slot?, transactionIndex? }` picks the position.
 // Mainnet only, Business plans and above, 0 credits per call.
 //
-// helius-sdk wraps both methods from the release after 3.4.1. Until the MCP
-// depends on that release, they go through rpcRequest.
+// helius-sdk wraps both methods from 3.5.0. Until the MCP depends on that
+// release, they go through rpcRequest.
 
 /** The first slot with history: the state at the start of epoch 1030. */
 export const HISTORY_START_SLOT = 444_959_999;
@@ -154,8 +154,8 @@ function buildParams(address: string, p: Position, config: Record<string, unknow
 }
 
 function describePosition(p: Position): string {
-  if (p.slot === undefined) return 'latest indexed slot';
-  if (p.transactionIndex === undefined) return `end of slot ${p.slot.toLocaleString()}`;
+  if (p.slot === undefined) return 'at the latest indexed slot';
+  if (p.transactionIndex === undefined) return `at the end of slot ${p.slot.toLocaleString()}`;
   return `right after transaction ${p.transactionIndex} in slot ${p.slot.toLocaleString()}`;
 }
 
@@ -229,7 +229,7 @@ export function registerHistoricalAccountTools(registry: ActionRegistry) {
       }
 
       const lines = [
-        `**Account ${address}** at ${describePosition(position)}`,
+        `**Account ${address}** ${describePosition(position)}`,
         '',
       ];
 
@@ -337,7 +337,7 @@ export function registerHistoricalAccountTools(registry: ActionRegistry) {
       const filter = mint ? `mint ${mint}` : programId ? `${TOKEN_PROGRAMS[programId]} accounts` : 'all token accounts';
 
       const lines = [
-        `**Historical Token Accounts for ${address}** at ${describePosition(position)}`,
+        `**Historical Token Accounts for ${address}** ${describePosition(position)}`,
         `Filter: ${filter} | ${accounts.length} on this page${cursor ? ' (continued)' : ''}`,
         `Indexed through slot: ${result?.context?.slot?.toLocaleString() ?? 'unknown'}`,
       ];
