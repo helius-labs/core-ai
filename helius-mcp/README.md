@@ -78,7 +78,7 @@ Helius MCP exposes 11 public tools total: 10 routed domain tools plus `expandRes
 - `heliusWallet` — wallet balances, holdings, wallet history, identity
 - `heliusAsset` — assets, NFTs, collections, token holders
 - `heliusTransaction` — transaction parsing and wallet transaction history
-- `heliusChain` — chain state, token accounts, blocks, network status, stake reads, transaction and Jito bundle simulation, bundle status
+- `heliusChain` — chain state, token accounts, historical account state at a past slot or transaction, blocks, network status, stake reads, transaction and Jito bundle simulation, bundle status
 - `heliusStreaming` — webhook CRUD, subscription config, Parsed Streams program discovery, Preconfirmations coverage
 - `heliusKnowledge` — docs, guides, pricing, troubleshooting, source, blog, SIMDs
 - `heliusWrite` — transfers and staking mutations

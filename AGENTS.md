@@ -115,6 +115,7 @@ Each skill has:
 - Use `heliusWallet` + `getBalance` (1 credit) over `heliusWallet` + `getWalletBalances` (100 credits) when only SOL balance is needed
 - Use `heliusWallet` + `getTokenBalances` (10 credits) over `heliusWallet` + `getWalletBalances` when you don't need USD values
 - Use `heliusKnowledge` + `lookupHeliusDocs` with the `section` parameter for targeted lookups — full docs can be 10,000+ tokens
+- Use `heliusChain` + `getHistoricalAccountInfo` or `getHistoricalTokenAccountsByOwner` (beta, 0 credits, Business+, mainnet, slot 444959999 onward) for account state at a past slot or right after one transaction. Find a transaction's `slot` and `transactionIndex` with `heliusTransaction` + `getTransactionHistory`; for one token balance at a timestamp, use `heliusWallet` + `getWalletBalanceAt`
 
 ### Use Batch Endpoints
 - `heliusAsset` + `getAsset` accepts an `ids` array for batch lookups — one call instead of N

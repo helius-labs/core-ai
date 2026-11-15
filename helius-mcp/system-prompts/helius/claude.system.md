@@ -1,6 +1,6 @@
 <!-- Generated from helius-skills/helius/SKILL.md — do not edit -->
 <!-- Claude API — use as a system prompt block -->
-<!-- Version: 1.1.9 -->
+<!-- Version: 1.1.10 -->
 
 ## Runtime Notes
 
@@ -96,9 +96,9 @@ The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves thre
 **When**: wallet identity lookup, portfolio/balance breakdowns, historical balance at a past time/slot, fund flow tracing, wallet analytics, tax reporting, investigation tools
 
 ### Account & Token Data
-**APIs**: Standard RPC (`getBalance`, `getAccountInfo`, `getBlock`), Token API (`getTokenBalances`, `getTokenAccounts`, `getTokenHolders`)
-**MCP tools** (if available): `getBalance`, `getTokenBalances`, `getAccountInfo`, `getTokenAccounts`, `getProgramAccounts`, `getTokenHolders`, `getBlock`, `getNetworkStatus`
-**When**: balance checks, account inspection, token holder distributions, block/network queries. No reference file needed.
+**APIs**: Standard RPC (`getBalance`, `getAccountInfo`, `getBlock`), Token API (`getTokenBalances`, `getTokenAccounts`, `getTokenHolders`), Historical account state (`getHistoricalAccountInfo`, `getHistoricalTokenAccountsByOwner`, beta)
+**MCP tools** (if available): `getBalance`, `getTokenBalances`, `getAccountInfo`, `getTokenAccounts`, `getProgramAccounts`, `getTokenHolders`, `getBlock`, `getNetworkStatus`, `getHistoricalAccountInfo`, `getHistoricalTokenAccountsByOwner`
+**When**: balance checks, account inspection, token holder distributions, block/network queries, an account or a wallet's token accounts as they were at a past slot or right after a specific transaction (beta: mainnet, Business plan or higher, 0 credits, slot 444959999 onward). No reference file needed.
 
 ### Transaction History & Parsing
 **Reference**: See enhanced-transactions.md

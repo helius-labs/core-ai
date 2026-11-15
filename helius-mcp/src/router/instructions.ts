@@ -9,7 +9,7 @@ Routing:
 - Wallet-centric balances, holdings, identity, wallet history: \`heliusWallet\`
 - Assets, NFTs, collections, token holders: \`heliusAsset\`
 - Parsed transactions or wallet transaction history: \`heliusTransaction\`
-- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction or Jito bundle simulation, bundle status: \`heliusChain\`
+- Raw chain state, token accounts, historical account state at a past slot or transaction, stake reads, blocks, network status, priority fees, transaction or Jito bundle simulation, bundle status: \`heliusChain\`
 - Webhook CRUD, live subscription configuration, Parsed Streams program discovery, Preconfirmations coverage: \`heliusStreaming\`
 - Docs, guides, pricing references, troubleshooting, source, blog, SIMDs: \`heliusKnowledge\`
 - SOL/token transfers or staking mutations: \`heliusWrite\`
@@ -19,6 +19,7 @@ Routing:
 Rules:
 - Use the chosen routed tool plus the Helius action name in \`action\`.
 - Wallet holdings use \`heliusWallet.getTokenBalances\`; raw token accounts use \`heliusChain.getTokenAccounts\`.
+- An account or a wallet's token accounts as they were at a past slot, or right after one transaction, use \`heliusChain.getHistoricalAccountInfo\` or \`heliusChain.getHistoricalTokenAccountsByOwner\` (beta, mainnet, Business+, slot 444959999 onward). Find a transaction's \`slot\` and \`transactionIndex\` with \`heliusTransaction.getTransactionHistory\`. One token balance at a timestamp uses \`heliusWallet.getWalletBalanceAt\`.
 - Parsed transaction details use \`heliusTransaction.parseTransactions\`; wallet activity listing uses \`heliusTransaction.getTransactionHistory\`; per-transfer rows (token + SOL with mint/direction/counterparty filters) use \`heliusTransaction.getTransfersByAddress\`; searching an address's history for specific programs, instructions, or token mints uses \`heliusTransaction.scanTransactionHistory\`.
 - Streaming or webhook setup guides live under \`heliusKnowledge\`; actual webhook/subscription config lives under \`heliusStreaming\`.
 - Pricing and plan selection start with \`heliusAccount.getHeliusPlanInfo\`; per-method credit costs or rate limits use \`heliusKnowledge.getRateLimitInfo\` or \`heliusKnowledge.getHeliusCreditsInfo\`.
@@ -39,7 +40,7 @@ Routing:
 - Wallet-centric balances, holdings, identity, wallet history: \`heliusWallet\`
 - Assets, NFTs, collections, token holders: \`heliusAsset\`
 - Parsed transactions or wallet transaction history: \`heliusTransaction\`
-- Raw chain state, token accounts, stake reads, blocks, network status, priority fees, transaction or Jito bundle simulation, bundle status: \`heliusChain\`
+- Raw chain state, token accounts, historical account state at a past slot or transaction, stake reads, blocks, network status, priority fees, transaction or Jito bundle simulation, bundle status: \`heliusChain\`
 - Webhook lookups, live subscription configuration, Parsed Streams program discovery, Preconfirmations coverage: \`heliusStreaming\`
 - Docs, guides, pricing references, troubleshooting, source, blog, SIMDs: \`heliusKnowledge\`
 - Compressed account, proof, balance, compression history: \`heliusCompression\`
@@ -48,6 +49,7 @@ Routing:
 Rules:
 - Use the chosen routed tool plus the Helius action name in \`action\`.
 - Wallet holdings use \`heliusWallet.getTokenBalances\`; raw token accounts use \`heliusChain.getTokenAccounts\`.
+- An account or a wallet's token accounts as they were at a past slot, or right after one transaction, use \`heliusChain.getHistoricalAccountInfo\` or \`heliusChain.getHistoricalTokenAccountsByOwner\` (beta, mainnet, Business+, slot 444959999 onward). Find a transaction's \`slot\` and \`transactionIndex\` with \`heliusTransaction.getTransactionHistory\`. One token balance at a timestamp uses \`heliusWallet.getWalletBalanceAt\`.
 - Parsed transaction details use \`heliusTransaction.parseTransactions\`; wallet activity listing uses \`heliusTransaction.getTransactionHistory\`; per-transfer rows (token + SOL with mint/direction/counterparty filters) use \`heliusTransaction.getTransfersByAddress\`; searching an address's history for specific programs, instructions, or token mints uses \`heliusTransaction.scanTransactionHistory\`.
 - Streaming or webhook setup guides live under \`heliusKnowledge\`; webhook lookups and subscription configs live under \`heliusStreaming\`.
 - Pricing and plan selection start with \`heliusAccount.getHeliusPlanInfo\`; per-method credit costs or rate limits use \`heliusKnowledge.getRateLimitInfo\` or \`heliusKnowledge.getHeliusCreditsInfo\`.
