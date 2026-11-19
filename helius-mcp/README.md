@@ -72,7 +72,7 @@ Ask questions in plain English — the right tool is selected automatically:
 
 ## Public Tool Surface
 
-Helius MCP exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
+Helius MCP exposes 12 public tools total: 11 routed domain tools plus `expandResult`.
 
 - `heliusAccount` — account setup, auth, plans, billing
 - `heliusWallet` — wallet balances, holdings, wallet history, identity
@@ -84,9 +84,10 @@ Helius MCP exposes 11 public tools total: 10 routed domain tools plus `expandRes
 - `heliusWrite` — transfers and staking mutations
 - `heliusCompression` — compressed account, balance, proof, and history actions
 - `heliusPrivacy` — Solana Privacy Rings indexer reads: encrypted UTXOs and shielded transactions by view tag, nullifier, or signature, Merkle and non-inclusion proofs, and user records
+- `heliusLana` — ask Lana, the Helius Solana AI agent, open-ended questions: why a transaction failed, slippage, fees paid, where a wallet's funds came from or went, whether wallets are connected, top holders. Paid plans only; 2,000 credits per call with `lana-fast` (default) or 10,000 with `lana-thinking`
 - `expandResult` — expand summary-first outputs by `resultId`
 
-The 10 routed domain tools share a common shape:
+The 11 routed domain tools share a common shape:
 
 - `action` — the Helius action name to run, such as `getBalance` or `createWebhook`
 - domain-specific params — for example `address`, `signatures`, or `webhookURL`
@@ -118,7 +119,7 @@ Start the server with `--read-only`, or set `HELIUS_MCP_READ_ONLY=1`, to serve o
 claude mcp add helius-read-only -- npx helius-mcp@latest --read-only
 ```
 
-The read-only server lists 10 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
+The read-only server lists 11 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
 
 ## System Prompts
 

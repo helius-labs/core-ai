@@ -28,6 +28,7 @@ import { registerBundleTools } from '../tools/bundles.js';
 import { registerParsedStreamsTools } from '../tools/parsed-streams.js';
 import { registerPreconfirmationTools } from '../tools/preconfirmations.js';
 import { registerPreprocessedTools } from '../tools/preprocessed.js';
+import { registerLanaTools } from '../tools/lana.js';
 import type { ActionName } from './actions.js';
 import type { ActionArgs, ActionRegistry } from './action-registry.js';
 import type { ContinuationHint } from '../results/types.js';
@@ -171,6 +172,7 @@ export function registerActionHandlers(registry: ActionRegistry): void {
   registerParsedStreamsTools(registry);
   registerPreconfirmationTools(registry);
   registerPreprocessedTools(registry);
+  registerLanaTools(registry);
 }
 
 export function getActionHandlers(): Map<ActionName, ActionHandlerDefinition> {

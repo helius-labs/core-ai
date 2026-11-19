@@ -9,14 +9,14 @@ This monorepo contains Helius developer tools for building on Solana:
 
 | Package | What it does |
 |---|---|
-| `helius-mcp/` | MCP server (`npx helius-mcp@latest`) — exposes 11 public tools total: 10 routed domain tools plus `expandResult` |
+| `helius-mcp/` | MCP server (`npx helius-mcp@latest`) — exposes 12 public tools total: 11 routed domain tools plus `expandResult` |
 | `helius-skills/` | Canonical skill source — SKILL.md + reference files for each domain |
 | `helius-plugin/` | Claude Code plugin — bundles skills + auto-starts MCP server |
 | `helius-cli/` | CLI for account setup, blockchain queries, and staking (`npx helius-cli@latest`) |
 
 ## MCP Server Setup
 
-The Helius MCP server provides live blockchain access through 11 public tools total: 10 routed domain tools plus `expandResult`. Configure it as an MCP tool source:
+The Helius MCP server provides live blockchain access through 12 public tools total: 11 routed domain tools plus `expandResult`. Configure it as an MCP tool source:
 
 ```
 npx helius-mcp@latest
@@ -59,9 +59,9 @@ Get keys from https://dashboard.helius.dev.
 
 ## Public Tool Surface
 
-Helius MCP exposes 11 public tools total:
+Helius MCP exposes 12 public tools total:
 
-- Routed domain tools: `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`
+- Routed domain tools: `heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`
 - Expansion tool: `expandResult`
 
 The routed domain tools take a Helius action name in `action`. Example:
@@ -72,7 +72,7 @@ The routed domain tools take a Helius action name in `action`. Example:
 
 Heavy responses are summary-first. Use `expandResult({ resultId: "..." })` to fetch a full section, range, page, or continuation on demand.
 
-Run with `--read-only` (or `HELIUS_MCP_READ_ONLY=1`) for a read-only server: 10 tools, no `heliusWrite`, and no action that changes state. See `helius-mcp/README.md`.
+Run with `--read-only` (or `HELIUS_MCP_READ_ONLY=1`) for a read-only server: 11 tools, no `heliusWrite`, and no action that changes state. See `helius-mcp/README.md`.
 
 ## Skills
 
@@ -115,6 +115,7 @@ Each skill has:
 - Use `heliusWallet` + `getBalance` (1 credit) over `heliusWallet` + `getWalletBalances` (100 credits) when only SOL balance is needed
 - Use `heliusWallet` + `getTokenBalances` (10 credits) over `heliusWallet` + `getWalletBalances` when you don't need USD values
 - Use `heliusKnowledge` + `lookupHeliusDocs` with the `section` parameter for targeted lookups — full docs can be 10,000+ tokens
+- Use `heliusLana` + `ask` (2,000 credits with `lana-fast`, 10,000 with `lana-thinking`, paid plans) only for open-ended questions that need several lookups, such as why a transaction failed or where a wallet's funds went. Fetch or parse data with the data tools
 - Use `heliusChain` + `getHistoricalAccountInfo` or `getHistoricalTokenAccountsByOwner` (beta, 0 credits, Business+, mainnet, slot 444959999 onward) for account state at a past slot or right after one transaction. Find a transaction's `slot` and `transactionIndex` with `heliusTransaction` + `getTransactionHistory`; for one token balance at a timestamp, use `heliusWallet` + `getWalletBalanceAt`
 
 ### Use Batch Endpoints

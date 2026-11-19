@@ -4,6 +4,7 @@ import {
   HELIUS_CHAIN_ACTIONS,
   HELIUS_COMPRESSION_ACTIONS,
   HELIUS_KNOWLEDGE_ACTIONS,
+  HELIUS_LANA_ACTIONS,
   HELIUS_PRIVACY_ACTIONS,
   HELIUS_STREAMING_ACTIONS,
   HELIUS_TRANSACTION_ACTIONS,
@@ -139,6 +140,13 @@ addEntries(catalog, HELIUS_COMPRESSION_ACTIONS, {
 addEntries(catalog, HELIUS_PRIVACY_ACTIONS, {
   capabilityGate: gate('agent', 'Solana Privacy Rings indexer reads'),
   responseFamily: 'list',
+});
+
+addEntries(catalog, HELIUS_LANA_ACTIONS, {
+  capabilityGate: gate('developer', 'Lana on paid plans'),
+  responseFamily: 'document',
+  defaultDetail: 'full',
+  handleEligibility: false,
 });
 
 const developerWalletGate = gate('developer', 'Developer plan or higher');
