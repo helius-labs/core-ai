@@ -133,7 +133,7 @@ The server exposes 12 public tools total: 11 routed domain tools plus `expandRes
 - `heliusWrite` — SOL/token transfers and staking mutations
 - `heliusCompression` — compressed account, proof, balance, and history queries
 - `heliusPrivacy` — Solana Privacy Rings indexer reads: encrypted UTXOs, shielded transactions, Merkle and non-inclusion proofs, user records
-- `heliusLana` — ask Lana, the Helius Solana AI agent, open-ended questions about transactions, wallets, and tokens (paid plans, 2,000 or 10,000 credits per call)
+- `heliusLana` — ask Lana, the Helius Solana AI agent, open-ended questions about transactions, wallets, and tokens (paid plans, 2,000 or 10,000 credits per call; the model asks before spending them unless you asked for Lana)
 - `expandResult` — expand summary-first results by `resultId`
 
 The 11 domain tools take a Helius action name in `action`, for example `heliusWallet` + `getBalance` or `heliusStreaming` + `createWebhook`. Heavy responses are summary-first; use `expandResult` to fetch a full section, range, page, or continuation on demand.

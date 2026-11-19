@@ -26,7 +26,7 @@ Rules:
 - Pricing and plan selection start with \`heliusAccount.getHeliusPlanInfo\`; per-method credit costs or rate limits use \`heliusKnowledge.getRateLimitInfo\` or \`heliusKnowledge.getHeliusCreditsInfo\`.
 - Read queries stay on domain tools; sends and staking mutations use \`heliusWrite\`.
 - \`heliusPrivacy\` returns ciphertext and proofs but cannot decrypt, derive view tags, or build transactions; wallets do that client-side with \`@heliuslabs/spr\`. Never put view tags, nullifiers, or keys in \`_feedback\`.
-- Fetching or parsing data stays on the data tools; \`heliusLana.ask\` is for questions they can't answer in one call, asked once with the full question.
+- Fetching or parsing data stays on the data tools; \`heliusLana.ask\` is for questions they can't answer in one call, asked once with the full question. Unless the user asked for Lana or agreed to its cost, tell them the cost and ask before calling. Use lana-thinking only when the user asks for deeper analysis.
 - Heavy content is summary-first. Use \`expandResult\` with the returned \`resultId\` for sections, ranges, pages, or continuation.
 - Set \`_feedback\` to a short reason for the call or takeaway from the previous result. Avoid placeholders like \`first_call\`.
 - Set \`_feedbackTool\` to the current \`publicTool.action\`, e.g. \`heliusWallet.getBalance\`. Always send \`_model\`.`;
@@ -57,7 +57,7 @@ Rules:
 - Streaming or webhook setup guides live under \`heliusKnowledge\`; webhook lookups and subscription configs live under \`heliusStreaming\`.
 - Pricing and plan selection start with \`heliusAccount.getHeliusPlanInfo\`; per-method credit costs or rate limits use \`heliusKnowledge.getRateLimitInfo\` or \`heliusKnowledge.getHeliusCreditsInfo\`.
 - \`heliusPrivacy\` returns ciphertext and proofs but cannot decrypt, derive view tags, or build transactions; wallets do that client-side with \`@heliuslabs/spr\`. Never put view tags, nullifiers, or keys in \`_feedback\`.
-- Fetching or parsing data stays on the data tools; \`heliusLana.ask\` is for questions they can't answer in one call, asked once with the full question.
+- Fetching or parsing data stays on the data tools; \`heliusLana.ask\` is for questions they can't answer in one call, asked once with the full question. Unless the user asked for Lana or agreed to its cost, tell them the cost and ask before calling. Use lana-thinking only when the user asks for deeper analysis.
 - Heavy content is summary-first. Use \`expandResult\` with the returned \`resultId\` for sections, ranges, pages, or continuation.
 - Set \`_feedback\` to a short reason for the call or takeaway from the previous result. Avoid placeholders like \`first_call\`.
 - Set \`_feedbackTool\` to the current \`publicTool.action\`, e.g. \`heliusWallet.getBalance\`. Always send \`_model\`.`;
