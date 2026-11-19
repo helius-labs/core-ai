@@ -5,6 +5,7 @@ import {
   HELIUS_CHAIN_ACTIONS,
   HELIUS_COMPRESSION_ACTIONS,
   HELIUS_KNOWLEDGE_ACTIONS,
+  HELIUS_LANA_ACTIONS,
   HELIUS_PRIVACY_ACTIONS,
   HELIUS_STREAMING_ACTIONS,
   HELIUS_TRANSACTION_ACTIONS,
@@ -17,6 +18,7 @@ import { getActionHandlers } from './action-handlers.js';
 import { ACTION_CATALOG } from './catalog.js';
 import { getStrippedParams, getSurfaceActions, type Surface } from './surface.js';
 import { TELEMETRY_FIELDS, withTelemetry } from './telemetry.js';
+import { LANA_MODELS } from '../tools/lana.js';
 
 const detailField = z.enum(['summary', 'standard', 'full']).optional();
 const argsField = z.union([
@@ -44,6 +46,7 @@ export const HeliusKnowledgeActionSchema = z.enum(HELIUS_KNOWLEDGE_ACTIONS);
 export const HeliusWriteActionSchema = z.enum(HELIUS_WRITE_ACTIONS);
 export const HeliusCompressionActionSchema = z.enum(HELIUS_COMPRESSION_ACTIONS);
 export const HeliusPrivacyActionSchema = z.enum(HELIUS_PRIVACY_ACTIONS);
+export const HeliusLanaActionSchema = z.enum(HELIUS_LANA_ACTIONS);
 
 export const HELIUS_ACCOUNT_SCHEMA = withTelemetry({
   action: HeliusAccountActionSchema,
@@ -268,6 +271,14 @@ export const HELIUS_PRIVACY_SCHEMA = withTelemetry({
   paginationToken: optionalString(),
 });
 
+export const HELIUS_LANA_SCHEMA = withTelemetry({
+  action: HeliusLanaActionSchema,
+  args: argsField,
+  question: optionalString(),
+  wallet: optionalString(),
+  model: z.enum(LANA_MODELS).optional(),
+});
+
 export const EXPAND_RESULT_SCHEMA = withTelemetry({
   resultId: z.string(),
   section: optionalString(),
@@ -289,6 +300,7 @@ const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
   heliusWrite: HELIUS_WRITE_SCHEMA,
   heliusCompression: HELIUS_COMPRESSION_SCHEMA,
   heliusPrivacy: HELIUS_PRIVACY_SCHEMA,
+  heliusLana: HELIUS_LANA_SCHEMA,
   expandResult: EXPAND_RESULT_SCHEMA,
 };
 

@@ -262,6 +262,33 @@ export async function sprRequest<T>(
   return postJsonRpc<T>(`${networkRpcUrl(ctx)}/v1/spr/${method}?api-key=${getApiKey(ctx)}`, method, params);
 }
 
+export const LANA_TIMEOUT_MS = 330_000;
+
+export const LANA_UNREADABLE_ANSWER = 'LANA_UNREADABLE_ANSWER';
+
+export async function lanaRequest<T>(body: unknown, ctx?: RequestContext | null, cancel?: AbortSignal): Promise<T> {
+  const response = await fetch(`${GATEKEEPER_RPC_URL}/v1/lana/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': MCP_USER_AGENT,
+      'X-Api-Key': getApiKey(ctx),
+    },
+    body: JSON.stringify(body),
+    signal: cancel ? AbortSignal.any([cancel, AbortSignal.timeout(LANA_TIMEOUT_MS)]) : AbortSignal.timeout(LANA_TIMEOUT_MS),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${text}`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`${LANA_UNREADABLE_ANSWER}: ${text.slice(0, 200)}`);
+  }
+}
+
 function networkRpcUrl(ctx?: RequestContext | null): string {
   return getNetwork(ctx) === 'devnet' ? 'https://devnet.helius-rpc.com' : 'https://mainnet.helius-rpc.com';
 }

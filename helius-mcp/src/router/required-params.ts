@@ -88,4 +88,5 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getMerkleProofs: ['treeAccount', 'leaves'],
   getNonInclusionProofs: ['treeAccount', 'leaves'],
   getUserRecords: ['owners'],
+  ask: ['question'],
 };

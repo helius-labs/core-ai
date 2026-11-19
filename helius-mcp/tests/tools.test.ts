@@ -9,6 +9,7 @@ import {
   HELIUS_CHAIN_ACTIONS,
   HELIUS_COMPRESSION_ACTIONS,
   HELIUS_PRIVACY_ACTIONS,
+  HELIUS_LANA_ACTIONS,
   HELIUS_KNOWLEDGE_ACTIONS,
   HELIUS_STREAMING_ACTIONS,
   HELIUS_TRANSACTION_ACTIONS,
@@ -112,7 +113,7 @@ describe('Public Router Surface', () => {
     ({ tools } = createServer());
   });
 
-  it('registers exactly 11 public tools', () => {
+  it('registers exactly 12 public tools', () => {
     expect(Object.keys(tools).sort()).toEqual([...PUBLIC_TOOL_NAMES].sort());
   });
 
@@ -139,6 +140,7 @@ describe('Public Router Surface', () => {
       heliusWrite: HELIUS_WRITE_ACTIONS,
       heliusCompression: HELIUS_COMPRESSION_ACTIONS,
       heliusPrivacy: HELIUS_PRIVACY_ACTIONS,
+      heliusLana: HELIUS_LANA_ACTIONS,
     } as const;
 
     for (const [toolName, actions] of Object.entries(expectedActions)) {
