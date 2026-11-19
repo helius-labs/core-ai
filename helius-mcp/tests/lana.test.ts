@@ -312,3 +312,23 @@ describe('heliusLana catalog entry', () => {
     expect(getSurfaceActions('heliusLana', 'readOnly')).toEqual(['ask']);
   });
 });
+
+describe('heliusLana spend guidance', () => {
+  // Each call costs 2,000 to 10,000 credits, and hosts may run a read-only tool
+  // without asking, so the model is told to get the user's yes first.
+  it.each(['full', 'readOnly'] as const)('tells the model to ask before calling and to default to lana-fast on the %s surface', async (surface) => {
+    const server = createServer({ surface });
+    const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'lana-test-client', version: '0.0.0' });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+    const { tools } = await client.listTools();
+    const instructions = client.getInstructions() ?? '';
+    await client.close();
+
+    const description = tools.find((tool) => tool.name === 'heliusLana')?.description ?? '';
+    for (const text of [description, instructions]) {
+      expect(text).toContain('ask before calling');
+      expect(text).toMatch(/lana-thinking only when/);
+    }
+  });
+});

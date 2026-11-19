@@ -46,7 +46,7 @@ const TOOL_DESCRIPTIONS: Record<PublicToolName, ToolDescription> = {
     full: 'Solana Privacy Rings shielded-pool indexer reads: encrypted UTXOs and shielded transactions by view tag, nullifier, or signature, Merkle and non-inclusion proofs, and user records. Returns ciphertext and proofs; it cannot decrypt or sign.',
   },
   heliusLana: {
-    full: 'Ask Lana, the Helius Solana AI agent, a question that needs many chained lookups: why a transaction failed, slippage on a swap, where a wallet\'s funds came from or went, whether two wallets are connected. Costs 2,000 credits per call (lana-fast, default) or 10,000 (lana-thinking) on paid plans and takes seconds to minutes, so anything one data tool answers goes to that tool.',
+    full: 'Ask Lana, the Helius Solana AI agent, a question that needs many chained lookups: why a transaction failed, slippage on a swap, where a wallet\'s funds came from or went, whether two wallets are connected. Costs 2,000 credits per call (lana-fast, default) or 10,000 (lana-thinking) on paid plans and takes seconds to minutes, so anything one data tool answers goes to that tool. Unless the user asked for Lana or agreed to the cost, tell them the cost and ask before calling. Use lana-thinking only when they ask for deeper analysis.',
   },
   expandResult: {
     full: 'Expand a prior summary-first result by resultId, section, range, page, or continuation.',

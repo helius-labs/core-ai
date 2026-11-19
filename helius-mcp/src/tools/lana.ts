@@ -222,11 +222,12 @@ export function registerLanaTools(registry: ActionRegistry) {
       + 'ONLY FOR: questions that need many lookups chained with judgment: why a transaction failed, how much slippage a swap got, where a wallet\'s funds came from or went, whether two wallets are connected. '
       + 'DO NOT USE when one data tool answers it (balances, holdings, top holders, fees paid, parsing a transaction, token info): heliusTransaction, heliusWallet, heliusAsset, and heliusChain are faster, return in about a second, and cost 1 to 100 credits a call. '
       + `COST: ${credits('lana-fast')} per call with lana-fast (default), ${credits('lana-thinking')} with lana-thinking. Ask once with the full question rather than in pieces. `
+      + 'ASK BEFORE CALLING: unless the user asked for Lana or already agreed to its cost, tell them what the call costs and wait for a yes. Use lana-thinking only when the user asks for deeper analysis. '
       + 'Needs a paid Helius plan (Developer or above). Each call is independent: include the context a follow-up needs in the question. lana-thinking can take a few minutes.',
     {
       question: z.string().trim().min(1).describe('The question for Lana, in plain English. Include every address, signature, or mint it is about.'),
       wallet: z.string().trim().min(1).max(128).optional().describe('The user\'s wallet address, so questions about "my wallet" or "my last transaction" work.'),
-      model: z.enum(LANA_MODELS).optional().default('lana-fast').describe(`lana-fast (default, ${credits('lana-fast')}): quick lookups and single facts. lana-thinking (${credits('lana-thinking')}): multi-step analysis, up to a few minutes.`),
+      model: z.enum(LANA_MODELS).optional().default('lana-fast').describe(`lana-fast (default, ${credits('lana-fast')}): use this unless the user asks for deeper analysis. lana-thinking (${credits('lana-thinking')}): multi-step analysis, up to a few minutes; only when the user asks for it.`),
     },
     async ({ question, wallet, model }, extra) => {
       if (isSharedCredentialMode()) return sharedCredentialRefusal();
