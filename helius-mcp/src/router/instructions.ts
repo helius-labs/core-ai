@@ -15,7 +15,7 @@ Routing:
 - SOL/token transfers or staking mutations: \`heliusWrite\`
 - Compressed account, proof, balance, compression history: \`heliusCompression\`
 - Solana Privacy Rings: encrypted UTXOs, shielded transactions, Merkle or non-inclusion proofs, user records: \`heliusPrivacy\`
-- Open-ended questions that need several lookups and judgment (why a transaction failed, slippage, fees paid, fund flows, wallet links, top holders): \`heliusLana.ask\`, 2,000 credits per call (10,000 with lana-thinking)
+- Questions that need many chained lookups and judgment (why a transaction failed, slippage on a swap, fund flows, wallet links): \`heliusLana.ask\`, 2,000 credits per call (10,000 with lana-thinking). Anything one data tool answers goes to that tool
 
 Rules:
 - Use the chosen routed tool plus the Helius action name in \`action\`.
@@ -47,7 +47,7 @@ Routing:
 - Docs, guides, pricing references, troubleshooting, source, blog, SIMDs: \`heliusKnowledge\`
 - Compressed account, proof, balance, compression history: \`heliusCompression\`
 - Solana Privacy Rings: encrypted UTXOs, shielded transactions, Merkle or non-inclusion proofs, user records: \`heliusPrivacy\`
-- Open-ended questions that need several lookups and judgment (why a transaction failed, slippage, fees paid, fund flows, wallet links, top holders): \`heliusLana.ask\`, 2,000 credits per call (10,000 with lana-thinking)
+- Questions that need many chained lookups and judgment (why a transaction failed, slippage on a swap, fund flows, wallet links): \`heliusLana.ask\`, 2,000 credits per call (10,000 with lana-thinking). Anything one data tool answers goes to that tool
 
 Rules:
 - Use the chosen routed tool plus the Helius action name in \`action\`.

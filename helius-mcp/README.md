@@ -84,7 +84,7 @@ Helius MCP exposes 12 public tools total: 11 routed domain tools plus `expandRes
 - `heliusWrite` — transfers and staking mutations
 - `heliusCompression` — compressed account, balance, proof, and history actions
 - `heliusPrivacy` — Solana Privacy Rings indexer reads: encrypted UTXOs and shielded transactions by view tag, nullifier, or signature, Merkle and non-inclusion proofs, and user records
-- `heliusLana` — ask Lana, the Helius Solana AI agent, open-ended questions: why a transaction failed, slippage, fees paid, where a wallet's funds came from or went, whether wallets are connected, top holders. Paid plans only; 2,000 credits per call with `lana-fast` (default) or 10,000 with `lana-thinking`
+- `heliusLana` — ask Lana, the Helius Solana AI agent, questions that need many chained lookups: why a transaction failed, slippage on a swap, where a wallet's funds came from or went, whether wallets are connected. Paid plans only; 2,000 credits per call with `lana-fast` (default) or 10,000 with `lana-thinking`
 - `expandResult` — expand summary-first outputs by `resultId`
 
 The 11 routed domain tools share a common shape:

@@ -219,8 +219,8 @@ export function registerLanaTools(registry: ActionRegistry) {
   registry.registerAction(
     'ask',
     'Ask Lana, the Helius Solana AI agent, a question in plain English. Lana looks up wallets, tokens, transactions, and prices itself and answers with its findings. '
-      + 'BEST FOR: open-ended questions that need several lookups and judgment: why a transaction failed, how much slippage a swap got, what fees were paid, where a wallet\'s funds came from or went, whether two wallets are connected, who the top holders of a token are. '
-      + 'PREFER the data tools (heliusTransaction, heliusWallet, heliusAsset, heliusChain) to just fetch or parse data: they cost 1 to 100 credits a call. '
+      + 'ONLY FOR: questions that need many lookups chained with judgment: why a transaction failed, how much slippage a swap got, where a wallet\'s funds came from or went, whether two wallets are connected. '
+      + 'DO NOT USE when one data tool answers it (balances, holdings, top holders, fees paid, parsing a transaction, token info): heliusTransaction, heliusWallet, heliusAsset, and heliusChain are faster, return in about a second, and cost 1 to 100 credits a call. '
       + `COST: ${credits('lana-fast')} per call with lana-fast (default), ${credits('lana-thinking')} with lana-thinking. Ask once with the full question rather than in pieces. `
       + 'Needs a paid Helius plan (Developer or above). Each call is independent: include the context a follow-up needs in the question. lana-thinking can take a few minutes.',
     {
