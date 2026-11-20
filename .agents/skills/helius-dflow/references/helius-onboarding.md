@@ -51,7 +51,7 @@ Every new signup requires the user's real `email`, `firstName`, and `lastName`. 
 
 1. **`generateKeypair`** — same as above.
 2. **User funds the wallet** with ~0.001 SOL (transaction fees) + the plan amount in USDC ($10 Agent one-time, $49 Developer, $499 Business, $999 Professional).
-3. **`signup`** with `mode: "autopay"` — sends USDC + memo from the local keypair, polls until the subscription is provisioned, returns API key + RPC endpoints + project ID.
+3. **`signup`** with `mode: "autopay"` — sends USDC + memo from the local keypair, polls until the subscription is provisioned, returns the project ID (plus the API key and RPC endpoints if the project already has a key; otherwise call `createApiKey`).
 
 If the wallet already has an account on the same plan, `signup` detects it and returns existing credentials (no double payment). If it's on a different plan, `signup` returns `kind: "upgrade_required"` — use `upgradePlan` instead.
 

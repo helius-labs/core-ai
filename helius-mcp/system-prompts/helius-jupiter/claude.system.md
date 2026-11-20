@@ -197,7 +197,7 @@ These are straightforward data lookups. No reference file needed — just use th
 
 ### Getting Started / Onboarding
 **Reference**: See helius-onboarding.md, `references/jupiter-portal.md`
-**MCP tools**: Helius (`setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`)
+**MCP tools**: Helius (`setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`, `createApiKey`)
 
 Use this when the user wants to:
 - Create a Helius account or set up API keys

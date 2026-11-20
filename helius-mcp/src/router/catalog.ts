@@ -354,13 +354,11 @@ catalog.purchaseCredits = makeEntry('purchaseCredits', {
   handleEligibility: false,
 });
 
-// Adds a key to the project and saves it to local config. Purely additive,
-// and never replayed: it is not handle-eligible.
+// Destructive: it replaces the key saved in local config.
 catalog.createApiKey = makeEntry('createApiKey', {
   authRequirement: 'jwt',
   capabilityGate: gate('agent', 'API key creation'),
   mutability: 'write',
-  nonDestructiveWrite: true,
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,

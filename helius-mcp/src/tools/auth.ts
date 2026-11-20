@@ -6,6 +6,7 @@ import { getAddress } from 'helius-sdk/auth/getAddress';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { createApiKey as sdkCreateApiKey } from 'helius-sdk/auth/createApiKey';
+import type { ProjectListItem } from 'helius-sdk/auth/types';
 import { getCheckoutPreview } from 'helius-sdk/auth/checkout';
 import { signup } from 'helius-sdk/auth/signup';
 import { signupAndPay } from 'helius-sdk/auth/signupAndPay';
@@ -150,6 +151,7 @@ export function registerAuthTools(registry: ActionRegistry) {
           '',
           '- If your project already has a key: call `setHeliusApiKey` with it (list keys with `helius apikeys`).',
           '- Otherwise ask the user whether to create one now; if they agree, call `createApiKey`.',
+          '- If a signup is still awaiting payment, have the user pay, then call `signup` with `mode: "resume"` first.',
         );
         return mcpText(lines.join('\n'));
       }
@@ -350,8 +352,7 @@ export function registerAuthTools(registry: ActionRegistry) {
         });
 
         if (result.kind === 'already_subscribed' && !result.apiKey) {
-          setJwt(result.jwt);
-          return mcpText(`**Helius Account Found**\n\n${renderProjectWithoutKey(result.projectId)}`);
+          return renderSignupAndPayResult(result);
         }
 
         if (result.kind === 'already_subscribed') {
@@ -518,8 +519,7 @@ export function registerAuthTools(registry: ActionRegistry) {
         .describe('Project to create the key on. Defaults to your first project.'),
     },
     async ({ projectId }, extra) => {
-      // setApiKey() throws under a shared credential, which would leave a key
-      // created on the backend that the caller never sees.
+      // Refuse before creating a key that setApiKey() would then fail to save.
       if (isSharedCredentialMode()) {
         return mcpError(sharedCredentialRefusal('API key creation'), SHARED_CREDENTIAL_META);
       }
@@ -534,9 +534,15 @@ export function registerAuthTools(registry: ActionRegistry) {
           });
         }
 
-        const projects = await listProjects(jwt, MCP_USER_AGENT);
+        const projects: ProjectListItem[] = await listProjects(jwt, MCP_USER_AGENT);
         if (projects.length === 0) {
-          return noProjectError();
+          // Link-mode signup saves the session before payment lands.
+          return mcpError('No project on this account yet. If a signup is awaiting payment, have the user pay, then call `signup` with `mode: "resume"` before creating a key.', {
+            type: 'AUTH',
+            code: 'NO_PROJECT',
+            retryable: false,
+            recovery: 'Call `signup` with `mode: "resume"` after payment, or `signup` with email, firstName, and lastName to create an account.',
+          });
         }
         const project = projectId ? projects.find((p) => p.id === projectId) : projects[0];
         if (!project) {
@@ -549,7 +555,7 @@ export function registerAuthTools(registry: ActionRegistry) {
         }
 
         // Keys are bound to the project owner's wallet.
-        const walletAddress = project.users?.find((u: { id: string; role: string }) => u.role === 'Owner')?.id as string | undefined;
+        const walletAddress = project.users?.find((u) => u.role === 'Owner')?.id;
         if (!walletAddress) {
           return mcpError('Could not determine the project owner\'s wallet.', {
             type: 'API',
@@ -878,8 +884,6 @@ async function handleResumeSignup() {
   const details = await getProject(jwt, projectId, MCP_USER_AGENT);
   const apiKey = details.apiKeys?.[0]?.keyId;
   if (!apiKey) {
-    // Projects start with no keys; the user decides when to create one.
-    // Signup is finished at this point, so there is nothing to retry.
     return mcpText(`**Signup complete!**\n\n${renderProjectWithoutKey(projectId)}`);
   }
   setApiKey(apiKey);
@@ -892,10 +896,7 @@ async function handleResumeSignup() {
   );
 }
 
-/**
- * A project with no API key yet. New projects start without one, so this is
- * a finished signup, not a pending one: offer to create the key.
- */
+/** New projects start with no API key; signup is still finished. */
 function renderProjectWithoutKey(projectId: string): string {
   return (
     `- **Project ID:** \`${projectId}\`\n` +
@@ -908,12 +909,13 @@ function renderProjectWithoutKey(projectId: string): string {
 type SignupAndPayResult = import('helius-sdk/auth/types').SignupAndPayResult;
 
 function renderSignupAndPayResult(result: SignupAndPayResult): { content: { type: 'text'; text: string }[] } {
-  // Older SDKs always returned a key here; newer ones return the project
-  // without one, since projects no longer get a key at creation.
   if ((result.kind === 'completed' || result.kind === 'already_subscribed') && !result.apiKey) {
     setJwt(result.jwt);
-    const heading = result.kind === 'completed' ? '**Helius Account Created**' : '**Helius Account Found**';
-    return mcpText(`${heading}\n\n${renderProjectWithoutKey(result.projectId)}`);
+    const heading = result.kind === 'completed'
+      ? '**Helius Account Created**'
+      : '**Helius Account Found**\n\nYou already have a Helius account on this plan. No payment was needed.';
+    const tx = result.kind === 'completed' && result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '';
+    return mcpText(`${heading}\n\n${tx}${renderProjectWithoutKey(result.projectId)}`);
   }
   switch (result.kind) {
     case 'completed':

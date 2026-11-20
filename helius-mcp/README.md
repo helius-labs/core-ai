@@ -121,7 +121,7 @@ Start the server with `--read-only`, or set `HELIUS_MCP_READ_ONLY=1`, to serve o
 claude mcp add helius-read-only -- npx helius-mcp@latest --read-only
 ```
 
-The read-only server lists 11 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
+The read-only server lists 11 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, `createApiKey`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
 
 ## System Prompts
 

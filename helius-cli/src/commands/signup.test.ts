@@ -21,6 +21,7 @@ vi.mock("../lib/api.js", () => ({
 const mockSetJwt = vi.fn();
 const mockSetApiKey = vi.fn();
 const mockSetSharedApiKey = vi.fn();
+const mockClearApiKey = vi.fn();
 const mockSetProjectId = vi.fn();
 const mockGetPendingSignup = vi.fn();
 const mockSetPendingSignup = vi.fn();
@@ -31,6 +32,7 @@ vi.mock("../lib/config.js", () => ({
   setJwt: (...args: unknown[]) => mockSetJwt(...args),
   setApiKey: (...args: unknown[]) => mockSetApiKey(...args),
   setSharedApiKey: (...args: unknown[]) => mockSetSharedApiKey(...args),
+  clearApiKey: () => mockClearApiKey(),
   setProjectId: (...args: unknown[]) => mockSetProjectId(...args),
   getPendingSignup: () => mockGetPendingSignup(),
   setPendingSignup: (...args: unknown[]) => mockSetPendingSignup(...args),
@@ -292,6 +294,7 @@ describe("signup command — JSON output shapes", () => {
     expect(json?.data.apiKey).toBeNull();
     expect(json?.data.nextStep).toBe("helius apikeys create");
     expect(mockSetApiKey).not.toHaveBeenCalled();
+    expect(mockClearApiKey).toHaveBeenCalled();
     expect(mockSetProjectId).toHaveBeenCalledWith("proj-1");
   });
 
@@ -544,6 +547,7 @@ describe("signup command — --restart and --resume", () => {
     expect(mockCreateApiKey).not.toHaveBeenCalled();
     expect(mockSetApiKey).not.toHaveBeenCalled();
     expect(mockSetSharedApiKey).not.toHaveBeenCalled();
+    expect(mockClearApiKey).toHaveBeenCalled();
     expect(mockSetProjectId).toHaveBeenCalledWith("proj-1");
     expect(mockSetJwt).toHaveBeenCalledWith(samplePending.jwt);
     expect(mockClearPendingSignup).toHaveBeenCalled();

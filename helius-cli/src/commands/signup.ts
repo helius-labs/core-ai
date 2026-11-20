@@ -13,6 +13,7 @@ import {
   setJwt,
   setApiKey,
   setSharedApiKey,
+  clearApiKey,
   setProjectId,
   getPendingSignup,
   setPendingSignup,
@@ -198,12 +199,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     switch (result.kind) {
       case "already_subscribed": {
-        // Persist the existing API key so other commands can use it. Newer
-        // SDKs return the project without one when it has no key yet.
-        if (result.apiKey) {
-          setApiKey(result.apiKey);
-          setSharedApiKey(result.apiKey);
-        }
+        saveApiKey(result.apiKey || null);
         setProjectId(result.projectId);
         emitAlreadySubscribed(result, options);
         return;
@@ -523,18 +519,13 @@ async function provisionAndEmit(
   }
   const projectId = projects[0].id;
   const details = await getProject(stored.jwt, projectId);
-  // New projects start with no API key; the user creates the first one with
-  // `helius apikeys create`. A project that already has one keeps using it.
+  // New projects start with no API key.
   const apiKey = details.apiKeys?.[0]?.keyId ?? null;
   spinner?.succeed("Signup complete");
 
-  if (apiKey) {
-    setApiKey(apiKey);
-    setSharedApiKey(apiKey);
-  }
+  saveApiKey(apiKey);
   setProjectId(projectId);
-  // `helius apikeys create` reads the top-level session, so make sure it is
-  // the one that owns this project.
+  // `helius apikeys create` uses the top-level session.
   setJwt(stored.jwt);
 
   // Backfill txSignature from the backend for browser-pay flows where the
@@ -582,6 +573,16 @@ async function provisionAndEmit(
 }
 
 const CREATE_KEY_COMMAND = "helius apikeys create";
+
+/** Clears a key left from another account, so `helius apikeys create` saves the new one. */
+function saveApiKey(apiKey: string | null): void {
+  if (apiKey) {
+    setApiKey(apiKey);
+    setSharedApiKey(apiKey);
+  } else {
+    clearApiKey();
+  }
+}
 
 function printKeyAndEndpoints(
   apiKey: string,
@@ -644,21 +645,22 @@ function emitAlreadySubscribed(
   >,
   options: SignupOptions,
 ): void {
+  const { apiKey } = result;
   if (options.json) {
     outputJson({
       status: "ALREADY_SUBSCRIBED",
       walletAddress: result.walletAddress,
       projectId: result.projectId,
-      apiKey: result.apiKey || null,
-      endpoints: result.apiKey ? result.endpoints : null,
-      ...(!result.apiKey && { nextStep: CREATE_KEY_COMMAND }),
+      apiKey: apiKey || null,
+      endpoints: apiKey ? result.endpoints : null,
+      ...(!apiKey && { nextStep: CREATE_KEY_COMMAND }),
     });
     return;
   }
   console.log("\n" + chalk.green("Wallet already has a project on this plan."));
   console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
-  if (result.apiKey) {
-    printKeyAndEndpoints(result.apiKey, result.endpoints);
+  if (apiKey) {
+    printKeyAndEndpoints(apiKey, result.endpoints);
   } else {
     printNoKeyYet();
   }
