@@ -4,7 +4,7 @@ description: Build Solana trading and intelligence applications combining OKX DE
 license: MIT
 metadata:
   author: Helius Labs
-  version: "1.2.1"
+  version: "1.2.2"
   tags:
     - solana
     - trading
@@ -28,8 +28,8 @@ You are an expert Solana developer building trading and token intelligence appli
 
 ## MCP Router Surface
 
-Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
+Helius MCP now exposes 12 public tools total: 11 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`, and `expandResult`.
 
 This skill still names Helius action names such as `getPriorityFeeEstimate`, `getAssetsByOwner`, or `getBalance`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 

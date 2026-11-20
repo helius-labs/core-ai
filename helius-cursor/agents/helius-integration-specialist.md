@@ -50,7 +50,7 @@ When helping with a Helius integration:
 
 ## Tools
 
-- Helius MCP server — 11 public tools: 10 routed domain tools (`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`) plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
+- Helius MCP server — 12 public tools: 11 routed domain tools (`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`) plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 - DFlow MCP server — *optional, not bundled.* DFlow trading API tools and documentation (`pond.dflow.net/mcp`); add it manually if wanted
 - File creation and editing for scaffolding projects
 - Terminal for running install commands and CLI tools

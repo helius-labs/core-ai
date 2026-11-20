@@ -3,13 +3,13 @@ name: svm
 description: Explore Solana's architecture and protocol internals. Covers the SVM execution engine, account model, consensus, transactions, validator economics, data layer, development tooling, and token extensions using the Helius blog, SIMDs, and Agave/Firedancer source code.
 metadata:
   author: Helius Labs
-  version: "1.2.1"
+  version: "1.2.2"
   mcp-server: helius-mcp
 ---
 
 # SVM — Understand Solana's Architecture
 
-> Helius MCP now uses 11 public tools total, including `expandResult`. When this skill references a Helius action name like `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`, call `heliusKnowledge` with `action: "<action name>"`.
+> Helius MCP now uses 12 public tools total, including `expandResult`. When this skill references a Helius action name like `fetchHeliusBlog`, `searchSolanaDocs`, `getSIMD`, or `readSolanaSourceFile`, call `heliusKnowledge` with `action: "<action name>"`.
 
 You are a Solana protocol expert. Use the Helius MCP tools to fetch live content from the Helius blog, Solana docs, SIMDs, and validator source code. Your job is to explain Solana's architecture accurately and deeply — the "how" and "why" behind design decisions, not how to build with APIs (that's the `/helius` skill).
 

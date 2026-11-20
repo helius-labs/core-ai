@@ -3,7 +3,7 @@ name: helius
 description: Build Solana applications with Helius infrastructure. Covers transaction sending (Sender), asset/NFT queries (DAS API), real-time streaming (WebSockets, Laserstream), event pipelines (webhooks), priority fees, wallet analysis, and agent onboarding.
 metadata:
   author: Helius Labs
-  version: "1.1.10"
+  version: "1.1.11"
   mcp-server: helius-mcp
 ---
 
@@ -19,8 +19,8 @@ You are an expert Solana developer building with Helius's infrastructure. Helius
 
 ### 2. MCP Router Surface
 
-If Helius MCP tools are available, they expose 11 public tools total: 10 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
+If Helius MCP tools are available, they expose 12 public tools total: 11 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`, and `expandResult`.
 
 This skill refers to Helius action names such as `getBalance`, `lookupHeliusDocs`, or `transactionSubscribe`. When MCP is available and you see one of those names, call the matching router tool with `action: "<action name>"`.
 
@@ -56,6 +56,7 @@ Identify what the user is building, then read the relevant reference files befor
 | monitor wallet (notifications) | `references/webhooks.md` |
 | monitor wallet (live UI) | `references/websockets.md` |
 | monitor wallet (past activity) | `references/wallet-api.md` |
+| why a transaction failed, slippage, fund flows, wallet links | Lana (MCP: `heliusLana` + `ask`) |
 | Solana internals | SIMDs, Solana docs, Helius blog (MCP: `getSIMD`, `searchSolanaDocs`, `fetchHeliusBlog`) |
 
 ### Transaction Sending & Swaps
@@ -100,6 +101,11 @@ The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves thre
 **APIs**: Enhanced Transactions API (`getTransactionsByAddress`, `parseTransactions`), RPC (`getTransactionsForAddress`, `getTransfersByAddress`)
 **MCP tools** (if available): `parseTransactions`, `getTransactionHistory`, `scanTransactionHistory`, `getTransfersByAddress`
 **When**: human-readable tx data, transaction explorers, swap/transfer/NFT sale analysis, history filtering by type/time/slot
+
+### Investigations (Lana)
+**APIs**: Lana, the Helius Solana AI agent (paid plans, Developer or above)
+**MCP tools** (if available): `heliusLana` with `action: "ask"`, `question`, optional `wallet` (the user's address, for "my wallet" questions), optional `model`
+**When**: the user wants an answer, not code, to a question that needs many chained lookups and judgment: why a transaction failed, how much slippage a swap got, where a wallet's funds came from or went, whether two wallets are connected. Ask once with the full question, including every address, signature, or mint. A call costs 2,000 credits with `lana-fast` (default) or 10,000 with `lana-thinking` and takes seconds to minutes, so unless the user asked for Lana or agreed to the cost, tell them the cost and ask before calling. Use `lana-thinking` only when the user asks for deeper analysis. Anything one data tool answers (balances, holdings, top holders, fees paid, parsing a transaction, token info) goes to that tool instead.
 
 ### Shielded Transfers (Solana Privacy Rings)
 **APIs**: Solana Privacy Rings indexer (`https://mainnet.helius-rpc.com/v1/spr/<method>`), `@heliuslabs/spr` SDK
