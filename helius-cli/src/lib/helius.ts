@@ -62,7 +62,7 @@ export async function resolveApiKey(opts: ResolveOptions = {}): Promise<string> 
   }
 
   throw new Error(
-    "No API key found. Set one with:\n" +
+    "No API key found. Create one with `helius apikeys create`, or set one with:\n" +
     "  helius config set-api-key <key>\n" +
     "  --api-key <key> flag\n" +
     "  HELIUS_API_KEY environment variable"
