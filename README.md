@@ -233,7 +233,7 @@ Or install directly from source:
 
 ### What's Included
 
-**Helius MCP Server** — auto-starts with the plugin. Exposes 11 public tools total: 10 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
+**Helius MCP Server** — auto-starts with the plugin. Exposes 12 public tools total: 11 routed domain tools plus `expandResult`. Domain tools take Helius action names via `action`, and heavy responses are summary-first.
 
 **Skills:**
 

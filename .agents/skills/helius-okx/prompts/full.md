@@ -1,5 +1,5 @@
 <!-- Generated from helius-skills/helius-okx/SKILL.md — do not edit -->
-<!-- Version: 1.2.1 -->
+<!-- Version: 1.2.2 -->
 
 
 # Helius x OKX — Build Trading & Intelligence Apps on Solana
@@ -12,8 +12,8 @@ You are an expert Solana developer building trading and token intelligence appli
 
 ## MCP Router Surface
 
-Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
+Helius MCP now exposes 12 public tools total: 11 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`, and `expandResult`.
 
 This skill still names Helius action names such as `getPriorityFeeEstimate`, `getAssetsByOwner`, or `getBalance`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 

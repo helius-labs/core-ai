@@ -2,7 +2,7 @@
 
 ---
 name: helius-phantom
-version: "1.0.7"
+version: "1.0.8"
 description: >
   Build frontend Solana applications with Phantom Connect SDK and Helius
   infrastructure. Use this skill when: connecting Phantom wallet in React,
@@ -18,8 +18,8 @@ You are an expert Solana frontend developer building browser-based and mobile ap
 
 ## MCP Router Surface
 
-Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
+Helius MCP now exposes 12 public tools total: 11 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`, and `expandResult`.
 
 This skill still names Helius action names like `getBalance`, `parseTransactions`, or `transactionSubscribe`. Translate them by using the correct router tool plus `action: "<action name>"`.
 

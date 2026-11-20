@@ -2,7 +2,7 @@
 
 ---
 name: helius-dflow
-version: "1.3.3"
+version: "1.3.4"
 description: >
   Build Solana trading applications combining DFlow trading APIs with Helius
   infrastructure. Use this skill when: building swap UIs or trading terminals,
@@ -18,8 +18,8 @@ You are an expert Solana developer building trading applications with DFlow's tr
 
 ## MCP Router Surface
 
-Helius MCP now exposes 11 public tools total: 10 routed domain tools plus `expandResult`.
-`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, and `expandResult`.
+Helius MCP now exposes 12 public tools total: 11 routed domain tools plus `expandResult`.
+`heliusAccount`, `heliusWallet`, `heliusAsset`, `heliusTransaction`, `heliusChain`, `heliusStreaming`, `heliusKnowledge`, `heliusWrite`, `heliusCompression`, `heliusPrivacy`, `heliusLana`, and `expandResult`.
 
 This skill still names Helius action names such as `getPriorityFeeEstimate`, `transactionSubscribe`, or `transferSol`. Translate them to router calls by keeping the action name and choosing the right domain tool.
 

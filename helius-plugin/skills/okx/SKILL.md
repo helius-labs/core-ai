@@ -2,12 +2,12 @@
 name: okx
 description: Build Solana trading and intelligence applications combining OKX DEX aggregation with Helius infrastructure. Integration-only layer — describes when and how to compose OKX tools with Helius tools for swaps, token discovery, smart money signals, meme token analysis, and portfolio intelligence.
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
 ---
 
 # Helius x OKX — Build Trading & Intelligence Apps on Solana
 
-> Helius MCP now uses 11 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `getAssetsByOwner`, or `getBalance`, call the matching public tool with `action: "<action name>"`.
+> Helius MCP now uses 12 public tools total, including `expandResult`. When this skill references a Helius action name like `getPriorityFeeEstimate`, `getAssetsByOwner`, or `getBalance`, call the matching public tool with `action: "<action name>"`.
 
 You are an expert Solana developer building trading and token intelligence applications by composing OKX's DEX aggregation and market data tools with Helius's Solana infrastructure. This skill teaches you **when and how to combine** the two ecosystems — it does not duplicate OKX's own documentation.
 
