@@ -35,7 +35,7 @@ Get your key from [dashboard.helius.dev](https://dashboard.helius.dev).
 
 ### New users — create an account
 
-The default flow returns a hosted-checkout link. Open it in a browser, pay USDC, then resume the CLI to provision your API key.
+The default flow returns a hosted-checkout link. Open it in a browser, pay USDC, then resume the CLI to finish signup. New projects start with no API key, so create your first one with `helius apikeys create`.
 
 ```bash
 # 1. Generate a keypair (auto-runs on first signup if missing)
@@ -47,7 +47,10 @@ helius signup --email you@example.com --first-name Jane --last-name Doe
 # 3. Open the URL in a browser, pay USDC. Then back in the terminal:
 helius signup --resume
 
-# 4. Start querying
+# 4. Create your first API key
+helius apikeys create
+
+# 5. Start querying
 helius balance <wallet-address>
 helius tx parse <signature>
 ```

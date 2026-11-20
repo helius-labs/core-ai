@@ -145,7 +145,7 @@ program
   .option("--discovery-path <text>", "How did you discover Helius?")
   .option("--friction-points <text>", "What friction did you hit finding or setting up Helius?")
   .option("--pay", "Auto-pay USDC + memo from the local keypair instead of printing only the link")
-  .option("--resume", "Poll an existing pending signup intent stored in config, then provision the API key")
+  .option("--resume", "Poll an existing pending signup intent stored in config, then finish signup")
   .option("--restart", "Discard any stored pending signup and start a fresh one")
   .option("--json", "Output in JSON format")
   .addHelpText("after", `
@@ -162,8 +162,9 @@ Examples:
       so you can resume later.
 
   $ helius signup --resume
-      Polls the stored intent and provisions the API key when the backend
-      reports the subscription is active. Does NOT load the keypair.
+      Polls the stored intent and finishes signup when the backend reports
+      the subscription is active. Does NOT load the keypair. New projects
+      start with no API key: create one with \`helius apikeys create\`.
 
   $ helius signup --restart --plan developer --period yearly ...
       Discards the stored pending intent and starts a fresh signup.`)

@@ -4,6 +4,7 @@ export const HELIUS_ACCOUNT_ACTIONS = [
   'generateKeypair',
   'signup',
   'getAccountStatus',
+  'createApiKey',
   'getAccountPlan',
   'getHeliusPlanInfo',
   'compareHeliusPlans',

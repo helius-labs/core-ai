@@ -51,9 +51,9 @@ Most tools require a Helius API key. Three paths:
 
 **Path A — Existing key:** Set the `HELIUS_API_KEY` environment variable, or call the `setHeliusApiKey` MCP tool.
 
-**Path B — Signup:** Call `generateKeypair` → `signup` with `mode: "link"` (returns a hosted `paymentUrl` the user opens in a browser) → after payment, `signup` with `mode: "resume"`. Or `mode: "autopay"` to pay USDC from the local keypair (wallet must hold ~0.001 SOL + the plan amount in USDC). API key is configured automatically.
+**Path B — Signup:** Call `generateKeypair` → `signup` with `mode: "link"` (returns a hosted `paymentUrl` the user opens in a browser) → after payment, `signup` with `mode: "resume"`. Or `mode: "autopay"` to pay USDC from the local keypair (wallet must hold ~0.001 SOL + the plan amount in USDC). New projects start with no API key: when signup returns one without a key, ask the user, then call `createApiKey`, which configures it automatically.
 
-**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link) → user pays in browser → `npx helius-cli@latest signup --resume`. Or `--pay` to autopay.
+**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link) → user pays in browser → `npx helius-cli@latest signup --resume` → `npx helius-cli@latest apikeys create`. Or `--pay` to autopay.
 
 Get keys from https://dashboard.helius.dev.
 

@@ -5,6 +5,7 @@ import { loadKeypair } from 'helius-sdk/auth/loadKeypair';
 import { getAddress } from 'helius-sdk/auth/getAddress';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
+import { createApiKey as sdkCreateApiKey } from 'helius-sdk/auth/createApiKey';
 import { getCheckoutPreview } from 'helius-sdk/auth/checkout';
 import { signup } from 'helius-sdk/auth/signup';
 import { signupAndPay } from 'helius-sdk/auth/signupAndPay';
@@ -141,6 +142,18 @@ export function registerAuthTools(registry: ActionRegistry) {
         return mcpText(lines.join('\n'));
       }
 
+      // Signed in, but the project has no key yet. New projects start without one.
+      if (jwt && !readOnly) {
+        lines.push(
+          '',
+          'Your account session is configured, but no API key is set for these tools.',
+          '',
+          '- If your project already has a key: call `setHeliusApiKey` with it (list keys with `helius apikeys`).',
+          '- Otherwise ask the user whether to create one now; if they agree, call `createApiKey`.',
+        );
+        return mcpText(lines.join('\n'));
+      }
+
       // No API key, and this server cannot set one or sign up
       if (readOnly) {
         lines.push(
@@ -185,7 +198,7 @@ export function registerAuthTools(registry: ActionRegistry) {
         '',
         '1. Call `generateKeypair` to create (or load) a Solana wallet — required for every signup mode, including link mode (the wallet address is bound to the payment intent).',
         '2. Call `signup` with your email/name. By default (`mode: "link"`) it returns a hosted-checkout URL the user can open in a browser to pay with any wallet.',
-        '3. After the user pays, call `signup` again with `mode: "resume"` to poll the intent and provision the API key.',
+        '3. After the user pays, call `signup` again with `mode: "resume"` to finish signup. If the new project has no API key yet, call `createApiKey` once the user agrees.',
         '',
         'For an autopay flow that pays USDC directly from the local keypair, pass `mode: "autopay"` to `signup`. The wallet must hold ~0.001 SOL for fees and the plan amount in USDC.',
         '',
@@ -254,7 +267,7 @@ export function registerAuthTools(registry: ActionRegistry) {
 
   registry.registerAction(
     'signup',
-    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Creating a new account requires `email`, `firstName`, and `lastName` (the wallet is only the payment method); they are not needed if this wallet already has an account. Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and provisions the API key after the user has paid in a browser. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
+    'Create a Helius account via crypto checkout. Requires `generateKeypair` to have been called first (the wallet address is bound to the payment intent in every mode). Creating a new account requires `email`, `firstName`, and `lastName` (the wallet is only the payment method); they are not needed if this wallet already has an account. Default `mode: "link"` returns a hosted-checkout URL the user opens in a browser to pay USDC. `mode: "autopay"` sends USDC + memo directly from the local keypair. `mode: "resume"` polls a pending payment intent and finishes signup after the user has paid in a browser. New projects start with no API key: when signup returns a project without one, ask the user, then call `createApiKey`. NOTE: resume strictly polls the JWT-bound project list and cannot distinguish "pending signup awaiting browser pay" from "stale JWT left over from a long-completed signup" — if the wallet already has an API key, prefer `setHeliusApiKey` over re-resuming.',
     {
       mode: z
         .enum(['link', 'autopay', 'resume'])
@@ -336,6 +349,11 @@ export function registerAuthTools(registry: ActionRegistry) {
           couponCode,
         });
 
+        if (result.kind === 'already_subscribed' && !result.apiKey) {
+          setJwt(result.jwt);
+          return mcpText(`**Helius Account Found**\n\n${renderProjectWithoutKey(result.projectId)}`);
+        }
+
         if (result.kind === 'already_subscribed') {
           setApiKey(result.apiKey);
           setSharedApiKey(result.apiKey);
@@ -392,7 +410,9 @@ export function registerAuthTools(registry: ActionRegistry) {
       const ctx = contextFromExtra(extra);
       const readOnly = isReadOnlySurface();
       try {
-        if (!hasApiKey(ctx)) {
+        const jwt = getJwt(ctx);
+        const apiKeyConfigured = hasApiKey(ctx);
+        if (!apiKeyConfigured && !jwt) {
           return mcpText(
             `## Account Status\n\n` +
               `**Auth:** Not authenticated\n\n` +
@@ -405,7 +425,6 @@ export function registerAuthTools(registry: ActionRegistry) {
           );
         }
 
-        const jwt = getJwt(ctx);
         if (!jwt) {
           return mcpText(
             `## Account Status\n\n` +
@@ -436,6 +455,16 @@ export function registerAuthTools(registry: ActionRegistry) {
         const lines: string[] = [`## Account Status`, ''];
         lines.push(`**Auth:** Authenticated`);
         lines.push(`**Plan:** ${planInfo ? planInfo.name : planKey}  |  **Project:** \`${projectId}\``);
+        if (!apiKeyConfigured) {
+          lines.push(
+            '',
+            readOnly
+              ? `**API key:** none configured. ${READ_ONLY_GUIDANCE.apiKey}`
+              : (details.apiKeys?.length ?? 0) > 0
+                ? '**API key:** none configured for these tools. Call `setHeliusApiKey` with one of this project\'s keys.'
+                : '**API key:** this project has none yet. Ask the user whether to create one; if they agree, call `createApiKey`.',
+          );
+        }
         if (isUpgrading && upcomingPlan && upcomingPlan !== planKey) {
           lines.push(`**Upcoming plan:** ${upcomingPlan} (takes effect at next billing cycle)`);
         }
@@ -473,6 +502,76 @@ export function registerAuthTools(registry: ActionRegistry) {
         return mcpText(lines.join('\n'));
       } catch (err) {
         return handleToolError(err, 'Error fetching account status');
+      }
+    },
+  );
+
+  // ── API Key Creation ──
+
+  registry.registerAction(
+    'createApiKey',
+    'Create an API key on your Helius project and configure it for this session. New projects start with no API key, so call this after `signup` finishes without one, once the user agrees. Requires a JWT session (from `signup` or `helius login`). Each call creates another key; if the project already has one, prefer `setHeliusApiKey`.',
+    {
+      projectId: z
+        .string()
+        .optional()
+        .describe('Project to create the key on. Defaults to your first project.'),
+    },
+    async ({ projectId }, extra) => {
+      // setApiKey() throws under a shared credential, which would leave a key
+      // created on the backend that the caller never sees.
+      if (isSharedCredentialMode()) {
+        return mcpError(sharedCredentialRefusal('API key creation'), SHARED_CREDENTIAL_META);
+      }
+      try {
+        const jwt = getJwt(contextFromExtra(extra));
+        if (!jwt) {
+          return mcpError('No account session found. Call `signup` first, or run `helius login` in a terminal.', {
+            type: 'AUTH',
+            code: 'NOT_AUTHENTICATED',
+            retryable: false,
+            recovery: 'Call `signup`, or run `helius login`.',
+          });
+        }
+
+        const projects = await listProjects(jwt, MCP_USER_AGENT);
+        if (projects.length === 0) {
+          return noProjectError();
+        }
+        const project = projectId ? projects.find((p) => p.id === projectId) : projects[0];
+        if (!project) {
+          return mcpError(`Project \`${projectId}\` not found on this account.`, {
+            type: 'VALIDATION',
+            code: 'PROJECT_NOT_FOUND',
+            retryable: false,
+            recovery: `Use one of: ${projects.map((p) => `\`${p.id}\``).join(', ')}.`,
+          });
+        }
+
+        // Keys are bound to the project owner's wallet.
+        const walletAddress = project.users?.find((u: { id: string; role: string }) => u.role === 'Owner')?.id as string | undefined;
+        if (!walletAddress) {
+          return mcpError('Could not determine the project owner\'s wallet.', {
+            type: 'API',
+            code: 'OPERATION_FAILED',
+            retryable: false,
+            recovery: 'Create a key in the dashboard at https://dashboard.helius.dev, then call `setHeliusApiKey`.',
+          });
+        }
+
+        const key = await sdkCreateApiKey(jwt, project.id, walletAddress, MCP_USER_AGENT);
+        setApiKey(key.keyId);
+        setSharedApiKey(key.keyId);
+        return mcpText(
+          `**API key created**\n\n` +
+            `- **Project ID:** \`${project.id}\`\n` +
+            `- **API Key:** \`${key.keyId}\`\n` +
+            `- **Mainnet RPC:** \`https://mainnet.helius-rpc.com/?api-key=${key.keyId}\`\n` +
+            `- **Devnet RPC:** \`https://devnet.helius-rpc.com/?api-key=${key.keyId}\`\n\n` +
+            `API key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`. All Helius tools are ready to use.`,
+        );
+      } catch (err) {
+        return handleToolError(err, 'Error creating API key');
       }
     },
   );
@@ -779,9 +878,9 @@ async function handleResumeSignup() {
   const details = await getProject(jwt, projectId, MCP_USER_AGENT);
   const apiKey = details.apiKeys?.[0]?.keyId;
   if (!apiKey) {
-    return mcpText(
-      'Project is provisioned but no API key has been generated yet. Try again in a moment.',
-    );
+    // Projects start with no keys; the user decides when to create one.
+    // Signup is finished at this point, so there is nothing to retry.
+    return mcpText(`**Signup complete!**\n\n${renderProjectWithoutKey(projectId)}`);
   }
   setApiKey(apiKey);
   setSharedApiKey(apiKey);
@@ -793,9 +892,29 @@ async function handleResumeSignup() {
   );
 }
 
+/**
+ * A project with no API key yet. New projects start without one, so this is
+ * a finished signup, not a pending one: offer to create the key.
+ */
+function renderProjectWithoutKey(projectId: string): string {
+  return (
+    `- **Project ID:** \`${projectId}\`\n` +
+    `- **API Key:** none yet\n\n` +
+    `Your project is ready. It has no API key yet, and Helius tools need one. ` +
+    `Ask the user whether to create one now; if they agree, call \`createApiKey\`.`
+  );
+}
+
 type SignupAndPayResult = import('helius-sdk/auth/types').SignupAndPayResult;
 
 function renderSignupAndPayResult(result: SignupAndPayResult): { content: { type: 'text'; text: string }[] } {
+  // Older SDKs always returned a key here; newer ones return the project
+  // without one, since projects no longer get a key at creation.
+  if ((result.kind === 'completed' || result.kind === 'already_subscribed') && !result.apiKey) {
+    setJwt(result.jwt);
+    const heading = result.kind === 'completed' ? '**Helius Account Created**' : '**Helius Account Found**';
+    return mcpText(`${heading}\n\n${renderProjectWithoutKey(result.projectId)}`);
+  }
   switch (result.kind) {
     case 'completed':
       setApiKey(result.apiKey);
