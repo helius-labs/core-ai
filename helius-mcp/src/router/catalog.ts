@@ -354,6 +354,16 @@ catalog.purchaseCredits = makeEntry('purchaseCredits', {
   handleEligibility: false,
 });
 
+// Destructive: it replaces the key saved in local config.
+catalog.createApiKey = makeEntry('createApiKey', {
+  authRequirement: 'jwt',
+  capabilityGate: gate('agent', 'API key creation'),
+  mutability: 'write',
+  responseFamily: 'record',
+  defaultDetail: 'standard',
+  handleEligibility: false,
+});
+
 catalog.getAccountStatus = makeEntry('getAccountStatus', {
   authRequirement: 'jwt',
   capabilityGate: gate('agent', 'Authenticated account status'),

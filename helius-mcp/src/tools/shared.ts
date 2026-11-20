@@ -5,7 +5,7 @@ const NO_API_KEY_META: ErrorMeta = {
   type: 'AUTH',
   code: 'NO_API_KEY',
   retryable: false,
-  recovery: 'Call generateKeypair + signup, or setHeliusApiKey',
+  recovery: 'Call generateKeypair + signup (then createApiKey), or setHeliusApiKey',
 };
 
 const NO_API_KEY_MESSAGE = `**Helius API Key Required**
@@ -15,7 +15,8 @@ I need a Helius API key to query the Solana blockchain.
 **Option 1 — Sign up here (recommended):**
 1. Call \`generateKeypair\` to create a signup wallet
 2. Call \`signup\` with the user's email, first name, and last name. It returns a payment link to pay with any wallet (or use \`mode: "autopay"\` after funding the keypair with ~0.001 SOL + the plan amount in USDC, $10 for the Agent plan)
-3. After paying via the link, call \`signup\` with \`mode: "resume"\` — the API key is configured automatically
+3. After paying via the link, call \`signup\` with \`mode: "resume"\` to finish signup
+4. New projects start with no API key. If signup returns a project without one, or an account session already exists, ask the user, then call \`createApiKey\`, which configures the key automatically
 
 **Option 2 — Use an existing key:**
 1. Go to https://dashboard.helius.dev/api-keys

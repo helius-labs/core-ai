@@ -45,8 +45,9 @@ The MCP includes a `signup` tool with three modes:
 
 1. Call the `generateKeypair` tool — it creates a Solana wallet and returns the address
 2. Call `signup` with `mode: "link"` — returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) you open in any browser to pay with any wallet
-3. After paying in the browser, call `signup` with `mode: "resume"` — finalizes provisioning and configures the API key automatically
-4. Or skip the browser: call `signup` with `mode: "autopay"` to pay USDC from the local keypair (wallet must hold ~0.001 SOL + the plan amount in USDC)
+3. After paying in the browser, call `signup` with `mode: "resume"` — finishes signup
+4. New projects start with no API key: call `createApiKey` to create one and configure it automatically
+5. Or skip the browser: call `signup` with `mode: "autopay"` to pay USDC from the local keypair (wallet must hold ~0.001 SOL + the plan amount in USDC)
 
 > **All paid plans:** `signup` and `upgradePlan` require `email`, `firstName`, and `lastName` for new signups (every plan, including Agent).
 
@@ -57,6 +58,7 @@ npx helius-cli@latest keygen                  # Generate keypair
 npx helius-cli@latest signup --plan agent     # Print hosted payment link
 # (pay in browser, then:)
 npx helius-cli@latest signup --resume         # Finalize account
+npx helius-cli@latest apikeys create          # Create your first API key
 # Or autopay USDC from the local keypair:
 npx helius-cli@latest signup --plan agent --pay
 ```
@@ -119,7 +121,7 @@ Start the server with `--read-only`, or set `HELIUS_MCP_READ_ONLY=1`, to serve o
 claude mcp add helius-read-only -- npx helius-mcp@latest --read-only
 ```
 
-The read-only server lists 11 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
+The read-only server lists 11 tools: `heliusWrite` is removed, and every other tool lists only its read actions. That rules out transfers, staking, webhook create/update/delete, `setHeliusApiKey`, `generateKeypair`, `signup`, `createApiKey`, and billing. `recommendStack` stays, without its `remember` option. Every tool is annotated `readOnlyHint: true`. Configure the API key with `HELIUS_API_KEY`, since `setHeliusApiKey` is not available.
 
 ## System Prompts
 

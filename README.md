@@ -251,8 +251,8 @@ Or install directly from source:
 The plugin auto-starts the MCP server, but you still need a Helius API key. On first use, Claude will guide you through one of these paths:
 
 - **Existing key**: Use the `setHeliusApiKey` tool with your key from https://dashboard.helius.dev
-- **New account**: `generateKeypair` → `signup` with `mode: "link"` (browser pay) or `mode: "autopay"` (pay USDC from local keypair) → after browser payment, `signup` with `mode: "resume"`
-- **CLI**: `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent` (link) → user pays in browser → `npx helius-cli@latest signup --resume` (or `--pay` to autopay)
+- **New account**: `generateKeypair` → `signup` with `mode: "link"` (browser pay) or `mode: "autopay"` (pay USDC from local keypair) → after browser payment, `signup` with `mode: "resume"` → `createApiKey` (new projects start with no API key)
+- **CLI**: `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent` (link) → user pays in browser → `npx helius-cli@latest signup --resume` (or `--pay` to autopay) → `npx helius-cli@latest apikeys create`
 
 ### Local Testing
 

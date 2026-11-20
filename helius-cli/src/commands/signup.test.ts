@@ -21,6 +21,7 @@ vi.mock("../lib/api.js", () => ({
 const mockSetJwt = vi.fn();
 const mockSetApiKey = vi.fn();
 const mockSetSharedApiKey = vi.fn();
+const mockClearApiKey = vi.fn();
 const mockSetProjectId = vi.fn();
 const mockGetPendingSignup = vi.fn();
 const mockSetPendingSignup = vi.fn();
@@ -31,6 +32,7 @@ vi.mock("../lib/config.js", () => ({
   setJwt: (...args: unknown[]) => mockSetJwt(...args),
   setApiKey: (...args: unknown[]) => mockSetApiKey(...args),
   setSharedApiKey: (...args: unknown[]) => mockSetSharedApiKey(...args),
+  clearApiKey: () => mockClearApiKey(),
   setProjectId: (...args: unknown[]) => mockSetProjectId(...args),
   getPendingSignup: () => mockGetPendingSignup(),
   setPendingSignup: (...args: unknown[]) => mockSetPendingSignup(...args),
@@ -274,6 +276,28 @@ describe("signup command — JSON output shapes", () => {
     expect(mockSetApiKey).toHaveBeenCalledWith("key-1");
   });
 
+  it("ALREADY_SUBSCRIBED with no API key yet points at `helius apikeys create`", async () => {
+    mockGetPendingSignup.mockReturnValue(undefined);
+    mockSignup.mockResolvedValue({
+      kind: "already_subscribed",
+      jwt: "jwt-1",
+      refId: "ref-1",
+      walletAddress: "Wallet111",
+      projectId: "proj-1",
+      apiKey: undefined,
+      endpoints: undefined,
+    });
+
+    const { json } = await captureStdout(() => signupCommand({ ...baseOpts }));
+
+    expect(json?.data.status).toBe("ALREADY_SUBSCRIBED");
+    expect(json?.data.apiKey).toBeNull();
+    expect(json?.data.nextStep).toBe("helius apikeys create");
+    expect(mockSetApiKey).not.toHaveBeenCalled();
+    expect(mockClearApiKey).toHaveBeenCalled();
+    expect(mockSetProjectId).toHaveBeenCalledWith("proj-1");
+  });
+
   it("UPGRADE_REQUIRED when wallet is on a different plan", async () => {
     mockGetPendingSignup.mockReturnValue(undefined);
     mockSignup.mockResolvedValue({
@@ -496,6 +520,59 @@ describe("signup command — --restart and --resume", () => {
     expect(json?.data.apiKey).toBe("key-1");
     expect(json?.data.txSignature).toBe("tx-sent");
     expect(mockClearPendingSignup).toHaveBeenCalled();
+  });
+
+  it("--resume finishes signup for a project with no API key, without creating one", async () => {
+    mockGetPendingSignup.mockReturnValue({ ...samplePending, txSignature: "tx-sent" });
+    mockGetPaymentStatus.mockResolvedValue({
+      status: "completed",
+      phase: "complete",
+      subscriptionActive: true,
+      readyToRedirect: true,
+      message: "ok",
+    });
+    mockListProjects.mockResolvedValue([{ id: "proj-1" }]);
+    mockGetProject.mockResolvedValue({ apiKeys: [] });
+
+    const { json } = await captureStdout(() =>
+      signupCommand({ ...baseOpts, resume: true } as any),
+    );
+
+    expect(json?.ok).toBe(true);
+    expect(json?.data.status).toBe("SUCCESS");
+    expect(json?.data.projectId).toBe("proj-1");
+    expect(json?.data.apiKey).toBeNull();
+    expect(json?.data.endpoints).toBeNull();
+    expect(json?.data.nextStep).toBe("helius apikeys create");
+    expect(mockCreateApiKey).not.toHaveBeenCalled();
+    expect(mockSetApiKey).not.toHaveBeenCalled();
+    expect(mockSetSharedApiKey).not.toHaveBeenCalled();
+    expect(mockClearApiKey).toHaveBeenCalled();
+    expect(mockSetProjectId).toHaveBeenCalledWith("proj-1");
+    expect(mockSetJwt).toHaveBeenCalledWith(samplePending.jwt);
+    expect(mockClearPendingSignup).toHaveBeenCalled();
+  });
+
+  it("--resume points a keyless project at `helius apikeys create` in terminal mode", async () => {
+    mockGetPendingSignup.mockReturnValue({ ...samplePending, txSignature: "tx-sent" });
+    mockGetPaymentStatus.mockResolvedValue({
+      status: "completed",
+      phase: "complete",
+      subscriptionActive: true,
+      readyToRedirect: true,
+      message: "ok",
+    });
+    mockListProjects.mockResolvedValue([{ id: "proj-1" }]);
+    mockGetProject.mockResolvedValue({ apiKeys: [] });
+
+    const { raw, exitCode } = await captureStdout(() =>
+      signupCommand({ ...baseOpts, json: false, resume: true } as any),
+    );
+
+    expect(exitCode).toBeNull();
+    expect(raw).toContain("Signup complete!");
+    expect(raw).toContain("helius apikeys create");
+    expect(raw).not.toContain("api-key=");
   });
 
   it("--resume after backend says EXPIRED clears stored intent", async () => {
