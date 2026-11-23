@@ -181,9 +181,36 @@ describe('a signed-in session with no key', () => {
     expect(text).not.toContain(full2);
     expect(text).toContain('default `1a2b…beef`');
     expect(text).toContain('`5e6f…cafe`');
-    expect(text).toContain('setHeliusApiKey');
-    expect(text).toContain('helius apikeys');
     expect(text).not.toContain('createApiKey');
+  });
+
+  it('getAccountStatus has the user set the key from their terminal, not paste it into chat', async () => {
+    getProjectMock.mockResolvedValue({
+      apiKeys: [{ keyId: '1a2b3c4d-0000-0000-0000-00000000beef', keyName: 'default' }],
+      subscriptionPlanDetails: { currentPlan: 'agent' },
+    });
+    const { getAccountStatus } = await captureHandlers();
+    const { content } = await getAccountStatus({});
+    const text = content[0].text;
+
+    expect(text).toContain('config set-api-key <key>');
+    expect(text).toContain('apikeys');
+    expect(text).toMatch(/do not ask the user to paste the key/i);
+  });
+
+  it('picks up a key set from the terminal on the next call, with no restart', async () => {
+    const config = await import('../src/utils/config.js');
+    const { hasApiKey, getApiKey } = await import('../src/utils/helius.js');
+    expect(hasApiKey()).toBe(false);
+
+    // What `helius config set-api-key` writes to the shared config.
+    vi.mocked(config.getSharedApiKey).mockReturnValue('terminal-set-key');
+    try {
+      expect(hasApiKey()).toBe(true);
+      expect(getApiKey()).toBe('terminal-set-key');
+    } finally {
+      vi.mocked(config.getSharedApiKey).mockReturnValue(undefined);
+    }
   });
 
   it('getAccountStatus caps the key list', async () => {

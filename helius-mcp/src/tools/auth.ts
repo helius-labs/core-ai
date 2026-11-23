@@ -477,7 +477,8 @@ export function registerAuthTools(registry: ActionRegistry) {
             lines.push('', '**API key:** none configured for these tools.');
           } else {
             // A key ID is the secret itself, so only masked IDs reach the model.
-            // The user copies the full key they pick from `helius apikeys` or the dashboard.
+            // The user sets the full key from their own terminal; this server
+            // rereads the shared config on every call, so the key never enters chat.
             const shown = projectKeys.slice(0, MAX_STATUS_KEYS);
             lines.push(
               '',
@@ -489,7 +490,14 @@ export function registerAuthTools(registry: ActionRegistry) {
             }
             lines.push(
               '',
-              'Ask the user which key to use. They can copy the full key from `helius apikeys` or https://dashboard.helius.dev/api-keys; then call `setHeliusApiKey` with it.',
+              'Ask the user to set the key they want from their own terminal, so it never passes through this chat:',
+              '',
+              '```bash',
+              'npx helius-cli@latest apikeys            # shows the full keys',
+              'npx helius-cli@latest config set-api-key <key>',
+              '```',
+              '',
+              'These tools pick it up on the next call, with no restart. Do not ask the user to paste the key here. Only if they cannot run the CLI, they can copy it from https://dashboard.helius.dev/api-keys and you can call `setHeliusApiKey` with it.',
             );
           }
         }
