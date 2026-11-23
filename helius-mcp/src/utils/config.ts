@@ -172,6 +172,12 @@ export function setSharedApiKey(apiKey: string): void {
   saveConfig(config);
 }
 
+export function clearSharedApiKey(): void {
+  const config = loadConfig();
+  delete config.apiKey;
+  saveConfig(config);
+}
+
 /**
  * The dashboard session stored on this host.
  *

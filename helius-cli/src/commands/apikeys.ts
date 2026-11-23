@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { getProject, listProjects, createApiKey } from "../lib/api.js";
-import { getJwt } from "../lib/config.js";
+import { getJwt, getApiKey, getProjectId, setApiKey, setSharedApiKey, SHARED_CONFIG_PATH } from "../lib/config.js";
 import { outputJson, exitWithError, ExitCode, handleCommandError, createSpinner, type OutputOptions } from "../lib/output.js";
 
 async function resolveProjectId(jwt: string, projectId?: string, json?: boolean): Promise<string> {
@@ -117,7 +117,10 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
       exitWithError("NO_PROJECTS", "No projects found", undefined, !!options.json);
     }
 
-    const id = projectId || projects[0].id;
+    // Default to the project signup saved.
+    const savedProjectId = getProjectId();
+    const id = projectId
+      || (savedProjectId && projects.some(p => p.id === savedProjectId) ? savedProjectId : projects[0].id);
     const project = projects.find(p => p.id === id);
 
     if (!project) {
@@ -136,11 +139,19 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     const apiKey = await createApiKey(jwt, id, walletAddress);
     spinner?.succeed("API key created");
 
+    // Signup no longer creates a key, so save the first one.
+    const configured = !getApiKey();
+    if (configured) {
+      setApiKey(apiKey.keyId);
+      setSharedApiKey(apiKey.keyId);
+    }
+
     if (options.json) {
       outputJson({
         projectId: id,
         keyId: apiKey.keyId,
         keyName: apiKey.keyName,
+        configured,
       });
       return;
     }
@@ -148,6 +159,11 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     console.log(`\nKey ID: ${chalk.cyan(apiKey.keyId)}`);
     if (apiKey.keyName) {
       console.log(`Name:   ${apiKey.keyName}`);
+    }
+    if (configured) {
+      console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+    } else {
+      console.log(chalk.gray("Existing key in config kept. Run `helius config set-api-key <key>` to switch."));
     }
   } catch (error) {
     handleCommandError(error, options, spinner);

@@ -7,13 +7,13 @@ import {
   getPaymentIntent,
   listProjects,
   getProject,
-  createApiKey,
   type PaymentLink,
 } from "../lib/api.js";
 import {
   setJwt,
   setApiKey,
   setSharedApiKey,
+  clearApiKey,
   setProjectId,
   getPendingSignup,
   setPendingSignup,
@@ -67,7 +67,7 @@ const buildEndpoints = (apiKey: string) => ({
 /**
  * Phase 1 signup. Three modes:
  *  - Default (link mode): print payment URL, save full pendingSignup, exit.
- *  - --pay: send USDC + memo from local keypair, poll, provision API key.
+ *  - --pay: send USDC + memo from local keypair, poll, finish signup.
  *  - --resume: poll the stored intent (no keypair load, no contact args).
  *
  * Pending-intent reuse: if config has a non-expired pendingSignup and the user
@@ -199,9 +199,7 @@ export async function signupCommand(options: SignupOptions): Promise<void> {
 
     switch (result.kind) {
       case "already_subscribed": {
-        // Persist the existing API key so other commands can use it.
-        setApiKey(result.apiKey);
-        setSharedApiKey(result.apiKey);
+        saveApiKey(result.apiKey || null);
         setProjectId(result.projectId);
         emitAlreadySubscribed(result, options);
         return;
@@ -512,7 +510,7 @@ async function provisionAndEmit(
   options: SignupOptions,
   spinner: ReturnType<typeof createSpinner>,
 ): Promise<void> {
-  spinner?.start("Provisioning API key...");
+  spinner?.start("Finishing signup...");
   const projects = await listProjects(stored.jwt);
   if (projects.length === 0) {
     spinner?.fail("No project provisioned yet — re-run --resume in a moment.");
@@ -521,15 +519,14 @@ async function provisionAndEmit(
   }
   const projectId = projects[0].id;
   const details = await getProject(stored.jwt, projectId);
-  let apiKey = details.apiKeys?.[0]?.keyId;
-  if (!apiKey) {
-    apiKey = (await createApiKey(stored.jwt, projectId, stored.walletAddress)).keyId;
-  }
-  spinner?.succeed("Provisioned");
+  // New projects start with no API key.
+  const apiKey = details.apiKeys?.[0]?.keyId ?? null;
+  spinner?.succeed("Signup complete");
 
-  setApiKey(apiKey);
-  setSharedApiKey(apiKey);
+  saveApiKey(apiKey);
   setProjectId(projectId);
+  // `helius apikeys create` uses the top-level session.
+  setJwt(stored.jwt);
 
   // Backfill txSignature from the backend for browser-pay flows where the
   // SDK never saw the on-chain signature (the user paid via wallet-connect
@@ -547,7 +544,7 @@ async function provisionAndEmit(
 
   clearPendingSignup();
 
-  const endpoints = buildEndpoints(apiKey);
+  const endpoints = apiKey ? buildEndpoints(apiKey) : null;
 
   if (options.json) {
     outputJson({
@@ -558,20 +555,49 @@ async function provisionAndEmit(
       endpoints,
       paymentIntentId: stored.paymentIntentId,
       txSignature: resolvedTxSignature ?? null,
+      ...(!apiKey && { nextStep: CREATE_KEY_COMMAND }),
     });
     return;
   }
 
   console.log("\n" + chalk.green("Signup complete!"));
   console.log(`\nProject ID: ${chalk.cyan(projectId)}`);
+  if (apiKey && endpoints) {
+    printKeyAndEndpoints(apiKey, endpoints);
+  } else {
+    printNoKeyYet();
+  }
+  if (resolvedTxSignature) {
+    console.log(`\nTransaction: ${chalk.blue(`${TX_EXPLORER}/${resolvedTxSignature}`)}`);
+  }
+}
+
+const CREATE_KEY_COMMAND = "helius apikeys create";
+
+/** Clears a key left from another account, so `helius apikeys create` saves the new one. */
+function saveApiKey(apiKey: string | null): void {
+  if (apiKey) {
+    setApiKey(apiKey);
+    setSharedApiKey(apiKey);
+  } else {
+    clearApiKey();
+  }
+}
+
+function printKeyAndEndpoints(
+  apiKey: string,
+  endpoints: { mainnet: string; devnet: string },
+): void {
   console.log(`API Key: ${chalk.cyan(apiKey)}`);
   console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
   console.log(chalk.bold("\nRPC Endpoints:"));
   console.log(`  Mainnet: ${chalk.blue(endpoints.mainnet)}`);
   console.log(`  Devnet:  ${chalk.blue(endpoints.devnet)}`);
-  if (resolvedTxSignature) {
-    console.log(`\nTransaction: ${chalk.blue(`${TX_EXPLORER}/${resolvedTxSignature}`)}`);
-  }
+}
+
+function printNoKeyYet(): void {
+  console.log(`API Key: ${chalk.gray("none yet")}`);
+  console.log(`\nCreate your first API key with: ${chalk.cyan(CREATE_KEY_COMMAND)}`);
 }
 
 function emitPaymentRequired(
@@ -619,23 +645,25 @@ function emitAlreadySubscribed(
   >,
   options: SignupOptions,
 ): void {
+  const { apiKey } = result;
   if (options.json) {
     outputJson({
       status: "ALREADY_SUBSCRIBED",
       walletAddress: result.walletAddress,
       projectId: result.projectId,
-      apiKey: result.apiKey,
-      endpoints: result.endpoints,
+      apiKey: apiKey || null,
+      endpoints: apiKey ? result.endpoints : null,
+      ...(!apiKey && { nextStep: CREATE_KEY_COMMAND }),
     });
     return;
   }
   console.log("\n" + chalk.green("Wallet already has a project on this plan."));
   console.log(`\nProject ID: ${chalk.cyan(result.projectId)}`);
-  console.log(`API Key: ${chalk.cyan(result.apiKey)}`);
-  console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
-  console.log(chalk.bold("\nRPC Endpoints:"));
-  console.log(`  Mainnet: ${chalk.blue(result.endpoints.mainnet)}`);
-  console.log(`  Devnet:  ${chalk.blue(result.endpoints.devnet)}`);
+  if (apiKey) {
+    printKeyAndEndpoints(apiKey, result.endpoints);
+  } else {
+    printNoKeyYet();
+  }
 }
 
 function emitUpgradeRequired(

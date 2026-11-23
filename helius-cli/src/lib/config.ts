@@ -210,6 +210,12 @@ export function setApiKey(apiKey: string): void {
   save(config);
 }
 
+export function clearApiKey(): void {
+  const config = load();
+  delete config.apiKey;
+  save(config);
+}
+
 export function getNetwork(): "mainnet" | "devnet" {
   return load().network || "mainnet";
 }

@@ -336,7 +336,7 @@ export function classifyError(error: unknown): ErrorClassification {
 export const CLI_GUIDANCE: Record<string, string> = {
   INVALID_API_KEY: 'Run `helius config set-api-key <key>` with a valid key, or `helius usage` to check your current plan and credits.',
   RATE_LIMITED: 'Run `helius usage` to check remaining credits. Back off and retry, or upgrade your plan for higher limits.',
-  NO_API_KEY: 'Run `helius config set-api-key <key>` or set HELIUS_API_KEY env var. Get a key at https://dashboard.helius.dev.',
+  NO_API_KEY: 'Run `helius apikeys create` to create your first key, or `helius config set-api-key <key>`, or set HELIUS_API_KEY env var.',
   NOT_FOUND: 'The requested resource was not found. Verify the address or identifier is correct.',
   SERVER_ERROR: 'Helius backend error. Retry after a few seconds.',
   NETWORK_ERROR: 'Could not connect to Helius. Check your internet connection and retry.',
