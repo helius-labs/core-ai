@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const getBlockMock = vi.fn(async (..._args: unknown[]) => null);
 vi.mock("../src/lib/helius.js", () => ({
-  setupClient: vi.fn(async () => ({ raw: { getBlock: getBlockMock } })),
+  setupClient: vi.fn(async () => ({
+    kitRpc: { getBlock: (...args: unknown[]) => ({ send: () => getBlockMock(...args) }) },
+  })),
 }));
 
 import { blockCommand } from "../src/commands/block.js";

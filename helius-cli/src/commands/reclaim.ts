@@ -314,7 +314,7 @@ export async function reclaimCommand(
     if (destErr) exitWithError("INVALID_ADDRESS", destErr, undefined, !!options.json);
     const destination = address(destinationAddr);
     const region = (options.region || "Default") as SenderRegion;
-    const senderOpts: Partial<SendViaSenderOptions> = { region };
+    const senderOpts: SendViaSenderOptions = { region };
     if (options.swqosOnly) senderOpts.swqosOnly = true;
     if (options.tipAmount) {
       const tip = parseInt(options.tipAmount, 10);

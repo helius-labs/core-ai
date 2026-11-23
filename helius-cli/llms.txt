@@ -30,7 +30,7 @@ Exit code ranges:
 - [Wallet API](README.md#wallet-api): `wallet identity`, `wallet identity-batch`, `wallet balances`, `wallet history`, `wallet transfers`, `wallet funded-by`
 - [Webhooks](README.md#webhooks): `webhook list`, `webhook get`, `webhook create`, `webhook update`, `webhook delete`
 - [Program accounts](README.md#program-accounts): `program accounts`, `program accounts-all`, `program token-accounts`
-- [Staking](README.md#staking): `stake create`, `stake unstake`, `stake withdraw`, `stake accounts`, `stake withdrawable`, `stake instructions`
+- [Staking](README.md#staking): `stake create`, `stake unstake`, `stake withdraw`, `stake accounts`, `stake withdrawable`, `stake unstake-instruction`, `stake withdraw-instruction`
 - [ZK compression](README.md#zk-compression): `zk account`, `zk balance`, `zk token-holders`, `zk proof`, `zk validity-proof`, `zk tx`, `zk indexer-health`, and more
 - [Transaction sending](README.md#transaction-sending): `send broadcast`, `send raw`, `send sender`, `send poll`, `send compute-units`
 - [WebSocket streaming](README.md#websocket-streaming): `ws account`, `ws logs`, `ws slot`, `ws signature`, `ws program`

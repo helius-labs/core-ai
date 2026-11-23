@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { address, createKeyPairSignerFromBytes, type KeyPairSigner } from "@solana/kit";
+import { address, createKeyPairSignerFromBytes, createNoopSigner, type Address, type KeyPairSigner } from "@solana/kit";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, confirmDestructive, type OutputOptions, type RetryOptions } from "../lib/output.js";
@@ -147,33 +147,60 @@ export async function stakeWithdrawableCommand(stakeAccount: string, options: St
   }
 }
 
-export async function stakeInstructionsCommand(
-  amount: string | undefined,
-  options: StakeOptions & AmountOptions = {},
-): Promise<void> {
-  const spinner = createSpinner(options);
-  try {
-    const lamports = resolveLamports(amount, options, !!options.json);
-    const helius = await setupClient(spinner, options, "Getting stake instructions...");
-    const result = await withRetry(() => helius.stake.getStakeInstructions(lamports), options, spinner);
-    spinner?.stop();
-
-    if (options.json) { outputJson(result); return; }
-
-    console.log(chalk.bold(`\nStake Instructions for ${formatSol(lamports)}:\n`));
-    console.log(chalk.gray(JSON.stringify(result, null, 2)));
-  } catch (error) {
-    handleCommandError(error, options, spinner);
-  }
+/** Validate an address flag, exiting with INVALID_ADDRESS (or INVALID_INPUT when it is missing). */
+function requireAddress(value: string | undefined, flag: string, json: boolean): Address {
+  if (!value) return exitWithError("INVALID_INPUT", `Missing ${flag} <address>.`, undefined, json);
+  const err = validateAddress(value);
+  if (err) exitWithError("INVALID_ADDRESS", `${flag}: ${err}`, undefined, json);
+  return address(value);
 }
 
-export async function stakeUnstakeInstructionCommand(stakeAccount: string, options: StakeOptions = {}): Promise<void> {
+/**
+ * The owner as a no-op signer, so the instruction marks it as a required signer
+ * (a bare address comes out read-only). Whoever submits it signs with the real key.
+ * helius-sdk's public types say Address for this parameter, but the
+ * implementation takes `TransactionSigner | Address`, hence the cast.
+ */
+function ownerSigner(owner: Address): Address {
+  return createNoopSigner(owner) as unknown as Address;
+}
+
+/**
+ * Lamports to withdraw: --amount or --raw-amount when given, otherwise the stake
+ * account's whole balance including the rent-exempt reserve, which closes it.
+ * Exits when there is nothing to withdraw yet.
+ */
+async function resolveWithdrawLamports(
+  helius: Awaited<ReturnType<typeof setupClient>>,
+  stakeAccount: Address,
+  options: StakeOptions & AmountOptions,
+  spinner: ReturnType<typeof createSpinner>,
+): Promise<bigint> {
+  const json = !!options.json;
+  const lamports = options.amount || options.rawAmount
+    ? resolveLamports(undefined, options, json)
+    : BigInt(await withRetry(() => helius.stake.getWithdrawableAmount(stakeAccount, true), options, spinner));
+  if (lamports === 0n) {
+    exitWithError(
+      "INVALID_INPUT",
+      `Nothing to withdraw from ${stakeAccount}: the stake is still active or cooling down. Run \`helius stake withdrawable ${stakeAccount}\` to check.`,
+      undefined,
+      json,
+    );
+  }
+  return lamports;
+}
+
+export async function stakeUnstakeInstructionCommand(stakeAccount: string, options: StakeOptions & { owner?: string } = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    const addrErr = validateAddress(stakeAccount);
-    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    const json = !!options.json;
+    const stake = requireAddress(stakeAccount, "stake account", json);
+    const owner = requireAddress(options.owner, "--owner", json);
     const helius = await setupClient(spinner, options, "Getting unstake instruction...");
-    const result = await withRetry(() => helius.stake.getUnstakeInstruction(stakeAccount as any), options, spinner);
+    // Typed as synchronous, but the SDK loads helius.stake lazily, so the first
+    // call on a fresh client returns a Promise. Awaiting covers both.
+    const result = await helius.stake.getUnstakeInstruction(ownerSigner(owner), stake);
     spinner?.stop();
 
     if (options.json) { outputJson(result); return; }
@@ -185,13 +212,20 @@ export async function stakeUnstakeInstructionCommand(stakeAccount: string, optio
   }
 }
 
-export async function stakeWithdrawInstructionCommand(stakeAccount: string, options: StakeOptions = {}): Promise<void> {
+export async function stakeWithdrawInstructionCommand(
+  stakeAccount: string,
+  options: StakeOptions & AmountOptions & { owner?: string; destination?: string } = {},
+): Promise<void> {
   const spinner = createSpinner(options);
   try {
-    const addrErr = validateAddress(stakeAccount);
-    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    const json = !!options.json;
+    const stake = requireAddress(stakeAccount, "stake account", json);
+    const owner = requireAddress(options.owner, "--owner", json);
+    const destination = options.destination ? requireAddress(options.destination, "--destination", json) : owner;
     const helius = await setupClient(spinner, options, "Getting withdraw instruction...");
-    const result = await withRetry(() => helius.stake.getWithdrawInstruction(stakeAccount as any), options, spinner);
+    const lamports = await resolveWithdrawLamports(helius, stake, options, spinner);
+    // Awaited for the same reason as getUnstakeInstruction above
+    const result = await helius.stake.getWithdrawInstruction(ownerSigner(owner), stake, destination, lamports);
     spinner?.stop();
 
     if (options.json) { outputJson(result); return; }
@@ -261,28 +295,41 @@ export async function stakeUnstakeCommand(stakeAccount: string, options: StakeOp
   }
 }
 
-export async function stakeWithdrawCommand(stakeAccount: string, options: StakeOptions & { keypair?: string } = {}): Promise<void> {
+export async function stakeWithdrawCommand(
+  stakeAccount: string,
+  options: StakeOptions & AmountOptions & { keypair?: string; destination?: string } = {},
+): Promise<void> {
   const spinner = createSpinner(options);
   if (!options.keypair) {
     exitWithError("KEYPAIR_NOT_FOUND", "Missing --keypair flag", undefined, !!options.json);
   }
   try {
-    const addrErr = validateAddress(stakeAccount);
-    if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    const json = !!options.json;
+    const stake = requireAddress(stakeAccount, "stake account", json);
+    const requestedDestination = options.destination ? requireAddress(options.destination, "--destination", json) : undefined;
+    // Load the keypair before asking, so a bad --keypair path fails without a prompt
+    const signer = await loadSigner(options.keypair!, json);
+    const destination = requestedDestination ?? signer.address;
     if (!(await confirmDestructive(
-      chalk.yellow(`\n  Sign a withdraw transaction for ${stakeAccount} with this keypair? (y/N) `),
+      chalk.yellow(`\n  Sign a withdraw transaction from ${stakeAccount} to ${destination} with this keypair? (y/N) `),
       options,
     ))) {
       console.log(chalk.gray("  Cancelled."));
       return;
     }
     const helius = await setupClient(spinner, options, "Creating withdraw transaction...");
-    const result = await withRetry(() => helius.stake.createWithdrawTransaction(stakeAccount as any), options, spinner);
+    const lamports = await resolveWithdrawLamports(helius, stake, options, spinner);
+    const result = await withRetry(
+      () => helius.stake.createWithdrawTransaction(signer, stake, destination, lamports),
+      options,
+      spinner,
+    );
     spinner?.stop();
 
-    if (options.json) { outputJson(result); return; }
+    if (options.json) { outputJson({ ...result, destination, lamports: Number(lamports) }); return; }
 
-    console.log(chalk.bold("\nWithdraw Transaction Created:\n"));
+    console.log(chalk.bold(`\nWithdraw Transaction Created (${formatSol(lamports)} to ${destination}):\n`));
+    console.log(chalk.gray(SIGNED_TX_NOTE));
     console.log(chalk.gray(JSON.stringify(result, null, 2)));
   } catch (error) {
     handleCommandError(error, options, spinner);

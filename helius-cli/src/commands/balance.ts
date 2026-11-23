@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { address as toAddress } from "@solana/kit";
 import { setupClient, resolveNetwork, type ResolveOptions } from "../lib/helius.js";
 import { formatSol, formatAddress, formatTokenAmount, formatTable, type TableColumn } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
@@ -12,7 +13,7 @@ export async function balanceCommand(address: string, options: BalanceOptions = 
     const addrErr = validateAddress(address);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
     const helius = await setupClient(spinner, options, "Fetching balance...");
-    const result = await withRetry(() => helius.raw.getBalance(address), options, spinner) as any;
+    const result = await withRetry(() => helius.raw.getBalance(toAddress(address)), options, spinner) as any;
     spinner?.stop();
 
     const lamports = Number(result.value);

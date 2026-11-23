@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { address as toAddress } from "@solana/kit";
 import { setupClient, type ResolveOptions } from "../lib/helius.js";
 import { formatSol } from "../lib/formatters.js";
 import { outputJson, exitWithError, handleCommandError, createSpinner, withRetry, type OutputOptions, type RetryOptions } from "../lib/output.js";
@@ -12,7 +13,7 @@ export async function accountCommand(address: string, options: AccountOptions = 
     const addrErr = validateAddress(address);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
     const helius = await setupClient(spinner, options, "Fetching account info...");
-    const result = await withRetry(() => helius.raw.getAccountInfo(address, { encoding: "jsonParsed" }), options, spinner) as any;
+    const result = await withRetry(() => helius.kitRpc.getAccountInfo(toAddress(address), { encoding: "jsonParsed" }).send(), options, spinner) as any;
     spinner?.stop();
 
     if (options.json) {

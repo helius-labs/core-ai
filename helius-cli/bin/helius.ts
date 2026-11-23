@@ -38,7 +38,7 @@ import {
 } from "../src/commands/webhook.js";
 import { programAccountsCommand, programAccountsAllCommand, programTokenAccountsCommand } from "../src/commands/program.js";
 import {
-  stakeAccountsCommand, stakeWithdrawableCommand, stakeInstructionsCommand,
+  stakeAccountsCommand, stakeWithdrawableCommand,
   stakeUnstakeInstructionCommand, stakeWithdrawInstructionCommand,
   stakeCreateCommand, stakeUnstakeCommand, stakeWithdrawCommand,
 } from "../src/commands/stake.js";
@@ -993,13 +993,17 @@ Examples:
 
 stakeCmd
   .command("withdraw <stake-account>")
-  .description("Create a withdraw transaction")
-  .option("-k, --keypair <path>", "Path to Solana keypair file")
+  .description("Create a withdraw transaction. Withdraws the whole balance and closes the stake account unless --amount or --raw-amount is given.")
+  .option("-k, --keypair <path>", "Path to Solana keypair file (the withdraw authority)")
+  .option("--destination <address>", "Wallet to receive the SOL (defaults to the keypair's address)")
+  .option("--amount <sol>", "Amount in SOL to withdraw (e.g. 1.5)")
+  .option("--raw-amount <lamports>", "Amount in lamports to withdraw — exact, avoids float rounding")
   .option("-y, --yes", "Skip confirmation prompt")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
-  $ helius stake withdraw <stake-account> -k ~/.helius/keypair.json --json`)
+  $ helius stake withdraw <stake-account> -k ~/.helius/keypair.json --json
+  $ helius stake withdraw <stake-account> -k ~/.helius/keypair.json --amount 0.5 --destination <wallet>`)
   .action(function(this: any, stakeAccount: string) { stakeWithdrawCommand(stakeAccount, opts(this)); });
 
 stakeCmd
@@ -1021,34 +1025,26 @@ Examples:
   .action(function(this: any, stakeAccount: string) { stakeWithdrawableCommand(stakeAccount, opts(this)); });
 
 stakeCmd
-  .command("instructions [amount]")
-  .description("Get stake instructions. Accepts positional SOL, --amount <sol>, or --raw-amount <lamports>.")
-  .option("--amount <sol>", "Amount in SOL (e.g. 1.5) — alternative to positional")
-  .option("--raw-amount <lamports>", "Amount in lamports (e.g. 1500000000) — exact, avoids float rounding")
-  .option("--json", "Output in JSON format")
-  .addHelpText('after', `
-Examples:
-  $ helius stake instructions 5
-  $ helius stake instructions --amount 5
-  $ helius stake instructions --raw-amount 5000000000 --json`)
-  .action(function(this: any, amount: string | undefined) { stakeInstructionsCommand(amount, opts(this)); });
-
-stakeCmd
   .command("unstake-instruction <stake-account>")
   .description("Get unstake instruction")
+  .requiredOption("--owner <address>", "Stake authority that will sign the instruction")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
-  $ helius stake unstake-instruction <stake-account> --json`)
+  $ helius stake unstake-instruction <stake-account> --owner <wallet> --json`)
   .action(function(this: any, stakeAccount: string) { stakeUnstakeInstructionCommand(stakeAccount, opts(this)); });
 
 stakeCmd
   .command("withdraw-instruction <stake-account>")
-  .description("Get withdraw instruction")
+  .description("Get withdraw instruction. Withdraws the whole balance unless --amount or --raw-amount is given.")
+  .requiredOption("--owner <address>", "Withdraw authority that will sign the instruction")
+  .option("--destination <address>", "Wallet to receive the SOL (defaults to --owner)")
+  .option("--amount <sol>", "Amount in SOL to withdraw (e.g. 1.5)")
+  .option("--raw-amount <lamports>", "Amount in lamports to withdraw — exact, avoids float rounding")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
-  $ helius stake withdraw-instruction <stake-account> --json`)
+  $ helius stake withdraw-instruction <stake-account> --owner <wallet> --json`)
   .action(function(this: any, stakeAccount: string) { stakeWithdrawInstructionCommand(stakeAccount, opts(this)); });
 
 // ── ZK Compression ──
@@ -1168,10 +1164,11 @@ Examples:
 zkCmd
   .command("address-proofs <addresses...>")
   .description("Get multiple new address proofs (V2)")
+  .requiredOption("--tree <address>", "Address Merkle tree to prove non-inclusion in (applies to every address)")
   .option("--json", "Output in JSON format")
   .addHelpText('after', `
 Examples:
-  $ helius zk address-proofs 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --json`)
+  $ helius zk address-proofs 86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --tree <address-tree> --json`)
   .action(function(this: any, addrs: string[]) { zkAddressProofsCommand(addrs, opts(this)); });
 
 zkCmd

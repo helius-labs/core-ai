@@ -148,7 +148,7 @@ export async function zkProofsCommand(addresses: string[], options: ZkOptions = 
     const addrErr = validateAddresses(addresses);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
     const helius = await setupClient(spinner, options, `Fetching proofs for ${addresses.length} account(s)...`);
-    const result = await withRetry(() => helius.zk.getMultipleCompressedAccountProofs({ hashes: addresses }), options, spinner);
+    const result = await withRetry(() => helius.zk.getMultipleCompressedAccountProofs(addresses), options, spinner);
     handleResult(spinner, result, options, "Multiple Compressed Account Proofs");
   } catch (error) {
     handleCommandError(error, options, spinner);
@@ -168,13 +168,17 @@ export async function zkMultipleAccountsCommand(addresses: string[], options: Zk
   }
 }
 
-export async function zkAddressProofsCommand(addresses: string[], options: ZkOptions = {}): Promise<void> {
+export async function zkAddressProofsCommand(addresses: string[], options: ZkOptions & { tree?: string } = {}): Promise<void> {
   const spinner = createSpinner(options);
   try {
     const addrErr = validateAddresses(addresses);
     if (addrErr) exitWithError("INVALID_ADDRESS", addrErr, undefined, !!options.json);
+    if (!options.tree) exitWithError("INVALID_INPUT", "Missing --tree <address>: the address Merkle tree to prove non-inclusion in.", undefined, !!options.json);
+    const treeErr = validateAddress(options.tree!);
+    if (treeErr) exitWithError("INVALID_ADDRESS", treeErr, undefined, !!options.json);
     const helius = await setupClient(spinner, options, `Fetching address proofs (V2)...`);
-    const result = await withRetry(() => helius.zk.getMultipleNewAddressProofsV2(addresses), options, spinner);
+    const request = addresses.map((address) => ({ address, tree: options.tree! }));
+    const result = await withRetry(() => helius.zk.getMultipleNewAddressProofsV2(request), options, spinner);
     handleResult(spinner, result, options, "Multiple New Address Proofs (V2)");
   } catch (error) {
     handleCommandError(error, options, spinner);

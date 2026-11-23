@@ -8,6 +8,10 @@ import { getAddressDecoder } from "@solana/kit";
 const h = vi.hoisted(() => ({
   mockCreateStake: vi.fn(),
   mockCreateUnstake: vi.fn(),
+  mockCreateWithdraw: vi.fn(),
+  mockWithdrawable: vi.fn(),
+  mockUnstakeIx: vi.fn(),
+  mockWithdrawIx: vi.fn(),
   confirmDestructive: vi.fn(),
 }));
 
@@ -16,6 +20,10 @@ vi.mock("../lib/helius.js", () => ({
     stake: {
       createStakeTransaction: (...args: unknown[]) => h.mockCreateStake(...args),
       createUnstakeTransaction: (...args: unknown[]) => h.mockCreateUnstake(...args),
+      createWithdrawTransaction: (...args: unknown[]) => h.mockCreateWithdraw(...args),
+      getWithdrawableAmount: (...args: unknown[]) => h.mockWithdrawable(...args),
+      getUnstakeInstruction: (...args: unknown[]) => h.mockUnstakeIx(...args),
+      getWithdrawInstruction: (...args: unknown[]) => h.mockWithdrawIx(...args),
     },
   }),
 }));
@@ -35,9 +43,13 @@ vi.mock("ora", () => {
   return { default: make };
 });
 
-import { stakeCreateCommand, stakeUnstakeCommand } from "./stake.js";
+import {
+  stakeCreateCommand, stakeUnstakeCommand, stakeWithdrawCommand,
+  stakeUnstakeInstructionCommand, stakeWithdrawInstructionCommand,
+} from "./stake.js";
 
 const STAKE_ACCOUNT = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T";
+const OTHER_WALLET = "86xCnPeV69n6t3DnyGvkKobf9FdN2H9oiVDdaMpo2MMY";
 
 let dir: string;
 let keypairPath: string;
@@ -59,6 +71,11 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 beforeEach(() => {
   h.mockCreateStake.mockReset().mockResolvedValue({ serializedTx: "AA==", stakeAccountPubkey: STAKE_ACCOUNT });
   h.mockCreateUnstake.mockReset().mockResolvedValue({ serializedTx: "AA==" });
+  h.mockCreateWithdraw.mockReset().mockResolvedValue({ serializedTx: "AA==" });
+  h.mockWithdrawable.mockReset().mockResolvedValue(2_282_880);
+  // The SDK's lazy stake namespace returns a Promise on a fresh client's first call
+  h.mockUnstakeIx.mockReset().mockResolvedValue({ programAddress: "Stake11111111111111111111111111111111111111" });
+  h.mockWithdrawIx.mockReset().mockResolvedValue({ programAddress: "Stake11111111111111111111111111111111111111" });
   h.confirmDestructive.mockClear();
 });
 
@@ -142,5 +159,73 @@ describe("stake unstake", () => {
     expect(exitCode).toBe(11);
     expect(h.confirmDestructive).not.toHaveBeenCalled();
     expect(h.mockCreateUnstake).not.toHaveBeenCalled();
+  });
+});
+
+describe("stake withdraw", () => {
+  it("withdraws the whole balance, rent reserve included, to the keypair's address by default", async () => {
+    const { json } = await run(() => stakeWithdrawCommand(STAKE_ACCOUNT, { keypair: keypairPath, json: true, yes: true }));
+    expect(json?.ok).toBe(true);
+    expect(h.mockWithdrawable).toHaveBeenCalledWith(STAKE_ACCOUNT, true);
+    const [signer, stakeAccount, destination, lamports] = h.mockCreateWithdraw.mock.calls[0];
+    expect(signer?.address).toBe(ownerAddress);
+    expect(typeof signer?.signTransactions).toBe("function");
+    expect(stakeAccount).toBe(STAKE_ACCOUNT);
+    expect(destination).toBe(ownerAddress);
+    expect(lamports).toBe(2_282_880n);
+    expect(json?.data).toMatchObject({ serializedTx: "AA==", destination: ownerAddress, lamports: 2_282_880 });
+  });
+
+  it("uses --raw-amount and --destination as given, without looking up the balance", async () => {
+    await run(() =>
+      stakeWithdrawCommand(STAKE_ACCOUNT, { keypair: keypairPath, rawAmount: "1000000", destination: OTHER_WALLET, json: true, yes: true }),
+    );
+    expect(h.mockWithdrawable).not.toHaveBeenCalled();
+    const [, , destination, lamports] = h.mockCreateWithdraw.mock.calls[0];
+    expect(destination).toBe(OTHER_WALLET);
+    expect(lamports).toBe(1_000_000n);
+  });
+
+  it("fails with INVALID_INPUT and builds nothing when the stake is not withdrawable yet", async () => {
+    h.mockWithdrawable.mockResolvedValue(0);
+    const { json } = await run(() => stakeWithdrawCommand(STAKE_ACCOUNT, { keypair: keypairPath, json: true, yes: true }));
+    expect(json?.error_code).toBe("INVALID_INPUT");
+    expect(json?.error).toContain("helius stake withdrawable");
+    expect(h.mockCreateWithdraw).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing keypair before asking for confirmation", async () => {
+    const { exitCode } = await run(() => stakeWithdrawCommand(STAKE_ACCOUNT, { keypair: join(dir, "missing.json") }));
+    expect(exitCode).toBe(11);
+    expect(h.confirmDestructive).not.toHaveBeenCalled();
+    expect(h.mockCreateWithdraw).not.toHaveBeenCalled();
+  });
+});
+
+describe("stake unstake-instruction and withdraw-instruction", () => {
+  it("passes --owner as a signer and prints the resolved instruction", async () => {
+    const { json } = await run(() => stakeUnstakeInstructionCommand(STAKE_ACCOUNT, { owner: OTHER_WALLET, json: true }));
+    expect(json?.data).toEqual({ programAddress: "Stake11111111111111111111111111111111111111" });
+    const [owner, stakeAccount] = h.mockUnstakeIx.mock.calls[0];
+    expect(owner?.address).toBe(OTHER_WALLET);
+    expect(typeof owner?.signTransactions).toBe("function");
+    expect(stakeAccount).toBe(STAKE_ACCOUNT);
+  });
+
+  it("withdraws the whole balance to --owner by default", async () => {
+    const { json } = await run(() => stakeWithdrawInstructionCommand(STAKE_ACCOUNT, { owner: OTHER_WALLET, json: true }));
+    expect(json?.ok).toBe(true);
+    expect(h.mockWithdrawable).toHaveBeenCalledWith(STAKE_ACCOUNT, true);
+    const [owner, stakeAccount, destination, lamports] = h.mockWithdrawIx.mock.calls[0];
+    expect(owner?.address).toBe(OTHER_WALLET);
+    expect(stakeAccount).toBe(STAKE_ACCOUNT);
+    expect(destination).toBe(OTHER_WALLET);
+    expect(lamports).toBe(2_282_880n);
+  });
+
+  it("fails with INVALID_INPUT and never calls the SDK without --owner", async () => {
+    const { json } = await run(() => stakeUnstakeInstructionCommand(STAKE_ACCOUNT, { json: true }));
+    expect(json?.error_code).toBe("INVALID_INPUT");
+    expect(h.mockUnstakeIx).not.toHaveBeenCalled();
   });
 });

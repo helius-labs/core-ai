@@ -196,7 +196,8 @@ helius config clear               # Reset config
 | `helius stake withdraw <stake-account>` | Create a withdraw transaction |
 | `helius stake accounts <wallet>` | Get Helius stake accounts for a wallet |
 | `helius stake withdrawable <stake-account>` | Get withdrawable amount |
-| `helius stake instructions <amount>` | Get stake instructions |
+| `helius stake unstake-instruction <stake-account> --owner <address>` | Get an unstake instruction for the owner to sign |
+| `helius stake withdraw-instruction <stake-account> --owner <address>` | Get a withdraw instruction for the owner to sign |
 
 ### ZK Compression
 

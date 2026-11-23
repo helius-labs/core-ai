@@ -21,11 +21,11 @@ importers:
         specifier: ^6.0.0
         version: 6.0.1
       commander:
-        specifier: ^15.0.0
-        version: 15.0.0
+        specifier: ^15.1.0
+        version: 15.1.0
       helius-sdk:
-        specifier: ^3.4.0
-        version: 3.4.0(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.18.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2))
+        specifier: ^3.4.1
+        version: 3.4.1(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.18.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2))
       ora:
         specifier: ^10.0.0
         version: 10.0.0
@@ -911,6 +911,10 @@ packages:
     resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
     engines: {node: '>=22.12.0'}
 
+  commander@15.1.0:
+    resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
+    engines: {node: '>=22.12.0'}
+
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
@@ -948,8 +952,8 @@ packages:
     resolution: {integrity: sha512-XjH1AECxf0giL2V1aU8vKyRR2ppRUb5c0EvT7zuJTokQ74bNo52zOtghqdWIqrhUD79fo3x0WfKZdOqxF6LG1Q==}
     engines: {node: '>=18'}
 
-  helius-sdk@3.4.0:
-    resolution: {integrity: sha512-SkoHm/zd60RHxw4hSqk0/zaDFeRZ3vot2IFsilZrmjo4fRGlCboh1oFIA7pVJQHvL5MSlvqK4QV3UdBEp3MVOQ==}
+  helius-sdk@3.4.1:
+    resolution: {integrity: sha512-1JbedbXBuxZh8ebTU6sSyX0PIDswb7C0l+SY/7P6eJJ14mjqMiqRvXivSK+3hCR+88UUEMP3Qm5kyYUEqP4u6Q==}
     engines: {node: '>=20'}
     peerDependencies:
       '@solana-program/compute-budget': ^0.15.0
@@ -1118,9 +1122,6 @@ packages:
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
-
-  tslib@2.8.1:
-    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
   tslib@2.9.1:
     resolution: {integrity: sha512-a4Ux9VKuIMHsOS7ENbEq6hK2ZGYIT27Rtl0E4eD9KqwxhKiQeMZE/9xb3IdYwWaSOyIBQLExhQgXDTYoiCxnWA==}
@@ -2012,6 +2013,8 @@ snapshots:
 
   commander@15.0.0: {}
 
+  commander@15.1.0: {}
+
   detect-libc@2.1.2: {}
 
   es-module-lexer@2.3.2: {}
@@ -2060,7 +2063,7 @@ snapshots:
 
   get-east-asian-width@1.7.0: {}
 
-  helius-sdk@3.4.0(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.18.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2)):
+  helius-sdk@3.4.1(@solana-program/compute-budget@0.15.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/stake@0.6.1(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/system@0.16.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana-program/token@0.18.0(@solana/kit@6.10.0(typescript@7.0.2)))(@solana/kit@6.10.0(typescript@7.0.2)):
     dependencies:
       '@solana-program/compute-budget': 0.15.0(@solana/kit@6.10.0(typescript@7.0.2))
       '@solana-program/stake': 0.6.1(@solana/kit@6.10.0(typescript@7.0.2))
@@ -2068,7 +2071,7 @@ snapshots:
       '@solana-program/token': 0.18.0(@solana/kit@6.10.0(typescript@7.0.2))
       '@solana/kit': 6.10.0(typescript@7.0.2)
       bs58: 6.0.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   is-interactive@2.0.0: {}
 
@@ -2215,10 +2218,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.7)
       picomatch: 4.0.7
 
-  tslib@2.8.1: {}
-
-  tslib@2.9.1:
-    optional: true
+  tslib@2.9.1: {}
 
   tsx@4.23.15:
     dependencies:
