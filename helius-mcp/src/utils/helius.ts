@@ -56,6 +56,12 @@ export function setApiKey(apiKey: string): void {
   heliusClient = null; // Reset client so it picks up new key
 }
 
+export function clearApiKey(): void {
+  assertConfigurableAtRuntime('the Helius API key');
+  sessionApiKey = null;
+  heliusClient = null;
+}
+
 export function getApiKey(ctx?: RequestContext | null): string {
   // A supplied context answers alone. Falling through to the deployment's
   // credential on an empty caller key would bill the operator for a request

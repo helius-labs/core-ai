@@ -3,9 +3,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // Projects no longer get an API key at creation. Signup must finish with a
 // keyless project and offer `createApiKey`, rather than wait for a key.
 
-const { getJwtMock, setSharedApiKeyMock, listProjectsMock, getProjectMock, createApiKeyMock, signupMock } = vi.hoisted(() => ({
+const { getJwtMock, setSharedApiKeyMock, clearSharedApiKeyMock, listProjectsMock, getProjectMock, createApiKeyMock, signupMock } = vi.hoisted(() => ({
   getJwtMock: vi.fn<() => string | undefined>(() => 'jwt-1'),
   setSharedApiKeyMock: vi.fn(),
+  clearSharedApiKeyMock: vi.fn(),
   listProjectsMock: vi.fn(),
   getProjectMock: vi.fn(),
   createApiKeyMock: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('../src/utils/config.js', () => ({
   loadConfig: vi.fn(() => ({})),
   saveConfig: vi.fn(),
   setSharedApiKey: setSharedApiKeyMock,
+  clearSharedApiKey: clearSharedApiKeyMock,
   getJwt: getJwtMock,
   setJwt: vi.fn(),
   getPreferences: vi.fn(() => ({})),
@@ -75,6 +77,16 @@ describe('signup resume with a keyless project', () => {
     expect(text).not.toMatch(/try again/i);
     expect(createApiKeyMock).not.toHaveBeenCalled();
     expect(setSharedApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it('drops a key left from another account, so tools stop billing it', async () => {
+    const { setApiKey, hasApiKey } = await import('../src/utils/helius.js');
+    setApiKey('account-a-key');
+    const { signup } = await captureHandlers();
+    await signup({ mode: 'resume', plan: 'agent' });
+
+    expect(hasApiKey()).toBe(false);
+    expect(clearSharedApiKeyMock).toHaveBeenCalled();
   });
 
   it('still configures the key when the project already has one', async () => {

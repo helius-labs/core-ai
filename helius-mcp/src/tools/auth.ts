@@ -19,6 +19,7 @@ import { payRenewal, payRenewalAndPay } from 'helius-sdk/auth/payRenewal';
 import { MCP_USER_AGENT } from '../http.js';
 import {
   setApiKey,
+  clearApiKey,
   hasApiKey,
   setSessionSecretKey,
   setSessionWalletAddress,
@@ -36,6 +37,7 @@ import { fetchDoc, extractSections } from '../utils/docs.js';
 import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import {
   setSharedApiKey,
+  clearSharedApiKey,
   setJwt,
   getJwt,
   SHARED_CONFIG_PATH,
@@ -884,6 +886,7 @@ async function handleResumeSignup() {
   const details = await getProject(jwt, projectId, MCP_USER_AGENT);
   const apiKey = details.apiKeys?.[0]?.keyId;
   if (!apiKey) {
+    clearSavedApiKey();
     return mcpText(`**Signup complete!**\n\n${renderProjectWithoutKey(projectId)}`);
   }
   setApiKey(apiKey);
@@ -894,6 +897,12 @@ async function handleResumeSignup() {
       `- **API Key:** \`${apiKey}\`\n\n` +
       `API key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`. All Helius tools are ready to use.`,
   );
+}
+
+/** Drops a key from another account, so tools don't keep billing it. */
+function clearSavedApiKey(): void {
+  clearApiKey();
+  clearSharedApiKey();
 }
 
 /** New projects start with no API key; signup is still finished. */
@@ -910,6 +919,7 @@ type SignupAndPayResult = import('helius-sdk/auth/types').SignupAndPayResult;
 
 function renderSignupAndPayResult(result: SignupAndPayResult): { content: { type: 'text'; text: string }[] } {
   if ((result.kind === 'completed' || result.kind === 'already_subscribed') && !result.apiKey) {
+    clearSavedApiKey();
     setJwt(result.jwt);
     const heading = result.kind === 'completed'
       ? '**Helius Account Created**'

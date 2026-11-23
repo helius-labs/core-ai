@@ -25,9 +25,9 @@ If using MCP and a tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finishes signup. New projects start with no API key: ask the user, then call `createApiKey`. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$10** Agent (one-time), **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
+**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$10** Agent (one-time), **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
 
-**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume` → `npx helius-cli@latest apikeys create` for the first API key. Or autopay: `... signup --plan agent --pay`.
+**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume`. Or autopay: `... signup --plan agent --pay`.
 
 ## Routing
 
@@ -98,7 +98,7 @@ The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves thre
 ### Getting Started / Onboarding
 **Read**: `references/onboarding.md`
 **APIs**: Account API, CLI (`npx helius-cli@latest`)
-**MCP tools** (if available): `setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`, `createApiKey`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`, `purchaseCredits`
+**MCP tools** (if available): `setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`, `purchaseCredits`
 **When**: account creation, API key management, plan/credits/usage checks, billing
 
 ### Documentation & Troubleshooting

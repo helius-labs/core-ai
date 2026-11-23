@@ -162,6 +162,8 @@ export async function createApiKeyCommand(projectId?: string, options: CreateApi
     }
     if (configured) {
       console.log(chalk.green(`Saved to ${SHARED_CONFIG_PATH}`));
+    } else {
+      console.log(chalk.gray("Existing key in config kept. Run `helius config set-api-key <key>` to switch."));
     }
   } catch (error) {
     handleCommandError(error, options, spinner);

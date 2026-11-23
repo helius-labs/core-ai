@@ -31,9 +31,9 @@ If using MCP and a tool returns "API key not configured":
 
 **Path A — Existing key:** Use `setHeliusApiKey` with their key from https://dashboard.helius.dev.
 
-**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finishes signup. New projects start with no API key: ask the user, then call `createApiKey`. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$10** Agent (one-time), **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
+**Path B — Signup (link or autopay):** `generateKeypair` → `signup` with `mode: "link"` returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`) the user opens in any browser; after payment, `signup` with `mode: "resume"` finalizes provisioning. Or `mode: "autopay"` pays USDC from the local keypair (wallet must hold **~0.001 SOL** + USDC: **$10** Agent (one-time), **$49** Developer, **$499** Business, **$999** Professional; USDC mint `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`). Every new signup requires `email`, `firstName`, `lastName`.
 
-**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume` → `npx helius-cli@latest apikeys create` for the first API key. Or autopay: `... signup --plan agent --pay`.
+**Path C — CLI:** `npx helius-cli@latest keygen` → `npx helius-cli@latest signup --plan agent --email ... --first-name ... --last-name ...` (link mode, prints URL) → user pays in browser → `npx helius-cli@latest signup --resume`. Or autopay: `... signup --plan agent --pay`.
 
 ## Routing
 
@@ -104,7 +104,7 @@ The Gatekeeper WebSocket (`wss://beta.helius-rpc.com`, mainnet only) serves thre
 ### Getting Started / Onboarding
 **Reference**: See onboarding.md (inlined below)
 **APIs**: Account API, CLI (`npx helius-cli@latest`)
-**MCP tools** (if available): `setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`, `createApiKey`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`, `purchaseCredits`
+**MCP tools** (if available): `setHeliusApiKey`, `generateKeypair`, `signup`, `getAccountStatus`, `getAccountPlan`, `previewUpgrade`, `upgradePlan`, `payRenewal`, `purchaseCredits`
 **When**: account creation, API key management, plan/credits/usage checks, billing
 
 ### Documentation & Troubleshooting
@@ -1262,7 +1262,6 @@ Getting users set up with Helius: creating accounts, obtaining API keys, underst
 | `generateKeypair` | Generate or load a Solana keypair for signup (persists to `~/.helius/keypair.json`) |
 | `signup` | Create a Helius account via hosted payment link (`mode: "link"`), or pay USDC directly from the local keypair (`mode: "autopay"`), or finalize a previously-created intent (`mode: "resume"`) |
 | `getAccountStatus` | Check current plan, credits remaining, rate limits, billing cycle, burn-rate projections |
-| `createApiKey` | Create an API key on the project and configure it for the session (new projects start with none) |
 | `getHeliusPlanInfo` | View plan details — pricing, credits, rate limits, features |
 | `compareHeliusPlans` | Compare plans side-by-side by category (rates, features, connections, pricing, support) |
 | `previewUpgrade` | Preview upgrade pricing with proration before committing |
@@ -1292,14 +1291,13 @@ Every new signup requires the user's real `email`, `firstName`, and `lastName`. 
 
 1. **`generateKeypair`** — generates or loads a Solana keypair. Returns the wallet address.
 2. **`signup`** with `mode: "link"` — creates a payment intent and returns a `paymentUrl` (e.g. `https://dashboard.helius.dev/pay/<id>`). The user opens that URL in any browser and pays with any wallet. The pending intent is persisted to shared config.
-3. **`signup`** with `mode: "resume"` — polls the intent and finishes signup once payment settles. If the project already has an API key, it is configured automatically.
-4. **`createApiKey`** — new projects start with no API key. When signup returns a project without one, ask the user whether to create it, then call `createApiKey`.
+3. **`signup`** with `mode: "resume"` — polls the intent, finalizes account provisioning, and configures the API key automatically once payment settles.
 
 **Autopay mode (agent pays USDC from local keypair):**
 
 1. **`generateKeypair`** — same as above.
 2. **User funds the wallet** with ~0.001 SOL (transaction fees) + the plan amount in USDC ($10 Agent one-time, $49 Developer, $499 Business, $999 Professional).
-3. **`signup`** with `mode: "autopay"` — sends USDC + memo from the local keypair, polls until the subscription is provisioned, returns the project ID (plus the API key and RPC endpoints if the project already has a key; otherwise call `createApiKey`).
+3. **`signup`** with `mode: "autopay"` — sends USDC + memo from the local keypair, polls until the subscription is provisioned, returns API key + RPC endpoints + project ID.
 
 If the wallet already has an account on the same plan, `signup` detects it and returns existing credentials (no double payment). If it's on a different plan, `signup` returns `kind: "upgrade_required"` — use `upgradePlan` instead.
 
@@ -1323,9 +1321,6 @@ helius signup --plan agent --email me@example.com --first-name Ada --last-name L
 
 # Pay in the browser, then finalize:
 helius signup --resume --json
-
-# New projects start with no API key; create the first one:
-helius apikeys create --json
 
 # Or autopay USDC directly from the local keypair:
 helius signup --plan agent --email me@example.com --first-name Ada --last-name Lovelace --pay --json

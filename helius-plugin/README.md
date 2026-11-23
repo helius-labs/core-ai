@@ -63,7 +63,7 @@ Claude picks the right tools and reads the right reference files automatically.
 The plugin auto-starts the MCP server, but you still need a Helius API key. On first use, Claude will guide you through one of these paths:
 
 - **Existing key**: Use the `setHeliusApiKey` tool with your key from https://dashboard.helius.dev
-- **New account**: `generateKeypair` → `signup` with `mode: "link"` (browser pay) or `mode: "autopay"` (pay USDC from local keypair) → after browser payment, `signup` with `mode: "resume"` → `createApiKey` (new projects start with no API key)
+- **New account**: `generateKeypair` → `signup` with `mode: "link"` (browser pay) or `mode: "autopay"` (pay USDC from local keypair) → after browser payment, `signup` with `mode: "resume"`
 - **CLI**: `npx helius-cli@latest keygen` → fund → `npx helius-cli@latest signup`
 
 ## Not Using Claude Code?
