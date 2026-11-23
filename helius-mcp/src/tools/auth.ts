@@ -6,7 +6,7 @@ import { getAddress } from 'helius-sdk/auth/getAddress';
 import { listProjects } from 'helius-sdk/auth/listProjects';
 import { getProject } from 'helius-sdk/auth/getProject';
 import { createApiKey as sdkCreateApiKey } from 'helius-sdk/auth/createApiKey';
-import type { ProjectListItem } from 'helius-sdk/auth/types';
+import type { ApiKey, ProjectListItem } from 'helius-sdk/auth/types';
 import { getCheckoutPreview } from 'helius-sdk/auth/checkout';
 import { signup } from 'helius-sdk/auth/signup';
 import { signupAndPay } from 'helius-sdk/auth/signupAndPay';
@@ -50,6 +50,14 @@ import { HELIUS_PLANS } from './plans.js';
 import { contextFromExtra } from '../utils/request-context.js';
 
 type SupportedPlan = 'agent' | 'developer' | 'business' | 'professional';
+
+/** How many of a project's keys `getAccountStatus` lists when none is configured. */
+const MAX_STATUS_KEYS = 5;
+
+/** Enough of a key ID for the user to recognise it, too little to use it. */
+function maskKeyId(keyId: string): string {
+  return keyId.length > 8 ? `${keyId.slice(0, 4)}…${keyId.slice(-4)}` : '••••';
+}
 
 const renderPaymentLink = (
   paymentLink: {
@@ -459,14 +467,31 @@ export function registerAuthTools(registry: ActionRegistry) {
         lines.push(`**Auth:** Authenticated`);
         lines.push(`**Plan:** ${planInfo ? planInfo.name : planKey}  |  **Project:** \`${projectId}\``);
         if (!apiKeyConfigured) {
-          lines.push(
-            '',
-            readOnly
-              ? `**API key:** none configured. ${READ_ONLY_GUIDANCE.apiKey}`
-              : (details.apiKeys?.length ?? 0) > 0
-                ? '**API key:** none configured for these tools. Call `setHeliusApiKey` with one of this project\'s keys.'
-                : '**API key:** this project has none yet. Ask the user whether to create one; if they agree, call `createApiKey`.',
-          );
+          const projectKeys: ApiKey[] = details.apiKeys ?? [];
+          if (readOnly) {
+            lines.push('', `**API key:** none configured. ${READ_ONLY_GUIDANCE.apiKey}`);
+          } else if (projectKeys.length === 0) {
+            lines.push('', '**API key:** this project has none yet. Ask the user whether to create one; if they agree, call `createApiKey`.');
+          } else if (isSharedCredentialMode()) {
+            // Never print a host's keys to callers of a shared deployment.
+            lines.push('', '**API key:** none configured for these tools.');
+          } else {
+            // A key ID is the secret itself, so only masked IDs reach the model.
+            // The user copies the full key they pick from `helius apikeys` or the dashboard.
+            const shown = projectKeys.slice(0, MAX_STATUS_KEYS);
+            lines.push(
+              '',
+              '**API key:** none configured for these tools. This project has these keys (masked):',
+              ...shown.map((k) => `- ${k.keyName ? `${k.keyName} ` : ''}\`${maskKeyId(k.keyId)}\``),
+            );
+            if (projectKeys.length > shown.length) {
+              lines.push(`- …and ${projectKeys.length - shown.length} more`);
+            }
+            lines.push(
+              '',
+              'Ask the user which key to use. They can copy the full key from `helius apikeys` or https://dashboard.helius.dev/api-keys; then call `setHeliusApiKey` with it.',
+            );
+          }
         }
         if (isUpgrading && upcomingPlan && upcomingPlan !== planKey) {
           lines.push(`**Upcoming plan:** ${upcomingPlan} (takes effect at next billing cycle)`);

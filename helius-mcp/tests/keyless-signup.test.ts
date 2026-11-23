@@ -166,6 +166,50 @@ describe('a signed-in session with no key', () => {
     expect(text).toContain('createApiKey');
   });
 
+  it('getAccountStatus lists the project\'s keys by name with masked IDs, never the full key', async () => {
+    const full1 = '1a2b3c4d-0000-0000-0000-00000000beef';
+    const full2 = '5e6f7a8b-0000-0000-0000-00000000cafe';
+    getProjectMock.mockResolvedValue({
+      apiKeys: [{ keyId: full1, keyName: 'default' }, { keyId: full2, keyName: '' }],
+      subscriptionPlanDetails: { currentPlan: 'agent' },
+    });
+    const { getAccountStatus } = await captureHandlers();
+    const { content } = await getAccountStatus({});
+    const text = content[0].text;
+
+    expect(text).not.toContain(full1);
+    expect(text).not.toContain(full2);
+    expect(text).toContain('default `1a2b…beef`');
+    expect(text).toContain('`5e6f…cafe`');
+    expect(text).toContain('setHeliusApiKey');
+    expect(text).toContain('helius apikeys');
+    expect(text).not.toContain('createApiKey');
+  });
+
+  it('getAccountStatus caps the key list', async () => {
+    const apiKeys = Array.from({ length: 7 }, (_, i) => ({ keyId: `key${i + 1}-0000-0000-0000-000000000000`, keyName: `k${i + 1}` }));
+    getProjectMock.mockResolvedValue({ apiKeys, subscriptionPlanDetails: { currentPlan: 'agent' } });
+    const { getAccountStatus } = await captureHandlers();
+    const { content } = await getAccountStatus({});
+    const text = content[0].text;
+
+    expect(text).toContain('k5 ');
+    expect(text).not.toContain('k6 ');
+    expect(text).toContain('2 more');
+  });
+
+  it('getAccountStatus does not list the host\'s keys under a shared credential', async () => {
+    process.env.HELIUS_MCP_SHARED_CREDENTIAL = '1';
+    getProjectMock.mockResolvedValue({
+      apiKeys: [{ keyId: 'host-key', keyName: 'default' }],
+      subscriptionPlanDetails: { currentPlan: 'agent' },
+    });
+    const { getAccountStatus } = await captureHandlers();
+    const { content } = await getAccountStatus({});
+
+    expect(content[0].text).not.toContain('host-key');
+  });
+
   it('getStarted offers createApiKey rather than a fresh signup', async () => {
     const { getStarted } = await captureHandlers();
     const { content } = await getStarted({});
