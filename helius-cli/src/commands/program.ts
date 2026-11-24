@@ -52,7 +52,7 @@ export async function programAccountsAllCommand(programId: string, options: Prog
     const helius = await setupClient(spinner, options, "Fetching all program accounts (auto-paginating)...");
     const config: any = {};
     if (options.dataSize) config.filters = [{ dataSize: parseInt(options.dataSize, 10) }];
-    const result = await withRetry(() => helius.getAllProgramAccounts([programId, config]), options, spinner);
+    const result = await withRetry(() => helius.getAllProgramAccounts(programId, config), options, spinner);
     spinner?.stop();
 
     if (options.json) { outputJson(result); return; }

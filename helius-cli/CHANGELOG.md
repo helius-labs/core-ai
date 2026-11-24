@@ -7,10 +7,20 @@
 - **New `--json` shape on mainnet.** `tx parse` returns one `{ signature, parserStatus, parsed }` item per signature (or `parserError` for one that couldn't be found or parsed), and `tx history` returns `{ data, paginationToken }`. Inside `parsed`, `timestamp` is now `blockTime`, `type` is the lowercase `summary.type` (`swap`, `transfer`, ...), and token amounts are raw integers with `decimals`. See the [migration guide](https://www.helius.dev/docs/parsed-events/guides/migrate-from-enhanced-transactions) for the full field mapping.
 - **`tx history --type` is removed.** Parsed Events has no transaction type filter. Passing `--type` exits with an error that points to `helius tx scan`, which filters server-side by program, instruction, or token mint.
 - **History defaults on mainnet:** `confirmed` commitment instead of `finalized`, and successful transactions only. Pass `--commitment finalized` or `--status any` for the old behavior.
+- **`zk address-proofs` requires `--tree <address>`**, the address Merkle tree to prove non-inclusion in. The V2 method takes an `{ address, tree }` pair for each address, and the command sent bare addresses.
+- **`stake instructions` is removed.** The instructions it printed need a co-signature from a new stake-account key that the SDK creates in memory and can't export, so they could never be signed. Use `stake create`, which builds and signs the same transaction.
+- **`stake unstake-instruction` and `stake withdraw-instruction` require `--owner <address>`**, the authority that will sign. They called the SDK with the stake account alone, where it takes the authority first and, for a withdrawal, a destination and amount.
 
 ### New
 - `tx history` takes `--after`, `--sort-order`, `--status`, `--token-accounts`, `--commitment`, block time and slot bounds, and `--pagination-token`, and prints the next page's token. On devnet, `--status`, `--token-accounts`, and `--pagination-token` exit with an error, since Enhanced Transactions doesn't support them.
 - `tx parse` takes any number of signatures, sending at most 100 per request.
+- `stake withdraw` and `stake withdraw-instruction` take `--destination`, `--amount`, and `--raw-amount`. By default they withdraw the whole balance, rent-exempt reserve included, which closes the stake account, and send it to the signer.
+
+### Fixed
+- **`stake withdraw` works.** It never loaded the `--keypair` signer and passed the stake account where the SDK expects the withdraw authority, with no destination or amount. Like `stake create` and `stake unstake`, it now prints a signed transaction ready for `helius send broadcast`.
+- **`zk proofs` sends the hashes as a list.** It sent `{ hashes: [...] }` as the RPC params instead of the list of hashes.
+- **`program accounts-all` sends the program ID.** It passed `[programId, config]` as the program ID, so the request was malformed and `--data-size` was ignored.
+- Upgraded `helius-sdk` to 3.4.1, whose types now resolve under `NodeNext`. They had resolved to `any`, which hid these bugs from the compiler.
 
 ## 2.2.0 — Parsed Events scan
 

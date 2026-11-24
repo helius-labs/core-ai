@@ -1,10 +1,17 @@
 import chalk from "chalk";
+import { address as toAddress } from "@solana/kit";
 import { resolveApiKey, resolveNetwork, getClient, type ResolveOptions } from "../lib/helius.js";
 import { jsonReplacer, classifyError, exitWithError, getCategory, CLI_GUIDANCE, type OutputOptions } from "../lib/output.js";
 import { sendCommandEvent, getCurrentCommand } from "../lib/feedback.js";
 import { validateAddress, validateSignature } from "../lib/validation.js";
 
 interface WsOptions extends OutputOptions, ResolveOptions {}
+
+// helius-sdk types ws.accountNotifications and ws.programNotifications with
+// Parameters<>, which keeps only kit's last overload, the one without
+// `encoding`. The SDK passes the config to kit unchanged, so the subscription
+// is still jsonParsed. The empty type gets past the narrowed signature.
+const JSON_PARSED = { encoding: "jsonParsed" } as {};
 
 // Streaming events are line-delimited `{ event, timestamp, data }` objects and
 // intentionally bypass outputJson()'s envelope ({ ok, v, data }). Wrapping
@@ -91,7 +98,7 @@ export async function wsAccountCommand(address: string, options: WsOptions = {})
     const ac = new AbortController();
 
     setupShutdown(helius, ac, "account notifications", options);
-    const channel = await helius.ws.accountNotifications(address as any, { encoding: "jsonParsed" });
+    const channel = await helius.ws.accountNotifications(toAddress(address), JSON_PARSED);
     await streamSubscription(channel as any, ac, options, "accountNotification");
   } catch (error) {
     handleWsError(error, options);
@@ -167,7 +174,7 @@ export async function wsProgramCommand(programId: string, options: WsOptions = {
     const ac = new AbortController();
 
     setupShutdown(helius, ac, "program notifications", options);
-    const channel = await helius.ws.programNotifications(programId as any, { encoding: "jsonParsed" });
+    const channel = await helius.ws.programNotifications(toAddress(programId), JSON_PARSED);
     await streamSubscription(channel as any, ac, options, "programNotification");
   } catch (error) {
     handleWsError(error, options);

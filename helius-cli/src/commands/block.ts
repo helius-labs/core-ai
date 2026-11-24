@@ -13,10 +13,12 @@ export async function blockCommand(slot: string, options: BlockOptions = {}): Pr
     if (slotErr) exitWithError("INVALID_INPUT", slotErr, undefined, !!options.json);
     const helius = await setupClient(spinner, options, `Fetching block at slot ${slot}...`);
     const slotNum = BigInt(slot);
-    const result = await withRetry(() => helius.raw.getBlock(slotNum, {
+    // kitRpc rather than raw: the SDK's raw wrapper keeps only getBlock's last
+    // overload, so its types reject transactionDetails: "signatures".
+    const result = await withRetry(() => helius.kitRpc.getBlock(slotNum, {
       maxSupportedTransactionVersion: 1,
       transactionDetails: "signatures",
-    }), options, spinner);
+    }).send(), options, spinner);
     spinner?.stop();
 
     if (options.json) {
