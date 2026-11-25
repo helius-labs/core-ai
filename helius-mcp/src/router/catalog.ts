@@ -149,17 +149,25 @@ addEntries(catalog, HELIUS_LANA_ACTIONS, {
   handleEligibility: false,
 });
 
-const developerWalletGate = gate('developer', 'Developer plan or higher');
-const businessStreamingGate = gate('business', 'Business plan or higher');
-const professionalLaserstreamGate = gate(
+// Plan requirements follow https://www.helius.dev/docs/billing/plans and the
+// product pages, and must agree with `minimumPlan` in tools/product-catalog.ts.
+// The Agent plan has the Free plan's features, so "paid plans" means Developer.
+
+// Wallet API identity and funded-by return 403 on Free; the other Wallet API
+// endpoints are open on every plan.
+const paidWalletGate = gate('developer', 'Developer plan or higher');
+// transactionSubscribe and enhanced accountSubscribe are LaserStream WebSocket
+// Helius extensions.
+const developerStreamingGate = gate('developer', 'Developer plan or higher');
+const laserstreamGate = gate(
   'developer',
   'Developer plan on devnet',
   [
     {
-      id: 'professional:laserstream-mainnet',
-      minimumPlan: 'professional',
+      id: 'business:laserstream-mainnet',
+      minimumPlan: 'business',
       predicate: { kind: 'network', oneOf: ['mainnet-beta'] },
-      label: 'Professional plan on mainnet',
+      label: 'Business plan or higher on mainnet',
     },
   ],
 );
@@ -417,64 +425,60 @@ catalog.getHeliusPlanInfo = makeEntry('getHeliusPlanInfo', {
 });
 
 catalog.getWalletBalances = makeEntry('getWalletBalances', {
-  capabilityGate: developerWalletGate,
   responseFamily: 'list',
   defaultDetail: 'standard',
 });
 
 catalog.getWalletBalanceAt = makeEntry('getWalletBalanceAt', {
-  capabilityGate: developerWalletGate,
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
 });
 
 catalog.getWalletHistory = makeEntry('getWalletHistory', {
-  capabilityGate: developerWalletGate,
   responseFamily: 'history',
   defaultDetail: 'standard',
 });
 
 catalog.getWalletTransfers = makeEntry('getWalletTransfers', {
-  capabilityGate: developerWalletGate,
   responseFamily: 'history',
   defaultDetail: 'standard',
 });
 
 catalog.getWalletIdentity = makeEntry('getWalletIdentity', {
-  capabilityGate: developerWalletGate,
+  capabilityGate: paidWalletGate,
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
 });
 
 catalog.batchWalletIdentity = makeEntry('batchWalletIdentity', {
-  capabilityGate: developerWalletGate,
+  capabilityGate: paidWalletGate,
   responseFamily: 'list',
   defaultDetail: 'standard',
 });
 
 catalog.getWalletFundedBy = makeEntry('getWalletFundedBy', {
-  capabilityGate: developerWalletGate,
+  capabilityGate: paidWalletGate,
   responseFamily: 'record',
   defaultDetail: 'standard',
   handleEligibility: false,
 });
 
 catalog.transactionSubscribe = makeEntry('transactionSubscribe', {
-  capabilityGate: businessStreamingGate,
+  capabilityGate: developerStreamingGate,
   responseFamily: 'streamingConfig',
   defaultDetail: 'summary',
 });
 
 catalog.accountSubscribe = makeEntry('accountSubscribe', {
-  capabilityGate: businessStreamingGate,
+  capabilityGate: developerStreamingGate,
   responseFamily: 'streamingConfig',
   defaultDetail: 'summary',
 });
 
 catalog.laserstreamSubscribe = makeEntry('laserstreamSubscribe', {
-  capabilityGate: professionalLaserstreamGate,
+  capabilityGate: laserstreamGate,
   responseFamily: 'streamingConfig',
   defaultDetail: 'summary',
 });
@@ -483,10 +487,10 @@ catalog.getEnhancedWebSocketInfo = makeEntry('getEnhancedWebSocketInfo', {
   authRequirement: 'none',
   capabilityGate: gate('agent', 'Enhanced WebSocket info', [
     {
-      id: 'business:enhanced-websockets',
-      minimumPlan: 'business',
+      id: 'developer:enhanced-websockets',
+      minimumPlan: 'developer',
       predicate: always,
-      label: 'Enhanced WebSockets require Business plan or higher',
+      label: 'Enhanced WebSockets require Developer plan or higher',
     },
   ]),
   responseFamily: 'document',
@@ -503,10 +507,10 @@ catalog.getLaserstreamInfo = makeEntry('getLaserstreamInfo', {
       label: 'Laserstream on devnet requires Developer plan or higher',
     },
     {
-      id: 'professional:laserstream-mainnet-info',
-      minimumPlan: 'professional',
+      id: 'business:laserstream-mainnet-info',
+      minimumPlan: 'business',
       predicate: { kind: 'network', oneOf: ['mainnet-beta'] },
-      label: 'Laserstream on mainnet requires Professional plan',
+      label: 'Laserstream on mainnet requires Business plan or higher',
     },
   ]),
   responseFamily: 'document',

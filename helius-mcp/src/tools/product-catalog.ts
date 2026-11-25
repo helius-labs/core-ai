@@ -149,7 +149,10 @@ export const PRODUCT_CATALOG: Record<string, CatalogProduct> = {
   },
   'standard-websockets': {
     name: 'Standard WebSockets',
-    mcpTools: ['transactionSubscribe'],
+    // transactionSubscribe is a Helius extension (Developer+); no MCP action
+    // generates a standard-method subscription.
+    mcpTools: [],
+    integration: 'Standard Solana subscriptions (`accountSubscribe`, `programSubscribe`, `logsSubscribe`, `signatureSubscribe`, `slotSubscribe`) on `wss://mainnet.helius-rpc.com/?api-key=<key>` or `wss://devnet.helius-rpc.com`, or any Solana WebSocket client.',
     creditCostPerCall: '2 credits per 0.1 MB streamed',
     minimumPlan: 'agent',
     docKey: 'websocket',

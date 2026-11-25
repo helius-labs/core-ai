@@ -570,26 +570,23 @@ export function registerSolanaKnowledgeTools(registry: ActionRegistry) {
   // =========================================================================
   registry.registerAction(
     'fetchHeliusBlog',
-    'Fetch a technical blog post from Helius (helius.dev/blog). The Helius blog covers SVM internals, consensus, transactions, fees, MEV, validator economics, development frameworks, security, and more. Use "list" to see available posts or "fetch" to read one.',
+    'Fetch a technical blog post from Helius (helius.dev/blog). The Helius blog covers SVM internals, consensus, transactions, fees, MEV, validator economics, development frameworks, security, and more. Pass a slug to read one post; omit it to list the posts.',
     {
-      action: z
-        .enum(['fetch', 'list'])
-        .optional()
-        .describe('"fetch" to read a specific post, "list" to see available posts by category. Defaults to "fetch" if slug provided, "list" otherwise.'),
+      // No `action` parameter: the router's own `action` field would shadow it.
       slug: z
         .string()
         .optional()
         .describe(
-          'Blog post slug (required for "fetch"), e.g. "solana-virtual-machine", "consensus-on-solana", "alpenglow"'
+          'Blog post slug to read, e.g. "solana-virtual-machine", "consensus-on-solana", "alpenglow". Omit it to list the posts.'
         ),
       category: z
         .enum(['all', 'runtime', 'consensus', 'transactions', 'validators', 'data', 'security', 'development', 'tokens'])
         .default('all')
         .describe('Filter by category when listing posts'),
     },
-    async ({ action: rawAction, slug: rawSlug, category }) => {
+    async ({ slug: rawSlug, category }) => {
       let slug = rawSlug;
-      const action = rawAction ?? (slug ? 'fetch' : 'list');
+      const action = slug ? 'fetch' : 'list';
       try {
         if (action === 'list') {
           const entries = Object.entries(BLOG_INDEX);

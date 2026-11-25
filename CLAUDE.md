@@ -75,6 +75,18 @@ If you change the router surface, routed tool descriptions, action-routing guida
 
 Do not leave router/runtime changes documented in only one layer.
 
+### Tool descriptions and input schemas
+
+Each routed tool's description and input schema are generated from its actions in `helius-mcp/src/router/descriptions.ts`; the text lives in `router/description-text.ts`:
+
+- The description lists every action on the surface with its required parameters, a `[write]` tag from the catalog, and its line in `ACTION_SUMMARIES` (typed over every action, so a new action will not compile without one), then the tool's `TOOL_NOTES`.
+- Every parameter an action takes must be a field in the tool's schema in `router/schemas.ts`. The SDK strips fields that are not, so a top-level value is lost without an error.
+- Each field's description is the one its actions share. When they describe it differently, write a public one in `FIELD_DESCRIPTIONS`. A field every action takes as an enum is typed as the union of their values.
+
+`tests/tool-descriptions.test.ts` enforces all of this, keeps read-only descriptions from naming removed actions, and caps `tools/list` size. Raise the budget there deliberately.
+
+Plan requirements are stated twice, in the action catalog's capability gates and in `minimumPlan` in `tools/product-catalog.ts`, and must follow the docs' plans page. `tests/plan-gates.test.ts` fails when the two disagree.
+
 ### Tool titles and annotations
 
 Every public tool carries a `title` and explicit `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. The Anthropic and OpenAI directories both require them. Titles live in `helius-mcp/src/router/annotations.ts`; the hints are derived from the action catalog, so they follow each action's labels:

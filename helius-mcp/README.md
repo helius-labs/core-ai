@@ -96,6 +96,8 @@ The 11 routed domain tools share a common shape:
 - optional `detail` — `summary`, `standard`, or `full`
 - telemetry fields — `_feedback`, `_feedbackTool`, `_model`
 
+Each routed tool's description lists its actions with their required parameters and what they cost or change, and every parameter an action takes is a described top-level field.
+
 Each routed tool takes an `action` field with the Helius action name:
 
 ```json
