@@ -196,9 +196,10 @@ describe('resolvers with a context', () => {
     }
   });
 
-  it('builds the WebSocket URL from the context, not module state', () => {
+  it('takes the WebSocket network from the context, and never the key', () => {
     const url = getEnhancedWebSocketUrl(ctx({ network: 'devnet' }));
     expect(url).toContain('atlas-devnet');
-    expect(url).toContain(CALLER_A);
+    expect(url).not.toContain(CALLER_A);
+    expect(url).toContain('YOUR_HELIUS_API_KEY');
   });
 });

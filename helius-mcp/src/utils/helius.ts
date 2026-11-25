@@ -138,40 +138,35 @@ export function getNetwork(ctx?: RequestContext | null): 'mainnet-beta' | 'devne
   return sessionNetwork;
 }
 
-export function getEnhancedWebSocketUrl(ctx?: RequestContext | null): string {
-  const network = getNetwork(ctx);
-  const host = network === 'devnet'
+/*
+ * WebSocket URLs built here are for tool output, never for opening a
+ * connection, so they always carry `API_KEY_PLACEHOLDER` instead of a key. Tool
+ * output lands in the model's context and, from there, in transcripts, logs and
+ * code the model writes into the user's project; a key does not belong in any
+ * of them. Generated example code reads the key from `process.env` instead.
+ *
+ * Resolving the key here would also make these docs/config generators fail for
+ * a caller with no key configured, for no benefit.
+ */
+
+export function getEnhancedWebSocketHost(ctx?: RequestContext | null): string {
+  return getNetwork(ctx) === 'devnet'
     ? 'wss://atlas-devnet.helius-rpc.com'
     : 'wss://atlas-mainnet.helius-rpc.com';
+}
 
-  // Shared-credential mode and a per-caller context are contradictory states:
-  // the first says every caller shares the deployment's key, the second says
-  // this caller brought their own. The placeholder wins where they collide,
-  // because the alternative is worse — every response passes through
-  // `redactSecrets`, whose query-string rule rewrites *any* `api-key=` value in
-  // this mode, so returning the caller's key here yields `***REDACTED***` at the
-  // caller. An unusable URL that says what to substitute beats one that does
-  // not. The two settings become orthogonal when hosted mode is split out, and
-  // a bring-your-own-key deployment will run with redaction off.
-  if (isSharedCredentialMode()) {
-    return `${host}/?api-key=${API_KEY_PLACEHOLDER}`;
-  }
-
-  return `${host}/?api-key=${getApiKey(ctx)}`;
+/** Enhanced WebSocket URL for display, with the key placeholdered. */
+export function getEnhancedWebSocketUrl(ctx?: RequestContext | null): string {
+  return `${getEnhancedWebSocketHost(ctx)}/?api-key=${API_KEY_PLACEHOLDER}`;
 }
 
 /**
  * Gatekeeper WebSocket URL for Parsed Streams, Preconfirmations, and
- * Preprocessed Transactions. Gatekeeper serves mainnet only, so this ignores
- * the network setting. Shared-credential mode gets the placeholder, for the
- * reason `getEnhancedWebSocketUrl` gives.
+ * Preprocessed Transactions, for display, with the key placeholdered.
+ * Gatekeeper serves mainnet only, so this ignores the network setting.
  */
-export function getGatekeeperWebSocketUrl(ctx?: RequestContext | null): string {
-  const host = 'wss://beta.helius-rpc.com';
-  if (isSharedCredentialMode()) {
-    return `${host}/?api-key=${API_KEY_PLACEHOLDER}`;
-  }
-  return `${host}/?api-key=${getApiKey(ctx)}`;
+export function getGatekeeperWebSocketUrl(): string {
+  return `wss://beta.helius-rpc.com/?api-key=${API_KEY_PLACEHOLDER}`;
 }
 
 export function getLaserstreamUrl(

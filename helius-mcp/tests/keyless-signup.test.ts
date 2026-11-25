@@ -90,12 +90,15 @@ describe('signup resume with a keyless project', () => {
   });
 
   it('still configures the key when the project already has one', async () => {
-    getProjectMock.mockResolvedValue({ apiKeys: [{ keyId: 'key-1' }] });
+    const key = '1a2b3c4d-1111-2222-3333-00000000beef';
+    getProjectMock.mockResolvedValue({ apiKeys: [{ keyId: key }] });
     const { signup } = await captureHandlers();
     const { content } = await signup({ mode: 'resume', plan: 'agent' });
 
-    expect(content[0].text).toContain('key-1');
-    expect(setSharedApiKeyMock).toHaveBeenCalledWith('key-1');
+    expect(setSharedApiKeyMock).toHaveBeenCalledWith(key);
+    // Masked: the key is configured and saved, so it has no reason to enter chat.
+    expect(content[0].text).toContain('1a2b…beef');
+    expect(content[0].text).not.toContain(key);
   });
 
   it('link mode handles an existing account with no key', async () => {
@@ -115,14 +118,18 @@ describe('signup resume with a keyless project', () => {
 
 describe('createApiKey', () => {
   it('creates a key bound to the project owner and configures it', async () => {
-    createApiKeyMock.mockResolvedValue({ keyId: 'new-key' });
+    const key = '9f8e7d6c-1111-2222-3333-00000000cafe';
+    createApiKeyMock.mockResolvedValue({ keyId: key });
     const { createApiKey } = await captureHandlers();
     const { isError, content } = await createApiKey({});
 
     expect(isError).toBeFalsy();
     expect(createApiKeyMock).toHaveBeenCalledWith('jwt-1', 'proj-1', 'OwnerWallet', expect.any(String));
-    expect(setSharedApiKeyMock).toHaveBeenCalledWith('new-key');
-    expect(content[0].text).toContain('new-key');
+    expect(setSharedApiKeyMock).toHaveBeenCalledWith(key);
+    // Shown masked, with placeholder RPC URLs, even at creation.
+    expect(content[0].text).toContain('9f8e…cafe');
+    expect(content[0].text).toContain('https://mainnet.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY');
+    expect(content[0].text).not.toContain(key);
   });
 
   it('refuses without a session', async () => {

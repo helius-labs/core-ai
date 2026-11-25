@@ -59,7 +59,7 @@ describe('parsedTransactionSubscribe', () => {
         { commitment: 'confirmed', details: 'matched' },
       ],
     });
-    expect(text).toContain('`wss://beta.helius-rpc.com/?api-key=test-key`');
+    expect(text).toContain('`wss://beta.helius-rpc.com/?api-key=YOUR_HELIUS_API_KEY`');
   });
 
   it('checks instruction and role names with describeProgram in the generated code', async () => {

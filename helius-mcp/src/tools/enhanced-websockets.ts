@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ActionRegistry } from '../router/action-registry.js';
-import { getEnhancedWebSocketUrl } from '../utils/helius.js';
+import { getEnhancedWebSocketHost, getEnhancedWebSocketUrl, hasApiKey } from '../utils/helius.js';
+import { noApiKeyResponse } from './shared.js';
 import { mcpText, mcpError, validateEnum, handleToolError, warnInvalidAddresses, warnInvalidAddress, warnAddressConflicts } from '../utils/errors.js';
 import { fetchDoc, extractSections, truncateDoc } from '../utils/docs.js';
 import { contextFromExtra } from '../utils/request-context.js';
@@ -25,6 +26,7 @@ export function registerEnhancedWebSocketTools(registry: ActionRegistry) {
     },
     async (params, extra) => {
       const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       let err;
       err = validateEnum(params.commitment, ['processed', 'confirmed', 'finalized'], 'Transaction Subscribe Error', 'commitment');
       if (err) return err;
@@ -104,7 +106,7 @@ export function registerEnhancedWebSocketTools(registry: ActionRegistry) {
           '',
           '**Example Code:**',
           '```typescript',
-          `const ws = new WebSocket('${wsUrl}');`,
+          `const ws = new WebSocket(\`${getEnhancedWebSocketHost(ctx)}/?api-key=\${process.env.HELIUS_API_KEY}\`);`,
           'ws.on("open", () => {',
           '  ws.send(JSON.stringify(' + JSON.stringify(subscriptionRequest) + '));',
           '  setInterval(() => ws.ping(), 30000);',
@@ -135,6 +137,7 @@ export function registerEnhancedWebSocketTools(registry: ActionRegistry) {
     },
     async ({ account, encoding, commitment }, extra) => {
       const ctx = contextFromExtra(extra);
+      if (!hasApiKey(ctx)) return noApiKeyResponse();
       let err;
       err = validateEnum(encoding, ['base58', 'base64', 'base64+zstd', 'jsonParsed'], 'Account Subscribe Error', 'encoding');
       if (err) return err;
@@ -178,7 +181,7 @@ export function registerEnhancedWebSocketTools(registry: ActionRegistry) {
           '',
           '**Example Code:**',
           '```typescript',
-          `const ws = new WebSocket('${wsUrl}');`,
+          `const ws = new WebSocket(\`${getEnhancedWebSocketHost(ctx)}/?api-key=\${process.env.HELIUS_API_KEY}\`);`,
           'ws.on("open", () => {',
           '  ws.send(JSON.stringify(' + JSON.stringify(subscriptionRequest) + '));',
           '  setInterval(() => ws.ping(), 30000);',
@@ -204,13 +207,7 @@ export function registerEnhancedWebSocketTools(registry: ActionRegistry) {
     'Get Helius Enhanced WebSocket capabilities, endpoints, and plan requirements. 1.5-2x faster than standard WebSockets. Fetches live from official documentation.',
     {},
     async (_args, extra) => {
-      const ctx = contextFromExtra(extra);
-      let wsUrl: string;
-      try {
-        wsUrl = getEnhancedWebSocketUrl(ctx);
-      } catch (err) {
-        return handleToolError(err, 'Enhanced WebSocket Error');
-      }
+      const wsUrl = getEnhancedWebSocketUrl(contextFromExtra(extra));
 
       let content: string;
       try {

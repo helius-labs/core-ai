@@ -135,9 +135,11 @@ describe('getEnhancedWebSocketUrl', () => {
     expect(url).toContain('YOUR_HELIUS_API_KEY');
   });
 
-  it('returns a usable URL in single-tenant mode', () => {
+  it('returns a placeholder in single-tenant mode too', () => {
     process.env.HELIUS_API_KEY = SERVER_KEY;
-    expect(getEnhancedWebSocketUrl()).toContain(SERVER_KEY);
+    const url = getEnhancedWebSocketUrl();
+    expect(url).not.toContain(SERVER_KEY);
+    expect(url).toContain('YOUR_HELIUS_API_KEY');
   });
 });
 
