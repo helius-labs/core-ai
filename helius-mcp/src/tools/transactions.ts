@@ -337,6 +337,21 @@ function formatScanSummary(scan: ScanSummary): string {
     + `Stopped on \`${scan.stoppedOn}\`: ${SCAN_STOP_REASONS[scan.stoppedOn]}. Credits charged: ${scan.creditsCharged}.`;
 }
 
+/**
+ * Filters that getTransactionHistory, scanTransactionHistory, and
+ * getTransfersByAddress share. The public heliusTransaction schema describes a
+ * field once when its actions word it the same way, so keep these identical.
+ */
+const HISTORY_FIELD_DOCS = {
+  sortOrder: '"desc" = newest first (default), "asc" = oldest first',
+  paginationToken: 'Cursor from the previous response, to fetch the next page. Keep the other parameters the same.',
+  status: 'Execution result to include: "succeeded" (default), "failed", or "any"',
+  blockTimeGte: 'Only include block times >= this Unix timestamp (seconds)',
+  blockTimeLte: 'Only include block times <= this Unix timestamp (seconds)',
+  slotGte: 'Only include slots >= this value',
+  slotLte: 'Only include slots <= this value',
+} as const;
+
 export function registerTransactionTools(registry: ActionRegistry) {
   // Parse Transactions (Parsed Events on mainnet, Enhanced Transactions on devnet)
   registry.registerAction(
@@ -737,20 +752,20 @@ export function registerTransactionTools(registry: ActionRegistry) {
     'getTransactionHistory',
     'BEST FOR: general-purpose transaction history. PREFER getWalletTransfers for sends/receives, getWalletHistory for balance deltas. Get transaction history for a wallet. Modes: "parsed" (~20 credits on mainnet via Parsed Events, ~110 on devnet), "signatures" (~10 credits), "raw" (~10 credits). Supports sortOrder, status filters, and time/slot ranges. To find specific programs, instructions, or token mints in a long history, use scanTransactionHistory.',
     {
-      address: z.string().describe('Solana wallet address (base58 encoded)'),
+      address: z.string().describe('Solana address (base58 encoded)'),
       mode: z.string().optional().default('parsed').describe('"parsed" = decoded human-readable history (default), "signatures" = lightweight signature list, "raw" = full data with advanced Helius filters'),
       limit: z.number().optional().default(10).describe('Number of results (1-1000 for signatures, 1-100 for full/parsed)'),
-      sortOrder: z.string().optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first (great for finding funding sources)'),
+      sortOrder: z.string().optional().default('desc').describe(HISTORY_FIELD_DOCS.sortOrder),
       before: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to start searching backwards from'),
       until: z.string().optional().describe('[signatures mode, desc only] Cursor: transaction signature (base58 encoded, 86-88 characters) to search until'),
-      paginationToken: z.string().optional().describe('Pagination token from previous response for fetching next page'),
+      paginationToken: z.string().optional().describe(HISTORY_FIELD_DOCS.paginationToken),
       transactionDetails: z.string().optional().default('signatures').describe('[raw mode] "signatures" for basic info (up to 1000), "full" for complete transaction data (up to 100)'),
-      status: z.string().optional().default('succeeded').describe('Filter by transaction status. Defaults to "succeeded" — set to "failed" or "any" to include failed transactions.'),
+      status: z.string().optional().default('succeeded').describe(HISTORY_FIELD_DOCS.status),
       tokenAccounts: z.string().optional().describe('"none" = only direct transactions, "balanceChanged" = include token transfers, "all" = all token account activity'),
-      blockTimeGte: z.number().optional().describe('Filter: block time >= this Unix timestamp'),
-      blockTimeLte: z.number().optional().describe('Filter: block time <= this Unix timestamp'),
-      slotGte: z.number().optional().describe('Filter: slot >= this value'),
-      slotLte: z.number().optional().describe('Filter: slot <= this value')
+      blockTimeGte: z.number().optional().describe(HISTORY_FIELD_DOCS.blockTimeGte),
+      blockTimeLte: z.number().optional().describe(HISTORY_FIELD_DOCS.blockTimeLte),
+      slotGte: z.number().optional().describe(HISTORY_FIELD_DOCS.slotGte),
+      slotLte: z.number().optional().describe(HISTORY_FIELD_DOCS.slotLte)
     },
     async ({ address, mode, limit, sortOrder, before, until, paginationToken, transactionDetails, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte }, extra) => {
       const ctx = contextFromExtra(extra);
@@ -1084,14 +1099,14 @@ export function registerTransactionTools(registry: ActionRegistry) {
       returnShape: z.enum(['transactions', 'signatures', 'count']).optional().default('transactions').describe('"transactions" = parsed matches (default), "signatures" = signatures and slots of every match in the scanned range, "count" = only the number of matches'),
       limit: z.number().int().min(1).max(100).optional().default(10).describe('Most matches to return with returnShape "transactions" (1-100). Ignored by "signatures" and "count".'),
       maxScannedTransactions: z.number().int().min(1).max(10_000).optional().describe('Most transactions to scan in this request (1-10,000, default 10,000). Lower it to cap credits on a busy address.'),
-      sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first'),
-      status: z.enum(['succeeded', 'failed', 'any']).optional().describe('Execution result to scan. Defaults to "succeeded"; failed transactions are skipped unless you pass "failed" or "any".'),
+      sortOrder: z.enum(['asc', 'desc']).optional().default('desc').describe(HISTORY_FIELD_DOCS.sortOrder),
+      status: z.enum(['succeeded', 'failed', 'any']).optional().describe(HISTORY_FIELD_DOCS.status),
       tokenAccounts: z.enum(['none', 'balanceChanged', 'all']).optional().describe('Transactions that touch only a token account the address owns. Defaults to "none". Set "balanceChanged" when scanning a wallet for a mint, or many incoming transfers are missed.'),
-      blockTimeGte: z.number().int().optional().describe('Only transactions with block time >= this Unix timestamp (seconds)'),
-      blockTimeLte: z.number().int().optional().describe('Only transactions with block time <= this Unix timestamp (seconds)'),
-      slotGte: z.number().int().optional().describe('Only transactions at slot >= this value'),
-      slotLte: z.number().int().optional().describe('Only transactions at slot <= this value'),
-      paginationToken: z.string().optional().describe('Cursor from a previous scan, to continue it. Keep the other parameters the same.'),
+      blockTimeGte: z.number().int().optional().describe(HISTORY_FIELD_DOCS.blockTimeGte),
+      blockTimeLte: z.number().int().optional().describe(HISTORY_FIELD_DOCS.blockTimeLte),
+      slotGte: z.number().int().optional().describe(HISTORY_FIELD_DOCS.slotGte),
+      slotLte: z.number().int().optional().describe(HISTORY_FIELD_DOCS.slotLte),
+      paginationToken: z.string().optional().describe(HISTORY_FIELD_DOCS.paginationToken),
     },
     async ({ address, programs, mints, returnShape, limit, maxScannedTransactions, sortOrder, status, tokenAccounts, blockTimeGte, blockTimeLte, slotGte, slotLte, paginationToken }, extra) => {
       const ctx = contextFromExtra(extra);
@@ -1194,15 +1209,15 @@ export function registerTransactionTools(registry: ActionRegistry) {
       mint: z.string().optional().describe('Filter by token mint. Use the WSOL mint to filter native SOL when solMode="merged".'),
       solMode: z.string().optional().describe('"merged" treats SOL and WSOL as one asset; "separate" keeps them distinct'),
       limit: z.number().int().min(1).max(100).optional().default(25).describe('Max transfers per page (1-100)'),
-      sortOrder: z.string().optional().default('desc').describe('"desc" = newest first (default), "asc" = oldest first'),
-      paginationToken: z.string().optional().describe('Cursor from a previous response — pass to fetch the next page'),
+      sortOrder: z.string().optional().default('desc').describe(HISTORY_FIELD_DOCS.sortOrder),
+      paginationToken: z.string().optional().describe(HISTORY_FIELD_DOCS.paginationToken),
       commitment: z.string().optional().describe('"finalized" | "confirmed"'),
       amountGte: z.string().optional().describe('Raw u64 amount (as string) lower bound — not UI amount'),
       amountLte: z.string().optional().describe('Raw u64 amount (as string) upper bound — not UI amount'),
-      blockTimeGte: z.number().optional().describe('Filter: block time >= this Unix timestamp (seconds)'),
-      blockTimeLte: z.number().optional().describe('Filter: block time <= this Unix timestamp (seconds)'),
-      slotGte: z.number().optional().describe('Filter: slot >= this value'),
-      slotLte: z.number().optional().describe('Filter: slot <= this value'),
+      blockTimeGte: z.number().optional().describe(HISTORY_FIELD_DOCS.blockTimeGte),
+      blockTimeLte: z.number().optional().describe(HISTORY_FIELD_DOCS.blockTimeLte),
+      slotGte: z.number().optional().describe(HISTORY_FIELD_DOCS.slotGte),
+      slotLte: z.number().optional().describe(HISTORY_FIELD_DOCS.slotLte),
     },
     async ({
       address,

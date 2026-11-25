@@ -238,9 +238,9 @@ export function registerRecommendTools(registry: ActionRegistry) {
     'BEST FOR: project architecture when user describes a Solana app to build. PREFER getHeliusPlanInfo for pricing-only, lookupHeliusDocs for API docs. Get tiered architecture recommendations. Returns Helius products, MCP tools, credit costs, minimum plan, and reference files.',
     {
       description: z.string().describe('What the user wants to build, in their own words'),
-      budget: z.enum(['agent', 'developer', 'business', 'professional']).optional(),
-      complexity: z.enum(['low', 'medium', 'high']).optional(),
-      scale: z.enum(['budget', 'standard', 'production', 'all']).optional().default('all'),
+      budget: z.enum(['agent', 'developer', 'business', 'professional']).optional().describe('Highest Helius plan the project can pay for'),
+      complexity: z.enum(['low', 'medium', 'high']).optional().describe('Project complexity: "low" shows Agent-tier products only, "medium" Agent and Developer, "high" every tier'),
+      scale: z.enum(['budget', 'standard', 'production', 'all']).optional().default('all').describe('Which tier of recommendations to return, or "all" (default) for every tier'),
       remember: z.boolean().optional().describe('Save budget/complexity preferences for future sessions'),
     },
     async ({ description, budget, complexity, scale, remember }, extra) => {

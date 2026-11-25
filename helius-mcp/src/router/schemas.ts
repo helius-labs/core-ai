@@ -16,6 +16,7 @@ import {
 import { ACTION_GROUPS, type PublicToolName } from './action-groups.js';
 import { getActionHandlers } from './action-handlers.js';
 import { ACTION_CATALOG } from './catalog.js';
+import { refineSchemaFields } from './descriptions.js';
 import { getStrippedParams, getSurfaceActions, type Surface } from './surface.js';
 import { TELEMETRY_FIELDS, withTelemetry } from './telemetry.js';
 import { LANA_MODELS } from '../tools/lana.js';
@@ -54,9 +55,13 @@ export const HELIUS_ACCOUNT_SCHEMA = withTelemetry({
   args: argsField,
   apiKey: optionalString(),
   network: optionalString(),
+  projectId: optionalString(),
+  mode: optionalString(),
   paymentIntentId: optionalString(),
   plan: optionalString(),
   period: optionalString(),
+  category: optionalString(),
+  qty: optionalNumber(),
   couponCode: optionalString(),
   email: optionalString(),
   firstName: optionalString(),
@@ -70,8 +75,10 @@ export const HELIUS_WALLET_SCHEMA = withTelemetry({
   detail: detailField,
   args: argsField,
   address: optionalString(),
-  addresses: stringArray(),
+  entries: stringArray(),
   mint: optionalString(),
+  type: optionalString(),
+  tokenAccounts: optionalString(),
   time: optionalNumber(),
   datetime: optionalString(),
   slot: optionalNumber(),
@@ -112,8 +119,8 @@ export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
   detail: detailField,
   args: argsField,
   address: optionalString(),
-  signature: optionalString(),
   signatures: stringArray(),
+  showRaw: optionalBoolean(),
   limit: optionalNumber(),
   before: optionalString(),
   until: optionalString(),
@@ -127,6 +134,14 @@ export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
   blockTimeLte: optionalNumber(),
   slotGte: optionalNumber(),
   slotLte: optionalNumber(),
+  // getTransfersByAddress
+  with: optionalString(),
+  direction: optionalString(),
+  mint: optionalString(),
+  solMode: optionalString(),
+  commitment: optionalString(),
+  amountGte: optionalString(),
+  amountLte: optionalString(),
   // scanTransactionHistory
   programs: z.array(z.looseObject({})).optional(),
   mints: z.array(z.looseObject({})).optional(),
@@ -145,6 +160,10 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
   limit: optionalNumber(),
   page: optionalNumber(),
   stakeAccount: optionalString(),
+  wallet: optionalString(),
+  includeRentExempt: optionalBoolean(),
+  transactionDetails: optionalString(),
+  samples: optionalNumber(),
   accountKeys: stringArray(),
   priorityLevel: optionalString(),
   includeAllLevels: optionalBoolean(),
@@ -156,6 +175,7 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
   transactionIndex: optionalNumber(),
   dataSlice: z.object({ offset: z.coerce.number(), length: z.coerce.number() }).optional(),
   paginationToken: optionalString(),
+  paginationKey: optionalString(),
   // simulateTransaction, simulateBundle, getBundleStatuses
   transaction: optionalString(),
   transactions: stringArray(),
@@ -189,6 +209,20 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
   transactionAccountExclude: stringArray(),
   transactionAccountRequired: stringArray(),
   program: optionalString(),
+  // transactionSubscribe
+  vote: optionalBoolean(),
+  transactionDetails: optionalString(),
+  showRewards: optionalBoolean(),
+  maxSupportedTransactionVersion: optionalNumber(),
+  // laserstreamSubscribe
+  subscribeSlots: optionalBoolean(),
+  filterByCommitment: optionalBoolean(),
+  subscribeTransactions: optionalBoolean(),
+  subscribeBlocks: optionalBoolean(),
+  subscribeBlocksMeta: optionalBoolean(),
+  subscribeEntries: optionalBoolean(),
+  fromSlot: optionalString(),
+  keepalive: optionalBoolean(),
   // parsedTransactionSubscribe
   programs: stringArray(),
   instructionNames: stringArray(),
@@ -246,9 +280,12 @@ export const HELIUS_COMPRESSION_SCHEMA = withTelemetry({
   detail: detailField,
   args: argsField,
   address: optionalString(),
-  addresses: stringArray(),
+  // Account addresses, or {address, tree} pairs for getMultipleNewAddressProofs.
+  addresses: z.array(z.union([z.string(), z.looseObject({})])).optional(),
   hash: optionalString(),
   hashes: stringArray(),
+  newAddressesWithTrees: z.array(z.looseObject({})).optional(),
+  signature: optionalString(),
   owner: optionalString(),
   delegate: optionalString(),
   mint: optionalString(),
@@ -280,13 +317,13 @@ export const HELIUS_LANA_SCHEMA = withTelemetry({
 });
 
 export const EXPAND_RESULT_SCHEMA = withTelemetry({
-  resultId: z.string(),
-  section: optionalString(),
-  item: optionalNumber(),
-  page: optionalNumber(),
-  range: optionalString(),
-  continuation: optionalString(),
-  detail: detailField,
+  resultId: z.string().describe('The resultId from a summary-first response.'),
+  section: optionalString().describe('Return only the section whose heading matches this name.'),
+  item: optionalNumber().describe('Return only this item of the result, counting from 1.'),
+  page: optionalNumber().describe('Page of the original action to fetch, for actions that page by number.'),
+  range: optionalString().describe('Return only these characters of the result, as "start:end".'),
+  continuation: optionalString().describe('"next" for the next page of a paginated result.'),
+  detail: detailField.describe('How much to return: "summary", "standard", or "full" (default).'),
 });
 
 const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
@@ -308,15 +345,20 @@ const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
 const ROUTING_FIELDS = new Set(['action', 'detail', 'args', ...Object.keys(TELEMETRY_FIELDS)]);
 
 /**
- * A public tool's input schema on a surface.
+ * A public tool's input schema on a surface, with fields typed and described
+ * by `refineSchemaFields`.
  *
- * The full surface uses the schemas above unchanged. On a narrower surface the
+ * The full surface uses the fields above unchanged. On a narrower surface the
  * `action` enum lists only the surface's actions, and a field is removed when
  * every action that reads it is off the surface (`email` goes with `signup`),
- * or when the surface strips it (`remember`). Fields no action declares are
- * left alone, since a handler may still read them through normalization.
+ * or when the surface strips it (`remember`).
  */
 export function getToolSchema(tool: PublicToolName, surface: Surface): Record<string, z.ZodType> {
+  const schema = narrowToSurface(tool, surface);
+  return tool === 'expandResult' ? schema : refineSchemaFields(tool, surface, schema);
+}
+
+function narrowToSurface(tool: PublicToolName, surface: Surface): Record<string, z.ZodType> {
   const schema = TOOL_SCHEMAS[tool];
   if (surface === 'full' || tool === 'expandResult') {
     return schema;
@@ -325,12 +367,10 @@ export function getToolSchema(tool: PublicToolName, surface: Surface): Record<st
   const handlers = getActionHandlers();
   const actions = getSurfaceActions(tool, surface);
   const kept = new Set<string>();
-  const removed = new Set<string>();
-  for (const action of ACTION_GROUPS[tool]) {
-    const fields = Object.keys((handlers.get(action)?.inputSchema ?? {}) as object);
+  for (const action of actions) {
     const stripped = getStrippedParams(ACTION_CATALOG[action], surface);
-    for (const field of fields) {
-      (actions.includes(action) && !stripped.includes(field) ? kept : removed).add(field);
+    for (const field of Object.keys((handlers.get(action)?.inputSchema ?? {}) as object)) {
+      if (!stripped.includes(field)) kept.add(field);
     }
   }
 
@@ -338,7 +378,7 @@ export function getToolSchema(tool: PublicToolName, surface: Surface): Record<st
   for (const [field, type] of Object.entries(schema)) {
     if (field === 'action') {
       narrowed.action = z.enum(actions as [ActionName, ...ActionName[]]);
-    } else if (ROUTING_FIELDS.has(field) || kept.has(field) || !removed.has(field)) {
+    } else if (ROUTING_FIELDS.has(field) || kept.has(field)) {
       narrowed[field] = type;
     }
   }

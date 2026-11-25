@@ -16,7 +16,7 @@ export const ACTION_REQUIRED_PARAMS: Partial<Record<ActionName, string[]>> = {
   getWalletHistory: ['address'],
   getWalletTransfers: ['address'],
   getWalletIdentity: ['address'],
-  batchWalletIdentity: ['addresses'],
+  batchWalletIdentity: ['entries'],
   getWalletFundedBy: ['address'],
 
   // Transaction

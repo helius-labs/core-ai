@@ -97,7 +97,7 @@ export function registerParsedStreamsTools(registry: ActionRegistry) {
       accountRoles: z.record(z.string(), z.string()).optional().describe('Decoded account role name to address, all must hold, e.g. { "user_transfer_authority": "<pubkey>" }. Sent as accounts.roles. Names match exactly; take them from describeProgram. Up to 20.'),
       includeFailed: z.boolean().optional().describe('Include instructions from failed transactions (default false).'),
       includeCpi: z.boolean().optional().describe('Let inner (CPI) instructions match (default true). Set false for top-level instructions only.'),
-      notificationDetails: z.enum(['full', 'matched', 'raw']).optional().default('full').describe('What each notification carries, sent as `details`: "full" (default) the whole decoded transaction plus matchedIndexes, "matched" only the matching instructions (about a third of the size), "raw" matching instructions as program ID and base58 data only.'),
+      notificationDetails: z.enum(['full', 'matched', 'raw']).optional().default('full').describe('What each notification carries: "full" (default) the decoded transaction, "matched" only matching instructions (about a third the size), "raw" those as program ID and base58 data.'),
     },
     async (params, extra) => {
       const ctx = contextFromExtra(extra);

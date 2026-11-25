@@ -175,7 +175,7 @@ export function registerWalletTools(registry: ActionRegistry) {
   // ─── Get Historical Token Balance ───
   registry.registerAction(
     'getWalletBalanceAt',
-    'BEST FOR: a wallet\'s exact balance of a specific token (or native SOL) at a past timestamp, datetime, or slot. PREFER getWalletBalances for current holdings. Reads the post-transaction balance from the wallet\'s most recent transaction at or before the requested point — an exact value, not an estimate. Provide exactly ONE of time, datetime, or slot. For native SOL pass mint=So11111111111111111111111111111111111111111. Credit cost: 100 credits. Requires Developer+ plan.',
+    'BEST FOR: a wallet\'s exact balance of a specific token (or native SOL) at a past timestamp, datetime, or slot. PREFER getWalletBalances for current holdings. Reads the post-transaction balance from the wallet\'s most recent transaction at or before the requested point — an exact value, not an estimate. Provide exactly ONE of time, datetime, or slot. For native SOL pass mint=So11111111111111111111111111111111111111111. Credit cost: 100 credits.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       mint: z.string().describe('Token mint address. For native SOL use So11111111111111111111111111111111111111111'),
@@ -235,7 +235,7 @@ export function registerWalletTools(registry: ActionRegistry) {
   // ─── Get Wallet History ───
   registry.registerAction(
     'getWalletHistory',
-    'BEST FOR: balance change deltas per transaction. PREFER getTransactionHistory for general history, getWalletTransfers for sends/receives. Get transaction history with balance changes per transaction. Credit cost: 100 credits. Requires Developer+ plan.',
+    'BEST FOR: balance change deltas per transaction. PREFER getTransactionHistory for general history, getWalletTransfers for sends/receives. Get transaction history with balance changes per transaction. Credit cost: 100 credits.',
     {
       address: z.string().describe('Solana wallet address (base58 encoded)'),
       limit: z.number().optional().default(100).describe('Number of results (max 100)'),
