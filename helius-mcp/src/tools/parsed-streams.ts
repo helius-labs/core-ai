@@ -191,7 +191,7 @@ export function registerParsedStreamsTools(registry: ActionRegistry) {
 
       return renderStreamConfig({
         title: SUBSCRIBE_TITLE,
-        url: getGatekeeperWebSocketUrl(ctx),
+        url: getGatekeeperWebSocketUrl(),
         warnings,
         request: { jsonrpc: '2.0', id: 1, method: 'parsedTransactionSubscribe', params: [filter, options] },
         code,

@@ -34,6 +34,7 @@ import {
   SHARED_CREDENTIAL_META,
 } from '../utils/runtime.js';
 import { fetchDoc, extractSections } from '../utils/docs.js';
+import { API_KEY_PLACEHOLDER } from '../utils/redact.js';
 import { sendFeedbackEvent, captureWalletAddress } from '../utils/feedback.js';
 import {
   setSharedApiKey,
@@ -57,6 +58,29 @@ const MAX_STATUS_KEYS = 5;
 /** Enough of a key ID for the user to recognise it, too little to use it. */
 function maskKeyId(keyId: string): string {
   return keyId.length > 8 ? `${keyId.slice(0, 4)}…${keyId.slice(-4)}` : '••••';
+}
+
+/**
+ * Report a key that signup or `createApiKey` just configured. It is already set
+ * for the session and saved to disk, so nothing downstream needs it in the
+ * chat, where it would sit in the transcript and could be pasted into code.
+ * Show enough to recognise it and say where the full value lives instead.
+ */
+function renderConfiguredKey(apiKey: string, { withRpc = false } = {}): string {
+  const lines = [`- **API Key:** \`${maskKeyId(apiKey)}\` (masked)`];
+  if (withRpc) {
+    lines.push(
+      `- **Mainnet RPC:** \`https://mainnet.helius-rpc.com/?api-key=${API_KEY_PLACEHOLDER}\``,
+      `- **Devnet RPC:** \`https://devnet.helius-rpc.com/?api-key=${API_KEY_PLACEHOLDER}\``,
+    );
+  }
+  return lines.join('\n') + '\n';
+}
+
+/** Where the user finds the full key, without it passing through the chat. */
+function fullKeyLocation(): string {
+  return `The full key is saved in \`${SHARED_CONFIG_PATH}\` and shown at https://dashboard.helius.dev/api-keys. `
+    + 'Do not print it or ask the user to paste it here; code should read it from the `HELIUS_API_KEY` environment variable.';
 }
 
 const renderPaymentLink = (
@@ -373,10 +397,8 @@ export function registerAuthTools(registry: ActionRegistry) {
             `**Helius Account Found**\n\n` +
               `You already have a Helius account on this plan. No payment was needed.\n\n` +
               `- **Project ID:** \`${result.projectId}\`\n` +
-              `- **API Key:** \`${result.apiKey}\`\n` +
-              `- **Mainnet RPC:** \`${result.endpoints.mainnet}\`\n` +
-              `- **Devnet RPC:** \`${result.endpoints.devnet}\`\n\n` +
-              `API key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`.`,
+              renderConfiguredKey(result.apiKey, { withRpc: true }) + '\n' +
+              `API key configured for this session. ${fullKeyLocation()}`,
           );
         }
 
@@ -606,10 +628,8 @@ export function registerAuthTools(registry: ActionRegistry) {
         return mcpText(
           `**API key created**\n\n` +
             `- **Project ID:** \`${project.id}\`\n` +
-            `- **API Key:** \`${key.keyId}\`\n` +
-            `- **Mainnet RPC:** \`https://mainnet.helius-rpc.com/?api-key=${key.keyId}\`\n` +
-            `- **Devnet RPC:** \`https://devnet.helius-rpc.com/?api-key=${key.keyId}\`\n\n` +
-            `API key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`. All Helius tools are ready to use.`,
+            renderConfiguredKey(key.keyId, { withRpc: true }) + '\n' +
+            `API key configured for this session. All Helius tools are ready to use. ${fullKeyLocation()}`,
         );
       } catch (err) {
         return handleToolError(err, 'Error creating API key');
@@ -927,8 +947,8 @@ async function handleResumeSignup() {
   return mcpText(
     `**Signup complete!**\n\n` +
       `- **Project ID:** \`${projectId}\`\n` +
-      `- **API Key:** \`${apiKey}\`\n\n` +
-      `API key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`. All Helius tools are ready to use.`,
+      renderConfiguredKey(apiKey) + '\n' +
+      `API key configured for this session. All Helius tools are ready to use. ${fullKeyLocation()}`,
   );
 }
 
@@ -968,10 +988,9 @@ function renderSignupAndPayResult(result: SignupAndPayResult): { content: { type
       return mcpText(
         `**Helius Account Created**\n\n` +
           `- **Project ID:** \`${result.projectId}\`\n` +
-          `- **API Key:** \`${result.apiKey}\`\n` +
-          `- **Mainnet RPC:** \`${result.endpoints.mainnet}\`\n` +
+          renderConfiguredKey(result.apiKey, { withRpc: true }) +
           (result.txSignature ? `- **Payment TX:** \`${result.txSignature}\`\n` : '') +
-          `\nAPI key configured for this session and saved to \`${SHARED_CONFIG_PATH}\`.`,
+          `\nAPI key configured for this session. ${fullKeyLocation()}`,
       );
     case 'already_subscribed':
       setApiKey(result.apiKey);
@@ -981,8 +1000,8 @@ function renderSignupAndPayResult(result: SignupAndPayResult): { content: { type
         `**Helius Account Found**\n\n` +
           `You already have a Helius account on this plan. No payment was needed.\n\n` +
           `- **Project ID:** \`${result.projectId}\`\n` +
-          `- **API Key:** \`${result.apiKey}\`\n` +
-          `\nAPI key configured for this session.`,
+          renderConfiguredKey(result.apiKey) +
+          `\nAPI key configured for this session. ${fullKeyLocation()}`,
       );
     case 'upgrade_required':
       return mcpText(

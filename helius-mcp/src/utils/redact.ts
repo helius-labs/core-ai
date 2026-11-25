@@ -6,13 +6,13 @@ import { isSharedCredentialMode } from './runtime.js';
  * Tools are expected not to emit the API key in the first place; this exists to
  * catch the paths nobody audited — an upstream error message that echoes a
  * request URL, a doc snippet with a key in an example, a future tool that
- * formats an endpoint. It only runs in shared-credential mode, so the
- * single-tenant stdio build keeps printing the user's own key where that is the
- * point of the tool.
+ * formats an endpoint. It only runs in shared-credential mode; the stdio build
+ * relies on tools never emitting the key, which `tests/no-key-in-output.test.ts`
+ * checks.
  */
 
 const REDACTED = '***REDACTED***';
-/** Substitution instruction returned in shared-credential mode; see helius.ts. */
+/** Stands in for the key in any URL a tool prints; see helius.ts. */
 export const API_KEY_PLACEHOLDER = 'YOUR_HELIUS_API_KEY';
 
 /** Matches `api-key=<value>` in a query string, however the URL is delimited. */

@@ -81,10 +81,10 @@ describe('signup contact info', () => {
       refId: 'ref-1',
       walletAddress: 'Wallet111',
       projectId: 'proj-1',
-      apiKey: 'key-1',
+      apiKey: '1a2b3c4d-1111-2222-3333-00000000beef',
       endpoints: {
-        mainnet: 'https://mainnet.helius-rpc.com/?api-key=key-1',
-        devnet: 'https://devnet.helius-rpc.com/?api-key=key-1',
+        mainnet: 'https://mainnet.helius-rpc.com/?api-key=1a2b3c4d-1111-2222-3333-00000000beef',
+        devnet: 'https://devnet.helius-rpc.com/?api-key=1a2b3c4d-1111-2222-3333-00000000beef',
       },
     });
     const signup = await captureSignup();
@@ -96,7 +96,8 @@ describe('signup contact info', () => {
     );
     expect(result.isError).toBeFalsy();
     expect(result.content[0].text).toContain('Helius Account Found');
-    expect(result.content[0].text).toContain('key-1');
+    expect(result.content[0].text).toContain('1a2b…beef');
+    expect(result.content[0].text).not.toContain('1a2b3c4d-1111-2222-3333-00000000beef');
   });
 
   it('does not require contact info for resume', async () => {

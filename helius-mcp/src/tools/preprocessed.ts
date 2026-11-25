@@ -94,7 +94,7 @@ export function registerPreprocessedTools(registry: ActionRegistry) {
 
       return renderStreamConfig({
         title: SUBSCRIBE_TITLE,
-        url: getGatekeeperWebSocketUrl(ctx),
+        url: getGatekeeperWebSocketUrl(),
         warnings: [
           ...devnetWarning(ctx),
           ...addressWarnings(lists, [['accountInclude', 'accountExclude']]),
