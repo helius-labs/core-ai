@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { PUBLIC_TOOL_NAMES, ACTION_GROUPS } from '../src/router/action-groups.js';
 import {
@@ -148,7 +149,7 @@ describe('Public Router Surface', () => {
       expect(shape._feedback, `${toolName} missing _feedback`).toBeDefined();
       expect(shape._feedbackTool, `${toolName} missing _feedbackTool`).toBeDefined();
       expect(shape._model, `${toolName} missing _model`).toBeDefined();
-      expect(shape.action.options, `${toolName} action is not an enum`).toEqual(actions);
+      expect(z.toJSONSchema(shape.action).enum, `${toolName} action does not list its actions`).toEqual(actions);
     }
 
     const expandShape = tools.expandResult.inputSchema.shape;

@@ -137,7 +137,8 @@ export function refineSchemaFields(
   return refined;
 }
 
-function requiredParams(action: ActionName): string[] {
+/** Parameters an action cannot run without: required in its schema or listed in `ACTION_REQUIRED_PARAMS`. */
+export function getRequiredParams(action: ActionName): string[] {
   const shape = (getActionHandlers().get(action)?.inputSchema ?? {}) as Record<string, z.ZodType>;
   const required = Object.entries(shape)
     .filter(([, type]) => !type.safeParse(undefined).success)
@@ -157,7 +158,7 @@ export function describeTool(tool: RoutedPublicToolName, surface: Surface, intro
   const lines = getSurfaceActions(tool, surface).map((action) => {
     const entry = ACTION_CATALOG[action];
     const marker = entry.mutability === 'write' && !entry.nonDestructiveWrite ? ' [write]' : '';
-    return `- ${action}(${requiredParams(action).join(', ')})${marker}: ${ACTION_SUMMARIES[action]}`;
+    return `- ${action}(${getRequiredParams(action).join(', ')})${marker}: ${ACTION_SUMMARIES[action]}`;
   });
   const notes = TOOL_NOTES[tool];
   const note = surface === 'readOnly' ? notes?.readOnly ?? notes?.full : notes?.full;

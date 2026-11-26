@@ -62,7 +62,6 @@ function makeEntry(
   return {
     action,
     publicTool,
-    aliases: overrides.aliases ?? [],
     authRequirement: overrides.authRequirement ?? 'apiKey',
     capabilityGate: overrides.capabilityGate ?? gate('agent', 'Available on every plan'),
     mutability,

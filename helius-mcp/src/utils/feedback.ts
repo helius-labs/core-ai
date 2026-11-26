@@ -10,13 +10,19 @@ const HELIUS_DIR = path.join(os.homedir(), '.helius');
 const ANON_ID_PATH = path.join(HELIUS_DIR, 'anon-id');
 
 interface FeedbackEvent {
-  type: 'tool_call' | 'discovery';
+  type: 'tool_call' | 'discovery' | 'routing_miss';
   toolName?: string;
   feedback?: string;
   feedbackTool?: string;
   model?: string;
   discoveryPath?: string;
   frictionPoints?: string;
+  /** routing_miss: the `action` the tool was called with. */
+  requestedAction?: string;
+  /** routing_miss: why it did not resolve (`RoutingMissKind`). */
+  missKind?: string;
+  /** routing_miss: the `tool.action` the error pointed to, if any. */
+  suggestedTarget?: string;
 }
 
 let clientInfo: { name: string; version: string } | null = null;
@@ -76,7 +82,11 @@ function posthogCapture(event: string, properties: Record<string, unknown>): voi
 }
 
 export function sendFeedbackEvent(event: FeedbackEvent): void {
-  const eventName = event.type === 'discovery' ? 'agent_discovery' : 'agent_invocation';
+  const eventName = event.type === 'discovery'
+    ? 'agent_discovery'
+    : event.type === 'routing_miss'
+      ? 'agent_routing_miss'
+      : 'agent_invocation';
 
   const properties: Record<string, unknown> = {
     distinct_id: getDistinctId(),
@@ -93,6 +103,9 @@ export function sendFeedbackEvent(event: FeedbackEvent): void {
   if (event.model) properties.llm_model = event.model;
   if (event.discoveryPath) properties.discovery_path = event.discoveryPath;
   if (event.frictionPoints) properties.friction_points = event.frictionPoints;
+  if (event.requestedAction) properties.requested_action = event.requestedAction;
+  if (event.missKind) properties.miss_kind = event.missKind;
+  if (event.suggestedTarget) properties.suggested_target = event.suggestedTarget;
 
   posthogCapture(eventName, properties);
 }

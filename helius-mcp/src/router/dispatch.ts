@@ -4,8 +4,11 @@ import { callActionHandler, type ActionHandlerResponse } from './action-handlers
 import { getActionCatalogEntry } from './catalog.js';
 import { getRouterContext } from './context.js';
 import type { RoutedPublicToolName } from './action-groups.js';
-import type { ActionName } from './actions.js';
+import { ACTION_NAME_SET, type ActionName } from './actions.js';
+import { resolveRoutedAction, type ActionResolution } from './action-resolution.js';
 import { ACTION_REQUIRED_PARAMS } from './required-params.js';
+import type { TelemetryPayload } from './telemetry.js';
+import { sendFeedbackEvent } from '../utils/feedback.js';
 import { getStrippedParams, isOnSurface, surfaceRefusal, type Surface } from './surface.js';
 import { runOnSurface } from '../utils/runtime.js';
 import type { ActionCatalogEntry, DetailLevel, ResponseFamily } from './types.js';
@@ -236,21 +239,63 @@ async function executeActionViaRouter(
   }
 }
 
+/** A model-supplied action name, kept only when it looks like one, for telemetry. */
+function telemetryActionName(requested: string): string {
+  return /^[\w.-]{1,80}$/.test(requested) ? requested : '[unrecognized]';
+}
+
+/**
+ * Answer an `action` the called tool does not have with the call to make, and
+ * record the miss: these are the clearest signal of where routing goes wrong.
+ */
+function routingMissResponse(
+  publicTool: RoutedPublicToolName,
+  requested: string,
+  miss: Extract<ActionResolution, { ok: false }>,
+  telemetry?: TelemetryPayload,
+): RouterResponse {
+  sendFeedbackEvent({
+    type: 'routing_miss',
+    toolName: publicTool,
+    requestedAction: telemetryActionName(requested),
+    missKind: miss.kind,
+    suggestedTarget: miss.suggestion ? `${miss.suggestion.tool}.${miss.suggestion.action}` : undefined,
+    model: telemetry?._model,
+  });
+
+  return mcpErrorCompact(miss.message, {
+    code: miss.kind === 'wrongTool' ? 'WRONG_TOOL' : 'UNKNOWN_ACTION',
+    reason: miss.kind,
+    action: requested,
+    publicTool,
+    ...(miss.suggestion ? { suggestedTool: miss.suggestion.tool, suggestedAction: miss.suggestion.action } : {}),
+  });
+}
+
 export async function dispatchRoutedTool(
   publicTool: RoutedPublicToolName,
   params: Record<string, unknown>,
   extra: unknown,
   surface: Surface = 'full',
+  telemetry?: TelemetryPayload,
 ): Promise<RouterResponse> {
-  const action = params.action as ActionName | undefined;
-  if (!action) {
+  const requested = params.action;
+  if (typeof requested !== 'string' || requested === '') {
     return mcpErrorCompact('Missing required "action" field.', { code: 'MISSING_ACTION' });
   }
 
-  const entry = getActionCatalogEntry(action);
-  if (!isOnSurface(entry, surface)) {
-    return mcpErrorCompact(surfaceRefusal(action), { code: 'NOT_ON_SURFACE', action, surface });
+  // An action this surface removes gets the surface's refusal, whichever tool
+  // it was sent to, rather than a suggestion.
+  if (ACTION_NAME_SET.has(requested) && !isOnSurface(getActionCatalogEntry(requested as ActionName), surface)) {
+    return mcpErrorCompact(surfaceRefusal(requested), { code: 'NOT_ON_SURFACE', action: requested, surface });
   }
+
+  const resolution = resolveRoutedAction(publicTool, requested, surface);
+  if (!resolution.ok) {
+    return routingMissResponse(publicTool, requested, resolution, telemetry);
+  }
+  const action = resolution.action;
+  const entry = getActionCatalogEntry(action);
 
   const requestedDetail = pickRequestedDetail(entry, params.detail);
   const actionParams = buildActionParams(params);

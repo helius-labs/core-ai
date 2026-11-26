@@ -81,6 +81,7 @@ Each routed tool's description and input schema are generated from its actions i
 
 - The description lists every action on the surface with its required parameters, a `[write]` tag from the catalog, and its line in `ACTION_SUMMARIES` (typed over every action, so a new action will not compile without one), then the tool's `TOOL_NOTES`.
 - Every parameter an action takes must be a field in the tool's schema in `router/schemas.ts`. The SDK strips fields that are not, so a top-level value is lost without an error.
+- `action` lists the tool's actions as an enum but accepts any string, except an action the surface removes. Dispatch answers anything the tool does not have (another tool's action, a misspelling, `tool.action`, or a Solana RPC/DAS name in `router/aliases.ts`) with the call to make, and never runs it (`router/action-resolution.ts`). Each miss is sent to telemetry as `agent_routing_miss`. Add an alias when a real API method name keeps showing up there; `tests/action-resolution.test.ts` checks it cannot shadow an action.
 - Each field's description is the one its actions share. When they describe it differently, write a public one in `FIELD_DESCRIPTIONS`. A field every action takes as an enum is typed as the union of their values.
 
 `tests/tool-descriptions.test.ts` enforces all of this, keeps read-only descriptions from naming removed actions, and caps `tools/list` size. Raise the budget there deliberately.

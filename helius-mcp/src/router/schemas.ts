@@ -1,23 +1,10 @@
 import { z } from 'zod';
-import {
-  HELIUS_ACCOUNT_ACTIONS,
-  HELIUS_ASSET_ACTIONS,
-  HELIUS_CHAIN_ACTIONS,
-  HELIUS_COMPRESSION_ACTIONS,
-  HELIUS_KNOWLEDGE_ACTIONS,
-  HELIUS_LANA_ACTIONS,
-  HELIUS_PRIVACY_ACTIONS,
-  HELIUS_STREAMING_ACTIONS,
-  HELIUS_TRANSACTION_ACTIONS,
-  HELIUS_WALLET_ACTIONS,
-  HELIUS_WRITE_ACTIONS,
-  type ActionName,
-} from './actions.js';
-import { ACTION_GROUPS, type PublicToolName } from './action-groups.js';
+import { ACTION_NAME_SET, type ActionName } from './actions.js';
+import type { PublicToolName, RoutedPublicToolName } from './action-groups.js';
 import { getActionHandlers } from './action-handlers.js';
 import { ACTION_CATALOG } from './catalog.js';
 import { refineSchemaFields } from './descriptions.js';
-import { getStrippedParams, getSurfaceActions, type Surface } from './surface.js';
+import { getStrippedParams, getSurfaceActions, isOnSurface, type Surface } from './surface.js';
 import { TELEMETRY_FIELDS, withTelemetry } from './telemetry.js';
 import { LANA_MODELS } from '../tools/lana.js';
 
@@ -37,20 +24,7 @@ const optionalString = () => z.string().optional();
 const optionalNumber = () => z.coerce.number().optional();
 const optionalBoolean = () => z.boolean().optional();
 
-export const HeliusAccountActionSchema = z.enum(HELIUS_ACCOUNT_ACTIONS);
-export const HeliusWalletActionSchema = z.enum(HELIUS_WALLET_ACTIONS);
-export const HeliusAssetActionSchema = z.enum(HELIUS_ASSET_ACTIONS);
-export const HeliusTransactionActionSchema = z.enum(HELIUS_TRANSACTION_ACTIONS);
-export const HeliusChainActionSchema = z.enum(HELIUS_CHAIN_ACTIONS);
-export const HeliusStreamingActionSchema = z.enum(HELIUS_STREAMING_ACTIONS);
-export const HeliusKnowledgeActionSchema = z.enum(HELIUS_KNOWLEDGE_ACTIONS);
-export const HeliusWriteActionSchema = z.enum(HELIUS_WRITE_ACTIONS);
-export const HeliusCompressionActionSchema = z.enum(HELIUS_COMPRESSION_ACTIONS);
-export const HeliusPrivacyActionSchema = z.enum(HELIUS_PRIVACY_ACTIONS);
-export const HeliusLanaActionSchema = z.enum(HELIUS_LANA_ACTIONS);
-
 export const HELIUS_ACCOUNT_SCHEMA = withTelemetry({
-  action: HeliusAccountActionSchema,
   detail: detailField,
   args: argsField,
   apiKey: optionalString(),
@@ -71,7 +45,6 @@ export const HELIUS_ACCOUNT_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_WALLET_SCHEMA = withTelemetry({
-  action: HeliusWalletActionSchema,
   detail: detailField,
   args: argsField,
   address: optionalString(),
@@ -93,7 +66,6 @@ export const HELIUS_WALLET_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_ASSET_SCHEMA = withTelemetry({
-  action: HeliusAssetActionSchema,
   detail: detailField,
   args: argsField,
   id: optionalString(),
@@ -115,7 +87,6 @@ export const HELIUS_ASSET_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
-  action: HeliusTransactionActionSchema,
   detail: detailField,
   args: argsField,
   address: optionalString(),
@@ -150,7 +121,6 @@ export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_CHAIN_SCHEMA = withTelemetry({
-  action: HeliusChainActionSchema,
   detail: detailField,
   args: argsField,
   address: optionalString(),
@@ -186,7 +156,6 @@ export const HELIUS_CHAIN_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_STREAMING_SCHEMA = withTelemetry({
-  action: HeliusStreamingActionSchema,
   detail: detailField,
   args: argsField,
   account: optionalString(),
@@ -242,7 +211,6 @@ export const HELIUS_STREAMING_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_KNOWLEDGE_SCHEMA = withTelemetry({
-  action: HeliusKnowledgeActionSchema,
   detail: detailField,
   args: argsField,
   topic: optionalString(),
@@ -263,7 +231,6 @@ export const HELIUS_KNOWLEDGE_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_WRITE_SCHEMA = withTelemetry({
-  action: HeliusWriteActionSchema,
   detail: detailField,
   args: argsField,
   recipientAddress: optionalString(),
@@ -276,7 +243,6 @@ export const HELIUS_WRITE_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_COMPRESSION_SCHEMA = withTelemetry({
-  action: HeliusCompressionActionSchema,
   detail: detailField,
   args: argsField,
   address: optionalString(),
@@ -294,7 +260,6 @@ export const HELIUS_COMPRESSION_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_PRIVACY_SCHEMA = withTelemetry({
-  action: HeliusPrivacyActionSchema,
   detail: detailField,
   args: argsField,
   tags: stringArray(),
@@ -309,7 +274,6 @@ export const HELIUS_PRIVACY_SCHEMA = withTelemetry({
 });
 
 export const HELIUS_LANA_SCHEMA = withTelemetry({
-  action: HeliusLanaActionSchema,
   args: argsField,
   question: optionalString(),
   wallet: optionalString(),
@@ -326,7 +290,8 @@ export const EXPAND_RESULT_SCHEMA = withTelemetry({
   detail: detailField.describe('How much to return: "summary", "standard", or "full" (default).'),
 });
 
-const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
+/** Each routed tool's fields apart from `action`, which `getToolSchema` adds per surface. */
+const TOOL_SCHEMAS: Record<RoutedPublicToolName, Record<string, z.ZodType>> = {
   heliusAccount: HELIUS_ACCOUNT_SCHEMA,
   heliusWallet: HELIUS_WALLET_SCHEMA,
   heliusAsset: HELIUS_ASSET_SCHEMA,
@@ -338,11 +303,31 @@ const TOOL_SCHEMAS: Record<PublicToolName, Record<string, z.ZodType>> = {
   heliusCompression: HELIUS_COMPRESSION_SCHEMA,
   heliusPrivacy: HELIUS_PRIVACY_SCHEMA,
   heliusLana: HELIUS_LANA_SCHEMA,
-  expandResult: EXPAND_RESULT_SCHEMA,
 };
 
 /** Fields every routed tool takes regardless of action. */
-const ROUTING_FIELDS = new Set(['action', 'detail', 'args', ...Object.keys(TELEMETRY_FIELDS)]);
+const ROUTING_FIELDS = new Set(['detail', 'args', ...Object.keys(TELEMETRY_FIELDS)]);
+
+/**
+ * A routed tool's `action` field.
+ *
+ * It lists the tool's actions on the surface as an enum, so that is what a
+ * model sees, but validation accepts any string. A misrouted, misspelled, or
+ * borrowed name (another tool's action, `get_balance`, `getSignaturesForAddress`)
+ * then reaches dispatch, which answers with the call to make
+ * (`resolveRoutedAction`), where a schema error would only list the enum.
+ *
+ * An action the surface removes is still rejected here, so the read-only
+ * server never accepts a write by name.
+ */
+function actionField(tool: RoutedPublicToolName, surface: Surface): z.ZodType {
+  return z.string()
+    .refine(
+      (value) => !ACTION_NAME_SET.has(value) || isOnSurface(ACTION_CATALOG[value as ActionName], surface),
+      { error: 'is not available on this server' },
+    )
+    .meta({ enum: getSurfaceActions(tool, surface) });
+}
 
 /**
  * A public tool's input schema on a surface, with fields typed and described
@@ -354,20 +339,22 @@ const ROUTING_FIELDS = new Set(['action', 'detail', 'args', ...Object.keys(TELEM
  * or when the surface strips it (`remember`).
  */
 export function getToolSchema(tool: PublicToolName, surface: Surface): Record<string, z.ZodType> {
-  const schema = narrowToSurface(tool, surface);
-  return tool === 'expandResult' ? schema : refineSchemaFields(tool, surface, schema);
+  if (tool === 'expandResult') {
+    return EXPAND_RESULT_SCHEMA;
+  }
+  const schema = { action: actionField(tool, surface), ...narrowToSurface(tool, surface) };
+  return refineSchemaFields(tool, surface, schema);
 }
 
-function narrowToSurface(tool: PublicToolName, surface: Surface): Record<string, z.ZodType> {
+function narrowToSurface(tool: RoutedPublicToolName, surface: Surface): Record<string, z.ZodType> {
   const schema = TOOL_SCHEMAS[tool];
-  if (surface === 'full' || tool === 'expandResult') {
+  if (surface === 'full') {
     return schema;
   }
 
   const handlers = getActionHandlers();
-  const actions = getSurfaceActions(tool, surface);
   const kept = new Set<string>();
-  for (const action of actions) {
+  for (const action of getSurfaceActions(tool, surface)) {
     const stripped = getStrippedParams(ACTION_CATALOG[action], surface);
     for (const field of Object.keys((handlers.get(action)?.inputSchema ?? {}) as object)) {
       if (!stripped.includes(field)) kept.add(field);
@@ -376,9 +363,7 @@ function narrowToSurface(tool: PublicToolName, surface: Surface): Record<string,
 
   const narrowed: Record<string, z.ZodType> = {};
   for (const [field, type] of Object.entries(schema)) {
-    if (field === 'action') {
-      narrowed.action = z.enum(actions as [ActionName, ...ActionName[]]);
-    } else if (ROUTING_FIELDS.has(field) || kept.has(field)) {
+    if (ROUTING_FIELDS.has(field) || kept.has(field)) {
       narrowed[field] = type;
     }
   }
