@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z, type ZodRawShape } from 'zod';
 import { callActionHandler, getActionHandlers } from '../src/router/action-handlers.js';
+import { dispatchRoutedTool } from '../src/router/dispatch.js';
 import { restRequest } from '../src/utils/helius.js';
 
 const getTransactionsForAddress = vi.fn(async () => ({
@@ -163,6 +164,87 @@ describe('action handler bridge', () => {
       },
     ]);
     expect(result.content?.[0]?.text).toContain('**Next Page Token:** `NEXT_TOKEN`');
+  });
+
+  it('forwards topLevelInstruction to getTransfersByAddress', async () => {
+    await callActionHandler(
+      'getTransfersByAddress',
+      {
+        address: 'BenchWallet11111111111111111111111111111111',
+        limit: 5,
+        topLevelInstruction: true,
+      },
+      {},
+    );
+
+    expect(getTransfersByAddress).toHaveBeenCalledWith([
+      'BenchWallet11111111111111111111111111111111',
+      {
+        direction: 'any',
+        limit: 5,
+        sortOrder: 'desc',
+        topLevelInstruction: true,
+      },
+    ]);
+  });
+
+  it('forwards topLevelInstruction false passed through the routed args object', async () => {
+    await dispatchRoutedTool(
+      'heliusTransaction',
+      {
+        action: 'getTransfersByAddress',
+        address: 'BenchWallet11111111111111111111111111111111',
+        args: { topLevelInstruction: false },
+      },
+      {},
+    );
+
+    const [, config] = getTransfersByAddress.mock.calls[0][0] as unknown as [string, Record<string, unknown>];
+    expect(config.topLevelInstruction).toBe(false);
+  });
+
+  it('leaves topLevelInstruction out of the SDK config when it is not passed', async () => {
+    await callActionHandler(
+      'getTransfersByAddress',
+      { address: 'BenchWallet11111111111111111111111111111111' },
+      {},
+    );
+
+    const [, config] = getTransfersByAddress.mock.calls[0][0] as unknown as [string, Record<string, unknown>];
+    expect(config).not.toHaveProperty('topLevelInstruction');
+  });
+
+  it('marks transfers made through a CPI', async () => {
+    const row = {
+      slot: 123458,
+      blockTime: 1700000002,
+      type: 'transfer',
+      fromUserAccount: 'AAA11111111111111111111111111111111111111111',
+      toUserAccount: 'BBB22222222222222222222222222222222222222222',
+      mint: 'So11111111111111111111111111111111111111111',
+      amount: '1000000000',
+      decimals: 9,
+      confirmationStatus: 'finalized',
+      transactionIdx: 0,
+      instructionIdx: 2,
+    };
+    getTransfersByAddress.mockResolvedValueOnce({
+      data: [
+        { ...row, signature: '5J8' + 'c'.repeat(85), uiAmount: '1', innerInstructionIdx: 0 },
+        { ...row, signature: '5J8' + 'd'.repeat(85), uiAmount: '2', innerInstructionIdx: 3 },
+      ],
+      paginationToken: null,
+    } as any);
+
+    const result = await callActionHandler(
+      'getTransfersByAddress',
+      { address: 'BenchWallet11111111111111111111111111111111' },
+      {},
+    );
+
+    const text = result.content?.[0]?.text ?? '';
+    expect(text).toContain('TRANSFER 1 SOL (So11111111111111111111111111111111111111111)\n');
+    expect(text).toContain('TRANSFER 2 SOL (So11111111111111111111111111111111111111111) [via CPI]');
   });
 
   it('labels native SOL transfers, which use the native mint and no token accounts', async () => {

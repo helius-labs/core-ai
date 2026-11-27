@@ -49,7 +49,7 @@ export const ACTION_SUMMARIES: Record<ActionName, string> = {
   parseTransactions: 'Decode transactions by signature into type, instructions, transfers, fees, and errors. showRaw adds raw instruction data. 10 credits per 100 signatures on mainnet.',
   getTransactionHistory: 'An address\'s transactions, newest first by default. mode "parsed" (default, about 20 credits) decodes them; "signatures" and "raw" cost about 10. Filter by status, time, or slot.',
   scanTransactionHistory: 'Find the transactions in an address\'s history that call given programs or touch given mints, without paging through all of it. Mainnet only. 10 credits plus 1 per history page scanned (up to 1,000 transactions each).',
-  getTransfersByAddress: 'One row per SOL or token transfer (not per transaction), filtered by mint, direction, counterparty (with), amount, time, or slot.',
+  getTransfersByAddress: 'One row per SOL or token transfer (not per transaction), filtered by mint, direction, counterparty (with), amount, time, slot, or top-level only (topLevelInstruction).',
 
   // heliusChain
   getAccountInfo: 'Raw state of one account or up to 100: owner, lamports, data, executable. jsonParsed shows mint and Token-2022 details. 1 credit.',

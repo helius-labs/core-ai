@@ -142,6 +142,7 @@ export const HELIUS_TRANSACTION_SCHEMA = withTelemetry({
   commitment: optionalString(),
   amountGte: optionalString(),
   amountLte: optionalString(),
+  topLevelInstruction: optionalBoolean(),
   // scanTransactionHistory
   programs: z.array(z.looseObject({})).optional(),
   mints: z.array(z.looseObject({})).optional(),
