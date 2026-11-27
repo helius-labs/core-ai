@@ -68,7 +68,7 @@ export function registerRouterTools(server: McpServer, surface: Surface = 'full'
     const description = tool === 'expandResult' ? intro : describeTool(tool, surface, intro);
     const handler = tool === 'expandResult'
       ? withTelemetryHandler(tool, (params, extra) => expandStoredResult(params, extra, surface))
-      : withTelemetryHandler(tool, (params, extra) => dispatchRoutedTool(tool, params, extra, surface));
+      : withTelemetryHandler(tool, (params, extra, telemetry) => dispatchRoutedTool(tool, params, extra, surface, telemetry));
 
     server.registerTool(
       tool,

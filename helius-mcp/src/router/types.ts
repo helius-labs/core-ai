@@ -63,7 +63,6 @@ export type CapabilityGate = {
 export type ActionCatalogEntry = {
   action: ActionName;
   publicTool: RoutedPublicToolName;
-  aliases?: string[];
   authRequirement: AuthRequirement;
   capabilityGate: CapabilityGate;
   mutability: Mutability;
