@@ -17,6 +17,12 @@ import type {
   ScanSummary,
 } from 'helius-sdk/parsedEvents/types';
 import type { GetTransfersByAddressConfig, GetTransfersByAddressResult, TokenTransfer as TransferRow } from 'helius-sdk/types/types';
+
+// TODO: drop this and use GetTransfersByAddressConfig once helius-sdk ships `topLevelInstruction` on it.
+type TransfersConfig = GetTransfersByAddressConfig & {
+  /** Only transfers made by top-level instructions; CPI (inner-instruction) transfers are left out. */
+  topLevelInstruction?: boolean;
+};
 import {
   PARSED_EVENTS_BATCH_SIZE,
   collectParsedMints,
@@ -1201,7 +1207,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
   // Get Transfers By Address — parsed token + native SOL transfers (one row per transfer)
   registry.registerAction(
     'getTransfersByAddress',
-    'BEST FOR: parsed token + native SOL transfers for an address — one row per transfer (not per transaction). Filters: mint, direction (in/out/any), counterparty (with), time/slot/amount ranges, solMode. Use getTransactionHistory when you need whole-transaction context. Paginated via paginationToken.',
+    'BEST FOR: parsed token + native SOL transfers for an address — one row per transfer (not per transaction). Filters: mint, direction (in/out/any), counterparty (with), time/slot/amount ranges, solMode, topLevelInstruction (top-level transfers only, leaving out CPI transfers such as swap legs). Use getTransactionHistory when you need whole-transaction context. Paginated via paginationToken.',
     {
       address: z.string().describe('Solana address (base58 encoded)'),
       with: z.string().optional().describe('Filter by counterparty address — returns only transfers to/from this address'),
@@ -1218,6 +1224,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
       blockTimeLte: z.number().optional().describe(HISTORY_FIELD_DOCS.blockTimeLte),
       slotGte: z.number().optional().describe(HISTORY_FIELD_DOCS.slotGte),
       slotLte: z.number().optional().describe(HISTORY_FIELD_DOCS.slotLte),
+      topLevelInstruction: z.boolean().optional().describe('true returns only transfers made by the transaction\'s top-level instructions. Transfers that programs make through CPIs (inner instructions), such as the SOL legs of a swap, are left out. Default false.'),
     },
     async ({
       address,
@@ -1235,6 +1242,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
       blockTimeLte,
       slotGte,
       slotLte,
+      topLevelInstruction,
     }, extra) => {
       const ctx = contextFromExtra(extra);
       if (!hasApiKey(ctx)) return noApiKeyResponse();
@@ -1299,7 +1307,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
       }
 
       // The enums were validated above
-      const config: GetTransfersByAddressConfig = {
+      const config: TransfersConfig = {
         direction: direction as GetTransfersByAddressConfig['direction'],
         limit: Math.min(Math.max(limit, 1), 100),
         sortOrder: sortOrder as GetTransfersByAddressConfig['sortOrder'],
@@ -1309,6 +1317,7 @@ export function registerTransactionTools(registry: ActionRegistry) {
       if (solMode) config.solMode = solMode as GetTransfersByAddressConfig['solMode'];
       if (paginationToken) config.paginationToken = paginationToken;
       if (commitment) config.commitment = commitment as GetTransfersByAddressConfig['commitment'];
+      if (topLevelInstruction !== undefined) config.topLevelInstruction = topLevelInstruction;
       if (Object.keys(filters).length > 0) config.filters = filters;
 
       let result: GetTransfersByAddressResult;
@@ -1359,7 +1368,9 @@ export function registerTransactionTools(registry: ActionRegistry) {
         const to = t.toUserAccount ? formatAddress(t.toUserAccount) : (t.type === 'burn' ? 'burn' : '?');
         const time = t.blockTime ? formatTimestamp(Number(t.blockTime)) : 'N/A';
         const dirArrow = '→';
-        lines.push(`${t.type.toUpperCase()} ${formatAmount(t)} ${sym} (${t.mint})`);
+        // innerInstructionIdx is 0 for top-level transfers and 1+ for transfers made through a CPI.
+        const viaCpi = (t.innerInstructionIdx ?? 0) > 0 ? ' [via CPI]' : '';
+        lines.push(`${t.type.toUpperCase()} ${formatAmount(t)} ${sym} (${t.mint})${viaCpi}`);
         lines.push(`   ${from} ${dirArrow} ${to}`);
         lines.push(`   Sig: \`${t.signature}\` | Slot: ${t.slot.toLocaleString()} | ${time}`);
         if (t.feeAmount && t.feeAmount !== '0') {
